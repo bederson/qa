@@ -25,6 +25,19 @@ $(function() {
 	});
 });
 
+function initEventHandlers() {
+	$("#answer").keyup(function() {
+		var maxChars = 500;
+		var text = $(this).val();
+		if (text.length > maxChars) {
+			text = text.slice(0, maxChars);
+			$(this).val(text);
+		}
+		var msg = (maxChars - text.length) + " chars left";
+		$("#charlimit").html(msg);
+	});
+}
+
 function displayIdeas(ideas) {
 	var html = "Ideas loading ..."; 
 	$("#ideas").html(html);
@@ -50,7 +63,7 @@ function displayIdeasImpl(data) {
 		}
 		html += "</ul></td>";
 		var cloudid = "cloud" + i;
-		html += "<td style='width: 50%'><div id='" + cloudid + "' style='height: 100px;'>cloud goes here</div></td>";
+		html += "<td style='width: 50%'><div id='" + cloudid + "'></div></td>";
 		html += "</tr><table>"
 	}
 
@@ -70,32 +83,31 @@ function displayIdeasImpl(data) {
 
 	for (var i in clusters) {
 		var cluster = clusters[i];
-		var cloudid = "cloud" + i
+		var cloudid = "cloud" + i;
+		var height = $("#" + cloudid).parent().height();
+		$("#" + cloudid).height(height);
 		displayCloud(cloudid, cluster);
 	}
 }
 
 function displayCloud(cloudid, cluster) {
 	var weights = {};
-	// for (var i in clusters) {
-	// 	var cluster = clusters[i];
-		for (var j in cluster) {
-			var words = cluster[j].split(" ");
-			for (var k in words) {
-				var word = words[k].trim();
-				word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
-				if (!isStopWord(word)) {
-					if (word.length > 2) {
-						if (word in weights) {
-							weights[word] += 1;
-						} else {
-							weights[word] = 1;
-						}
+	for (var j in cluster) {
+		var words = cluster[j].split(" ");
+		for (var k in words) {
+			var word = words[k].trim();
+			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
+			if (!isStopWord(word)) {
+				if (word.length > 2) {
+					if (word in weights) {
+						weights[word] += 1;
+					} else {
+						weights[word] = 1;
 					}
 				}
 			}
 		}
-//	}
+	}
 
 	var word_list = [];
 	var i = 0;

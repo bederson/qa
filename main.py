@@ -73,6 +73,9 @@ class SubmitHandler(webapp2.RequestHandler):
 	def post(self):
 		idea = self.request.get('idea')
 		if len(idea) > 2:
+			if len(idea) > 500:
+				idea = idea[:500]
+			idea = idea.replace("\n", "")
 			count = Idea.all().count() + 1
 			ideaObj = Idea()
 			ideaObj.text = idea
@@ -99,22 +102,30 @@ class QueryHandler(webapp2.RequestHandler):
 		self.response.out.write(result)
 
 def doCluster(k):
+	if (Idea.all().count() < k):
+		pass
 	vectors, texts = computeBagsOfWords()
 	cl = KMeansClustering(vectors)
 	clusters = cl.getclusters(k)
 
-	logging.info("CLUSTERS")
-	logging.info(clusters)
 	logging.info("PHRASES")
 	logging.info(texts)
+	logging.info("CLUSTERS")
+	logging.info(clusters)
 	
 	result = []
 	for cluster in clusters:
 		entry = []
-		for vector in cluster:
-			index = vector[-1:][0]
+		if type(cluster) is tuple:
+			# Cluster only has a single tuple, not a collection of them
+			index = cluster[-1:][0]
 			text = texts[index]
 			entry.append(text)
+		else:
+			for vector in cluster:
+				index = vector[-1:][0]
+				text = texts[index]
+				entry.append(text)
 		result.append(entry)
 	return result
 
@@ -136,6 +147,8 @@ def computeBagsOfWords():
 				all_words.add(word)
 				phrase.append(word)
 		phrases.append(phrase)
+	logging.info("ALL WORDS")
+	logging.info(all_words)
 
 	# Create an index for the words
 	word_index = {}

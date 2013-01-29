@@ -43,7 +43,9 @@ limitations under the License.
 			Only put a single thing here. If you have other things to say, submit multiple times.
 		</div>
 		<br>
-		<textarea id="answer"></textarea><br><br>
+		<textarea id="answer"></textarea><br>
+		<div id="charlimit">500 chars max</div>
+		<br><br>
 		<input id="submit" type="submit" value="Submit">
 
 		{% if thanks %}
@@ -57,6 +59,7 @@ limitations under the License.
 	<script type="text/javascript">
 		$(function() {
 			$("#answer").focus();
+			initEventHandlers();
 		});
 	</script>
   </body>

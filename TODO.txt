@@ -1,9 +1,12 @@
 Small fixes
-* Layout tag clouds properly
 * Use same words in tag clouds as clustered on in python
 * Put UMD and HCIL logos at bottom of screens
 * Make sure data entry works on mobile
+* Test with lots of data
 
 Features
 * Push results
-* Make # clusters persistent and make them editable
+* Manually force clustering algorithm to run (implying persistent clusters)
+(3) ESP game to tag clusters (with real-time visualization - tag histogram???)
+(4) Recategorize by assigned groups of people per cluster with voting
+(5) Humans relabel clusters
