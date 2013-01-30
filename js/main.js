@@ -12,11 +12,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// 
-$(function() {
-	$("#answer").focus();
-	initEventHandlers();
+//
 
+$(function() {
+	initEventHandlers();
+	initChannel();
+
+	$("#answer").focus();
 	$("#submit").click(function() {
 		var idea = $("#answer").val();
 		var data = {
@@ -34,6 +36,12 @@ $(function() {
 	$(window).resize(function() {
 		onResize();
 	});
+
+	var mobile = getURLParameter("mobile") == "true";
+	if (mobile) {
+		console.log("mobile thank you");
+		$("#thankyou").children("a").attr("href", "/results?mobile=true");
+	}
 });
 
 function initEventHandlers() {
@@ -50,8 +58,8 @@ function initEventHandlers() {
 }
 
 function onResize() {
-	var mobile = getURLParameter("mobile") == "true";
 	var padding = 40;
+	var mobile = getURLParameter("mobile") == "true";
 
 	if (mobile) {
 		var width = $(window).width() - padding;

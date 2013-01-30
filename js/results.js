@@ -17,8 +17,13 @@
 var numIdeas = 0;
 
 $(function() {
-	// Initialization goes here
 	initChannel();
+
+	var mobile = getURLParameter("mobile") == "true";
+	if (mobile) {
+		console.log("mobile thank you");
+		$("#note").children("a").attr("href", "/?mobile=true");
+	}
 });
 
 function displayIdeas(ideas) {

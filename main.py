@@ -98,11 +98,6 @@ class ResultsHandler(webapp2.RequestHandler):
 
 class QueryHandler(webapp2.RequestHandler):
     def get(self):
-		# ideas = Idea.all()
-		# data = []
-		# for ideaObj in ideas:
-		# 	data.append(ideaObj.text)
-
 		data = doCluster(2)
 		result = json.dumps({'ideas': data})
 		self.response.headers['Content-Type'] = 'application/json'
