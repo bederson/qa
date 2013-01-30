@@ -124,13 +124,11 @@ class DisconnectedHandler(webapp2.RequestHandler):
 #####################
 
 def doCluster(k):
-	if (Idea.all().count() < k):
-		pass
-	vectors, texts = computeBagsOfWords()
+	vectors, texts, phrases = computeBagsOfWords()
 	cl = KMeansClustering(vectors)
 	clusters = cl.getclusters(k)
 
-	# logging.info("PHRASES")
+	# logging.info("TEXTS")
 	# logging.info(texts)
 	# logging.info("CLUSTERS")
 	# logging.info(clusters)
@@ -142,12 +140,14 @@ def doCluster(k):
 			# Cluster only has a single tuple, not a collection of them
 			index = cluster[-1:][0]
 			text = texts[index]
-			entry.append(text)
+			phrase = phrases[index]
+			entry.append([text, phrase])
 		else:
 			for vector in cluster:
 				index = vector[-1:][0]
 				text = texts[index]
-				entry.append(text)
+				phrase = phrases[index]
+				entry.append([text, phrase])
 		result.append(entry)
 	return result
 
@@ -171,6 +171,8 @@ def computeBagsOfWords():
 		phrases.append(phrase)
 	# logging.info("ALL WORDS")
 	# logging.info(all_words)
+	# logging.info("PHRASES")
+	# logging.info(phrases)
 
 	# Create an index for the words
 	word_index = {}
@@ -191,9 +193,9 @@ def computeBagsOfWords():
 		vectors.append(tuple(vector))
 		phraseNum += 1
 
-	return vectors, texts
+	return vectors, texts, phrases
 
-STOP_WORDS = [ "and", "been", "the", "was", "were", "she", "did", "all", "not" ]
+STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
 def isStopWord(word):
 	return (word in STOP_WORDS)
 	

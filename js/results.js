@@ -21,10 +21,19 @@ $(function() {
 
 	var mobile = getURLParameter("mobile") == "true";
 	if (mobile) {
-		console.log("mobile thank you");
 		$("#note").children("a").attr("href", "/?mobile=true");
 	}
+	
+	displayIdeas();
+
+	onResize();
+	$(window).resize(function() {
+		onResize();
+	});
 });
+
+function onResize() {
+}
 
 function displayIdeas(ideas) {
 	var html = "Ideas loading ..."; 
@@ -45,7 +54,7 @@ function displayIdeasImpl(data) {
 		html += "<td style='width: 50%'>";
 		html += "<ul>"
 		for (var j in cluster) {
-			var idea = cluster[j];
+			var idea = cluster[j][0];
 			html += "<li>" + idea;
 			numIdeas += 1;
 		}
@@ -96,7 +105,7 @@ function updateNumIdeas() {
 function displayCloud(cloudid, cluster) {
 	var weights = {};
 	for (var j in cluster) {
-		var words = cluster[j].split(" ");
+		var words = cluster[j][1];
 		for (var k in words) {
 			var word = words[k].trim();
 			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
