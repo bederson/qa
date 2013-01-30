@@ -1,8 +1,7 @@
 Small fixes
 * Use same words in tag clouds as clustered on in python
+* Tag clouds *way* too slow
 * Put UMD and HCIL logos at bottom of screens
-* Make sure data entry works on mobile
-* Test with lots of data
 
 Features
 * Push results

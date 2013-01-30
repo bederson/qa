@@ -19,6 +19,8 @@ import os
 import webapp2
 import json
 import logging
+import random
+from models import *
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
@@ -27,37 +29,26 @@ from cluster import KMeansClustering
 #####################
 # Channel support
 #####################
-def connect(topicid):
+def connect():
 	"""User has connected, so remember that"""
 	user_id = str(random.randint(1000000000000, 10000000000000))
-	client_id = user_id + topicid
+	client_id = user_id
 	token = channel.create_channel(client_id)
 	conns = Connection.all()
 	conns = conns.filter('client_id =', client_id)
-	conns = conns.filter('topic =', Idea.get_by_id(int(topicid)))
 	if conns.count() == 0:
 		conn = Connection()
 		conn.client_id = client_id
-		conn.topic = Idea.get_by_id(int(topicid))
 		conn.put()
 
 	return client_id, token
 
-def send_message(client_id, topicid, message):
+def send_message(client_id, message):
 	"""Send message to all listeners (except self) to this topic"""
 	conns = Connection.all()
-	conns = conns.filter('topic =', Idea.get_by_id(int(topicid)))
 	conns = conns.filter('client_id !=', client_id)
 	for conn in conns:
 		channel.send_message(conn.client_id, json.dumps(message))
-
-#####################
-# Model
-#####################
-class Idea(db.Model):
-	date = db.DateProperty(auto_now=True)
-	text = db.StringProperty()
-	index = db.IntegerProperty()
 
 #####################
 # Page Handlers
@@ -66,11 +57,17 @@ class MainHandler(webapp2.RequestHandler):
     def get(self):
 		thanks = self.request.get('thanks')
 		template_values = {"thanks": thanks}
+
+		client_id, token = connect()		# New user connection
+		template_values['client_id'] = client_id
+		template_values['token'] = token
+
 		path = os.path.join(os.path.dirname(__file__), 'main.html')
 		self.response.out.write(template.render(path, template_values))
 
-class SubmitHandler(webapp2.RequestHandler):
+class NewHandler(webapp2.RequestHandler):
 	def post(self):
+		client_id = self.request.get('client_id')
 		idea = self.request.get('idea')
 		if len(idea) > 2:
 			if len(idea) > 500:
@@ -82,10 +79,21 @@ class SubmitHandler(webapp2.RequestHandler):
 			ideaObj.index = count
 			ideaObj.put()
 
+			# Update clients
+			message = {
+				"op": "new",
+				"text": idea,
+			}
+			send_message(client_id, message)		# Update other clients about this change
+
 class ResultsHandler(webapp2.RequestHandler):
     def get(self):
-
 		template_values = {}
+
+		client_id, token = connect()		# New user connection
+		template_values['client_id'] = client_id
+		template_values['token'] = token
+
 		path = os.path.join(os.path.dirname(__file__), 'results.html')
 		self.response.out.write(template.render(path, template_values))
 
@@ -101,6 +109,26 @@ class QueryHandler(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'application/json'
 		self.response.out.write(result)
 
+class ConnectedHandler(webapp2.RequestHandler):
+	# Notified when clients connect
+	def post(self):
+		client_id = self.request.get("from")
+		# logging.info("CONNECT: %s", client_id)
+		# Not doing anything here yet...
+
+class DisconnectedHandler(webapp2.RequestHandler):
+	# Notified when clients disconnect
+	def post(self):
+		client_id = self.request.get("from")
+		# logging.info("DISCONNECT: %s", client_id)
+		connection = Connection().all()
+		connection.filter("client_id =", client_id)
+		db.delete(connection);
+
+#####################
+# Text Support
+#####################
+
 def doCluster(k):
 	if (Idea.all().count() < k):
 		pass
@@ -108,10 +136,10 @@ def doCluster(k):
 	cl = KMeansClustering(vectors)
 	clusters = cl.getclusters(k)
 
-	logging.info("PHRASES")
-	logging.info(texts)
-	logging.info("CLUSTERS")
-	logging.info(clusters)
+	# logging.info("PHRASES")
+	# logging.info(texts)
+	# logging.info("CLUSTERS")
+	# logging.info(clusters)
 	
 	result = []
 	for cluster in clusters:
@@ -147,8 +175,8 @@ def computeBagsOfWords():
 				all_words.add(word)
 				phrase.append(word)
 		phrases.append(phrase)
-	logging.info("ALL WORDS")
-	logging.info(all_words)
+	# logging.info("ALL WORDS")
+	# logging.info(all_words)
 
 	# Create an index for the words
 	word_index = {}
@@ -179,5 +207,7 @@ app = webapp2.WSGIApplication([
     ('/', MainHandler),
 	('/results', ResultsHandler),
 	('/query', QueryHandler),
-	('/submit', SubmitHandler)
+	('/new', NewHandler),
+	('/_ah/channel/connected/', ConnectedHandler),
+	('/_ah/channel/disconnected/', DisconnectedHandler)
 ], debug=True)

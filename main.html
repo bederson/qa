@@ -21,7 +21,18 @@ limitations under the License.
 	<link type="text/css" rel="stylesheet" href="/css/main.css" />
 	<script type="text/javascript" src="/_ah/channel/jsapi"></script>
 	<script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
-	<script type="text/javascript" src="js/qa.js"></script>
+	<script type="text/javascript" src="js/redirection-mobile.js"></script>
+	<script type="text/javascript" src="js/utils.js"></script>
+	<script type="text/javascript" src="js/main.js"></script>
+
+    <script>
+        SA.redirection_mobile({
+			mobile_url: "qa-umd.appspot.com/?mobile=true"
+		});
+
+		client_id = "{{ client_id }}";
+		token = "{{ token }}";
+	</script>
   </head>
   <body>
 	<!-- HEADER -->
@@ -34,7 +45,7 @@ limitations under the License.
 	</table>
 	<p>
 
-	<div class="qcontainer">
+	<div id="qcontainer">
 		<h1>Bederson Tech Talk Question</h1>
 		<div class="question">
 			What did your favorite university teacher do that made him/her your favorite?
@@ -55,12 +66,5 @@ limitations under the License.
 		Or, look at <a href="/results">other people's submissions</a> as they come in.
 		{% endif %}
 	</div>
-
-	<script type="text/javascript">
-		$(function() {
-			$("#answer").focus();
-			initEventHandlers();
-		});
-	</script>
   </body>
 </html>

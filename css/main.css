@@ -19,8 +19,7 @@ h2 {
 	font-size: 1.2em;
 }
 
-.qcontainer {
-	width: 600px;
+#qcontainer {
 	margin-left: auto;
 	margin-right: auto;
 	padding: 10px;
@@ -36,7 +35,6 @@ h2 {
 }
 
 #answer {
-	width: 590px;
 	height: 60px;
 }
 

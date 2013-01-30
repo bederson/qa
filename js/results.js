@@ -13,42 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // 
-$(function() {
-	$("#submit").click(function() {
-		var idea = $("#answer").val();
-		var data = {
-			"idea": idea
-		};
-		$.post("/submit", data, function() {
-			window.location ="/?thanks=true";
-		});
-	});
-});
 
-function initEventHandlers() {
-	$("#answer").keyup(function() {
-		var maxChars = 500;
-		var text = $(this).val();
-		if (text.length > maxChars) {
-			text = text.slice(0, maxChars);
-			$(this).val(text);
-		}
-		var msg = (maxChars - text.length) + " chars left";
-		$("#charlimit").html(msg);
-	});
-}
+var numIdeas = 0;
+
+$(function() {
+	// Initialization goes here
+	initChannel();
+});
 
 function displayIdeas(ideas) {
 	var html = "Ideas loading ..."; 
-	$("#ideas").html(html);
+	$("#clusteredIdeas").html(html);
 	
 	$.getJSON("/query", {}, displayIdeasImpl);
 }
 
 function displayIdeasImpl(data) {
 	var clusters = data.ideas;
+	var mobile = getURLParameter("mobile") == "true";
 
-	var numIdeas = 0;
 	var html = "";
 	for (var i in clusters) {
 		var cluster = clusters[i];
@@ -62,11 +45,35 @@ function displayIdeasImpl(data) {
 			numIdeas += 1;
 		}
 		html += "</ul></td>";
-		var cloudid = "cloud" + i;
-		html += "<td style='width: 50%'><div id='" + cloudid + "'></div></td>";
+		if (!mobile) {
+			var cloudid = "cloud" + i;
+			html += "<td style='width: 50%'><div id='" + cloudid + "'></div></td>";
+		}
 		html += "</tr><table>"
 	}
 
+	updateNumIdeas();
+
+	$("#clusteredIdeas").html(html);
+
+	if (!mobile) {
+		for (var i in clusters) {
+			var cluster = clusters[i];
+			var cloudid = "cloud" + i;
+			var height = $("#" + cloudid).parent().height();
+			$("#" + cloudid).height(height);
+			displayCloud(cloudid, cluster);
+		}
+	}
+}
+
+function addIdea(idea) {
+	$("#unclusteredIdeas").prepend("<li>" + idea);
+	numIdeas += 1;
+	updateNumIdeas();
+}
+
+function updateNumIdeas() {
 	var label = "thought";
 	var overviewStr = "<h1>";
 	if (numIdeas == 0) {
@@ -79,15 +86,6 @@ function displayIdeasImpl(data) {
 	overviewStr += "</h1>";
 
 	$("#ideaOverview").html(overviewStr);
-	$("#ideas").html(html);
-
-	for (var i in clusters) {
-		var cluster = clusters[i];
-		var cloudid = "cloud" + i;
-		var height = $("#" + cloudid).parent().height();
-		$("#" + cloudid).height(height);
-		displayCloud(cloudid, cluster);
-	}
 }
 
 function displayCloud(cloudid, cluster) {
@@ -159,18 +157,12 @@ function getWordStem(word) {
 	return stem;
 }
 
-//=================================================================================
-// Utilities
-//=================================================================================
-
-function normalizeSpacing(s) {
-	return s.replace(/\s+/g, " ").trim();
-}
-
-function isDefined(obj) {
-    return !isUndefined(obj);
-}
-
-function isUndefined(obj) {
-    return typeof(obj) == "undefined";
+/////////////////////////
+// Channel support
+/////////////////////////
+function handleNew(data) {
+//	console.log("NEW message received");
+	var text = data.text;
+	
+	addIdea(text);
 }
