@@ -23,9 +23,10 @@ $(function() {
 			"client_id": client_id,
 			"idea": idea
 		};
-		console.log("submitting: " + data.client_id + ", " + data.idea);
 		$.post("/new", data, function() {
-			window.location ="/?thanks=true";
+			$("#thankyou").css("display", "inline");
+			$("#answer").val("");
+			$("#answer").focus();
 		});
 	});
 

@@ -40,8 +40,12 @@ h2 {
 
 #charlimit {
 	color: #888;
-	float:right;
+	float: right;
 	font-size: 0.7em;
+}
+
+#thankyou {
+	display: none;
 }
 
 .note {

@@ -55,8 +55,7 @@ def send_message(client_id, message):
 #####################
 class MainHandler(webapp2.RequestHandler):
     def get(self):
-		thanks = self.request.get('thanks')
-		template_values = {"thanks": thanks}
+		template_values = {}
 
 		client_id, token = connect()		# New user connection
 		template_values['client_id'] = client_id

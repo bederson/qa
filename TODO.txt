@@ -1,11 +1,11 @@
 Small fixes
+* Mobile still broken
 * Use same words in tag clouds as clustered on in python
 * Tag clouds *way* too slow
 * Put UMD and HCIL logos at bottom of screens
 
 Features
-* Push results
-* Manually force clustering algorithm to run (implying persistent clusters)
 (3) ESP game to tag clusters (with real-time visualization - tag histogram???)
 (4) Recategorize by assigned groups of people per cluster with voting
+    Manually force clustering algorithm to run (implying persistent clusters)
 (5) Humans relabel clusters
