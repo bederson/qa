@@ -20,10 +20,26 @@ import logging
 from google.appengine.ext import db
 from google.appengine.api import users
 
+class Cluster(db.Model):
+	text = db.StringProperty()
+	index = db.IntegerProperty()
+
 class Idea(db.Model):
+	author = db.UserProperty(auto_current_user_add=True)
 	date = db.DateProperty(auto_now=True)
 	text = db.StringProperty()
 	index = db.IntegerProperty()
+	cluster = db.ReferenceProperty(Cluster)
+
+def addIdea(idea):
+	if len(idea) > 500:
+		idea = idea[:500]
+	idea = idea.replace("\n", "")
+	count = Idea.all().count()
+	ideaObj = Idea()
+	ideaObj.text = idea
+	ideaObj.index = count
+	ideaObj.put()
 
 class Connection(db.Model):
 	client_id = db.StringProperty()

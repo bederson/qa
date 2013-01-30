@@ -22,9 +22,34 @@ import logging
 import random
 from models import *
 from google.appengine.ext import db
+from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
 from cluster import KMeansClustering
+
+def get_default_template_values(requestHandler):
+	"""Return a dictionary of template values used for login template"""
+	client_id, token = connect()		# New user connection
+
+	if users.get_current_user():
+		url = users.create_logout_url(requestHandler.request.uri)
+		url_linktext = 'Logout'
+		logged_in = "true"
+	else:
+		url = users.create_login_url(requestHandler.request.uri)
+		url_linktext = 'Login'
+		logged_in = "false"
+
+	template_values = {
+		'client_id': client_id,
+		'token': token,
+		'user': users.get_current_user(),
+		'url': url,
+		'url_linktext': url_linktext,
+		'logged_in': logged_in,
+		'admin': users.is_current_user_admin()
+	}
+	return template_values
 
 #####################
 # Channel support
@@ -55,51 +80,52 @@ def send_message(client_id, message):
 #####################
 class MainHandler(webapp2.RequestHandler):
     def get(self):
-		template_values = {}
-
-		client_id, token = connect()		# New user connection
-		template_values['client_id'] = client_id
-		template_values['token'] = token
+		template_values = get_default_template_values(self)
 
 		path = os.path.join(os.path.dirname(__file__), 'main.html')
 		self.response.out.write(template.render(path, template_values))
 
+class ResultsHandler(webapp2.RequestHandler):
+    def get(self):
+		template_values = get_default_template_values(self)
+
+		path = os.path.join(os.path.dirname(__file__), 'results.html')
+		self.response.out.write(template.render(path, template_values))
+
+#####################
+# Action Handlers
+#####################
 class NewHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
 		idea = self.request.get('idea')
 		if len(idea) > 2:
-			if len(idea) > 500:
-				idea = idea[:500]
-			idea = idea.replace("\n", "")
-			count = Idea.all().count() + 1
-			ideaObj = Idea()
-			ideaObj.text = idea
-			ideaObj.index = count
-			ideaObj.put()
+			addIdea(idea)
 
 			# Update clients
 			message = {
 				"op": "new",
 				"text": idea,
+				"author": users.get_current_user().nickname()
 			}
 			send_message(client_id, message)		# Update other clients about this change
 
-class ResultsHandler(webapp2.RequestHandler):
-    def get(self):
-		template_values = {}
+class ClusterHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		num_clusters = int(self.request.get('num_clusters'))
+		data = doCluster(num_clusters)
 
-		client_id, token = connect()		# New user connection
-		template_values['client_id'] = client_id
-		template_values['token'] = token
-
-		path = os.path.join(os.path.dirname(__file__), 'results.html')
-		self.response.out.write(template.render(path, template_values))
+		# Update clients
+		message = {
+			"op": "refresh"
+		}
+		send_message(client_id, message)		# Update other clients about this change
 
 class QueryHandler(webapp2.RequestHandler):
     def get(self):
-		data = doCluster(2)
-		result = json.dumps({'ideas': data})
+		data = getData()
+		result = json.dumps(data)
 		self.response.headers['Content-Type'] = 'application/json'
 		self.response.out.write(result)
 
@@ -123,33 +149,78 @@ class DisconnectedHandler(webapp2.RequestHandler):
 # Text Support
 #####################
 
+def getData():
+	results = []
+	clusterObjs = Cluster.all()
+
+	# Start with all the ideas that aren't in any cluster
+	ideaObjs = Idea.all().filter("cluster =", None)
+	if ideaObjs.count() > 0:
+		entry = {"name": "Unclustered"}
+		ideas = []
+		for ideaObj in ideaObjs:
+			idea = {
+				"idea": ideaObj.text,
+				"words": ideaObj.text.split(),
+				"author": ideaObj.author.nickname()
+			}
+			ideas.append(idea)
+		entry["ideas"] = ideas
+		results.append(entry)
+
+	for clusterObj in clusterObjs:
+		entry = {"name": clusterObj.text}
+		ideaObjs = Idea.all().filter("cluster =", clusterObj)
+		ideas = []
+		for ideaObj in ideaObjs:
+			idea = {
+				"idea": ideaObj.text,
+				"words": ideaObj.text.split(),
+				"author": ideaObj.author.nickname()
+			}
+			ideas.append(idea)
+		entry["ideas"] = ideas
+		results.append(entry)
+	logging.info(results)
+	return results
+
 def doCluster(k):
+	if k > Idea.all().count():
+		return
+
 	vectors, texts, phrases = computeBagsOfWords()
 	cl = KMeansClustering(vectors)
 	clusters = cl.getclusters(k)
 
-	# logging.info("TEXTS")
-	# logging.info(texts)
-	# logging.info("CLUSTERS")
-	# logging.info(clusters)
+	# Delete existing clusters from database
+	clusterObjs = Cluster.all()
+	db.delete(clusterObjs)
 	
-	result = []
+	clusterNum = 1
 	for cluster in clusters:
+		clusterObj = Cluster()
+		clusterObj.text = "Cluster" + str(clusterNum)
+		clusterObj.index = clusterNum
+		clusterObj.put()
 		entry = []
 		if type(cluster) is tuple:
 			# Cluster only has a single tuple, not a collection of them
 			index = cluster[-1:][0]
 			text = texts[index]
 			phrase = phrases[index]
-			entry.append([text, phrase])
+			idea = Idea.all().filter("index =", index).get()
+			idea.cluster = clusterObj
+			idea.put()
 		else:
 			for vector in cluster:
 				index = vector[-1:][0]
 				text = texts[index]
 				phrase = phrases[index]
 				entry.append([text, phrase])
-		result.append(entry)
-	return result
+				idea = Idea.all().filter("index =", index).get()
+				idea.cluster = clusterObj
+				idea.put()
+		clusterNum += 1
 
 def computeBagsOfWords():
 	# First define vector by extracting every word
@@ -169,10 +240,6 @@ def computeBagsOfWords():
 				all_words.add(word)
 				phrase.append(word)
 		phrases.append(phrase)
-	# logging.info("ALL WORDS")
-	# logging.info(all_words)
-	# logging.info("PHRASES")
-	# logging.info(phrases)
 
 	# Create an index for the words
 	word_index = {}
@@ -204,6 +271,7 @@ app = webapp2.WSGIApplication([
 	('/results', ResultsHandler),
 	('/query', QueryHandler),
 	('/new', NewHandler),
+	('/cluster', ClusterHandler),
 	('/_ah/channel/connected/', ConnectedHandler),
 	('/_ah/channel/disconnected/', DisconnectedHandler)
 ], debug=True)

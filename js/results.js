@@ -17,22 +17,31 @@
 var numIdeas = 0;
 
 $(function() {
+	initEventHandlers();
 	initChannel();
 
-	var mobile = getURLParameter("mobile") == "true";
-	if (mobile) {
-		$("#note").children("a").attr("href", "/?mobile=true");
+	if (jQuery.browser.mobile) {
+		$("#cluster").css("display", "none");
 	}
 	
 	displayIdeas();
-
-	onResize();
-	$(window).resize(function() {
-		onResize();
-	});
 });
 
-function onResize() {
+function initEventHandlers() {
+	$("#numclusters").change(function() {
+		var label = $(this).val() + " clusters";
+		$("#clusterbutton").val(label);
+	});
+	$("#clusterbutton").click(function() {
+		var num_clusters = $("#numclusters").val();
+		var data = {
+			"client_id": client_id,
+			"num_clusters": num_clusters
+		};
+		$.post("/cluster", data, function() {
+			window.location.reload();
+		});
+	})
 }
 
 function displayIdeas(ideas) {
@@ -42,24 +51,24 @@ function displayIdeas(ideas) {
 	$.getJSON("/query", {}, displayIdeasImpl);
 }
 
-function displayIdeasImpl(data) {
-	var clusters = data.ideas;
-	var mobile = getURLParameter("mobile") == "true";
-
+function displayIdeasImpl(clusters) {
 	var html = "";
 	for (var i in clusters) {
 		var cluster = clusters[i];
-		html += "<h2>Cluster #" + (parseInt(i)+1) + "</h2>";
+		var clusterName = cluster.name;
+		var ideas = cluster.ideas;
+		html += "<h2>" + clusterName + "</h2>";
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
 		html += "<ul>"
-		for (var j in cluster) {
-			var idea = cluster[j][0];
+		for (var j in ideas) {
+			var idea = ideas[j].idea;
 			html += "<li>" + idea;
+			html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author + "</span>";
 			numIdeas += 1;
 		}
 		html += "</ul></td>";
-		if (!mobile) {
+		if (!jQuery.browser.mobile) {
 			var cloudid = "cloud" + i;
 			html += "<td style='width: 50%'><div id='" + cloudid + "'></div></td>";
 		}
@@ -70,19 +79,22 @@ function displayIdeasImpl(data) {
 
 	$("#clusteredIdeas").html(html);
 
-	if (!mobile) {
+	if (!jQuery.browser.mobile) {
 		for (var i in clusters) {
 			var cluster = clusters[i];
+			var ideas = cluster.ideas;
 			var cloudid = "cloud" + i;
 			var height = $("#" + cloudid).parent().height();
 			$("#" + cloudid).height(height);
-			displayCloud(cloudid, cluster);
+			displayCloud(cloudid, ideas);
 		}
 	}
 }
 
 function addIdea(idea) {
-	$("#unclusteredIdeas").prepend("<li>" + idea);
+	var html = "<li>" + idea.text;
+	html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + "</span>";
+	$("#unclusteredIdeas").prepend(html);
 	numIdeas += 1;
 	updateNumIdeas();
 }
@@ -105,7 +117,7 @@ function updateNumIdeas() {
 function displayCloud(cloudid, cluster) {
 	var weights = {};
 	for (var j in cluster) {
-		var words = cluster[j][1];
+		var words = cluster[j].words;
 		for (var k in words) {
 			var word = words[k].trim();
 			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
@@ -174,9 +186,10 @@ function getWordStem(word) {
 /////////////////////////
 // Channel support
 /////////////////////////
-function handleNew(data) {
-//	console.log("NEW message received");
-	var text = data.text;
-	
-	addIdea(text);
+function handleNew(idea) {
+	addIdea(idea);
+}
+
+function handleRefresh(data) {
+	window.location.reload();
 }

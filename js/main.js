@@ -18,7 +18,6 @@ $(function() {
 	initEventHandlers();
 	initChannel();
 
-	$("#answer").focus();
 	$("#submit").click(function() {
 		var idea = $("#answer").val();
 		var data = {
@@ -29,39 +28,43 @@ $(function() {
 			$("#thankyou").css("display", "inline");
 			$("#answer").val("");
 			$("#answer").focus();
+			updateRemainingChars();
 		});
 	});
+
+	if (!logged_in) {
+		$("#answer").attr("disabled", "disabled");
+		$("#submit").attr("disabled", "disabled");
+		$("#answer").focus();
+	}
 
 	onResize();
 	$(window).resize(function() {
 		onResize();
 	});
-
-	var mobile = getURLParameter("mobile") == "true";
-	if (mobile) {
-		console.log("mobile thank you");
-		$("#thankyou").children("a").attr("href", "/results?mobile=true");
-	}
 });
 
 function initEventHandlers() {
 	$("#answer").keyup(function() {
-		var maxChars = 500;
-		var text = $(this).val();
-		if (text.length > maxChars) {
-			text = text.slice(0, maxChars);
-			$(this).val(text);
-		}
-		var msg = (maxChars - text.length) + " chars left";
-		$("#charlimit").html(msg);
+		updateRemainingChars();
 	});
+}
+
+function updateRemainingChars() {
+	var maxChars = 500;
+	var text = $("#answer").val();
+	if (text.length > maxChars) {
+		text = text.slice(0, maxChars);
+		$(this).val(text);
+	}
+	var msg = (maxChars - text.length) + " chars left";
+	$("#charlimit").html(msg);
 }
 
 function onResize() {
 	var padding = 40;
-	var mobile = getURLParameter("mobile") == "true";
 
-	if (mobile) {
+	if (jQuery.browser.mobile) {
 		var width = $(window).width() - padding;
 	} else {
 		var targetWidth = 600;
@@ -73,4 +76,15 @@ function onResize() {
 
 	$("#qcontainer").width(width);
 	$("#answer").width(width - 6);
+}
+
+/////////////////////////
+// Channel support
+/////////////////////////
+function handleNew(data) {
+	// Ignore it
+}
+
+function handleRefresh(data) {
+	// Ignore it
 }

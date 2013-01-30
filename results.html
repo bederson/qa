@@ -14,39 +14,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<!DOCTYPE HTML>
-<html>
-  <head>
-	<title>Q &amp; A</title>
-	<link type="text/css" rel="stylesheet" href="/css/main.css" />
+
+{% extends "base.html" %}
+
+{% block scripts %}
 	<link type="text/css" rel="stylesheet" href="/css/jqcloud.css" />
-	<script type="text/javascript" src="/_ah/channel/jsapi"></script>
-	<script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
 	<script type="text/javascript" src="js/jqcloud.js"></script>
-	<script type="text/javascript" src="js/redirection-mobile.js"></script>
-	<script type="text/javascript" src="js/utils.js"></script>
 	<script type="text/javascript" src="js/results.js"></script>
+{% endblock %}
 
-	<script>
-		SA.redirection_mobile ({
-			mobile_url: "qa-umd.appspot.com/?mobile=true"
-		});
-
-		client_id = "{{ client_id }}";
-		token = "{{ token }}";
-	</script>
-  </head>
-  <body>
-	<!-- HEADER -->
-	<table class="header" width="100%">
-		<tr>
-			<td width="30%"> </td>
-			<td align="middle" width="40%">Q &amp; A</td>
-			<td align="right" width="30%"> </td>
-		</tr>
-	</table>
+{% block content %}
 	<p>
 	<span id="note">Submit <a href="/">another thought</a></span>
+	{% if admin %}
+		<span id="cluster">
+			<input id="numclusters" type="range" min="2" max="10">
+			<input id="clusterbutton" type="button" value="6 clusters">
+		</span>
+	{% endif %}
 	<p>
 	<hr>
 	<div id="ideaOverview"></div>
@@ -54,5 +39,4 @@ limitations under the License.
 		<div id="unclusteredIdeas"></div>
 	</ul>
 	<div id="clusteredIdeas"></div>
-  </body>
-</html>
+{% endblock %}
