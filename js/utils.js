@@ -44,6 +44,9 @@ onMessage = function(message) {
 	
 	if (dataObj.op == "new") {
 		handleNew(dataObj);
+	} else 	if (dataObj.op == "newtag") {
+		console.log("NEW TAG");
+		console.log(dataObj);
 	} else 	if (dataObj.op == "refresh") {
 		handleRefresh(dataObj);
 	} else 	if (dataObj.op == "phase") {

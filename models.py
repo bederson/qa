@@ -17,32 +17,45 @@
 #
 
 import logging
+import random
 from google.appengine.ext import db
 from google.appengine.api import users
 
 class App(db.Model):
 	phase = db.IntegerProperty(default=1)
 
-def get_app():
-	app = App.all()
-	if app.count() == 0:
-		appObj = App()
-		appObj.put()
-	else:
-		appObj = app.get()
-	return appObj
+	@staticmethod
+	def getApp():
+		app = App.all()
+		if app.count() == 0:
+			appObj = App()
+			appObj.put()
+		else:
+			appObj = app.get()
+		return appObj
 	
-def get_phase():
-	return get_app().phase
+	@staticmethod
+	def getPhase():
+		return App.getApp().phase
 
-def set_phase(phase):
-	appObj = get_app()
-	appObj.phase = phase
-	appObj.put()
+	@staticmethod
+	def setPhase(phase):
+		appObj = App.getApp()
+		appObj.phase = phase
+		appObj.put()
 
 class Cluster(db.Model):
 	text = db.StringProperty()
 	index = db.IntegerProperty()
+
+	@staticmethod
+	def getRandomCluster():
+		count = Cluster.all().count()
+		return random.randint(1, count)
+
+	@staticmethod
+	def numClusters():
+		return Cluster.all().count()
 
 class Idea(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
@@ -51,18 +64,68 @@ class Idea(db.Model):
 	index = db.IntegerProperty()
 	cluster = db.ReferenceProperty(Cluster)
 
-def addIdea(idea):
-	if len(idea) > 500:
-		idea = idea[:500]
-	idea = idea.replace("\n", "")
-	count = Idea.all().count()
-	ideaObj = Idea()
-	ideaObj.text = idea
-	ideaObj.index = count
-	ideaObj.put()
+	@staticmethod
+	def addIdea(idea):
+		if len(idea) > 500:
+			idea = idea[:500]
+		idea = idea.replace("\n", "")
+		count = Idea.all().count()
+		ideaObj = Idea()
+		ideaObj.text = idea
+		ideaObj.index = count
+		ideaObj.put()
 
-def addTag(tag):
-	logging.info(tag)
+class ClusterAssignment(db.Model):
+	author = db.UserProperty(auto_current_user_add=True)
+	cluster = db.ReferenceProperty(Cluster)
+
+	@staticmethod
+	def getAssignment():
+		"""Determines the cluster assigned to this author"""
+		ca = ClusterAssignment.all().filter("author =", users.get_current_user())
+		logging.info("CLUSTER ASSIGNMENT")
+		logging.info(ca.count())
+		if ca.count() == 0:
+			caObj = ClusterAssignment()
+			cluster_index = Cluster.getRandomCluster()
+			logging.info("cluster_index = %d", cluster_index)
+			caObj.cluster = Cluster.all().filter("index =", cluster_index).get()
+			caObj.put()
+			return cluster_index
+		else:
+			caObj = ca.get()
+			return ca.get().cluster.index
+
+	@staticmethod
+	def deleteAllClusterAssignments():
+		db.delete(ClusterAssignment.all())
+
+class Tag(db.Model):
+	author = db.UserProperty(auto_current_user_add=True)
+	tag = db.StringProperty()
+	cluster = db.ReferenceProperty(Cluster)
+
+	@staticmethod
+	def addTag(tag, cluster_index):
+		cluster = Cluster.all().filter("index =", cluster_index).get()
+		tagObj = Tag()
+		tagObj.tag = tag
+		tagObj.cluster = cluster
+		tagObj.put()
+
+	@staticmethod
+	def getTags():
+		tags = Tag.all()
+		return tags
+
+	@staticmethod
+	def getTagsByUser():
+		tags = Tag.all().filter("author = ", users.get_current_user())
+		return tags
+
+	@staticmethod
+	def deleteAllTags():
+		db.delete(Tag.all())
 
 class Connection(db.Model):
 	client_id = db.StringProperty()

@@ -32,6 +32,9 @@ $(function() {
 	$(window).resize(function() {
 		onResize();
 	});
+	
+	displayTags();
+	displayIdeas();
 });
 
 function initEventHandlers() {
@@ -64,7 +67,8 @@ function submitTag() {
 	var tag = $("#taganswer").val();
 	var data = {
 		"client_id": client_id,
-		"tag": tag
+		"tag": tag,
+		"cluster_index": cluster_index
 	};
 	$.post("/newtag", data);
 
@@ -72,6 +76,8 @@ function submitTag() {
 	$("#taganswer").val("");
 	$("#taganswer").focus();
 	updateRemainingChars();
+	
+	$("#newtags").append("<li>" + tag);
 }
 
 function onResize() {
@@ -101,6 +107,32 @@ function updateRemainingChars() {
 	}
 	var msg = (maxChars - text.length) + " chars left";
 	$("#charlimit").html(msg);
+}
+
+function displayTags() {
+	$.getJSON("/query", {request: "mytags"}, function(data) {
+		var tags = data.tags;
+		var html = "My tags:<br><ul>";
+		for (i in tags) {
+			var tag = tags[i];
+			html += "<li>" + tag
+		}
+		html += "<div id='newtags'></div>";
+		html += "</ul>";
+		$("#mytags").html(html);
+	});
+}
+
+function displayIdeas() {
+	$.getJSON("/query", {request: "ideas", cluster_index: cluster_index}, function(data) {
+		var html = "Notes:<br><ul>";
+		for (i in data) {
+			var idea = data[i].idea;
+			html += "<li>" + idea
+		}
+		html += "</ul>";
+		$("#clusteredIdeas").html(html);
+	});
 }
 
 /////////////////////////

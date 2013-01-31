@@ -18,26 +18,15 @@ limitations under the License.
 {% extends "base.html" %}
 
 {% block scripts %}
-	<script type="text/javascript" src="js/admin.js"></script>
+	<script type="text/javascript" src="js/tags.js"></script>
 {% endblock %}
 
 {% block content %}
 	{% if admin %}
-		<h1>Administration Interface<h1>
-		<table width="100%">
-			<tr valign="top">
-				<td width="50%">
-					<input id="p0button" type="button" value="Enter phase 0 - Waiting to start"><br>
-					<input id="p1button" type="button" value="Enter phase 1 - Enter notes"><br>
-					<input id="p2button" type="button" value="Enter phase 2 - Tag clusters"><br>
-				</td>
-				<td width="50%">
-					<input id="results_button" type="button" value="See notes"><br>
-					<input id="tags_button" type="button" value="See tags"><br>
-				</td>
-			</tr>
-		</table>
-	{% else %}
-		Sorry, you aren't an administrator
+		<span id="admin_buttons">
+			<input id="admin_button" type="button" value="Admin">
+		</span>
 	{% endif %}
+	<h1>Cluster Tags</h1>
+	<div id="tags"></div>
 {% endblock %}

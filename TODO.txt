@@ -1,4 +1,8 @@
 BUGS:
+* Don't allow one user to enter the same tag multiple times
+* Real-time tag push
+* Tag bar chart
+* Connections aren't getting deleted
 
 Features
 (3) ESP game to tag clusters (with real-time visualization - tag histogram???)

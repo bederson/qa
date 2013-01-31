@@ -14,13 +14,19 @@ h2 {
 	margin-bottom: -5px;
 }
 
-li {
-	margin-bottom: 10px;
-}
-
 .header {
 	font-weight: bold;
 	font-size: 1.2em;
+}
+
+.help {
+	color: #888;
+	font-size: 0.8em;
+}
+
+.author {
+	color: #888;
+	font-size: 0.8em;
 }
 
 #qcontainer {
@@ -33,14 +39,12 @@ li {
 	border-color: #ccc;
 }
 
-.help {
-	color: #888;
-	font-size: 0.8em;
+#clusteredIdeas li {
+	margin-bottom: 10px;
 }
 
-.author {
-	color: #888;
-	font-size: 0.8em;
+#unclusteredIdeas li {
+	margin-bottom: 10px;
 }
 
 #answer {
@@ -65,4 +69,9 @@ li {
 
 #admin_buttons {
 	float: right;
+}
+
+#mytags {
+	padding-left: 20px;
+	background-color: #eee;
 }

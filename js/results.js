@@ -104,7 +104,7 @@ function addIdea(idea) {
 }
 
 function updateNumIdeas() {
-	var label = "thought";
+	var label = "note";
 	var overviewStr = "<h1>";
 	if (numIdeas == 0) {
 		overviewStr += "No " + label + "s yet";

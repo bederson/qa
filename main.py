@@ -78,32 +78,42 @@ def send_message(client_id, message):
 #####################
 # Page Handlers
 #####################
-class MainHandler(webapp2.RequestHandler):
+class MainPageHandler(webapp2.RequestHandler):
     def get(self):
 		template_values = get_default_template_values(self)
 
 		path = os.path.join(os.path.dirname(__file__), 'main.html')
 		self.response.out.write(template.render(path, template_values))
 
-class ResultsHandler(webapp2.RequestHandler):
+class ResultsPageHandler(webapp2.RequestHandler):
     def get(self):
 		template_values = get_default_template_values(self)
 
 		path = os.path.join(os.path.dirname(__file__), 'results.html')
 		self.response.out.write(template.render(path, template_values))
 
-class AdminHandler(webapp2.RequestHandler):
+class AdminPageHandler(webapp2.RequestHandler):
     def get(self):
 		template_values = get_default_template_values(self)
 
 		path = os.path.join(os.path.dirname(__file__), 'admin.html')
 		self.response.out.write(template.render(path, template_values))
 
-class TagHandler(webapp2.RequestHandler):
+# Particpant page to enter new tags
+class TagPageHandler(webapp2.RequestHandler):
+    def get(self):
+		template_values = get_default_template_values(self)
+		template_values["cluster_index"] = ClusterAssignment.getAssignment()
+
+		path = os.path.join(os.path.dirname(__file__), 'tag.html')
+		self.response.out.write(template.render(path, template_values))
+
+# Admin page to show all tags
+class TagsPageHandler(webapp2.RequestHandler):
     def get(self):
 		template_values = get_default_template_values(self)
 
-		path = os.path.join(os.path.dirname(__file__), 'tag.html')
+		path = os.path.join(os.path.dirname(__file__), 'tags.html')
 		self.response.out.write(template.render(path, template_values))
 
 #####################
@@ -114,7 +124,7 @@ class NewHandler(webapp2.RequestHandler):
 		client_id = self.request.get('client_id')
 		idea = self.request.get('idea')
 		if len(idea) > 2:
-			addIdea(idea)
+			Idea.addIdea(idea)
 
 			# Update clients
 			message = {
@@ -128,16 +138,45 @@ class NewTagHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
 		tag = self.request.get('tag')
+		cluster_index = int(self.request.get('cluster_index'))
 		if len(tag) > 2:
-			addTag(tag)
+			Tag.addTag(tag, cluster_index)
 
 			# Update clients
 			message = {
 				"op": "newtag",
-				"text": tag,
+				"tag": tag,
+				"cluster_index": cluster_index,
 				"author": users.get_current_user().nickname()
 			}
 			send_message(client_id, message)		# Update other clients about this change
+
+class QueryHandler(webapp2.RequestHandler):
+    def get(self):
+		request = self.request.get("request")
+		data = {}
+		if request == "ideas":
+			cluster_index = self.request.get("cluster_index")
+			if cluster_index:
+				data = getIdeasByCluster(int(cluster_index))
+			else:
+				data = getIdeas()
+		elif request == "phase":
+			data = {"phase": App.getPhase()}
+		elif request == "tags":
+			tags = []
+			for tag in Tag.getTags():
+				item = {"tag": tag.tag, "cluster": tag.cluster.index}
+				tags.append(item)
+			data = {"tags": tags, "num_clusters": Cluster.numClusters()}
+		elif request == "mytags":
+			tags = []
+			for tag in Tag.getTagsByUser():
+				tags.append(tag.tag)
+			data = {"tags": tags}
+
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(json.dumps(data))
 
 class ClusterHandler(webapp2.RequestHandler):
 	def post(self):
@@ -151,23 +190,11 @@ class ClusterHandler(webapp2.RequestHandler):
 		}
 		send_message(client_id, message)		# Update other clients about this change
 
-class QueryHandler(webapp2.RequestHandler):
-    def get(self):
-		request = self.request.get("request")
-		data = {}
-		if request == "ideas":
-			data = getData()
-		elif request == "phase":
-			data = {"phase": get_phase()}
-
-		self.response.headers['Content-Type'] = 'application/json'
-		self.response.out.write(json.dumps(data))
-
 class PhaseHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
 		phase = int(self.request.get('phase'))
-		set_phase(phase)
+		App.setPhase(phase)
 
 		# Update clients
 		message = {
@@ -194,7 +221,7 @@ class DisconnectedHandler(webapp2.RequestHandler):
 # Text Support
 #####################
 
-def getData():
+def getIdeas():
 	results = []
 	clusterObjs = Cluster.all()
 
@@ -228,6 +255,19 @@ def getData():
 		results.append(entry)
 	return results
 
+def getIdeasByCluster(cluster_index):
+	clusterObj = Cluster.all().filter("index =", cluster_index).get()
+	ideaObjs = Idea.all().filter("cluster =", clusterObj)
+	ideas = []
+	for ideaObj in ideaObjs:
+		idea = {
+			"idea": ideaObj.text,
+			"words": ideaObj.text.split(),
+			"author": ideaObj.author.nickname()
+		}
+		ideas.append(idea)
+	return ideas;
+
 def doCluster(k):
 	if k > Idea.all().count():
 		return
@@ -248,7 +288,7 @@ def doCluster(k):
 		clusterObj.put()
 		entry = []
 		if type(cluster) is tuple:
-			# Cluster only has a single tuple, not a collection of them
+			# Cluster may only have a single tuple instead of a collection of them
 			index = cluster[-1:][0]
 			text = texts[index]
 			phrase = phrases[index]
@@ -265,6 +305,9 @@ def doCluster(k):
 				idea.cluster = clusterObj
 				idea.put()
 		clusterNum += 1
+
+	Tag.deleteAllTags()
+	ClusterAssignment.deleteAllClusterAssignments()
 
 def computeBagsOfWords():
 	# First define vector by extracting every word
@@ -311,10 +354,11 @@ def isStopWord(word):
 	return (word in STOP_WORDS)
 	
 app = webapp2.WSGIApplication([
-    ('/', MainHandler),
-	('/results', ResultsHandler),
-	('/admin', AdminHandler),
-	('/tag', TagHandler),
+    ('/', MainPageHandler),
+	('/results', ResultsPageHandler),
+	('/admin', AdminPageHandler),
+	('/tag', TagPageHandler),
+	('/tags', TagsPageHandler),
 	('/query', QueryHandler),
 	('/new', NewHandler),
 	('/newtag', NewTagHandler),

@@ -19,6 +19,9 @@ limitations under the License.
 
 {% block scripts %}
 	<script type="text/javascript" src="js/tag.js"></script>
+	<script>
+		var cluster_index = parseInt("{{ cluster_index }}");
+	</script>
 {% endblock %}
 
 {% block content %}
@@ -39,11 +42,11 @@ limitations under the License.
 		<input id="taganswer" type="text"><br>
 		<div id="charlimit">50 chars max</div>
 		<input id="submit" type="submit" value="Submit">
-
-		<div id="thankyou">
-			<br><br>
-			<hr>
-			Thank you. Please enter as many tags as you'd like.<br>
-		</div>
+		<span id="thankyou">
+			Thank you. Please enter as many tags as you'd like.
+		</span>
+		<br><br>
+		<div id="mytags"></div>
+		<div id="clusteredIdeas"></div>
 	</div>
 {% endblock %}
