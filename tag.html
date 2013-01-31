@@ -18,39 +18,32 @@ limitations under the License.
 {% extends "base.html" %}
 
 {% block scripts %}
-	<script type="text/javascript" src="js/main.js"></script>
+	<script type="text/javascript" src="js/tag.js"></script>
 {% endblock %}
 
 {% block content %}
-	{% if admin %}
-		<span id="admin_buttons">
-			<input id="admin_button" type="button" value="Admin">
-		</span>
-	{% endif %}
-
+{% if admin %}
+	<span id="admin_buttons">
+		<input id="admin_button" type="button" value="Admin">
+	</span>
+{% endif %}
 	<div id="qcontainer">
-		<h1>Bederson Tech Talk Question</h1>
+		<h1>Time To Tag</h1>
 		<div class="question">
-			What did your favorite university teacher do that made him/her your favorite?
+			Please enter 1 or 2 words that best characterize these notes.
 		</div>
 		<div class="help">
-			Only put a single thing here. If you have other things to say, submit multiple times.
+			Only tags that are suggested by multiple people will be used.
 		</div>
 		<br>
-		<textarea id="answer"></textarea><br>
-		<div id="charlimit">250 chars max</div>
+		<input id="taganswer" type="text"><br>
+		<div id="charlimit">50 chars max</div>
 		<input id="submit" type="submit" value="Submit">
 
 		<div id="thankyou">
 			<br><br>
 			<hr>
-			Thank you. Please enter as many submissions as you'd like.<br>
-			Or, look at <a href="/results">other people's submissions</a> as they come in.
+			Thank you. Please enter as many tags as you'd like.<br>
 		</div>
 	</div>
-	
-	<br><br>
-	<input id="tag_button" type="button" value="Start tagging" style="display: none;">
-	<br><br><br><br>
-	Code on <a href="https://github.com/bederson/qa">GitHub</a>
 {% endblock %}

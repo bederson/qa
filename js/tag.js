@@ -12,23 +12,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
+// 
 
 $(function() {
 	initChannel();
 	initEventHandlers();
 
 	if (logged_in) {
-		$("#answer").focus();	
-	} else {		
-		disableInput("Please log in to submit a response");
+		$("#taganswer").focus();
 	}
+
 	$.getJSON("/query", {request: "phase"}, function(data) {
-		if (data.phase != 1) {
+		if (data.phase != 2) {
 			disableInput("Not currently accepting new submissions");
-		}
-		if (data.phase == 2) {
-			$("#tag_button").css("display", "inline");
 		}
 	});
 
@@ -38,48 +34,44 @@ $(function() {
 	});
 });
 
-function disableInput(msg) {
-	$("#answer").attr("disabled", "disabled");
-	$("#submit").attr("disabled", "disabled");
-	$("#answer").val(msg);
-}
-
 function initEventHandlers() {
 	$("#submit").click(function() {
-		var idea = $("#answer").val();
-		var data = {
-			"client_id": client_id,
-			"idea": idea
-		};
-		$.post("/new", data, function() {
-			$("#thankyou").css("display", "inline");
-			$("#answer").val("");
-			$("#answer").focus();
-			updateRemainingChars();
-		});
+		submitTag();
 	});
 
-	$("#answer").keyup(function() {
+	$("#taganswer").on("keydown", function(evt) {
+		// Return
+		if (evt.keyCode == 13) {
+			submitTag();
+		}
+	});
+	$("#taganswer").keyup(function() {
 		updateRemainingChars();
 	});
 
 	$("#admin_button").click(function() {
 		window.location.href="/admin";
 	});
-	$("#tag_button").click(function() {
-		window.location.href="/tag";
-	});
 }
 
-function updateRemainingChars() {
-	var maxChars = 250;
-	var text = $("#answer").val();
-	if (text.length > maxChars) {
-		text = text.slice(0, maxChars);
-		$(this).val(text);
-	}
-	var msg = (maxChars - text.length) + " chars left";
-	$("#charlimit").html(msg);
+function disableInput(msg) {
+	$("#taganswer").attr("disabled", "disabled");
+	$("#submit").attr("disabled", "disabled");
+	$("#taganswer").val(msg);
+}
+
+function submitTag() {
+	var tag = $("#taganswer").val();
+	var data = {
+		"client_id": client_id,
+		"tag": tag
+	};
+	$.post("/newtag", data);
+
+	$("#thankyou").css("display", "inline");
+	$("#taganswer").val("");
+	$("#taganswer").focus();
+	updateRemainingChars();
 }
 
 function onResize() {
@@ -88,7 +80,7 @@ function onResize() {
 	if (jQuery.browser.mobile) {
 		var width = $(window).width() - padding;
 	} else {
-		var targetWidth = 600;
+		var targetWidth = 500;
 		var width = targetWidth;
 		if ($(window).width() < (targetWidth + padding)) {
 			width = $(window).width() - padding;
@@ -96,7 +88,19 @@ function onResize() {
 	}
 
 	$("#qcontainer").width(width);
-	$("#answer").width(width - 6);
+	$("#taganswer").width(width - 6);
+}
+
+function updateRemainingChars() {
+	var maxChars = 50;
+	var box = $("#taganswer");
+	var text = box.val();
+	if (text.length > maxChars) {
+		text = text.slice(0, maxChars);
+		box.val(text);
+	}
+	var msg = (maxChars - text.length) + " chars left";
+	$("#charlimit").html(msg);
 }
 
 /////////////////////////

@@ -46,6 +46,8 @@ onMessage = function(message) {
 		handleNew(dataObj);
 	} else 	if (dataObj.op == "refresh") {
 		handleRefresh(dataObj);
+	} else 	if (dataObj.op == "phase") {
+		handlePhase(dataObj);
 	}
 }
 

@@ -20,6 +20,26 @@ import logging
 from google.appengine.ext import db
 from google.appengine.api import users
 
+class App(db.Model):
+	phase = db.IntegerProperty(default=1)
+
+def get_app():
+	app = App.all()
+	if app.count() == 0:
+		appObj = App()
+		appObj.put()
+	else:
+		appObj = app.get()
+	return appObj
+	
+def get_phase():
+	return get_app().phase
+
+def set_phase(phase):
+	appObj = get_app()
+	appObj.phase = phase
+	appObj.put()
+
 class Cluster(db.Model):
 	text = db.StringProperty()
 	index = db.IntegerProperty()
@@ -40,6 +60,9 @@ def addIdea(idea):
 	ideaObj.text = idea
 	ideaObj.index = count
 	ideaObj.put()
+
+def addTag(tag):
+	logging.info(tag)
 
 class Connection(db.Model):
 	client_id = db.StringProperty()

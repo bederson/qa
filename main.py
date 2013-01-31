@@ -92,6 +92,20 @@ class ResultsHandler(webapp2.RequestHandler):
 		path = os.path.join(os.path.dirname(__file__), 'results.html')
 		self.response.out.write(template.render(path, template_values))
 
+class AdminHandler(webapp2.RequestHandler):
+    def get(self):
+		template_values = get_default_template_values(self)
+
+		path = os.path.join(os.path.dirname(__file__), 'admin.html')
+		self.response.out.write(template.render(path, template_values))
+
+class TagHandler(webapp2.RequestHandler):
+    def get(self):
+		template_values = get_default_template_values(self)
+
+		path = os.path.join(os.path.dirname(__file__), 'tag.html')
+		self.response.out.write(template.render(path, template_values))
+
 #####################
 # Action Handlers
 #####################
@@ -110,6 +124,21 @@ class NewHandler(webapp2.RequestHandler):
 			}
 			send_message(client_id, message)		# Update other clients about this change
 
+class NewTagHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		tag = self.request.get('tag')
+		if len(tag) > 2:
+			addTag(tag)
+
+			# Update clients
+			message = {
+				"op": "newtag",
+				"text": tag,
+				"author": users.get_current_user().nickname()
+			}
+			send_message(client_id, message)		# Update other clients about this change
+
 class ClusterHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
@@ -124,23 +153,39 @@ class ClusterHandler(webapp2.RequestHandler):
 
 class QueryHandler(webapp2.RequestHandler):
     def get(self):
-		data = getData()
-		result = json.dumps(data)
+		request = self.request.get("request")
+		data = {}
+		if request == "ideas":
+			data = getData()
+		elif request == "phase":
+			data = {"phase": get_phase()}
+
 		self.response.headers['Content-Type'] = 'application/json'
-		self.response.out.write(result)
+		self.response.out.write(json.dumps(data))
+
+class PhaseHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		phase = int(self.request.get('phase'))
+		set_phase(phase)
+
+		# Update clients
+		message = {
+			"op": "phase",
+			"phase": phase
+		}
+		send_message(client_id, message)		# Update other clients about this change
 
 class ConnectedHandler(webapp2.RequestHandler):
 	# Notified when clients connect
 	def post(self):
 		client_id = self.request.get("from")
-		# logging.info("CONNECT: %s", client_id)
 		# Not doing anything here yet...
 
 class DisconnectedHandler(webapp2.RequestHandler):
 	# Notified when clients disconnect
 	def post(self):
 		client_id = self.request.get("from")
-		# logging.info("DISCONNECT: %s", client_id)
 		connection = Connection().all()
 		connection.filter("client_id =", client_id)
 		db.delete(connection);
@@ -181,7 +226,6 @@ def getData():
 			ideas.append(idea)
 		entry["ideas"] = ideas
 		results.append(entry)
-	logging.info(results)
 	return results
 
 def doCluster(k):
@@ -269,9 +313,13 @@ def isStopWord(word):
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
 	('/results', ResultsHandler),
+	('/admin', AdminHandler),
+	('/tag', TagHandler),
 	('/query', QueryHandler),
 	('/new', NewHandler),
+	('/newtag', NewTagHandler),
 	('/cluster', ClusterHandler),
+	('/set_phase', PhaseHandler),
 	('/_ah/channel/connected/', ConnectedHandler),
 	('/_ah/channel/disconnected/', DisconnectedHandler)
 ], debug=True)

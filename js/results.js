@@ -17,11 +17,11 @@
 var numIdeas = 0;
 
 $(function() {
-	initEventHandlers();
 	initChannel();
+	initEventHandlers();
 
 	if (jQuery.browser.mobile) {
-		$("#cluster").css("display", "none");
+		$("#admin_buttons").css("display", "none");
 	}
 	
 	displayIdeas();
@@ -42,13 +42,17 @@ function initEventHandlers() {
 			window.location.reload();
 		});
 	})
+
+	$("#admin_button").click(function() {
+		window.location.href="/admin";
+	});
 }
 
 function displayIdeas(ideas) {
 	var html = "Ideas loading ..."; 
 	$("#clusteredIdeas").html(html);
 	
-	$.getJSON("/query", {}, displayIdeasImpl);
+	$.getJSON("/query", {request: "ideas"}, displayIdeasImpl);
 }
 
 function displayIdeasImpl(clusters) {
@@ -93,7 +97,7 @@ function displayIdeasImpl(clusters) {
 
 function addIdea(idea) {
 	var html = "<li>" + idea.text;
-	html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + "</span>";
+	html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + "</span><br>";
 	$("#unclusteredIdeas").prepend(html);
 	numIdeas += 1;
 	updateNumIdeas();
@@ -192,4 +196,7 @@ function handleNew(idea) {
 
 function handleRefresh(data) {
 	window.location.reload();
+}
+
+function handlePhase(data) {
 }
