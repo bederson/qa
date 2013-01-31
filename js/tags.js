@@ -14,6 +14,8 @@
 // limitations under the License.
 // 
 
+var tag_hists = [];
+
 $(function() {
 	initChannel();
 	initEventHandlers();
@@ -25,35 +27,36 @@ function initEventHandlers() {
 
 function displayTags() {
 	$.getJSON("/query", {request: "tags"}, function(data) {
-		var hists = processTags(data);
-		displayTagsImpl(hists);
+		processTags(data);
+		displayTagsImpl();
 	});
 }
 
 function processTags(data) {
 	var tags = data.tags;
-	var hists = [];
 	for (var i=1; i<=data.num_clusters; i++) {
-		hists[i] = {};
+		tag_hists[i] = {};
 	}
 	for (var i in tags) {
 		var tag = tags[i].tag;
 		var cluster = tags[i].cluster;
-		if (tag in hists[cluster]) {
-			hists[cluster][tag] += 1;
-		} else {
-			hists[cluster][tag] = 1
-		}
+		addTag(tag, cluster);
 	}
-	
-	return hists;
 }
 
-function displayTagsImpl(hists) {
+function addTag(tag, cluster) {
+	if (tag in tag_hists[cluster]) {
+		tag_hists[cluster][tag] += 1;
+	} else {
+		tag_hists[cluster][tag] = 1
+	}
+}
+
+function displayTagsImpl() {
 	var html = "";
-	for (var i in hists) {
+	for (var i in tag_hists) {
 		html += "<h2>Cluster #" + i + "</h2><ul>";
-		var hist = hists[i];
+		var hist = tag_hists[i];
 		for (item in hist) {
 			html += "<li>" + item + " (" + hist[item] + ")";
 		}
@@ -74,5 +77,10 @@ function handleRefresh(data) {
 }
 
 function handlePhase(data) {
-	window.location.reload();
+	// Ignore it
+}
+
+function handleTag(data) {
+	addTag(data.tag, data.cluster_index);
+	displayTagsImpl();
 }

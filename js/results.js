@@ -199,4 +199,9 @@ function handleRefresh(data) {
 }
 
 function handlePhase(data) {
+	// Ignore it
+}
+
+function handleTag(data) {
+	// Ignore it
 }

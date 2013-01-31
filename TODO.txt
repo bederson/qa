@@ -1,6 +1,5 @@
 BUGS:
 * Don't allow one user to enter the same tag multiple times
-* Real-time tag push
 * Tag bar chart
 * Connections aren't getting deleted
 

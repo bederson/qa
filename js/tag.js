@@ -149,3 +149,7 @@ function handleRefresh(data) {
 function handlePhase(data) {
 	window.location.reload();
 }
+
+function handleTag(data) {
+	// Ignore it
+}
