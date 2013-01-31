@@ -12,7 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// 
+//
+
+var mytags = [];
 
 $(function() {
 	initChannel();
@@ -65,6 +67,13 @@ function disableInput(msg) {
 
 function submitTag() {
 	var tag = $("#taganswer").val();
+	if (mytags.indexOf(tag) != -1) {
+		// Whoops - tag already in list
+		$("#thankyou").css("display", "none");
+		$("#nodups").css("display", "inline");
+		return;
+	}
+	
 	var data = {
 		"client_id": client_id,
 		"tag": tag,
@@ -73,6 +82,7 @@ function submitTag() {
 	$.post("/newtag", data);
 
 	$("#thankyou").css("display", "inline");
+	$("#nodups").css("display", "none");
 	$("#taganswer").val("");
 	$("#taganswer").focus();
 	updateRemainingChars();
@@ -115,6 +125,7 @@ function displayTags() {
 		var html = "My tags:<br><ul>";
 		for (i in tags) {
 			var tag = tags[i];
+			mytags.push(tag);
 			html += "<li>" + tag
 		}
 		html += "<div id='newtags'></div>";

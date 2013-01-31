@@ -1,9 +1,7 @@
 BUGS:
-* Don't allow one user to enter the same tag multiple times
-* Tag bar chart
 * Connections aren't getting deleted
+* Tag bar chart
 
 Features
-(3) ESP game to tag clusters (with real-time visualization - tag histogram???)
 (4) Recategorize by assigned groups of people per cluster with voting
 (5) Humans relabel clusters
