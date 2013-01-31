@@ -23,6 +23,9 @@ $(function() {
 });
 
 function initEventHandlers() {
+	$("#admin_button").click(function() {
+		window.location.href="/admin";
+	});
 }
 
 function displayTags() {

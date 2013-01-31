@@ -207,12 +207,14 @@ class ConnectedHandler(webapp2.RequestHandler):
 	# Notified when clients connect
 	def post(self):
 		client_id = self.request.get("from")
+		# logging.info("CONNECTED: %s", client_id)
 		# Not doing anything here yet...
 
 class DisconnectedHandler(webapp2.RequestHandler):
 	# Notified when clients disconnect
 	def post(self):
 		client_id = self.request.get("from")
+		# logging.info("DISCONNECTED: %s", client_id)
 		connection = Connection().all()
 		connection.filter("client_id =", client_id)
 		db.delete(connection);

@@ -1,5 +1,4 @@
 BUGS:
-* Connections aren't getting deleted
 * Tag bar chart
 
 Features

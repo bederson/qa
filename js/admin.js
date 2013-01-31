@@ -15,6 +15,7 @@
 // 
 
 $(function() {
+	initChannel();
 	initEventHandlers();
 	displayModes();
 });
