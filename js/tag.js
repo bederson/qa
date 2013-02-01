@@ -66,14 +66,20 @@ function disableInput(msg) {
 }
 
 function submitTag() {
-	var tag = $("#taganswer").val();
+	var tag = $("#taganswer").val().trim();
+	if (tag.length == 0) {
+		// Don't submit blank tags
+		return;
+	}
 	if (mytags.indexOf(tag) != -1) {
 		// Whoops - tag already in list
 		$("#thankyou").css("display", "none");
 		$("#nodups").css("display", "inline");
+		$("#taganswer").select();
 		return;
 	}
-	
+	mytags.push(tag);
+
 	var data = {
 		"client_id": client_id,
 		"tag": tag,
@@ -154,7 +160,7 @@ function handleNew(data) {
 }
 
 function handleRefresh(data) {
-	// Ignore it
+	window.location.reload();
 }
 
 function handlePhase(data) {

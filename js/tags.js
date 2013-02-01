@@ -14,6 +14,7 @@
 // limitations under the License.
 // 
 
+var maxChartRows = 10;
 var tag_hists = [];
 var show_tags_in_charts = [];
 
@@ -43,10 +44,12 @@ function displayTags() {
 
 function processTags(data) {
 	var tags = data.tags;
-	for (var i=1; i<=data.num_clusters; i++) {
+	// Initialize data structures
+	for (var i=0; i<data.num_clusters; i++) {
 		tag_hists[i] = {};
 		show_tags_in_charts[i] = false;
 	}
+	// Process tags to fill data structures
 	for (var i in tags) {
 		var tag = tags[i].tag;
 		var cluster = tags[i].cluster;
@@ -104,16 +107,21 @@ function drawCharts() {
 			var row = [tag_to_display, hist[item]];
 			rows.push(row);
 		}
-		data.addRows(rows);
+		rows.sort(function(a, b) {
+			return(b[1] - a[1]);
+		});
+		data.addRows(rows.splice(0, maxChartRows));
 
 		// Set chart options
 		var options = {
-			'title':'Tag distribution',
-			'width':400,
-			'height':300,
-			'axisTitlesPosition': 'in',
+			'title': 'Tag distribution',
+			'width': 600,
+			'height': 300,
 			'backgroundColor': '#d8e9a6',
 			'fontSize': 20,
+			'chartArea': {
+				'left': 200,
+			},
 			'hAxis': {
 				'minValue': 0,
 				'format': "##",

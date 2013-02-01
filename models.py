@@ -22,7 +22,7 @@ from google.appengine.ext import db
 from google.appengine.api import users
 
 class App(db.Model):
-	phase = db.IntegerProperty(default=1)
+	phase = db.IntegerProperty(default=0)
 
 	@staticmethod
 	def getApp():
@@ -51,7 +51,7 @@ class Cluster(db.Model):
 	@staticmethod
 	def getRandomCluster():
 		count = Cluster.all().count()
-		return random.randint(1, count)
+		return random.randint(0, count-1)
 
 	@staticmethod
 	def numClusters():
@@ -83,12 +83,9 @@ class ClusterAssignment(db.Model):
 	def getAssignment():
 		"""Determines the cluster assigned to this author"""
 		ca = ClusterAssignment.all().filter("author =", users.get_current_user())
-		logging.info("CLUSTER ASSIGNMENT")
-		logging.info(ca.count())
 		if ca.count() == 0:
 			caObj = ClusterAssignment()
 			cluster_index = Cluster.getRandomCluster()
-			logging.info("cluster_index = %d", cluster_index)
 			caObj.cluster = Cluster.all().filter("index =", cluster_index).get()
 			caObj.put()
 			return cluster_index

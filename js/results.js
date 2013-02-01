@@ -29,7 +29,7 @@ $(function() {
 
 function initEventHandlers() {
 	$("#numclusters").change(function() {
-		var label = $(this).val() + " clusters";
+		var label = "Create " + $(this).val() + " clusters";
 		$("#clusterbutton").val(label);
 	});
 	$("#clusterbutton").click(function() {

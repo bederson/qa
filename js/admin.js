@@ -43,20 +43,45 @@ function set_phase(phase) {
 		"client_id": client_id,
 		"phase": phase
 	};
-	$.post("/set_phase", data, function() {
-		window.location.reload();
-	});
+	$.post("/set_phase", data);
+	updateButtons(phase);
 }
 
 function displayModes() {
 	$.getJSON("/query", {request: "phase"}, function(data) {
 		phase = parseInt(data.phase);
-		if (phase == 0) {
-			$("#p0button").attr("disabled", "disabled");
-		} else if (phase == 1) {
-			$("#p1button").attr("disabled", "disabled");
-		} else if (phase == 2) {
-			$("#p2button").attr("disabled", "disabled");
-		}
+		updateButtons(phase);
 	});
+}
+
+function updateButtons(phase) {
+	$("#p0button").removeAttr("disabled");
+	$("#p1button").removeAttr("disabled");
+	$("#p2button").removeAttr("disabled");
+	if (phase == 0) {
+		$("#p0button").attr("disabled", "disabled");
+	} else if (phase == 1) {
+		$("#p1button").attr("disabled", "disabled");
+	} else if (phase == 2) {
+		$("#p2button").attr("disabled", "disabled");
+	}
+}
+
+/////////////////////////
+// Channel support
+/////////////////////////
+function handleNew(data) {
+	// Ignore it
+}
+
+function handleRefresh(data) {
+	// Ignore it
+}
+
+function handlePhase(data) {
+	// Ignore it
+}
+
+function handleTag(data) {
+	// Ignore it
 }

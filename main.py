@@ -282,7 +282,7 @@ def doCluster(k):
 	clusterObjs = Cluster.all()
 	db.delete(clusterObjs)
 	
-	clusterNum = 1
+	clusterNum = 0
 	for cluster in clusters:
 		clusterObj = Cluster()
 		clusterObj.text = "Cluster" + str(clusterNum)
