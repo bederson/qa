@@ -108,14 +108,6 @@ class TagPageHandler(webapp2.RequestHandler):
 		path = os.path.join(os.path.dirname(__file__), 'tag.html')
 		self.response.out.write(template.render(path, template_values))
 
-# Admin page to show all tags
-class TagsPageHandler(webapp2.RequestHandler):
-    def get(self):
-		template_values = get_default_template_values(self)
-
-		path = os.path.join(os.path.dirname(__file__), 'tags.html')
-		self.response.out.write(template.render(path, template_values))
-
 #####################
 # Action Handlers
 #####################
@@ -361,7 +353,6 @@ app = webapp2.WSGIApplication([
 	('/results', ResultsPageHandler),
 	('/admin', AdminPageHandler),
 	('/tag', TagPageHandler),
-	('/tags', TagsPageHandler),
 	('/query', QueryHandler),
 	('/new', NewHandler),
 	('/newtag', NewTagHandler),

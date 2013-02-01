@@ -2,7 +2,6 @@ BUGS:
 * Display tag clouds based on words analyzed by server
 * Make sure notes are clustered before entering tags
 * Make admin fonts bigger
-* Add chart to results page (maybe)
 
 Features
 * Import data

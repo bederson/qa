@@ -33,9 +33,6 @@ function initEventHandlers() {
 	$("#results_button").click(function() {
 		window.location.href = "/results";
 	});
-	$("#tags_button").click(function() {
-		window.location.href = "/tags";
-	});
 }
 
 function set_phase(phase) {

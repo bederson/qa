@@ -19,6 +19,10 @@ limitations under the License.
 
 {% block scripts %}
 	<link type="text/css" rel="stylesheet" href="/css/jqcloud.css" />
+	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+	<script type="text/javascript">
+		google.load('visualization', '1.0', {'packages':['corechart']});
+	</script>
 	<script type="text/javascript" src="js/jqcloud.js"></script>
 	<script type="text/javascript" src="js/results.js"></script>
 {% endblock %}

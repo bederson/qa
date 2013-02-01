@@ -16,16 +16,27 @@
 
 var numIdeas = 0;
 var MAX_CLOUD_HEIGHT = 800;
+var maxChartRows = 10;
+var tag_hists = [];
+var show_tags_in_charts = [];
+var phase = 0;
 
-$(function() {
-	initChannel();
-	initEventHandlers();
+// Reason for this combination of google chart and jquery:
+// http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
+google.setOnLoadCallback(function() {
+	$(function() {
+		initChannel();
+		initEventHandlers();
 
-	if (jQuery.browser.mobile) {
-		$("#admin_buttons").css("display", "none");
-	}
-	
-	displayIdeas();
+		if (jQuery.browser.mobile) {
+			$("#admin_buttons").css("display", "none");
+		}
+
+		$.getJSON("/query", {request: "phase"}, function(data) {
+			phase = data.phase;
+			displayIdeas();
+		});
+	});
 });
 
 function initEventHandlers() {
@@ -74,8 +85,9 @@ function displayIdeasImpl(clusters) {
 		}
 		html += "</ul></td>";
 		if (!jQuery.browser.mobile) {
-			var cloudid = "cloud" + i;
-			html += "<td style='width: 50%'><div id='" + cloudid + "'></div></td>";
+			var divid = "vis" + i;
+			var controlid = "control" + i;
+			html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
 		}
 		html += "</tr><table>"
 	}
@@ -83,18 +95,21 @@ function displayIdeasImpl(clusters) {
 	updateNumIdeas();
 
 	$("#clusteredIdeas").html(html);
-
 	if (!jQuery.browser.mobile) {
-		for (var i in clusters) {
-			var cluster = clusters[i];
-			var ideas = cluster.ideas;
-			var cloudid = "cloud" + i;
-			var height = $("#" + cloudid).parent().height();
-			if (height > MAX_CLOUD_HEIGHT) {
-				height = MAX_CLOUD_HEIGHT;
+		if (phase < 2) {
+			for (var i in clusters) {
+				var cluster = clusters[i];
+				var ideas = cluster.ideas;
+				var cloudid = "vis" + i;
+				var height = $("#" + cloudid).parent().height();
+				if (height > MAX_CLOUD_HEIGHT) {
+					height = MAX_CLOUD_HEIGHT;
+				}
+				$("#" + cloudid).height(height);
+				displayCloud(cloudid, ideas);
 			}
-			$("#" + cloudid).height(height);
-			displayCloud(cloudid, ideas);
+		} else {
+			displayTags();
 		}
 	}
 }
@@ -121,6 +136,10 @@ function updateNumIdeas() {
 
 	$("#ideaOverview").html(overviewStr);
 }
+
+//=================================================================================
+// Cloud Display
+//=================================================================================
 
 function displayCloud(cloudid, cluster) {
 	var weights = {};
@@ -150,6 +169,112 @@ function displayCloud(cloudid, cluster) {
 	}
 
 	$("#" + cloudid).jQCloud(word_list);
+}
+
+//=================================================================================
+// Tag Chart Display
+//=================================================================================
+function displayTags() {
+	$.getJSON("/query", {request: "tags"}, function(data) {
+		processTags(data);
+		displayTagControls();
+		drawCharts();
+	});
+}
+
+function processTags(data) {
+	var tags = data.tags;
+	// Initialize data structures
+	for (var i=0; i<data.num_clusters; i++) {
+		tag_hists[i] = {};
+		show_tags_in_charts[i] = false;
+	}
+	// Process tags to fill data structures
+	for (var i in tags) {
+		var tag = tags[i].tag;
+		var cluster = tags[i].cluster;
+		addTag(tag, cluster);
+	}
+}
+
+function addTag(tag, cluster) {
+	if (tag in tag_hists[cluster]) {
+		tag_hists[cluster][tag] += 1;
+	} else {
+		tag_hists[cluster][tag] = 1
+	}
+}
+
+function displayTagControls() {
+	for (var i in tag_hists) {
+		var controlid = "control" + i;
+		var showTagID = "showtag" + i;
+		var html = "<div style='margin-left:200px;'><input id='" + showTagID + "' type='button' value='Show tags'></div>";
+		$("#" + controlid).append(html);
+		$("#" + showTagID).data("cluster", i);
+		$("#" + showTagID).click(function(data) {
+			var clusterNum = $(this).data("cluster");
+			show_tags_in_charts[clusterNum] = true;
+			drawCharts();
+		});
+	}
+}
+
+// Callback that creates and populates a data table,
+// instantiates the chart, passes in the data and
+// draws it.
+function drawCharts() {
+	for (var i in tag_hists) {
+		var chartid = "vis" + i;
+		var hist = tag_hists[i];
+
+		// Create the data table.
+		var data = new google.visualization.DataTable();
+		data.addColumn('string', 'Tag');
+		data.addColumn('number', 'Tags');
+		var rows = [];
+		var max = 0;
+		for (item in hist) {
+			if (hist[item] > max) max = hist[item];
+			var tag_to_display = "";
+			if (show_tags_in_charts[i]) {
+				tag_to_display = item;
+			}
+			var row = [tag_to_display, hist[item]];
+			rows.push(row);
+		}
+		rows.sort(function(a, b) {
+			return(b[1] - a[1]);
+		});
+
+		if (rows.length > 0) {
+			data.addRows(rows.splice(0, maxChartRows));
+			// Set chart options
+			var options = {
+				'title': 'Tag distribution',
+				'width': 600,
+				'height': 300,
+				'backgroundColor': '#d8e9a6',
+				'fontSize': 20,
+				'chartArea': {
+					'left': 200,
+					'right': 20,
+				},
+				'hAxis': {
+					'minValue': 0,
+					'format': "##",
+					'gridlines': {'count': (max + 1)},
+				},
+				'legend': {
+					'position': 'none'
+				}
+			};
+
+			// Instantiate and draw our chart, passing in some options.
+			var chart = new google.visualization.BarChart(document.getElementById(chartid));
+			chart.draw(data, options);
+		}
+	}
 }
 
 //=================================================================================
@@ -203,9 +328,10 @@ function handleRefresh(data) {
 }
 
 function handlePhase(data) {
-	// Ignore it
+	window.location.reload();
 }
 
 function handleTag(data) {
-	// Ignore it
+	addTag(data.tag, data.cluster_index);
+	drawCharts();
 }
