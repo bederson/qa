@@ -1,8 +1,12 @@
 BUGS:
+* Display tag clouds based on words analyzed by server
 * Make sure notes are clustered before entering tags
 * Make admin fonts bigger
 * Add chart to results page (maybe)
 
 Features
+* Import data
+* Export data
+* Delete data
 (4) Recategorize by assigned groups of people per cluster with voting
 (5) Humans relabel clusters

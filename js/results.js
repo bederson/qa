@@ -15,6 +15,7 @@
 // 
 
 var numIdeas = 0;
+var MAX_CLOUD_HEIGHT = 800;
 
 $(function() {
 	initChannel();
@@ -61,7 +62,7 @@ function displayIdeasImpl(clusters) {
 		var cluster = clusters[i];
 		var clusterName = cluster.name;
 		var ideas = cluster.ideas;
-		html += "<h2>" + clusterName + "</h2>";
+		html += "<h2>Cluster #" + (parseInt(i)+1) + "</h2>";
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
 		html += "<ul>"
@@ -89,6 +90,9 @@ function displayIdeasImpl(clusters) {
 			var ideas = cluster.ideas;
 			var cloudid = "cloud" + i;
 			var height = $("#" + cloudid).parent().height();
+			if (height > MAX_CLOUD_HEIGHT) {
+				height = MAX_CLOUD_HEIGHT;
+			}
 			$("#" + cloudid).height(height);
 			displayCloud(cloudid, ideas);
 		}
@@ -123,7 +127,7 @@ function displayCloud(cloudid, cluster) {
 	for (var j in cluster) {
 		var words = cluster[j].words;
 		for (var k in words) {
-			var word = words[k].trim();
+			var word = words[k].trim().toLowerCase();
 			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
 			if (!isStopWord(word)) {
 				if (word.length > 2) {
@@ -152,7 +156,7 @@ function displayCloud(cloudid, cluster) {
 // Language and Stemming
 //=================================================================================
 
-var STOP_WORDS = [ "a", "am", "an", "and", "been", "by", "in", "is", "or", "the", "was", "were" ];
+var STOP_WORDS = [ "a", "all", "am", "an", "and", "been", "by", "for", "has", "in", "is", "or", "said", "the", "that", "was", "were", "with" ];
 
 function isStopWord(word) {
 	var stopWordsSet = isStopWord._stopWordsSet;

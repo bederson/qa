@@ -308,6 +308,7 @@ def doCluster(k):
 				idea.put()
 		clusterNum += 1
 
+	# Clean up any existing tags and cluster assignments since clusters have been reformed
 	Tag.deleteAllTags()
 	ClusterAssignment.deleteAllClusterAssignments()
 
