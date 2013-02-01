@@ -1,6 +1,14 @@
 BUGS:
-* Tag bar chart
+* Make sure notes are clustered before entering tags
+* Make sure you are logged in to be able to tag
+* Don't enter empty tags
+* Can enter duplicate tags the first time out
+* If dup tag entered, then select tag
+* Make "Start tagging" a lot bigger
+* Make admin fonts bigger
+* Make charts work well when a lot of tags, and longer tags
 
 Features
+* Tag bar chart
 (4) Recategorize by assigned groups of people per cluster with voting
 (5) Humans relabel clusters

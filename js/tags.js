@@ -15,11 +15,16 @@
 // 
 
 var tag_hists = [];
+var show_tags_in_charts = [];
 
-$(function() {
-	initChannel();
-	initEventHandlers();
-	displayTags()
+// Reason for this combination of google chart and jquery:
+// http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
+google.setOnLoadCallback(function() {
+	$(function() {
+		initChannel();
+		initEventHandlers();
+		displayTags()
+	});
 });
 
 function initEventHandlers() {
@@ -32,6 +37,7 @@ function displayTags() {
 	$.getJSON("/query", {request: "tags"}, function(data) {
 		processTags(data);
 		displayTagsImpl();
+		drawCharts();
 	});
 }
 
@@ -39,6 +45,7 @@ function processTags(data) {
 	var tags = data.tags;
 	for (var i=1; i<=data.num_clusters; i++) {
 		tag_hists[i] = {};
+		show_tags_in_charts[i] = false;
 	}
 	for (var i in tags) {
 		var tag = tags[i].tag;
@@ -56,16 +63,71 @@ function addTag(tag, cluster) {
 }
 
 function displayTagsImpl() {
-	var html = "";
+	$("#tags").html("");
 	for (var i in tag_hists) {
-		html += "<h2>Cluster #" + i + "</h2><ul>";
-		var hist = tag_hists[i];
-		for (item in hist) {
-			html += "<li>" + item + " (" + hist[item] + ")";
-		}
-		html += "</ul>";
+		var chartid = "chart" + i;
+		var html = "<h2>Cluster #" + i + "</h2><br>";
+		html += "<div id='" + chartid + "'></div>";
+		var showTagID = "showtag" + i;
+		html += "<input id='" + showTagID + "' type='button' value='Show tags'>";
+		html += "<br><br>";
+		$("#tags").append(html);
+		$("#" + showTagID).data("cluster", i);
+		$("#" + showTagID).click(function(data) {
+			var clusterNum = $(this).data("cluster");
+			show_tags_in_charts[clusterNum] = true;
+			drawCharts();
+		});
 	}
-	$("#tags").html(html);
+}
+
+// Callback that creates and populates a data table,
+// instantiates the chart, passes in the data and
+// draws it.
+function drawCharts() {
+	for (var i in tag_hists) {
+		var chartid = "chart" + i;
+		var hist = tag_hists[i];
+
+		// Create the data table.
+		var data = new google.visualization.DataTable();
+		data.addColumn('string', 'Tag');
+		data.addColumn('number', 'Tags');
+		var rows = [];
+		var max = 0;
+		for (item in hist) {
+			if (hist[item] > max) max = hist[item];
+			var tag_to_display = "";
+			if (show_tags_in_charts[i]) {
+				tag_to_display = item;
+			}
+			var row = [tag_to_display, hist[item]];
+			rows.push(row);
+		}
+		data.addRows(rows);
+
+		// Set chart options
+		var options = {
+			'title':'Tag distribution',
+			'width':400,
+			'height':300,
+			'axisTitlesPosition': 'in',
+			'backgroundColor': '#d8e9a6',
+			'fontSize': 20,
+			'hAxis': {
+				'minValue': 0,
+				'format': "##",
+				'gridlines': {'count': (max + 1)},
+			},
+			'legend': {
+				'position': 'none'
+			}
+		};
+
+		// Instantiate and draw our chart, passing in some options.
+		var chart = new google.visualization.BarChart(document.getElementById(chartid));
+		chart.draw(data, options);
+	}
 }
 
 /////////////////////////
@@ -86,4 +148,5 @@ function handlePhase(data) {
 function handleTag(data) {
 	addTag(data.tag, data.cluster_index);
 	displayTagsImpl();
+	drawCharts();
 }

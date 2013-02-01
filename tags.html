@@ -18,7 +18,11 @@ limitations under the License.
 {% extends "base.html" %}
 
 {% block scripts %}
-	<script type="text/javascript" src="js/tags.js"></script>
+	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+	<script type="text/javascript">
+		google.load('visualization', '1.0', {'packages':['corechart']});
+	</script>
+	<script type="text/javascript" src="js/tags.js"></script>	
 {% endblock %}
 
 {% block content %}
@@ -29,4 +33,10 @@ limitations under the License.
 	{% endif %}
 	<h1>Cluster Tags</h1>
 	<div id="tags"></div>
+
+	<!-- <script type="text/javascript">
+	// Set a callback to run when the Google Visualization API is loaded.
+	google.setOnLoadCallback(drawCharts);
+	console.log("CHART CALLBACK REQUESTED");
+	</script> -->
 {% endblock %}
