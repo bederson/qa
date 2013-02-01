@@ -22,6 +22,8 @@ $(function() {
 
 	if (logged_in) {
 		$("#taganswer").focus();
+	} else {		
+		disableInput("Please log in to submit a response");
 	}
 
 	$.getJSON("/query", {request: "phase"}, function(data) {

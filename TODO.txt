@@ -1,7 +1,5 @@
 BUGS:
 * Make sure notes are clustered before entering tags
-* Make sure you are logged in to be able to tag
-* Make "Start tagging" a lot bigger
 * Make admin fonts bigger
 * Add chart to results page (maybe)
 
