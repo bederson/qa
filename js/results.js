@@ -55,6 +55,18 @@ function initEventHandlers() {
 		});
 	})
 
+	$("#hide_ideas_button").data("toggle", "hide");
+	$("#hide_ideas_button").click(function() {
+		if ($(this).data("toggle") == "hide") {
+			$(".ideas").css("display", "none");
+			$(this).val("Show ideas");
+			$(this).data("toggle", "show");
+		} else {
+			$(".ideas").css("display", "inline");
+			$(this).val("Hide ideas");
+			$(this).data("toggle", "hide");
+		}
+	});
 	$("#admin_button").click(function() {
 		window.location.href="/admin";
 	});
@@ -76,6 +88,7 @@ function displayIdeasImpl(clusters) {
 		html += "<h2>Cluster #" + (parseInt(i)+1) + "</h2>";
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
+		html += "<div class='ideas'>";
 		html += "<ul>"
 		for (var j in ideas) {
 			var idea = ideas[j].idea;
@@ -83,7 +96,9 @@ function displayIdeasImpl(clusters) {
 			html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author + "</span>";
 			numIdeas += 1;
 		}
-		html += "</ul></td>";
+		html += "</ul>"
+		html += "</div>";
+		html += "</td>";
 		if (!jQuery.browser.mobile) {
 			var divid = "vis" + i;
 			var controlid = "control" + i;

@@ -37,6 +37,14 @@ limitations under the License.
 				</td>
 			</tr>
 		</table>
+		<br>
+		<br>
+		<br>
+		<form action="/import" enctype="multipart/form-data" method="post">
+			Import CSV data file:<br>
+			<input type="file" name="csvfile"><br>
+			<input type="submit" value="Import">
+		</form>
 	{% else %}
 		Sorry, you aren't an administrator
 	{% endif %}

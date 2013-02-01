@@ -20,6 +20,8 @@ import webapp2
 import json
 import logging
 import random
+import StringIO
+import csv
 from models import *
 from google.appengine.ext import db
 from google.appengine.api import users
@@ -195,6 +197,19 @@ class PhaseHandler(webapp2.RequestHandler):
 		}
 		send_message(client_id, message)		# Update other clients about this change
 
+class ImportHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		data = self.request.get('csvfile')
+#		importCSV(data)
+		importRowData(data)
+
+		# Update clients
+		message = {
+			"op": "refresh",
+		}
+		send_message(client_id, message)		# Update other clients about this change
+
 class ConnectedHandler(webapp2.RequestHandler):
 	# Notified when clients connect
 	def post(self):
@@ -215,6 +230,19 @@ class DisconnectedHandler(webapp2.RequestHandler):
 # Text Support
 #####################
 
+def importCSV(data):
+	csvReader = csv.reader(StringIO.StringIO(data))
+	for row in csvReader:
+		if len(row) > 2:
+			logging.info(row)
+#			Idea.addIdea(row)
+
+def importRowData(data):
+	rows = data.split("\r")
+	for row in rows:
+		if len(row) > 2:
+			Idea.addIdea(row)
+	
 def getIdeas():
 	results = []
 	clusterObjs = Cluster.all()
@@ -358,6 +386,7 @@ app = webapp2.WSGIApplication([
 	('/newtag', NewTagHandler),
 	('/cluster', ClusterHandler),
 	('/set_phase', PhaseHandler),
+	('/import', ImportHandler),
 	('/_ah/channel/connected/', ConnectedHandler),
 	('/_ah/channel/disconnected/', DisconnectedHandler)
 ], debug=True)

@@ -51,7 +51,10 @@ class Cluster(db.Model):
 	@staticmethod
 	def getRandomCluster():
 		count = Cluster.all().count()
-		return random.randint(0, count-1)
+		if count == 0:
+			return -1
+		else:
+			return random.randint(0, count-1)
 
 	@staticmethod
 	def numClusters():
@@ -84,10 +87,11 @@ class ClusterAssignment(db.Model):
 		"""Determines the cluster assigned to this author"""
 		ca = ClusterAssignment.all().filter("author =", users.get_current_user())
 		if ca.count() == 0:
-			caObj = ClusterAssignment()
 			cluster_index = Cluster.getRandomCluster()
-			caObj.cluster = Cluster.all().filter("index =", cluster_index).get()
-			caObj.put()
+			if cluster_index >= 0:
+				caObj = ClusterAssignment()
+				caObj.cluster = Cluster.all().filter("index =", cluster_index).get()
+				caObj.put()
 			return cluster_index
 		else:
 			caObj = ca.get()
