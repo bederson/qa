@@ -14,6 +14,8 @@
 // limitations under the License.
 // 
 
+var OFFLINE = true;					// For offline debugging
+
 var numIdeas = 0;
 var MAX_CLOUD_HEIGHT = 800;
 var maxChartRows = 10;
@@ -23,21 +25,31 @@ var phase = 0;
 
 // Reason for this combination of google chart and jquery:
 // http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
-google.setOnLoadCallback(function() {
+if (OFFLINE) {
 	$(function() {
-		initChannel();
-		initEventHandlers();
-
-		if (jQuery.browser.mobile) {
-			$("#admin_buttons").css("display", "none");
-		}
-
-		$.getJSON("/query", {request: "phase"}, function(data) {
-			phase = data.phase;
-			displayIdeas();
+		init();
+	});	
+} else {
+	google.setOnLoadCallback(function() {
+		$(function() {
+			init();
 		});
 	});
-});
+}
+
+function init() {
+	initChannel();
+	initEventHandlers();
+
+	if (jQuery.browser.mobile) {
+		$("#admin_buttons").css("display", "none");
+	}
+
+	$.getJSON("/query", {request: "phase"}, function(data) {
+		phase = data.phase;
+		displayIdeas();
+	});	
+}
 
 function initEventHandlers() {
 	$("#numclusters").change(function() {
@@ -202,7 +214,7 @@ function processTags(data) {
 	// Initialize data structures
 	for (var i=0; i<data.num_clusters; i++) {
 		tag_hists[i] = {};
-		show_tags_in_charts[i] = false;
+		show_tags_in_charts[i] = OFFLINE;
 	}
 	// Process tags to fill data structures
 	for (var i in tags) {
@@ -244,9 +256,6 @@ function drawCharts() {
 		var hist = tag_hists[i];
 
 		// Create the data table.
-		var data = new google.visualization.DataTable();
-		data.addColumn('string', 'Tag');
-		data.addColumn('number', 'Tags');
 		var rows = [];
 		var max = 0;
 		for (item in hist) {
@@ -263,31 +272,44 @@ function drawCharts() {
 		});
 
 		if (rows.length > 0) {
-			data.addRows(rows.splice(0, maxChartRows));
-			// Set chart options
-			var options = {
-				'title': 'Tag distribution',
-				'width': 600,
-				'height': 300,
-				'backgroundColor': '#d8e9a6',
-				'fontSize': 20,
-				'chartArea': {
-					'left': 200,
-					'right': 20,
-				},
-				'hAxis': {
-					'minValue': 0,
-					'format': "##",
-					'gridlines': {'count': (max + 1)},
-				},
-				'legend': {
-					'position': 'none'
+			if (OFFLINE) {
+				var html = "<ul>";
+				for (var j in rows) {
+					var row = rows[j];
+					html += "<li>" + row[0] + " (" + row[1] + ")";
 				}
-			};
+				html += "</ul>";
+				$("#" + chartid).html(html);
+			} else {
+				var data = new google.visualization.DataTable();
+				data.addColumn('string', 'Tag');
+				data.addColumn('number', 'Tags');
+				data.addRows(rows.splice(0, maxChartRows));
+				// Set chart options
+				var options = {
+					'title': 'Tag distribution',
+					'width': 600,
+					'height': 300,
+					'backgroundColor': '#d8e9a6',
+					'fontSize': 20,
+					'chartArea': {
+						'left': 200,
+						'right': 20,
+					},
+					'hAxis': {
+						'minValue': 0,
+						'format': "##",
+						'gridlines': {'count': (max + 1)},
+					},
+					'legend': {
+						'position': 'none'
+					}
+				};
 
-			// Instantiate and draw our chart, passing in some options.
-			var chart = new google.visualization.BarChart(document.getElementById(chartid));
-			chart.draw(data, options);
+				// Instantiate and draw our chart, passing in some options.
+				var chart = new google.visualization.BarChart(document.getElementById(chartid));
+				chart.draw(data, options);
+			}
 		}
 	}
 }

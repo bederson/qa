@@ -20,6 +20,7 @@ import webapp2
 import json
 import logging
 import random
+import string
 import StringIO
 import csv
 from models import *
@@ -28,6 +29,9 @@ from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
 from cluster import KMeansClustering
+
+STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
+
 
 def get_default_template_values(requestHandler):
 	"""Return a dictionary of template values used for login template"""
@@ -159,8 +163,9 @@ class QueryHandler(webapp2.RequestHandler):
 			data = {"phase": App.getPhase()}
 		elif request == "tags":
 			tags = []
-			for tag in Tag.getTags():
-				item = {"tag": tag.tag, "cluster": tag.cluster.index}
+			for tagObj in Tag.getTags():
+				tag = cleanTag(tagObj.tag)
+				item = {"tag": tag, "cluster": tagObj.cluster.index}
 				tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters()}
 		elif request == "mytags":
@@ -344,9 +349,8 @@ def computeBagsOfWords():
 		words = text.split()
 		phrase = []
 		for word in words:
-			word = word.lower()
-			word = word.strip("`~!@#$%^&*()-_=+|;:',<.>/?")
-			if (len(word) > 2) and not isStopWord(word):
+			word = cleanWord(word)
+			if len(word) > 2:
 				all_words.add(word)
 				phrase.append(word)
 		phrases.append(phrase)
@@ -372,7 +376,21 @@ def computeBagsOfWords():
 
 	return vectors, texts, phrases
 
-STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
+def cleanTag(tag):
+	words = tag.split()
+	cleanWords = []
+	for word in words:
+		cleanWords.append(cleanWord(word))
+	cleanWords.sort()
+	return string.join(cleanWords)
+
+def cleanWord(word):
+	word = word.lower()
+	word = word.strip("`~!@#$%^&*()-_=+|;:',<.>/?")
+	if isStopWord(word):
+		word = ""
+	return word
+	
 def isStopWord(word):
 	return (word in STOP_WORDS)
 	
