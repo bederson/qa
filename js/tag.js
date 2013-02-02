@@ -20,23 +20,23 @@ $(function() {
 	initChannel();
 	initEventHandlers();
 
-	if (logged_in) {
-		$("#taganswer").focus();
-	} else {		
+	onResize();
+	$(window).resize(function() {
+		onResize();
+	});
+	
+	if (!logged_in) {
 		disableInput("Please log in to submit a response");
+		return;
 	}
 
+	$("#taganswer").focus();
 	$.getJSON("/query", {request: "phase"}, function(data) {
 		if (data.phase != 2) {
 			disableInput("Not currently accepting new submissions");
 		}
 	});
 
-	onResize();
-	$(window).resize(function() {
-		onResize();
-	});
-	
 	displayTags();
 	displayIdeas();
 });

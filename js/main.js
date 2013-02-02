@@ -18,11 +18,17 @@ $(function() {
 	initChannel();
 	initEventHandlers();
 
-	if (logged_in) {
-		$("#answer").focus();	
-	} else {		
+	onResize();
+	$(window).resize(function() {
+		onResize();
+	});
+
+	if (!logged_in) {
 		disableInput("Please log in to submit a response");
+		return;
 	}
+
+	$("#answer").focus();	
 	$.getJSON("/query", {request: "phase"}, function(data) {
 		if (data.phase != 1) {
 			disableInput("Not currently accepting new submissions");
@@ -30,11 +36,6 @@ $(function() {
 		if (data.phase == 2) {
 			$("#tag_button").css("display", "inline");
 		}
-	});
-
-	onResize();
-	$(window).resize(function() {
-		onResize();
 	});
 });
 
