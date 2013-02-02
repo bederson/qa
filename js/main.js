@@ -34,7 +34,7 @@ $(function() {
 			disableInput("Not currently accepting new submissions");
 		}
 		if (data.phase == 2) {
-			$("#tag_button").css("display", "inline");
+			$("#start_tagging").css("display", "inline");
 		}
 	});
 });

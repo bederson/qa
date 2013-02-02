@@ -1,6 +1,4 @@
 FOR MONDAY:
-* Lowercase and sort tags
-* Show TAGGING button in results view
 * Look into tag appearing on wrong cluster
 
 BUGS:

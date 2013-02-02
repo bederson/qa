@@ -48,6 +48,9 @@ function init() {
 	$.getJSON("/query", {request: "phase"}, function(data) {
 		phase = data.phase;
 		displayIdeas();
+		if (data.phase == 2) {
+			$("#start_tagging").css("display", "inline");
+		}
 	});	
 }
 
@@ -81,6 +84,9 @@ function initEventHandlers() {
 	});
 	$("#admin_button").click(function() {
 		window.location.href="/admin";
+	});
+	$("#tag_button").click(function() {
+		window.location.href="/tag";
 	});
 }
 
@@ -119,9 +125,9 @@ function displayIdeasImpl(clusters) {
 		html += "</tr><table>"
 	}
 
-	updateNumIdeas();
-
 	$("#clusteredIdeas").html(html);
+	updateNumIdeas();
+	
 	if (!jQuery.browser.mobile) {
 		if (phase < 2) {
 			for (var i in clusters) {
@@ -136,6 +142,7 @@ function displayIdeasImpl(clusters) {
 				displayCloud(cloudid, ideas);
 			}
 		} else {
+			displayTagControls(clusters);
 			displayTags();
 		}
 	}
@@ -204,7 +211,6 @@ function displayCloud(cloudid, cluster) {
 function displayTags() {
 	$.getJSON("/query", {request: "tags"}, function(data) {
 		processTags(data);
-		displayTagControls();
 		drawCharts();
 	});
 }
@@ -214,7 +220,7 @@ function processTags(data) {
 	// Initialize data structures
 	for (var i=0; i<data.num_clusters; i++) {
 		tag_hists[i] = {};
-		show_tags_in_charts[i] = OFFLINE;
+		show_tags_in_charts[i] = false;
 	}
 	// Process tags to fill data structures
 	for (var i in tags) {
@@ -232,8 +238,8 @@ function addTag(tag, cluster) {
 	}
 }
 
-function displayTagControls() {
-	for (var i in tag_hists) {
+function displayTagControls(clusters) {
+	for (var i in clusters) {
 		var controlid = "control" + i;
 		var showTagID = "showtag" + i;
 		var html = "<div style='margin-left:200px;'><input id='" + showTagID + "' type='button' value='Show tags'></div>";
@@ -369,6 +375,5 @@ function handlePhase(data) {
 }
 
 function handleTag(data) {
-	addTag(data.tag, data.cluster_index);
-	drawCharts();
+	displayTags();
 }
