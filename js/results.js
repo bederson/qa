@@ -220,7 +220,6 @@ function processTags(data) {
 	// Initialize data structures
 	for (var i=0; i<data.num_clusters; i++) {
 		tag_hists[i] = {};
-		show_tags_in_charts[i] = false;
 	}
 	// Process tags to fill data structures
 	for (var i in tags) {
@@ -240,6 +239,8 @@ function addTag(tag, cluster) {
 
 function displayTagControls(clusters) {
 	for (var i in clusters) {
+		show_tags_in_charts[i] = false;
+
 		var controlid = "control" + i;
 		var showTagID = "showtag" + i;
 		var html = "<div style='margin-left:200px;'><input id='" + showTagID + "' type='button' value='Show tags'></div>";

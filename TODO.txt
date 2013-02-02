@@ -1,6 +1,3 @@
-FOR MONDAY:
-* Look into tag appearing on wrong cluster
-
 BUGS:
 * Display tag clouds based on words analyzed by server
 * Make sure notes are clustered before entering tags
