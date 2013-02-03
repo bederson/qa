@@ -250,7 +250,7 @@ def importRowData(data):
 	
 def getIdeas():
 	results = []
-	clusterObjs = Cluster.all()
+	clusterObjs = Cluster.all().order("index")
 
 	# Start with all the ideas that aren't in any cluster
 	ideaObjs = Idea.all().filter("cluster =", None)

@@ -27,3 +27,6 @@ libraries:
 
 inbound_services:
 - channel_presence
+
+builtins:
+- remote_api: on

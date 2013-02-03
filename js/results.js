@@ -14,7 +14,7 @@
 // limitations under the License.
 // 
 
-var OFFLINE = true;					// For offline debugging
+var OFFLINE = false;					// For offline debugging
 
 var numIdeas = 0;
 var MAX_CLOUD_HEIGHT = 800;
