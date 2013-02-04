@@ -128,7 +128,7 @@ class NewHandler(webapp2.RequestHandler):
 			message = {
 				"op": "new",
 				"text": idea,
-				"author": users.get_current_user().nickname()
+				"author": cleanNickname(users.get_current_user().nickname())
 			}
 			send_message(client_id, message)		# Update other clients about this change
 
@@ -145,7 +145,7 @@ class NewTagHandler(webapp2.RequestHandler):
 				"op": "newtag",
 				"tag": tag,
 				"cluster_index": cluster_index,
-				"author": users.get_current_user().nickname()
+				"author": cleanNickname(users.get_current_user().nickname())
 			}
 			send_message(client_id, message)		# Update other clients about this change
 
@@ -261,7 +261,7 @@ def getIdeas():
 			idea = {
 				"idea": ideaObj.text,
 				"words": ideaObj.text.split(),
-				"author": ideaObj.author.nickname()
+				"author": cleanNickname(ideaObj.author.nickname())
 			}
 			ideas.append(idea)
 		entry["ideas"] = ideas
@@ -275,7 +275,7 @@ def getIdeas():
 			idea = {
 				"idea": ideaObj.text,
 				"words": ideaObj.text.split(),
-				"author": ideaObj.author.nickname()
+				"author": cleanNickname(ideaObj.author.nickname())
 			}
 			ideas.append(idea)
 		entry["ideas"] = ideas
@@ -290,7 +290,7 @@ def getIdeasByCluster(cluster_index):
 		idea = {
 			"idea": ideaObj.text,
 			"words": ideaObj.text.split(),
-			"author": ideaObj.author.nickname()
+			"author": cleanNickname(ideaObj.author.nickname())
 		}
 		ideas.append(idea)
 	return ideas;
@@ -393,6 +393,12 @@ def cleanWord(word):
 	
 def isStopWord(word):
 	return (word in STOP_WORDS)
+
+def cleanNickname(nickname):
+	if nickname.count("@") == 0:
+		return nickname
+	else:
+		return nickname[:nickname.index("@")]
 	
 app = webapp2.WSGIApplication([
     ('/', MainPageHandler),
