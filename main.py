@@ -128,7 +128,7 @@ class NewHandler(webapp2.RequestHandler):
 			message = {
 				"op": "new",
 				"text": idea,
-				"author": cleanNickname(users.get_current_user().nickname())
+				"author": cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, message)		# Update other clients about this change
 
@@ -145,7 +145,7 @@ class NewTagHandler(webapp2.RequestHandler):
 				"op": "newtag",
 				"tag": tag,
 				"cluster_index": cluster_index,
-				"author": cleanNickname(users.get_current_user().nickname())
+				"author": cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, message)		# Update other clients about this change
 
@@ -165,8 +165,9 @@ class QueryHandler(webapp2.RequestHandler):
 			tags = []
 			for tagObj in Tag.getTags():
 				tag = cleanTag(tagObj.tag)
-				item = {"tag": tag, "cluster": tagObj.cluster.index}
-				tags.append(item)
+				if tagObj.cluster:
+					item = {"tag": tag, "cluster": tagObj.cluster.index}
+					tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters()}
 		elif request == "mytags":
 			tags = []
@@ -261,7 +262,7 @@ def getIdeas():
 			idea = {
 				"idea": ideaObj.text,
 				"words": ideaObj.text.split(),
-				"author": cleanNickname(ideaObj.author.nickname())
+				"author": cleanNickname(ideaObj.author)
 			}
 			ideas.append(idea)
 		entry["ideas"] = ideas
@@ -275,7 +276,7 @@ def getIdeas():
 			idea = {
 				"idea": ideaObj.text,
 				"words": ideaObj.text.split(),
-				"author": cleanNickname(ideaObj.author.nickname())
+				"author": cleanNickname(ideaObj.author)
 			}
 			ideas.append(idea)
 		entry["ideas"] = ideas
@@ -290,7 +291,7 @@ def getIdeasByCluster(cluster_index):
 		idea = {
 			"idea": ideaObj.text,
 			"words": ideaObj.text.split(),
-			"author": cleanNickname(ideaObj.author.nickname())
+			"author": cleanNickname(ideaObj.author)
 		}
 		ideas.append(idea)
 	return ideas;
@@ -329,8 +330,9 @@ def doCluster(k):
 				phrase = phrases[index]
 				entry.append([text, phrase])
 				idea = Idea.all().filter("index =", index).get()
-				idea.cluster = clusterObj
-				idea.put()
+				if idea:
+					idea.cluster = clusterObj
+					idea.put()
 		clusterNum += 1
 
 	# Clean up any existing tags and cluster assignments since clusters have been reformed
@@ -394,11 +396,15 @@ def cleanWord(word):
 def isStopWord(word):
 	return (word in STOP_WORDS)
 
-def cleanNickname(nickname):
-	if nickname.count("@") == 0:
-		return nickname
+def cleanNickname(user):
+	if user:
+		nickname = user.nickname()
+		if nickname.count("@") == 0:
+			return nickname
+		else:
+			return nickname[:nickname.index("@")]
 	else:
-		return nickname[:nickname.index("@")]
+		return "none"
 	
 app = webapp2.WSGIApplication([
     ('/', MainPageHandler),
