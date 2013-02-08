@@ -1,11 +1,11 @@
 * Improve color / readability [Leah]
-* Improve clustering (same words go into different clusters)
 
 BUGS:
 * Make sure notes are clustered before entering tags
 
 Features
 * Delete data
+* Ability to create new questions, and to keep data from multiple questions, etc.
 * New clustering approach based on tagging each item, and then cluster based on tags
 (4) Recategorize by assigned groups of people per cluster with voting
 (5) Humans relabel clusters
