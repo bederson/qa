@@ -42,7 +42,7 @@ onMessage = function(message) {
 	dataObj = jQuery.parseJSON(data);
 //	console.log(dataObj);
 	
-	if (dataObj.op == "new") {
+	if (dataObj.op == "newidea") {
 		handleNew(dataObj);
 	} else 	if (dataObj.op == "newtag") {
 		handleTag(dataObj);

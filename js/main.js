@@ -52,7 +52,7 @@ function initEventHandlers() {
 			"client_id": client_id,
 			"idea": idea
 		};
-		$.post("/new", data, function() {
+		$.post("/newidea", data, function() {
 			$("#thankyou").css("display", "inline");
 			$("#answer").val("");
 			$("#answer").focus();

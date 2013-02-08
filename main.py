@@ -117,16 +117,35 @@ class TagPageHandler(webapp2.RequestHandler):
 #####################
 # Action Handlers
 #####################
-class NewHandler(webapp2.RequestHandler):
+class NewQuestionHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
-		idea = self.request.get('idea')
-		if len(idea) > 2:
-			Idea.addIdea(idea)
+		text = self.request.get('question')
+		data = {}
+		if len(text) > 2:
+			question_id = Question.addQuestion(text)
+			data = {"question": question_id}
 
 			# Update clients
 			message = {
-				"op": "new",
+				"op": "newquestion"
+			}
+			send_message(client_id, message)		# Update other clients about this change
+
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(json.dumps(data))
+
+class NewIdeaHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		idea = self.request.get('idea')
+		question_id = self.request.get("question_id")
+		if len(idea) > 2:
+			Idea.addIdea(idea, question_id)
+
+			# Update clients
+			message = {
+				"op": "newidea",
 				"text": idea,
 				"author": cleanNickname(users.get_current_user())
 			}
@@ -148,6 +167,18 @@ class NewTagHandler(webapp2.RequestHandler):
 				"author": cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, message)		# Update other clients about this change
+
+class DeleteHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		question_id = self.request.get("question_id")
+		Question.delete(question_id)
+
+		# Update clients
+		message = {
+			"op": "delete"
+		}
+		send_message(client_id, message)		# Update other clients about this change
 
 class QueryHandler(webapp2.RequestHandler):
     def get(self):
@@ -203,18 +234,18 @@ class PhaseHandler(webapp2.RequestHandler):
 		}
 		send_message(client_id, message)		# Update other clients about this change
 
-class ImportHandler(webapp2.RequestHandler):
-	def post(self):
-		client_id = self.request.get('client_id')
-		data = self.request.get('csvfile')
-#		importCSV(data)
-		importRowData(data)
-
-		# Update clients
-		message = {
-			"op": "refresh",
-		}
-		send_message(client_id, message)		# Update other clients about this change
+# class ImportHandler(webapp2.RequestHandler):
+# 	def post(self):
+# 		client_id = self.request.get('client_id')
+# 		data = self.request.get('csvfile')
+# #		importCSV(data)
+# 		importRowData(data)
+# 
+# 		# Update clients
+# 		message = {
+# 			"op": "refresh",
+# 		}
+# 		send_message(client_id, message)		# Update other clients about this change
 
 class ConnectedHandler(webapp2.RequestHandler):
 	# Notified when clients connect
@@ -236,18 +267,18 @@ class DisconnectedHandler(webapp2.RequestHandler):
 # Text Support
 #####################
 
-def importCSV(data):
-	csvReader = csv.reader(StringIO.StringIO(data))
-	for row in csvReader:
-		if len(row) > 2:
-			logging.info(row)
-#			Idea.addIdea(row)
-
-def importRowData(data):
-	rows = data.split("\r")
-	for row in rows:
-		if len(row) > 2:
-			Idea.addIdea(row)
+# def importCSV(data):
+# 	csvReader = csv.reader(StringIO.StringIO(data))
+# 	for row in csvReader:
+# 		if len(row) > 2:
+# 			logging.info(row)
+# #			Idea.addIdea(row)
+# 
+# def importRowData(data):
+# 	rows = data.split("\r")
+# 	for row in rows:
+# 		if len(row) > 2:
+# 			Idea.addIdea(row)
 	
 def getIdeas():
 	results = []
@@ -305,8 +336,7 @@ def doCluster(k):
 	clusters = cl.getclusters(k)
 
 	# Delete existing clusters from database
-	clusterObjs = Cluster.all()
-	db.delete(clusterObjs)
+	Cluster.deleteAllClusters()
 	
 	clusterNum = 0
 	for cluster in clusters:
@@ -411,12 +441,16 @@ app = webapp2.WSGIApplication([
 	('/results', ResultsPageHandler),
 	('/admin', AdminPageHandler),
 	('/tag', TagPageHandler),
+
 	('/query', QueryHandler),
-	('/new', NewHandler),
+	('/newquestion', NewQuestionHandler),
+	('/newidea', NewIdeaHandler),
 	('/newtag', NewTagHandler),
+	('/delete', DeleteHandler),
 	('/cluster', ClusterHandler),
 	('/set_phase', PhaseHandler),
-	('/import', ImportHandler),
+#	('/import', ImportHandler),
+
 	('/_ah/channel/connected/', ConnectedHandler),
 	('/_ah/channel/disconnected/', DisconnectedHandler)
 ], debug=True)
