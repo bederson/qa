@@ -103,7 +103,7 @@ function displayIdeasImpl(clusters) {
 		var cluster = clusters[i];
 		var clusterName = cluster.name;
 		var ideas = cluster.ideas;
-		html += "<h2>Cluster #" + (parseInt(i)+1) + "</h2>";
+		html += "<h2>" + clusterName + "</h2>";
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
 		html += "<div class='ideas'>";
@@ -118,11 +118,11 @@ function displayIdeasImpl(clusters) {
 		html += "</div>";
 		html += "</td>";
 		if (!jQuery.browser.mobile) {
-			var divid = "vis" + i;
-			var controlid = "control" + i;
+			var divid = "vis" + cluster.id;
+			var controlid = "control" + cluster.id;
 			html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
 		}
-		html += "</tr><table>"
+		html += "</tr></table>"
 	}
 
 	$("#clusteredIdeas").html(html);
@@ -133,7 +133,7 @@ function displayIdeasImpl(clusters) {
 			for (var i in clusters) {
 				var cluster = clusters[i];
 				var ideas = cluster.ideas;
-				var cloudid = "vis" + i;
+				var cloudid = "vis" + cluster.id;
 				var height = $("#" + cloudid).parent().height();
 				if (height > MAX_CLOUD_HEIGHT) {
 					height = MAX_CLOUD_HEIGHT;

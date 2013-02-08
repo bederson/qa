@@ -1,11 +1,15 @@
+* Improve color / readability [Leah]
+* Improve clustering (same words go into different clusters)
+
 BUGS:
-* Display tag clouds based on words analyzed by server
 * Make sure notes are clustered before entering tags
-* Make admin fonts bigger
 
 Features
-* Import data
-* Export data
 * Delete data
+* New clustering approach based on tagging each item, and then cluster based on tags
 (4) Recategorize by assigned groups of people per cluster with voting
 (5) Humans relabel clusters
+
+Clustering
+* Look at MALLET - http://mallet.cs.umass.edu/topics.php
+* Read Jordan's paper

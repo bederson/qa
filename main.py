@@ -166,7 +166,7 @@ class QueryHandler(webapp2.RequestHandler):
 			for tagObj in Tag.getTags():
 				tag = cleanTag(tagObj.tag)
 				if tagObj.cluster:
-					item = {"tag": tag, "cluster": tagObj.cluster.index}
+					item = {"tag": tag, "cluster": tagObj.cluster.index, "author": cleanNickname(tagObj.author)}
 					tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters()}
 		elif request == "mytags":
@@ -256,7 +256,7 @@ def getIdeas():
 	# Start with all the ideas that aren't in any cluster
 	ideaObjs = Idea.all().filter("cluster =", None)
 	if ideaObjs.count() > 0:
-		entry = {"name": "Unclustered"}
+		entry = {"name": "Unclustered", "id": -1}
 		ideas = []
 		for ideaObj in ideaObjs:
 			idea = {
@@ -269,7 +269,7 @@ def getIdeas():
 		results.append(entry)
 
 	for clusterObj in clusterObjs:
-		entry = {"name": clusterObj.text}
+		entry = {"name": clusterObj.text, "id": clusterObj.index}
 		ideaObjs = Idea.all().filter("cluster =", clusterObj)
 		ideas = []
 		for ideaObj in ideaObjs:
@@ -311,7 +311,7 @@ def doCluster(k):
 	clusterNum = 0
 	for cluster in clusters:
 		clusterObj = Cluster()
-		clusterObj.text = "Cluster" + str(clusterNum)
+		clusterObj.text = "Cluster #" + str(clusterNum + 1)
 		clusterObj.index = clusterNum
 		clusterObj.put()
 		entry = []
