@@ -15,7 +15,6 @@
 // 
 
 $(function() {
-	initChannel();
 	initEventHandlers();
 	displayModes();
 	displayQuestions();
@@ -163,23 +162,4 @@ function updateButtons(phase) {
 	} else if (phase == 2) {
 		$("#p2button").attr("disabled", "disabled");
 	}
-}
-
-/////////////////////////
-// Channel support
-/////////////////////////
-function handleNew(data) {
-	// Ignore it
-}
-
-function handleRefresh(data) {
-	// Ignore it
-}
-
-function handlePhase(data) {
-	// Ignore it
-}
-
-function handleTag(data) {
-	// Ignore it
 }

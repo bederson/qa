@@ -24,6 +24,11 @@ h2 {
 	font-size: 0.8em;
 }
 
+.warning {
+	color: #f55;
+	font-weight: bold;
+}
+
 .author {
 	color: #888;
 	font-size: 0.8em;

@@ -35,7 +35,11 @@ STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", 
 
 def get_default_template_values(requestHandler, question_id):
 	"""Return a dictionary of template values used for login template"""
-	client_id, token = connect(question_id)		# New user connection
+	if question_id == None:
+		client_id = None
+		token = None
+	else:
+		client_id, token = connect(question_id)		# New user connection
 
 	if users.get_current_user():
 		url = users.create_logout_url(requestHandler.request.uri)
@@ -90,6 +94,13 @@ def send_message(client_id, question_id, message):
 #####################
 # Page Handlers
 #####################
+class MainPageHandler(webapp2.RequestHandler):
+    def get(self):
+		template_values = get_default_template_values(self, None)
+
+		path = os.path.join(os.path.dirname(__file__), 'main.html')
+		self.response.out.write(template.render(path, template_values))
+
 class IdeaPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
@@ -109,7 +120,7 @@ class ResultsPageHandler(webapp2.RequestHandler):
 class AdminPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
-		template_values = get_default_template_values(self, question_id)
+		template_values = get_default_template_values(self, None)
 
 		path = os.path.join(os.path.dirname(__file__), 'admin.html')
 		self.response.out.write(template.render(path, template_values))
@@ -221,7 +232,10 @@ class QueryHandler(webapp2.RequestHandler):
 			data = {"tags": tags}
 		elif request == "question":
 			questionObj = Question.getQuestionById(question_id)
-			data = {"title": questionObj.title, "question": questionObj.question}
+			if questionObj:
+				data = {"title": questionObj.title, "question": questionObj.question}
+			else:
+				data = {"title": "", "question": ""}
 		elif request == "questions":
 			questions = []
 			for question in Question.getQuestionsByUser():
@@ -434,6 +448,7 @@ def cleanNickname(user):
 		return "none"
 	
 app = webapp2.WSGIApplication([
+	('/', MainPageHandler),
     ('/idea', IdeaPageHandler),
 	('/results', ResultsPageHandler),
 	('/admin', AdminPageHandler),

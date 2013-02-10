@@ -1,0 +1,39 @@
+<!--
+Copyright 2013 Ben Bederson - http://www.cs.umd.edu/~bederson
+University of Maryland
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+{% extends "base.html" %}
+
+{% block scripts %}
+	<script type="text/javascript" src="js/main.js"></script>
+{% endblock %}
+
+{% block content %}
+	<br>
+	Enter code: <input id="code_box" type="text" size="10"><input id="go_button" type="button" value="Go"><br>
+	<span id="info" class="warning" style="display:none">Invalid code - it should be 5 digits<br></span>
+	<span class="help">Get code from instructor</span>
+	<br><br><br>
+	Or, create and manage your own questions:
+	<input id="admin_button" type="button" value="Admin">
+
+	<br><br><br><br>
+	<hr>
+	An experiment in real-time interaction for synchronous learning settings.<br>
+	By <a href="http://www.cs.umd.edu/~bederson/">Ben Bederson</a> @ UMD's <a href="http://www.cs.umd.edu/hcil/">Human-Computer Interaction Lab</a>
+	<br><br>
+	Code on <a href="https://github.com/bederson/qa">GitHub</a>
+{% endblock %}

@@ -40,7 +40,7 @@ onOpened = function() {
 onMessage = function(message) {
 	var data = message.data;
 	dataObj = jQuery.parseJSON(data);
-//	console.log(dataObj);
+	console.log(dataObj);
 	
 	if (dataObj.op == "newidea") {
 		handleNew(dataObj);
