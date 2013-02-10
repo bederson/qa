@@ -174,8 +174,9 @@ function createIdea(idea) {
 }
 
 function updateNumIdeas() {
+	var question_id = getURLParameter("question_id");
 	var label = "note";
-	var overviewStr = "<h1>";
+	var overviewStr = "<h1>Code: " + question_id + " (";
 	if (numIdeas == 0) {
 		overviewStr += "No " + label + "s yet";
 	} else if (numIdeas == 1) {
@@ -183,7 +184,7 @@ function updateNumIdeas() {
 	} else {
 		overviewStr += numIdeas + " " + label + "s";
 	}
-	overviewStr += "</h1>";
+	overviewStr += ")</h1>";
 
 	$("#ideaOverview").html(overviewStr);
 }

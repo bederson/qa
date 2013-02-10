@@ -87,7 +87,8 @@ function initEventHandlers() {
 		window.location.href="/admin?question_id=" + question_id;
 	});
 	$("#tag_button").click(function() {
-		window.location.href="/tag";
+		var question_id = getURLParameter("question_id");
+		window.location.href="/tag?question_id=" + question_id;
 	});
 }
 

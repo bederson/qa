@@ -78,7 +78,9 @@ function displayModes() {
 			"question_id": question_id
 		};
 		$.getJSON("/query", data, function(results) {
-			var html = "Title: " + results.title + "<br>Question: " + results.question + "<br><br>";
+			var html = "Title: " + results.title + "<br>";
+			html += "Question: " + results.question + "<br>";
+			html += "<b>Code: " + question_id + "</b><br><br>";
 			$("#question").html(html);
 		});
 		
@@ -105,16 +107,20 @@ function displayQuestions() {
 
 function displayQuestionsImpl(results) {
 	var questions = results.questions;
-	var html = "<ul>";
-	for (var i in questions) {
-		var question = questions[i];
-		html += "<li><a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a>";
-		html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
-		html += "<br>";
-		html += question.question;
+	if (questions.length == 0) {
+		$("#questions_heading").css("display", "none");
+	} else {
+		var html = "<ul>";
+		for (var i in questions) {
+			var question = questions[i];
+			html += "<li><a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a>";
+			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
+			html += "<br>";
+			html += question.question;
+		}
+		html += "</ul>";
+		$("#questions").html(html);
 	}
-	html += "</ul>";
-	$("#questions").html(html);
 }
 
 function deleteQuestion(question_id) {

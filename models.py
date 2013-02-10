@@ -62,7 +62,7 @@ class Question(db.Model):
 		codeNeeded = True
 		while codeNeeded:
 			code = str(random.randint(10000, 99999))
-			q = Question.all().filter("code = ", code)
+			q = Question.all().filter("code = ", code).get()
 			if not q:
 				codeNeeded = False
 
@@ -71,7 +71,7 @@ class Question(db.Model):
 		questionObj.question = question
 		questionObj.code = code
 		questionObj.put()
-		return questionObj.key().id()
+		return code
 
 class App(db.Model):
 	phase = db.IntegerProperty(default=0)

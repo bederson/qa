@@ -280,7 +280,7 @@ class DisconnectedHandler(webapp2.RequestHandler):
 
 def getIdeas(questionIdStr):
 	results = []
-	questionObj = Question.get_by_id(int(questionIdStr))
+	questionObj = Question.getQuestionById(questionIdStr)
 	if not questionObj:
 		return results
 	clusterObjs = Cluster.all().filter("question = ", questionObj).order("index")
@@ -316,7 +316,7 @@ def getIdeas(questionIdStr):
 	return results
 
 def getIdeasByCluster(cluster_index, questionIdStr):
-	questionObj = Question.get_by_id(int(questionIdStr))
+	questionObj = Question.getQuestionById(questionIdStr)
 	if not questionObj:
 		return []
 
