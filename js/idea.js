@@ -62,6 +62,7 @@ function disableInput(msg) {
 
 function initEventHandlers() {
 	$("#submit").click(function() {
+		$("#submit").attr("disabled", "disabled");
 		var question_id = getURLParameter("question_id");
 		var idea = $("#answer").val();
 		var data = {
@@ -70,6 +71,7 @@ function initEventHandlers() {
 			"question_id": question_id
 		};
 		$.post("/newidea", data, function() {
+			$("#submit").removeAttr("disabled");
 			$("#thankyou").css("display", "inline");
 			$("#results_link").attr("href", "/results?question_id=" + question_id);
 			$("#answer").val("");
