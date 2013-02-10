@@ -273,6 +273,16 @@ class PhaseHandler(webapp2.RequestHandler):
 		}
 		send_message(client_id, question_id, message)		# Update other clients about this change
 
+class MigrateHandler(webapp2.RequestHandler):
+	def post(self):
+		pass
+		# qid = self.request.get("question_id")
+		# q = Question.getQuestionById(qid)
+		# ideas = Idea.all()
+		# for idea in ideas:
+		# 	idea.question = q
+		# 	idea.put()
+
 class ConnectedHandler(webapp2.RequestHandler):
 	# Notified when clients connect
 	def post(self):
@@ -462,6 +472,8 @@ app = webapp2.WSGIApplication([
 	('/delete', DeleteHandler),
 	('/cluster', ClusterHandler),
 	('/set_phase', PhaseHandler),
+	
+	('/migrate', MigrateHandler),
 
 	('/_ah/channel/connected/', ConnectedHandler),
 	('/_ah/channel/disconnected/', DisconnectedHandler)

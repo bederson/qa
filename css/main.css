@@ -1,5 +1,6 @@
 body {
     background-color: #d8e9a6;
+    background-color: #f9ffe8;
     font-family: Verdana, Helvetica, sans-serif;
 	font-size: 0.9em;
 }
@@ -72,7 +73,7 @@ h2 {
 
 #note {
 	padding: 5px;
-	background-color: #e8f9b6;
+	background-color: #e9f3cc;
 	border-radius: 7px;
 }
 

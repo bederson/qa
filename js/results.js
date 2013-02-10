@@ -320,7 +320,7 @@ function drawCharts() {
 					'title': 'Tag distribution',
 					'width': 600,
 					'height': 300,
-					'backgroundColor': '#d8e9a6',
+					'backgroundColor': $("body").css("background-color"),
 					'fontSize': 20,
 					'chartArea': {
 						'left': 190,

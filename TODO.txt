@@ -1,14 +1,4 @@
-* Ability to create new questions, and to keep data from multiple questions, etc.
-Add admin field for creating new questions
-Add mechanism for users to go to specific questions
-
-
-BUGS:
-* Make sure notes are clustered before entering tags
-
 Features
-* Improve color / readability [Leah]
-* Delete data
 * New clustering approach based on tagging each item, and then cluster based on tags
 (4) Recategorize by assigned groups of people per cluster with voting
 (5) Humans relabel clusters
