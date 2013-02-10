@@ -323,7 +323,7 @@ function drawCharts() {
 					'backgroundColor': '#d8e9a6',
 					'fontSize': 20,
 					'chartArea': {
-						'left': 200,
+						'left': 190,
 						'right': 20,
 					},
 					'hAxis': {

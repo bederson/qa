@@ -151,7 +151,7 @@ class NewIdeaHandler(webapp2.RequestHandler):
 		client_id = self.request.get('client_id')
 		idea = self.request.get('idea')
 		question_id = self.request.get("question_id")
-		if len(idea) >= 5:
+		if len(idea) >= 0:			# Don't limit idea length until there is a way to give feedback about short ideas
 			Idea.createIdea(idea, question_id)
 
 			# Update clients

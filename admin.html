@@ -27,23 +27,25 @@ limitations under the License.
 	{% if admin %}
 		<h1>Administration Interface</h1>
 		<div id="question"></div>
-		<table id="phase_table" width="100%" style="display:none">
+		<table id="phase_table" style="display:none">
 			<tr valign="top">
-				<td width="50%">
+				<td>
 					<input id="p0button" type="button" value="Enter phase 0 - Data entry disabled"><br><br>
 					<input id="p1button" type="button" value="Enter phase 1 - Add notes"><br><br>
-					<input id="p2button" type="button" value="Enter phase 2 - Tag clusters"><br>
+					<input id="p2button" type="button" value="Enter phase 2 - Tag clusters">
 					<div class="help">&nbsp;Remember to cluster first</div>
 				</td>
-				<td width="50%">
+				<td width="20px"></td>
+				<td>
+					<br><br>
 					<input id="notes_button" type="button" value="Add notes"><br><br>
 					<input id="tags_button" type="button" value="Add tags"><br><br>
-					<input id="results_button" type="button" value="See results"><br><br>
+					<input id="results_button" type="button" value="See results">
 				</td>
 			</tr>
 		</table>
 
-		<br><br>
+		<br>
 		<h2>Create a new question:</h2><br>
 		<table width="100%">
 			<tr>
@@ -72,7 +74,7 @@ limitations under the License.
 			</tr>
 		</table>
 
-		<br><br>
+		<br>
 		<h2 id="questions_heading">Your existing questions:</h2>
 		<div id="questions"></div>
 		<div id="delete_confirm" title="Delete Confirmation" style="display:none">
