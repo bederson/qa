@@ -45,10 +45,17 @@ function init() {
 		$("#admin_buttons").css("display", "none");
 	}
 
-	$.getJSON("/query", {request: "phase"}, function(data) {
-		phase = data.phase;
+	var question_id = getURLParameter("question_id");
+	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
+
+	var data = {
+		"request": "phase",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		phase = results.phase;
 		displayIdeas();
-		if (data.phase == 2) {
+		if (results.phase == 2) {
 			$("#start_tagging").css("display", "inline");
 		}
 	});	
@@ -59,11 +66,14 @@ function initEventHandlers() {
 		var label = "Create " + $(this).val() + " clusters";
 		$("#clusterbutton").val(label);
 	});
+	
 	$("#clusterbutton").click(function() {
+		var question_id = getURLParameter("question_id");
 		var num_clusters = $("#numclusters").val();
 		var data = {
 			"client_id": client_id,
-			"num_clusters": num_clusters
+			"num_clusters": num_clusters,
+			"question_id": question_id
 		};
 		$.post("/cluster", data, function() {
 			window.location.reload();
@@ -83,18 +93,25 @@ function initEventHandlers() {
 		}
 	});
 	$("#admin_button").click(function() {
-		window.location.href="/admin";
+		var question_id = getURLParameter("question_id");
+		window.location.href="/admin?question_id=" + question_id;
 	});
 	$("#tag_button").click(function() {
-		window.location.href="/tag";
+		var question_id = getURLParameter("question_id");
+		window.location.href="/tag?question_id=" + question_id;
 	});
 }
 
 function displayIdeas(ideas) {
 	var html = "Ideas loading ..."; 
 	$("#clusteredIdeas").html(html);
-	
-	$.getJSON("/query", {request: "ideas"}, displayIdeasImpl);
+
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "ideas",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, displayIdeasImpl);
 }
 
 function displayIdeasImpl(clusters) {
@@ -148,7 +165,7 @@ function displayIdeasImpl(clusters) {
 	}
 }
 
-function addIdea(idea) {
+function createIdea(idea) {
 	var html = "<li>" + idea.text;
 	html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + "</span><br>";
 	$("#unclusteredIdeas").prepend(html);
@@ -209,8 +226,13 @@ function displayCloud(cloudid, cluster) {
 // Tag Chart Display
 //=================================================================================
 function displayTags() {
-	$.getJSON("/query", {request: "tags"}, function(data) {
-		processTags(data);
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "tags",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		processTags(results);
 		drawCharts();
 	});
 }
@@ -225,11 +247,11 @@ function processTags(data) {
 	for (var i in tags) {
 		var tag = tags[i].tag;
 		var cluster = tags[i].cluster;
-		addTag(tag, cluster);
+		createTag(tag, cluster);
 	}
 }
 
-function addTag(tag, cluster) {
+function createTag(tag, cluster) {
 	if (tag in tag_hists[cluster]) {
 		tag_hists[cluster][tag] += 1;
 	} else {
@@ -364,7 +386,7 @@ function getWordStem(word) {
 // Channel support
 /////////////////////////
 function handleNew(idea) {
-	addIdea(idea);
+	createIdea(idea);
 }
 
 function handleRefresh(data) {

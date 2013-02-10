@@ -22,12 +22,28 @@ from google.appengine.ext import db
 from google.appengine.api import users
 
 class Question(db.Model):
-	text = db.StringProperty()
+	title = db.StringProperty()
+	question = db.StringProperty()
 	author = db.UserProperty(auto_current_user_add=True)
+	code = db.StringProperty()
+
+	@staticmethod
+	def getQuestionById(questionIdStr):
+		questionObj = None
+		try:
+			questionObj = Question.all().filter("code = ", questionIdStr).get()
+		except:
+			pass
+		return questionObj
+
+	@staticmethod
+	def getQuestionsByUser():
+		questions = Question.all().filter("author = ", users.get_current_user())
+		return questions
 
 	@staticmethod
 	def delete(questionIdStr):
-		questionObj = Question.get_by_id(int(questionIdStr))
+		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
 			clusterObjs = Cluster.all().filter("question =", questionObj)
 			db.delete(clusterObjs)
@@ -42,9 +58,18 @@ class Question(db.Model):
 			db.delete(questionObj)
 
 	@staticmethod
-	def addQuestion(text):
+	def createQuestion(title, question):
+		codeNeeded = True
+		while codeNeeded:
+			code = str(random.randint(10000, 99999))
+			q = Question.all().filter("code = ", code)
+			if not q:
+				codeNeeded = False
+
 		questionObj = Question()
-		questionObj.text = text
+		questionObj.title = title
+		questionObj.question = question
+		questionObj.code = code
 		questionObj.put()
 		return questionObj.key().id()
 
@@ -53,24 +78,27 @@ class App(db.Model):
 	question = db.ReferenceProperty(Question)
 
 	@staticmethod
-	def getApp(questionIDStr):
-		questionObj = Question.get_by_id(int(questionIdStr))
-		app = App.all().filter("question =", questionObj)
-		if app.count() == 0:
-			appObj = App()
-			appObj.question = questionObj
-			appObj.put()
+	def getApp(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			app = App.all().filter("question =", questionObj)
+			if app.count() == 0:
+				appObj = App()
+				appObj.question = questionObj
+				appObj.put()
+			else:
+				appObj = app.get()
 		else:
-			appObj = app.get()
+			appObj = None
 		return appObj
 	
 	@staticmethod
-	def getPhase():
-		return App.getApp().phase
+	def getPhase(questionIDStr):
+		return App.getApp(questionIDStr).phase
 
 	@staticmethod
-	def setPhase(phase):
-		appObj = App.getApp()
+	def setPhase(phase, questionIDStr):
+		appObj = App.getApp(questionIDStr)
 		appObj.phase = phase
 		appObj.put()
 
@@ -80,20 +108,43 @@ class Cluster(db.Model):
 	question = db.ReferenceProperty(Question)
 
 	@staticmethod
-	def getRandomCluster():
-		count = Cluster.all().count()
-		if count == 0:
-			return -1
+	def createCluster(text, index, questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			clusterObj = Cluster()
+			clusterObj.text = text
+			clusterObj.index = index
+			clusterObj.question = questionObj
+			clusterObj.put()
+			return clusterObj
 		else:
-			return random.randint(0, count-1)
+			return None
 
 	@staticmethod
-	def numClusters():
-		return Cluster.all().count()
+	def getRandomClusterIndex(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			count = Cluster.all().filter("question =", questionObj).count()
+			if count == 0:
+				return -1
+			else:
+				return random.randint(0, count-1)
+		else:
+			return -1
 
 	@staticmethod
-	def deleteAllClusters():
-		db.delete(Clusters.all())
+	def numClusters(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			return Cluster.all().filter("question =", questionObj).count()
+		else:
+			return 0
+
+	@staticmethod
+	def deleteAllClusters(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			db.delete(Cluster.all().filter("question =", questionObj))
 
 class Idea(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
@@ -104,8 +155,8 @@ class Idea(db.Model):
 	question = db.ReferenceProperty(Question)
 
 	@staticmethod
-	def addIdea(idea, questionIdStr):
-		questionObj = Question.get_by_id(int(questionIdStr))
+	def createIdea(idea, questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
 			if len(idea) > 500:
 				idea = idea[:500]
@@ -117,28 +168,51 @@ class Idea(db.Model):
 			ideaObj.question = questionObj
 			ideaObj.put()
 
+	@staticmethod
+	def assignCluster(index, clusterObj, questionIdStr):
+		"""Assigns specified cluster to the 'index' idea"""
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			ideaObj = Idea.all()
+			ideaObj = ideaObj.filter("index =", index)
+			ideaObj = ideaObj.filter("question =", questionObj)
+			ideaObj = ideaObj.get()
+			if ideaObj:
+				ideaObj.cluster = clusterObj
+				ideaObj.put()
+
 class ClusterAssignment(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
 	cluster = db.ReferenceProperty(Cluster)
+	question = db.ReferenceProperty(Question)
 
 	@staticmethod
-	def getAssignment():
+	def getAssignment(questionIdStr):
 		"""Determines the cluster assigned to this author"""
-		ca = ClusterAssignment.all().filter("author =", users.get_current_user())
-		if ca.count() == 0:
-			cluster_index = Cluster.getRandomCluster()
-			if cluster_index >= 0:
-				caObj = ClusterAssignment()
-				caObj.cluster = Cluster.all().filter("index =", cluster_index).get()
-				caObj.put()
-			return cluster_index
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			ca = ClusterAssignment.all()
+			ca = ca.filter("author =", users.get_current_user())
+			ca = ca.filter("question =", questionObj)
+			if ca.count() == 0:
+				cluster_index = Cluster.getRandomClusterIndex(questionIdStr)
+				if cluster_index >= 0:
+					caObj = ClusterAssignment()
+					caObj.cluster = Cluster.all().filter("index =", cluster_index).get()
+					caObj.question = questionObj
+					caObj.put()
+				return cluster_index
+			else:
+				caObj = ca.get()
+				return ca.get().cluster.index
 		else:
-			caObj = ca.get()
-			return ca.get().cluster.index
+			return -1
 
 	@staticmethod
-	def deleteAllClusterAssignments():
-		db.delete(ClusterAssignment.all())
+	def deleteAllClusterAssignments(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			db.delete(ClusterAssignment.all().filter("question =", questionObj))
 
 class Tag(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
@@ -147,26 +221,32 @@ class Tag(db.Model):
 	question = db.ReferenceProperty(Question)
 
 	@staticmethod
-	def addTag(tag, cluster_index):
-		cluster = Cluster.all().filter("index =", cluster_index).get()
-		tagObj = Tag()
-		tagObj.tag = tag
-		tagObj.cluster = cluster
-		tagObj.put()
+	def createTag(tag, cluster_index, questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		cluster = Cluster.all().filter("question =", questionObj).filter("index =", cluster_index).get()
+		if cluster:
+			tagObj = Tag()
+			tagObj.tag = tag
+			tagObj.cluster = cluster
+			tagObj.question = questionObj
+			tagObj.put()
 
 	@staticmethod
-	def getTags():
-		tags = Tag.all()
+	def getTags(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		tags = Tag.all().filter("question =", questionObj)
 		return tags
 
 	@staticmethod
-	def getTagsByUser():
-		tags = Tag.all().filter("author = ", users.get_current_user())
+	def getTagsByUser(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		tags = Tag.all().filter("question =", questionObj).filter("author = ", users.get_current_user())
 		return tags
 
 	@staticmethod
-	def deleteAllTags():
-		db.delete(Tag.all())
+	def deleteAllTags(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		db.delete(Tag.all().filter("question =", questionObj))
 
 class Connection(db.Model):
 	client_id = db.StringProperty()

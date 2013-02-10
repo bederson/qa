@@ -1,9 +1,4 @@
 * Ability to create new questions, and to keep data from multiple questions, etc.
-Add question field to:
-Cluster
-Tag
-Connection
-
 Add admin field for creating new questions
 Add mechanism for users to go to specific questions
 

@@ -28,8 +28,23 @@ $(function() {
 		return;
 	}
 
-	$("#answer").focus();	
-	$.getJSON("/query", {request: "phase"}, function(data) {
+	$("#answer").focus();
+	var question_id = getURLParameter("question_id");
+
+	var data = {
+		"request": "question",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(data) {
+		$("#title").html(data.title);
+		$("#question").html(data.question);
+	});
+
+	var data = {
+		"request": "phase",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(data) {
 		if (data.phase != 1) {
 			disableInput("Not currently accepting new submissions");
 		}
@@ -47,13 +62,16 @@ function disableInput(msg) {
 
 function initEventHandlers() {
 	$("#submit").click(function() {
+		var question_id = getURLParameter("question_id");
 		var idea = $("#answer").val();
 		var data = {
 			"client_id": client_id,
-			"idea": idea
+			"idea": idea,
+			"question_id": question_id
 		};
 		$.post("/newidea", data, function() {
 			$("#thankyou").css("display", "inline");
+			$("#results_link").attr("href", "/results?question_id=" + question_id);
 			$("#answer").val("");
 			$("#answer").focus();
 			updateRemainingChars();
@@ -65,7 +83,8 @@ function initEventHandlers() {
 	});
 
 	$("#admin_button").click(function() {
-		window.location.href="/admin";
+		var question_id = getURLParameter("question_id");
+		window.location.href="/admin?question_id=" + question_id;
 	});
 	$("#tag_button").click(function() {
 		window.location.href="/tag";

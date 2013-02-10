@@ -31,8 +31,13 @@ $(function() {
 	}
 
 	$("#taganswer").focus();
-	$.getJSON("/query", {request: "phase"}, function(data) {
-		if (data.phase != 2) {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "phase",
+		"question_id": question_id
+	}
+	$.getJSON("/query", data, function(requests) {
+		if (requests.phase != 2) {
 			disableInput("Not currently accepting new submissions");
 		}
 	});
@@ -57,7 +62,8 @@ function initEventHandlers() {
 	});
 
 	$("#admin_button").click(function() {
-		window.location.href="/admin";
+		var question_id = getURLParameter("question_id");
+		window.location.href="/admin?question_id=" + question_id;
 	});
 }
 
@@ -82,10 +88,12 @@ function submitTag() {
 	}
 	mytags.push(tag);
 
+	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
 		"tag": tag,
-		"cluster_index": cluster_index
+		"cluster_index": cluster_index,
+		"question_id": question_id
 	};
 	$.post("/newtag", data);
 
@@ -128,8 +136,13 @@ function updateRemainingChars() {
 }
 
 function displayTags() {
-	$.getJSON("/query", {request: "mytags"}, function(data) {
-		var tags = data.tags;
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "mytags",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		var tags = results.tags;
 		var html = "My tags:<br><ul>";
 		for (i in tags) {
 			var tag = tags[i];
@@ -143,10 +156,16 @@ function displayTags() {
 }
 
 function displayIdeas() {
-	$.getJSON("/query", {request: "ideas", cluster_index: cluster_index}, function(data) {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "ideas", 
+		"cluster_index": cluster_index,
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
 		var html = "Notes:<br><ul>";
-		for (i in data) {
-			var idea = data[i].idea;
+		for (i in results) {
+			var idea = results[i].idea;
 			html += "<li>" + idea
 		}
 		html += "</ul>";

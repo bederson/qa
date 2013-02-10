@@ -18,7 +18,7 @@ limitations under the License.
 {% extends "base.html" %}
 
 {% block scripts %}
-	<script type="text/javascript" src="js/main.js"></script>
+	<script type="text/javascript" src="js/idea.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -35,18 +35,8 @@ limitations under the License.
 	</div>
 
 	<div id="qcontainer">
-		<!-- <h1>Bederson Tech Talk Question</h1>
-		<div class="question">
-			What did your favorite university teacher do that made him/her your favorite?
-		</div> -->
-		<!-- <h1>FIA Crowdsourcing Question</h1>
-		<div class="question">
-			Give an example of an information trend you expect to see in 2013?
-		</div> -->
-		<h1>HCIL Brown Bag Lunch Question</h1>
-		<div class="question">
-			Give an example of how students benefit by attending class in person.
-		</div>
+		<h1 id="title"></h1>
+		<div id="question"></div>
 
 		<div class="help">
 			Only put a single thing here. If you have other things to say, submit multiple times.
@@ -60,7 +50,7 @@ limitations under the License.
 			<br><br>
 			<hr>
 			Thank you. Please enter as many submissions as you'd like.<br>
-			Or, look at <a href="/results">other people's submissions</a> as they come in.
+			Or, look at <a id="results_link">other people's submissions</a> as they come in.
 		</div>
 	</div>
 	
