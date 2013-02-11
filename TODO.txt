@@ -1,7 +1,21 @@
+Bugs
+* Firefox disabled when admin enters phase 0, and then phase 1
+
 Features
+* Edit existing questions
+* Allow student pseudonym instead of google account
+* Add time stamp to all interactions
+* List # ideas given for a question
+
+New approaches
 * New clustering approach based on tagging each item, and then cluster based on tags
-(4) Recategorize by assigned groups of people per cluster with voting
-(5) Humans relabel clusters
+* New clustering approach by asking student to incrementally say which items are most similar
+* Final reclustering step based tags
+* Have student provide drawings, and do peer clustering
+* Provide a picture with a question, and have students point to place on image that provides answer (and aggregate answers)
+* Combine with MOOC to give community of participants the ability to participate in real-time with each other
+* Regular polls
+
 
 Clustering
 * Look at MALLET - http://mallet.cs.umass.edu/topics.php

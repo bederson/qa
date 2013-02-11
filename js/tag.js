@@ -37,7 +37,9 @@ $(function() {
 		"question_id": question_id
 	}
 	$.getJSON("/query", data, function(requests) {
-		if (requests.phase != 2) {
+		if (requests.phase == 2) {
+			enableInput();
+		} else {
 			disableInput("Not currently accepting new submissions");
 		}
 	});
@@ -65,6 +67,15 @@ function initEventHandlers() {
 		var question_id = getURLParameter("question_id");
 		window.location.href="/admin?question_id=" + question_id;
 	});
+}
+
+// Shouldn't have to enableInput, but Firefox strangely caches state of elements.
+// Without explicitly enabling input, Firefox will remain disabled after phase change - even on reload
+function enableInput() {
+	$("#taganswer").removeAttr("disabled");
+	$("#submit").removeAttr("disabled");
+	$("#taganswer").val("");
+	$("#taganswer").focus();
 }
 
 function disableInput(msg) {
