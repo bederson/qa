@@ -7,6 +7,7 @@ Features
 
 Engineering
 * Move some page data from Javascript to Python, and send it client w/ templates (i.e., phase, current question)
+* Only let owners or admin delete questions
 
 New approaches
 * New clustering approach based on tagging each item, and then cluster based on tags
@@ -18,11 +19,7 @@ New approaches
 * Combine with MOOC to give community of participants the ability to participate in real-time with each other
 * Regular polls
 * "Tag" with a fixed vocabulary - which would turn into a collective grading exercise. If participants could get back
-  their originally contributed ideas, then it would turn into a kind of grading platform
-
-Volunteer beta testers:
-* June Ahn
-* Loren Terveen
+  their originally contributed ideas, then it would turn into a kind of peer grading platform
 
 Clustering
 * Look at MALLET - http://mallet.cs.umass.edu/topics.php
