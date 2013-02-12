@@ -2,10 +2,11 @@ Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 
 Features
-* Edit existing questions
 * Allow student pseudonym instead of google account
-* Add time stamp to all interactions
 * List # ideas/tags given for the current, and # ideas for all questions
+
+Engineering
+* Move some page data from Javascript to Python, and send it client w/ templates (i.e., phase, current question)
 
 New approaches
 * New clustering approach based on tagging each item, and then cluster based on tags
@@ -16,6 +17,8 @@ New approaches
 * Provide a picture with a question, and have students point to place on image that provides answer (and aggregate answers)
 * Combine with MOOC to give community of participants the ability to participate in real-time with each other
 * Regular polls
+* "Tag" with a fixed vocabulary - which would turn into a collective grading exercise. If participants could get back
+  their originally contributed ideas, then it would turn into a kind of grading platform
 
 Volunteer beta testers:
 * June Ahn

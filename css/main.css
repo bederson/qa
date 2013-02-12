@@ -53,6 +53,10 @@ h2 {
 	margin-bottom: 10px;
 }
 
+#questions li {
+	margin-bottom: 10px;
+}
+
 #answer {
 	height: 60px;
 }

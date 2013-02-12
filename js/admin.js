@@ -43,18 +43,36 @@ function initEventHandlers() {
 		window.location.href = "/results?question_id=" + question_id;
 	});
 	$("#newq_button").click(function() {
-		var data = {
-			"client_id": client_id,
-			"title": $("#newq_title").val(),
-			"question": $("#newq_question").val()
-		};
-		$.post("/newquestion", data, function(result) {
-			if (parseInt(result.question_id) > 0) {
-				window.location.href = "/admin?question_id=" + result.question_id;
-			} else {
-				$("#newq_info").html("Failed to create question - maybe it is too short.");
-			}
-		});
+		if (isDefined($("#newq_button").data("question_id"))) {
+			// Edit question
+			var data = {
+				"client_id": client_id,
+				"title": $("#newq_title").val(),
+				"question": $("#newq_question").val(),
+				"question_id": $("#newq_button").data("question_id")
+			};
+			$.post("/editquestion", data, function(result) {
+				if (parseInt(result.question_id) > 0) {
+					window.location.href = "/admin?question_id=" + result.question_id;
+				} else {
+					$("#newq_info").html("Failed to update question.");
+				}
+			});
+		} else {
+			// Create new question
+			var data = {
+				"client_id": client_id,
+				"title": $("#newq_title").val(),
+				"question": $("#newq_question").val()
+			};
+			$.post("/newquestion", data, function(result) {
+				if (parseInt(result.question_id) > 0) {
+					window.location.href = "/admin?question_id=" + result.question_id;
+				} else {
+					$("#newq_info").html("Failed to create question - maybe it is too short.");
+				}
+			});
+		}
 	})
 }
 
@@ -113,6 +131,7 @@ function displayQuestionsImpl(results) {
 		for (var i in questions) {
 			var question = questions[i];
 			html += "<li><a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a>";
+			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.question_id + ")'>[edit]</a>";
 			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
 			html += "<br>";
 			html += question.question;
@@ -120,6 +139,19 @@ function displayQuestionsImpl(results) {
 		html += "</ul>";
 		$("#questions").html(html);
 	}
+}
+
+function editQuestion(question_id) {
+	data = {
+		"request": "question",
+		"question_id": question_id
+	}
+	$.getJSON("/query", data, function(results) {
+		$("#newq_title").val(results.title);
+		$("#newq_question").val(results.question);
+		$("#newq_button").val("Update question");
+		$("#newq_button").data("question_id", question_id);
+	});
 }
 
 function deleteQuestion(question_id) {

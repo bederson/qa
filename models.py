@@ -74,6 +74,17 @@ class Question(db.Model):
 		questionObj.put()
 		return code
 
+	@staticmethod
+	def editQuestion(questionIdStr, title, question):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			questionObj.title = title
+			questionObj.question = question
+			questionObj.put()
+			return questionObj.code
+		else:
+			return -1
+
 class App(db.Model):
 	phase = db.IntegerProperty(default=0)
 	question = db.ReferenceProperty(Question)

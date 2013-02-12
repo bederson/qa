@@ -158,6 +158,26 @@ class NewQuestionHandler(webapp2.RequestHandler):
 		self.response.headers['Content-Type'] = 'application/json'
 		self.response.out.write(json.dumps(data))
 
+class EditQuestionHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		title = self.request.get('title')
+		question = self.request.get('question')
+		question_id = self.request.get("question_id")
+		data = {}
+		if len(title) >= 5 and len(question) >= 5:
+			question_id = Question.editQuestion(question_id, title, question)
+			data = {"question_id": question_id}
+
+			# Update clients
+			message = {
+				"op": "newquestion"
+			}
+			send_message(client_id, question_id, message)		# Update other clients about this change
+
+		self.response.headers['Content-Type'] = 'application/json'
+		self.response.out.write(json.dumps(data))
+
 class NewIdeaHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
@@ -488,6 +508,7 @@ app = webapp2.WSGIApplication([
 
 	('/query', QueryHandler),
 	('/newquestion', NewQuestionHandler),
+	('/editquestion', EditQuestionHandler),
 	('/newidea', NewIdeaHandler),
 	('/newtag', NewTagHandler),
 	('/delete', DeleteHandler),
