@@ -26,6 +26,7 @@ class Question(db.Model):
 	question = db.StringProperty()
 	author = db.UserProperty(auto_current_user_add=True)
 	code = db.StringProperty()
+	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
 	def getQuestionById(questionIdStr):
@@ -76,6 +77,7 @@ class Question(db.Model):
 class App(db.Model):
 	phase = db.IntegerProperty(default=0)
 	question = db.ReferenceProperty(Question)
+	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
 	def getApp(questionIdStr):
@@ -106,6 +108,7 @@ class Cluster(db.Model):
 	text = db.StringProperty()
 	index = db.IntegerProperty()
 	question = db.ReferenceProperty(Question)
+	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
 	def createCluster(text, index, questionIdStr):
@@ -144,7 +147,12 @@ class Cluster(db.Model):
 	def deleteAllClusters(questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
-			db.delete(Cluster.all().filter("question =", questionObj))
+			clusters = Cluster.all().filter("question =", questionObj)
+			for clusterObj in clusters:
+				for idea in Idea.all().filter("cluster =", clusterObj):
+					idea.cluster = None
+					idea.put()
+			db.delete(clusters)
 
 class Idea(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
@@ -161,7 +169,7 @@ class Idea(db.Model):
 			if len(idea) > 500:
 				idea = idea[:500]
 			idea = idea.replace("\n", "")
-			count = Idea.all().count()
+			count = Idea.all().filter("question =", questionObj).count()
 			ideaObj = Idea()
 			ideaObj.text = idea
 			ideaObj.index = count
@@ -219,6 +227,7 @@ class Tag(db.Model):
 	tag = db.StringProperty()
 	cluster = db.ReferenceProperty(Cluster)
 	question = db.ReferenceProperty(Question)
+	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
 	def createTag(tag, cluster_index, questionIdStr):

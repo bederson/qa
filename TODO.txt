@@ -1,14 +1,15 @@
 Bugs
-* Firefox disabled when admin enters phase 0, and then phase 1
+* Can't submit idea when Chrome "disconnect.me" plugin installed
 
 Features
 * Edit existing questions
 * Allow student pseudonym instead of google account
 * Add time stamp to all interactions
-* List # ideas given for a question
+* List # ideas/tags given for the current, and # ideas for all questions
 
 New approaches
 * New clustering approach based on tagging each item, and then cluster based on tags
+  - Need to generalize tagging so that different item types can be tagged
 * New clustering approach by asking student to incrementally say which items are most similar
 * Final reclustering step based tags
 * Have student provide drawings, and do peer clustering
@@ -16,6 +17,9 @@ New approaches
 * Combine with MOOC to give community of participants the ability to participate in real-time with each other
 * Regular polls
 
+Volunteer beta testers:
+* June Ahn
+* Loren Terveen
 
 Clustering
 * Look at MALLET - http://mallet.cs.umass.edu/topics.php

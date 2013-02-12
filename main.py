@@ -275,13 +275,12 @@ class PhaseHandler(webapp2.RequestHandler):
 
 class MigrateHandler(webapp2.RequestHandler):
 	def post(self):
-		pass
-		# qid = self.request.get("question_id")
-		# q = Question.getQuestionById(qid)
-		# ideas = Idea.all()
-		# for idea in ideas:
-		# 	idea.question = q
-		# 	idea.put()
+		for questionObj in Question.all():
+			i = 0
+			for ideaObj in Idea.all().filter("question =", questionObj):
+				ideaObj.index = i
+				ideaObj.put()
+				i += 1
 
 class ConnectedHandler(webapp2.RequestHandler):
 	# Notified when clients connect
@@ -358,10 +357,15 @@ def getIdeasByCluster(cluster_index, questionIdStr):
 	return ideas;
 
 def doCluster(k, question_id):
+	if k == 1:
+		uncluster(question_id)
+		return
+
 	if k > Idea.all().count():
 		return
 
-	vectors, texts, phrases = computeBagsOfWords()
+	updateIdeaIndices(question_id)		# Don't rely on them being created properly
+	vectors, texts, phrases = computeBagsOfWords(question_id)
 	cl = KMeansClustering(vectors)
 	clusters = cl.getclusters(k)
 
@@ -391,23 +395,40 @@ def doCluster(k, question_id):
 	Tag.deleteAllTags(question_id)
 	ClusterAssignment.deleteAllClusterAssignments(question_id)
 
-def computeBagsOfWords():
+def uncluster(question_id):
+	questionObj = Question.getQuestionById(question_id)
+	if questionObj:
+		Cluster.deleteAllClusters(question_id)
+		Tag.deleteAllTags(question_id)
+
+def updateIdeaIndices(question_id):
+	questionObj = Question.getQuestionById(question_id)
+	if questionObj:
+		i = 0
+		for ideaObj in Idea.all().filter("question =", questionObj):
+			ideaObj.index = i
+			ideaObj.put()
+			i += 1
+
+def computeBagsOfWords(question_id):
 	# First define vector by extracting every word
 	all_words = set()
 	phrases = []
 	texts = []
-	ideas = Idea.all().order('index')
-	for ideaObj in ideas:
-		text = ideaObj.text
-		texts.append(text)
-		words = text.split()
-		phrase = []
-		for word in words:
-			word = cleanWord(word)
-			if len(word) > 2:
-				all_words.add(word)
-				phrase.append(word)
-		phrases.append(phrase)
+	questionObj = Question.getQuestionById(question_id)
+	if questionObj:
+		ideas = Idea.all().filter("question = ", questionObj).order('index')
+		for ideaObj in ideas:
+			text = ideaObj.text
+			texts.append(text)
+			words = text.split()
+			phrase = []
+			for word in words:
+				word = cleanWord(word)
+				if len(word) > 2:
+					all_words.add(word)
+					phrase.append(word)
+			phrases.append(phrase)
 
 	# Create an index for the words
 	word_index = {}

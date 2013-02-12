@@ -80,18 +80,6 @@ function initEventHandlers() {
 		});
 	})
 
-	$("#hide_ideas_button").data("toggle", "hide");
-	$("#hide_ideas_button").click(function() {
-		if ($(this).data("toggle") == "hide") {
-			$(".ideas").css("display", "none");
-			$(this).val("Show ideas");
-			$(this).data("toggle", "show");
-		} else {
-			$(".ideas").css("display", "inline");
-			$(this).val("Hide ideas");
-			$(this).data("toggle", "hide");
-		}
-	});
 	$("#admin_button").click(function() {
 		var question_id = getURLParameter("question_id");
 		window.location.href="/admin?question_id=" + question_id;
@@ -185,8 +173,15 @@ function updateNumIdeas() {
 		overviewStr += numIdeas + " " + label + "s";
 	}
 	overviewStr += ")</h1>";
-
 	$("#ideaOverview").html(overviewStr);
+
+	var data = {
+		"request": "question",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(result) {
+		$("#ideaOverview").append("Question: " + result.question);
+	});
 }
 
 //=================================================================================

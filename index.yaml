@@ -19,3 +19,8 @@ indexes:
   properties:
   - name: question
   - name: client_id
+
+- kind: Idea
+  properties:
+  - name: question
+  - name: index
