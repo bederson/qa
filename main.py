@@ -242,8 +242,9 @@ class QueryHandler(webapp2.RequestHandler):
 			tags = []
 			for tagObj in Tag.getTags(question_id):
 				tag = cleanTag(tagObj.tag)
-				if tagObj.cluster:
-					item = {"tag": tag, "cluster": tagObj.cluster.index, "author": cleanNickname(tagObj.author)}
+				cluster = ClusterTag.getCluster(tagObj)
+				if cluster:
+					item = {"tag": tag, "cluster": cluster.index, "author": cleanNickname(tagObj.author)}
 					tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters(question_id)}
 		elif request == "mytags":

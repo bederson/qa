@@ -21,6 +21,9 @@ import random
 from google.appengine.ext import db
 from google.appengine.api import users
 
+####################
+##### QUESTION #####
+####################
 class Question(db.Model):
 	title = db.StringProperty()
 	question = db.StringProperty()
@@ -85,6 +88,9 @@ class Question(db.Model):
 		else:
 			return -1
 
+###############
+##### APP #####
+###############
 class App(db.Model):
 	phase = db.IntegerProperty(default=0)
 	question = db.ReferenceProperty(Question)
@@ -115,6 +121,9 @@ class App(db.Model):
 		appObj.phase = phase
 		appObj.put()
 
+###################
+##### CLUSTER #####
+###################
 class Cluster(db.Model):
 	text = db.StringProperty()
 	index = db.IntegerProperty()
@@ -165,11 +174,14 @@ class Cluster(db.Model):
 					idea.put()
 			db.delete(clusters)
 
+################
+##### IDEA #####
+################
 class Idea(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
 	date = db.DateProperty(auto_now=True)
 	text = db.StringProperty()
-	index = db.IntegerProperty()
+	index = db.IntegerProperty(default=0)
 	cluster = db.ReferenceProperty(Cluster)
 	question = db.ReferenceProperty(Question)
 
@@ -180,10 +192,8 @@ class Idea(db.Model):
 			if len(idea) > 500:
 				idea = idea[:500]
 			idea = idea.replace("\n", "")
-			count = Idea.all().filter("question =", questionObj).count()
 			ideaObj = Idea()
 			ideaObj.text = idea
-			ideaObj.index = count
 			ideaObj.question = questionObj
 			ideaObj.put()
 
@@ -200,6 +210,9 @@ class Idea(db.Model):
 				ideaObj.cluster = clusterObj
 				ideaObj.put()
 
+#############################
+##### CLUSTERASSIGNMENT #####
+#############################
 class ClusterAssignment(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
 	cluster = db.ReferenceProperty(Cluster)
@@ -233,23 +246,25 @@ class ClusterAssignment(db.Model):
 		if questionObj:
 			db.delete(ClusterAssignment.all().filter("question =", questionObj))
 
+###############
+##### TAG #####
+###############
 class Tag(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
 	tag = db.StringProperty()
-	cluster = db.ReferenceProperty(Cluster)
 	question = db.ReferenceProperty(Question)
 	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
 	def createTag(tag, cluster_index, questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
-		cluster = Cluster.all().filter("question =", questionObj).filter("index =", cluster_index).get()
-		if cluster:
+		clusterObj = Cluster.all().filter("question =", questionObj).filter("index =", cluster_index).get()
+		if clusterObj:
 			tagObj = Tag()
 			tagObj.tag = tag
-			tagObj.cluster = cluster
 			tagObj.question = questionObj
 			tagObj.put()
+			ClusterTag.createClusterTag(clusterObj, tagObj)
 
 	@staticmethod
 	def getTags(questionIdStr):
@@ -266,8 +281,37 @@ class Tag(db.Model):
 	@staticmethod
 	def deleteAllTags(questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
-		db.delete(Tag.all().filter("question =", questionObj))
+		if questionObj:
+			tags = Tag.all().filter("question =", questionObj)
+			for tagObj in tags:
+				db.delete(ClusterTag.all().filter("tag =", tagObj.key()))
+			db.delete(tags)
 
+######################
+##### CLUSTERTAG #####
+######################
+class ClusterTag(db.Model):
+	cluster = db.ReferenceProperty(Cluster)
+	tag = db.ReferenceProperty(Tag)
+
+	@staticmethod
+	def createClusterTag(cluster, tag):
+		clusterTag = ClusterTag()
+		clusterTag.cluster = cluster
+		clusterTag.tag = tag
+		clusterTag.put()
+
+	@staticmethod
+	def getCluster(tagObj):
+		clusterTag = ClusterTag.all().filter("tag =", tagObj).get()
+		if clusterTag:
+			return clusterTag.cluster
+		else:
+			return None
+
+######################
+##### CONNECTION #####
+######################
 class Connection(db.Model):
 	client_id = db.StringProperty()
 	question = db.ReferenceProperty(Question)
