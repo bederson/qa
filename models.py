@@ -310,6 +310,28 @@ class ClusterTag(db.Model):
 			return None
 
 ######################
+##### IDEATAG #####
+######################
+class IdeaTag(db.Model):
+	idea = db.ReferenceProperty(Idea)
+	tag = db.ReferenceProperty(Tag)
+
+	@staticmethod
+	def createIdeaTag(idea, tag):
+		ideaTag = IdeaTag()
+		ideaTag.idea = idea
+		ideaTag.tag = tag
+		ideaTag.put()
+
+	@staticmethod
+	def getIdea(tagObj):
+		ideaTag = IdeaTag.all().filter("tag =", tagObj).get()
+		if ideaTag:
+			return ideaTag.idea
+		else:
+			return None
+
+######################
 ##### CONNECTION #####
 ######################
 class Connection(db.Model):

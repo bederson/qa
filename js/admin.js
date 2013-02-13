@@ -18,6 +18,12 @@ $(function() {
 	initEventHandlers();
 	displayModes();
 	displayQuestions();
+
+	var question_id = getURLParameter("question_id");
+	$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
+//	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
+	$("#notes_link").attr("href", "/idea?question_id=" + question_id);
+	$("#results_link").attr("href", "/results?question_id=" + question_id);
 });
 
 function initEventHandlers() {
@@ -30,17 +36,8 @@ function initEventHandlers() {
 	$("#p2button").click(function() {
 		set_phase(2);
 	});
-	$("#notes_button").click(function() {
-		var question_id = getURLParameter("question_id");
-		window.location.href = "/idea?question_id=" + question_id;
-	});
-	$("#tags_button").click(function() {
-		var question_id = getURLParameter("question_id");
-		window.location.href = "/tag?question_id=" + question_id;
-	});
-	$("#results_button").click(function() {
-		var question_id = getURLParameter("question_id");
-		window.location.href = "/results?question_id=" + question_id;
+	$("#p3button").click(function() {
+		set_phase(3);
 	});
 	$("#newq_button").click(function() {
 		if (isDefined($("#newq_button").data("question_id"))) {

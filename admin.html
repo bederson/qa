@@ -29,7 +29,7 @@ limitations under the License.
 	<table id="phase_table" style="display:none">
 		<tr valign="top">
 			<td>
-				<input id="p0button" type="button" value="Enter phase 0 (data entry disabled)"><br><br>
+				<input id="p0button" type="button" value="Disable data entry">
 			</td>
 			<td width="20px"></td>
 			<td>
@@ -37,21 +37,29 @@ limitations under the License.
 		</tr>
 		<tr valign="top">
 			<td>
-				<input id="p1button" type="button" value="Enter phase 1 (add notes)"><br><br>
+				<input id="p1button" type="button" value="Enable adding of notes">
 			</td>
 			<td width="20px"></td>
 			<td>
-				<input id="notes_button" type="button" value="Add notes"><br><br>
+				Go to <a id="notes_link">add notes</a>
 			</td>
 		</tr>
 		<tr valign="top">
 			<td>
-				<input id="p2button" type="button" value="Enter phase 2 (tag clusters)">
-				<div class="help">&nbsp;Remember to cluster first</div>
+				<input id="p2button" type="button" value="Enable tagging by cluster">
 			</td>
 			<td width="20px"></td>
 			<td>
-				<input id="tags_button" type="button" value="Add tags"><br><br>
+				Go to <a id="tagbycluster_link">add tags per cluster</a>
+			</td>
+		</tr>
+		<tr valign="top">
+			<td>
+				<input id="p3button" type="button" value="Enable tagging by note">
+			</td>
+			<td width="20px"></td>
+			<td>
+				Go to <a id="tagbynote_link">add tags per note</a>
 			</td>
 		</tr>
 		<tr valign="top">
@@ -59,7 +67,7 @@ limitations under the License.
 			</td>
 			<td width="20px"></td>
 			<td>
-				<input id="results_button" type="button" value="=> See results">
+				=> <a id="results_link">See results</a>
 			</td>
 		</tr>
 	</table>
