@@ -32,17 +32,11 @@ $(function() {
 
 	$("#taganswer").focus();
 	var question_id = getURLParameter("question_id");
-	var data = {
-		"request": "phase",
-		"question_id": question_id
+	if (phase == 2) {
+		enableInput();
+	} else {
+		disableInput("Not currently accepting new submissions");
 	}
-	$.getJSON("/query", data, function(requests) {
-		if (requests.phase == 2) {
-			enableInput();
-		} else {
-			disableInput("Not currently accepting new submissions");
-		}
-	});
 
 	displayTags();
 	displayIdeas();

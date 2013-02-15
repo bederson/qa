@@ -31,29 +31,17 @@ $(function() {
 	$("#answer").focus();
 	var question_id = getURLParameter("question_id");
 
-	var data = {
-		"request": "question",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(data) {
-		$("#title").html(data.title);
-		$("#question").html(data.question);
-	});
+	$("#title").html(title);
+	$("#question").html(question);
 
-	var data = {
-		"request": "phase",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(data) {
-		if (data.phase == 1) {
-			enableInput();
-		} else {
-			disableInput("Not currently accepting new submissions");
-		}
-		if (data.phase == 2) {
-			$("#start_tagging").css("display", "inline");
-		}
-	});
+	if (phase == 1) {
+		enableInput();
+	} else {
+		disableInput("Not currently accepting new submissions");
+	}
+	if (phase == 2) {
+		$("#start_tagging").css("display", "inline");
+	}
 });
 
 // Shouldn't have to enableInput, but Firefox strangely caches state of elements.

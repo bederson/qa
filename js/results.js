@@ -21,7 +21,6 @@ var MAX_CLOUD_HEIGHT = 800;
 var maxChartRows = 10;
 var tag_hists = [];
 var show_tags_in_charts = [];
-var phase = 0;
 
 // Reason for this combination of google chart and jquery:
 // http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
@@ -48,17 +47,10 @@ function init() {
 	var question_id = getURLParameter("question_id");
 	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
 
-	var data = {
-		"request": "phase",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(results) {
-		phase = results.phase;
-		displayIdeas();
-		if (results.phase == 2) {
-			$("#start_tagging").css("display", "inline");
-		}
-	});	
+	displayIdeas();
+	if (phase == 2) {
+		$("#start_tagging").css("display", "inline");
+	}
 }
 
 function initEventHandlers() {
@@ -175,13 +167,7 @@ function updateNumIdeas() {
 	overviewStr += ")</h1>";
 	$("#ideaOverview").html(overviewStr);
 
-	var data = {
-		"request": "question",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(result) {
-		$("#ideaOverview").append("Question: " + result.question);
-	});
+	$("#ideaOverview").append("Question: " + question);
 }
 
 //=================================================================================

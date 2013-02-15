@@ -20,6 +20,7 @@ limitations under the License.
 {% block scripts %}
 	<script type="text/javascript" src="js/tag.js"></script>
 	<script>
+		var phase = parseInt("{{ phase }}");
 		var cluster_index = parseInt("{{ cluster_index }}");
 	</script>
 {% endblock %}

@@ -106,6 +106,11 @@ class IdeaPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
+		template_values["phase"] = App.getPhase(question_id)
+		questionObj = Question.getQuestionById(question_id)
+		if questionObj:
+			template_values["title"] = questionObj.title
+			template_values["question"] = questionObj.question
 
 		path = os.path.join(os.path.dirname(__file__), 'idea.html')
 		self.response.out.write(template.render(path, template_values))
@@ -114,6 +119,11 @@ class ResultsPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
+		template_values["phase"] = App.getPhase(question_id)
+		questionObj = Question.getQuestionById(question_id)
+		if questionObj:
+			template_values["title"] = questionObj.title
+			template_values["question"] = questionObj.question
 
 		path = os.path.join(os.path.dirname(__file__), 'results.html')
 		self.response.out.write(template.render(path, template_values))
@@ -122,6 +132,12 @@ class AdminPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, None)
+		if question_id:
+			template_values["phase"] = App.getPhase(question_id)
+			questionObj = Question.getQuestionById(question_id)
+			if questionObj:
+				template_values["title"] = questionObj.title
+				template_values["question"] = questionObj.question
 
 		path = os.path.join(os.path.dirname(__file__), 'admin.html')
 		self.response.out.write(template.render(path, template_values))
@@ -131,6 +147,7 @@ class TagPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
+		template_values["phase"] = App.getPhase(question_id)
 		template_values["cluster_index"] = ClusterAssignment.getAssignment(question_id)
 
 		path = os.path.join(os.path.dirname(__file__), 'tag.html')

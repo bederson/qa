@@ -87,26 +87,13 @@ function set_phase(phase) {
 function displayModes() {
 	var question_id = getURLParameter("question_id");
 	if (isDefined(question_id)) {
-		data = {
-			"request": "question",
-			"question_id": question_id
-		};
-		$.getJSON("/query", data, function(results) {
-			var html = "Title: " + results.title + "<br>";
-			html += "Question: " + results.question + "<br>";
-			html += "<b>Code: " + question_id + "</b><br><br>";
-			$("#question").html(html);
-		});
+		var html = "Title: " + title + "<br>";
+		html += "Question: " + question + "<br>";
+		html += "<b>Code: " + question_id + "</b><br><br>";
+		$("#question").html(html);
 		
 		$("#phase_table").css("display", "table");
-		data = {
-			"request": "phase",
-			"question_id": question_id
-		};
-		$.getJSON("/query", data, function(results) {
-			phase = parseInt(results.phase);
-			updateButtons(phase);
-		});
+		updateButtons(phase);
 	}
 }
 

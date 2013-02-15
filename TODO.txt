@@ -6,7 +6,6 @@ Features
 * List # ideas/tags given for the current, and # ideas for all questions
 
 Engineering
-* Move some page data from Javascript to Python, and send it client w/ templates (i.e., phase, current question)
 * Only let owners or admin delete questions
 
 New approaches
