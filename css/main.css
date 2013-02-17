@@ -2,7 +2,12 @@ body {
     background-color: #d8e9a6;
     background-color: #f9ffe8;
     font-family: Verdana, Helvetica, sans-serif;
-	font-size: 0.9em;
+	font-size: 1.2em;
+}
+
+input {
+    font-family: Verdana, Helvetica, sans-serif;
+	font-size: 1.2em;
 }
 
 h1 {

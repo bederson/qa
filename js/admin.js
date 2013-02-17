@@ -28,7 +28,13 @@ $(function() {
 
 function initEventHandlers() {
 	$("#p0button").click(function() {
-		set_phase(0);
+		if (phase == 0) {
+			$(this).val("Disable data entry");
+			set_phase(1);
+		} else {
+			$(this).val("Enable data entry");
+			set_phase(0);
+		}
 	});
 	$("#p1button").click(function() {
 		set_phase(1);
@@ -73,15 +79,17 @@ function initEventHandlers() {
 	})
 }
 
-function set_phase(phase) {
+function set_phase(new_phase) {
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
-		"phase": phase,
+		"phase": new_phase,
 		"question_id": question_id
 	};
-	$.post("/set_phase", data);
-	updateButtons(phase);
+	$.post("/set_phase", data, function() {
+		phase = new_phase
+		updateButtons();
+	});
 }
 
 function displayModes() {
@@ -93,7 +101,7 @@ function displayModes() {
 		$("#question").html(html);
 		
 		$("#phase_table").css("display", "table");
-		updateButtons(phase);
+		updateButtons();
 	}
 }
 
@@ -167,12 +175,14 @@ function deleteQuestionImpl(question_id) {
 	});
 }
 
-function updateButtons(phase) {
-	$("#p0button").removeAttr("disabled");
+function updateButtons() {
 	$("#p1button").removeAttr("disabled");
 	$("#p2button").removeAttr("disabled");
+	$("#p3button").removeAttr("disabled");
 	if (phase == 0) {
-		$("#p0button").attr("disabled", "disabled");
+		$("#p1button").attr("disabled", "disabled");
+		$("#p2button").attr("disabled", "disabled");
+		$("#p3button").attr("disabled", "disabled");
 	} else if (phase == 1) {
 		$("#p1button").attr("disabled", "disabled");
 	} else if (phase == 2) {

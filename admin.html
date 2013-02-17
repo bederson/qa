@@ -31,15 +31,8 @@ limitations under the License.
 {% block content %}
 	<h1>Administration Interface</h1>
 	<div id="question"></div>
-	<table id="phase_table" style="display:none">
-		<tr valign="top">
-			<td>
-				<input id="p0button" type="button" value="Disable data entry">
-			</td>
-			<td width="20px"></td>
-			<td>
-			</td>
-		</tr>
+	<input id="p0button" type="button" value="Disable data entry">
+	<table id="phase_table" style="display:none; margin-left:25px; margin-top: 15px">
 		<tr valign="top">
 			<td>
 				<input id="p1button" type="button" value="Enable adding of notes">
@@ -85,7 +78,7 @@ limitations under the License.
 				Title:
 			</td>
 			<td width="100%">
-				<input id="newq_title" type="text" name="title" size="100"><br>
+				<input id="newq_title" type="text" name="title" size="60"><br>
 			</td>
 		</tr>
 		<tr>
@@ -93,7 +86,7 @@ limitations under the License.
 				Question:
 			</td>
 			<td>
-				<input id="newq_question" type="text" name="question" size="100"><br>
+				<input id="newq_question" type="text" name="question" size="60"><br>
 			</td>
 		</tr>
 		<tr>
