@@ -126,8 +126,8 @@ class App(db.Model):
 ###################
 class Cluster(db.Model):
 	text = db.StringProperty()
-	index = db.IntegerProperty()
 	question = db.ReferenceProperty(Question)
+	rand = db.FloatProperty()
 	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
@@ -138,22 +138,23 @@ class Cluster(db.Model):
 			clusterObj.text = text
 			clusterObj.index = index
 			clusterObj.question = questionObj
+			if Cluster.all().filter("question =", questionObj).count() == 0:
+				clusterObj.rand = 1.0
+			else:
+				clusterObj.rand = random.random()
 			clusterObj.put()
 			return clusterObj
 		else:
 			return None
 
 	@staticmethod
-	def getRandomClusterIndex(questionIdStr):
+	def getRandomCluster(questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
-			count = Cluster.all().filter("question =", questionObj).count()
-			if count == 0:
-				return -1
-			else:
-				return random.randint(0, count-1)
+			rand = random.random()
+			return Cluster.all().filter("rand >", rand).get()
 		else:
-			return -1
+			return None
 
 	@staticmethod
 	def numClusters(questionIdStr):
@@ -181,7 +182,6 @@ class Idea(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
 	date = db.DateProperty(auto_now=True)
 	text = db.StringProperty()
-	index = db.IntegerProperty(default=0)
 	cluster = db.ReferenceProperty(Cluster)
 	question = db.ReferenceProperty(Question)
 
@@ -198,17 +198,12 @@ class Idea(db.Model):
 			ideaObj.put()
 
 	@staticmethod
-	def assignCluster(index, clusterObj, questionIdStr):
-		"""Assigns specified cluster to the 'index' idea"""
-		questionObj = Question.getQuestionById(questionIdStr)
-		if questionObj:
-			ideaObj = Idea.all()
-			ideaObj = ideaObj.filter("index =", index)
-			ideaObj = ideaObj.filter("question =", questionObj)
-			ideaObj = ideaObj.get()
-			if ideaObj:
-				ideaObj.cluster = clusterObj
-				ideaObj.put()
+	def assignCluster(id, clusterObj):
+		"""Assigns specified cluster to the specified idea"""
+		ideaObj = Idea.get_by_id(id)
+		if ideaObj:
+			ideaObj.cluster = clusterObj
+			ideaObj.put()
 
 #############################
 ##### CLUSTERASSIGNMENT #####
@@ -227,16 +222,18 @@ class ClusterAssignment(db.Model):
 			ca = ca.filter("author =", users.get_current_user())
 			ca = ca.filter("question =", questionObj)
 			if ca.count() == 0:
-				cluster_index = Cluster.getRandomClusterIndex(questionIdStr)
-				if cluster_index >= 0:
+				cluster = Cluster.getRandomCluster(questionIdStr)
+				if cluster:
 					caObj = ClusterAssignment()
-					caObj.cluster = Cluster.all().filter("index =", cluster_index).get()
+					caObj.cluster = cluster
 					caObj.question = questionObj
 					caObj.put()
-				return cluster_index
+					return cluster.key().id()
+				else:
+					return None
 			else:
 				caObj = ca.get()
-				return ca.get().cluster.index
+				return ca.get().cluster.key().id()
 		else:
 			return -1
 
@@ -256,9 +253,9 @@ class Tag(db.Model):
 	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
-	def createTag(tag, cluster_index, questionIdStr):
+	def createTag(tag, cluster_id, questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
-		clusterObj = Cluster.all().filter("question =", questionObj).filter("index =", cluster_index).get()
+		clusterObj = Cluster.get_by_id(cluster_id)
 		if clusterObj:
 			tagObj = Tag()
 			tagObj.tag = tag

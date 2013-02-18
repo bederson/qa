@@ -149,7 +149,10 @@ class TagPageHandler(webapp2.RequestHandler):
 		template_values = get_default_template_values(self, question_id)
 		phase = App.getPhase(question_id)
 		template_values["phase"] = phase
-		template_values["cluster_index"] = ClusterAssignment.getAssignment(question_id)
+		if phase == 2:
+			template_values["cluster_id"] = ClusterAssignment.getAssignment(question_id)
+		elif phase == 3:
+			template_values["idea_index"] = 2
 
 		path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
 		self.response.out.write(template.render(path, template_values))
@@ -164,11 +167,13 @@ class QueryHandler(webapp2.RequestHandler):
 
 		data = {}
 		if request == "ideas":
-			cluster_index = self.request.get("cluster_index")
-			if cluster_index:
-				data = getIdeasByCluster(int(cluster_index), question_id)
-			else:
-				data = getIdeas(question_id)
+			data = getIdeas(question_id)
+		elif request == "ideasbycluster":
+			cluster_id = self.request.get("cluster_id")
+			data = getIdeasByCluster(int(cluster_id), question_id)
+		elif request == "ideaassignment":
+			cluster_id = self.request.get("idea_index")
+#			data = getIdeasByCluster(int(cluster_id), question_id)
 		elif request == "phase":
 			data = {"phase": App.getPhase(question_id)}
 		elif request == "tags":
@@ -177,7 +182,7 @@ class QueryHandler(webapp2.RequestHandler):
 				tag = cleanTag(tagObj.tag)
 				cluster = ClusterTag.getCluster(tagObj)
 				if cluster:
-					item = {"tag": tag, "cluster": cluster.index, "author": cleanNickname(tagObj.author)}
+					item = {"tag": tag, "cluster": cluster.key().id(), "author": cleanNickname(tagObj.author)}
 					tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters(question_id)}
 		elif request == "mytags":
@@ -259,16 +264,16 @@ class NewTagHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
 		tag = self.request.get('tag')
-		cluster_index = int(self.request.get('cluster_index'))
+		cluster_id = int(self.request.get('cluster_id'))
 		question_id = self.request.get("question_id")
 		if len(tag) > 2:
-			Tag.createTag(tag, cluster_index, question_id)
+			Tag.createTag(tag, cluster_id, question_id)
 
 			# Update clients
 			message = {
 				"op": "newtag",
 				"tag": tag,
-				"cluster_index": cluster_index,
+				"cluster_id": cluster_id,
 				"author": cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, question_id, message)		# Update other clients about this change
@@ -346,7 +351,7 @@ def getIdeas(questionIdStr):
 	questionObj = Question.getQuestionById(questionIdStr)
 	if not questionObj:
 		return results
-	clusterObjs = Cluster.all().filter("question = ", questionObj).order("index")
+	clusterObjs = Cluster.all().filter("question = ", questionObj).order("text")
 
 	# Start with all the ideas that aren't in any cluster
 	ideaObjs = Idea.all().filter("question = ", questionObj).filter("cluster =", None)
@@ -364,7 +369,7 @@ def getIdeas(questionIdStr):
 		results.append(entry)
 
 	for clusterObj in clusterObjs:
-		entry = {"name": clusterObj.text, "id": clusterObj.index}
+		entry = {"name": clusterObj.text, "id": clusterObj.key().id()}
 		ideaObjs = Idea.all().filter("cluster =", clusterObj)
 		ideas = []
 		for ideaObj in ideaObjs:
@@ -378,12 +383,12 @@ def getIdeas(questionIdStr):
 		results.append(entry)
 	return results
 
-def getIdeasByCluster(cluster_index, questionIdStr):
+def getIdeasByCluster(cluster_id, questionIdStr):
 	questionObj = Question.getQuestionById(questionIdStr)
 	if not questionObj:
 		return []
 
-	clusterObj = Cluster.all().filter("question = ", questionObj).filter("index =", cluster_index).get()
+	clusterObj = Cluster.get_by_id(cluster_id)
 	ideaObjs = Idea.all().filter("cluster =", clusterObj)
 	ideas = []
 	for ideaObj in ideaObjs:
@@ -403,8 +408,7 @@ def doCluster(k, question_id):
 	if k > Idea.all().count():
 		return
 
-	updateIdeaIndices(question_id)		# Don't rely on them being created properly
-	vectors, texts, phrases = computeBagsOfWords(question_id)
+	vectors, texts, phrases, ids = computeBagsOfWords(question_id)
 	cl = KMeansClustering(vectors)
 	clusters = cl.getclusters(k)
 
@@ -420,14 +424,16 @@ def doCluster(k, question_id):
 			index = cluster[-1:][0]
 			text = texts[index]
 			phrase = phrases[index]
-			Idea.assignCluster(index, clusterObj, question_id)
+			idea_id = ids[index]
+			Idea.assignCluster(idea_id, clusterObj)
 		else:
 			for vector in cluster:
 				index = vector[-1:][0]
 				text = texts[index]
 				phrase = phrases[index]
+				idea_id = ids[index]
 				entry.append([text, phrase])
-				Idea.assignCluster(index, clusterObj, question_id)
+				Idea.assignCluster(idea_id, clusterObj)
 		clusterNum += 1
 
 	# Clean up any existing tags and cluster assignments since clusters have been reformed
@@ -440,23 +446,15 @@ def uncluster(question_id):
 		Cluster.deleteAllClusters(question_id)
 		Tag.deleteAllTags(question_id)
 
-def updateIdeaIndices(question_id):
-	questionObj = Question.getQuestionById(question_id)
-	if questionObj:
-		i = 0
-		for ideaObj in Idea.all().filter("question =", questionObj):
-			ideaObj.index = i
-			ideaObj.put()
-			i += 1
-
 def computeBagsOfWords(question_id):
 	# First define vector by extracting every word
 	all_words = set()
 	phrases = []
 	texts = []
+	ids = []
 	questionObj = Question.getQuestionById(question_id)
 	if questionObj:
-		ideas = Idea.all().filter("question = ", questionObj).order('index')
+		ideas = Idea.all().filter("question = ", questionObj).order('__key__')
 		for ideaObj in ideas:
 			text = ideaObj.text
 			texts.append(text)
@@ -468,6 +466,7 @@ def computeBagsOfWords(question_id):
 					all_words.add(word)
 					phrase.append(word)
 			phrases.append(phrase)
+			ids.append(ideaObj.key().id())
 
 	# Create an index for the words
 	word_index = {}
@@ -476,19 +475,19 @@ def computeBagsOfWords(question_id):
 		word_index[word] = i
 		i += 1
 
-	# Then for each phrase, compute it's vector
+	# Then for each phrase, compute it's vector. Last element of vector is index
 	vectors = []
-	phraseNum = 0
+	i = 0
 	for phrase in phrases:
 		vector = [0] * (len(word_index) + 1)
 		for word in phrase:
 			index = word_index[word]
 			vector[index] += 1
-		vector[len(word_index)] = phraseNum
+		vector[len(word_index)] = i
 		vectors.append(tuple(vector))
-		phraseNum += 1
+		i += 1
 
-	return vectors, texts, phrases
+	return vectors, texts, phrases, ids
 
 def cleanTag(tag):
 	words = tag.split()

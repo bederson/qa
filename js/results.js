@@ -19,8 +19,8 @@ var OFFLINE = false;					// For offline debugging
 var numIdeas = 0;
 var MAX_CLOUD_HEIGHT = 800;
 var maxChartRows = 10;
-var tag_hists = [];
-var show_tags_in_charts = [];
+var tag_hists = {};
+var show_tags_in_charts = {};
 
 // Reason for this combination of google chart and jquery:
 // http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
@@ -100,6 +100,7 @@ function displayIdeasImpl(clusters) {
 		var cluster = clusters[i];
 		var clusterName = cluster.name;
 		var ideas = cluster.ideas;
+		tag_hists[cluster.id] = {};
 		html += "<h2>" + clusterName + "</h2>";
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
@@ -208,6 +209,11 @@ function displayCloud(cloudid, cluster) {
 // Tag Chart Display
 //=================================================================================
 function displayTags() {
+	// Initialize tag counts
+	for (tag in tag_hists) {
+		tag_hists[tag] = {};
+	}
+	
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "tags",
@@ -221,10 +227,6 @@ function displayTags() {
 
 function processTags(data) {
 	var tags = data.tags;
-	// Initialize data structures
-	for (var i=0; i<data.num_clusters; i++) {
-		tag_hists[i] = {};
-	}
 	// Process tags to fill data structures
 	for (var i in tags) {
 		var tag = tags[i].tag;
@@ -243,13 +245,13 @@ function createTag(tag, cluster) {
 
 function displayTagControls(clusters) {
 	for (var i in clusters) {
-		show_tags_in_charts[i] = false;
-
-		var controlid = "control" + i;
-		var showTagID = "showtag" + i;
+		var id = clusters[i].id;
+		show_tags_in_charts[id] = false;
+		var controlid = "control" + id;
+		var showTagID = "showtag" + id;
 		var html = "<div style='margin-left:200px;'><input id='" + showTagID + "' type='button' value='Show tags'></div>";
 		$("#" + controlid).append(html);
-		$("#" + showTagID).data("cluster", i);
+		$("#" + showTagID).data("cluster", id);
 		$("#" + showTagID).click(function(data) {
 			var clusterNum = $(this).data("cluster");
 			show_tags_in_charts[clusterNum] = true;

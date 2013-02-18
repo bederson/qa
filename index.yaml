@@ -15,6 +15,17 @@ indexes:
   - name: question
   - name: index
 
+- kind: Cluster
+  properties:
+  - name: question
+  - name: text
+
+- kind: Cluster
+  properties:
+  - name: question
+  - name: text
+    direction: desc
+
 - kind: Connection
   properties:
   - name: question

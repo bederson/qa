@@ -21,7 +21,7 @@ $(function() {
 
 	var question_id = getURLParameter("question_id");
 	$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
-//	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
+	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
 	$("#notes_link").attr("href", "/idea?question_id=" + question_id);
 	$("#results_link").attr("href", "/results?question_id=" + question_id);
 });

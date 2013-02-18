@@ -101,7 +101,7 @@ function submitTag() {
 	var data = {
 		"client_id": client_id,
 		"tag": tag,
-		"cluster_index": cluster_index,
+		"cluster_id": cluster_id,
 		"question_id": question_id
 	};
 	$.post("/newtag", data);
@@ -173,8 +173,8 @@ function displayTagsPerCluster() {
 function displayIdeasPerCluster() {
 	var question_id = getURLParameter("question_id");
 	var data = {
-		"request": "ideas", 
-		"cluster_index": cluster_index,
+		"request": "ideasbycluster", 
+		"cluster_id": cluster_id,
 		"question_id": question_id
 	};
 	$.getJSON("/query", data, function(results) {
@@ -214,8 +214,8 @@ function displayTagsPerIdea() {
 function displayIdeasPerIdea() {
 	var question_id = getURLParameter("question_id");
 	var data = {
-		"request": "ideas", 
-		"cluster_index": cluster_index,
+		"request": "ideaassignment", 
+		"cluster_id": cluster_id,
 		"question_id": question_id
 	};
 	$.getJSON("/query", data, function(results) {
