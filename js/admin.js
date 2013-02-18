@@ -187,5 +187,7 @@ function updateButtons() {
 		$("#p1button").attr("disabled", "disabled");
 	} else if (phase == 2) {
 		$("#p2button").attr("disabled", "disabled");
+	} else if (phase == 3) {
+		$("#p3button").attr("disabled", "disabled");
 	}
 }

@@ -30,30 +30,31 @@ $(function() {
 		return;
 	}
 
-	$("#taganswer").focus();
+	$("#tagbox").focus();
 	var question_id = getURLParameter("question_id");
 	if (phase == 2) {
 		enableInput();
+		displayTagsPerCluster();
+		displayIdeasPerCluster();
+	} else if (phase == 3) {
+		enableInput();
+		displayTagsPerIdea();
+		displayIdeasPerIdea();
 	} else {
 		disableInput("Not currently accepting new submissions");
 	}
-
-	displayTags();
-	displayIdeas();
 });
 
 function initEventHandlers() {
 	$("#submit").click(function() {
 		submitTag();
 	});
-
-	$("#taganswer").on("keydown", function(evt) {
-		// Return
-		if (evt.keyCode == 13) {
+	$("#tagbox").on("keydown", function(evt) {
+		if (evt.keyCode == 13) {		// Return
 			submitTag();
 		}
 	});
-	$("#taganswer").keyup(function() {
+	$("#tagbox").keyup(function() {
 		updateRemainingChars();
 	});
 
@@ -66,20 +67,20 @@ function initEventHandlers() {
 // Shouldn't have to enableInput, but Firefox strangely caches state of elements.
 // Without explicitly enabling input, Firefox will remain disabled after phase change - even on reload
 function enableInput() {
-	$("#taganswer").removeAttr("disabled");
+	$("#tagbox").removeAttr("disabled");
 	$("#submit").removeAttr("disabled");
-	$("#taganswer").val("");
-	$("#taganswer").focus();
+	$("#tagbox").val("");
+	$("#tagbox").focus();
 }
 
 function disableInput(msg) {
-	$("#taganswer").attr("disabled", "disabled");
+	$("#tagbox").attr("disabled", "disabled");
 	$("#submit").attr("disabled", "disabled");
-	$("#taganswer").val(msg);
+	$("#tagbox").val(msg);
 }
 
 function submitTag() {
-	var tag = $("#taganswer").val().trim();
+	var tag = $("#tagbox").val().trim();
 	if (tag.length == 0) {
 		// Don't submit blank tags
 		return;
@@ -88,7 +89,10 @@ function submitTag() {
 		// Whoops - tag already in list
 		$("#thankyou").css("display", "none");
 		$("#nodups").css("display", "inline");
-		$("#taganswer").select();
+		$("#tagbox").select();
+		setTimeout(function() {
+			$("#nodups").fadeOut("slow");
+		}, 2000);
 		return;
 	}
 	mytags.push(tag);
@@ -104,8 +108,11 @@ function submitTag() {
 
 	$("#thankyou").css("display", "inline");
 	$("#nodups").css("display", "none");
-	$("#taganswer").val("");
-	$("#taganswer").focus();
+	$("#tagbox").val("");
+	$("#tagbox").focus();
+	setTimeout(function() {
+		$("#thankyou").fadeOut("slow");
+	}, 2000);
 	updateRemainingChars();
 	
 	$("#newtags").append("<li>" + tag);
@@ -125,12 +132,12 @@ function onResize() {
 	}
 
 	$("#qcontainer").width(width);
-	$("#taganswer").width(width - 6);
+	$("#tagbox").width(width - 6);
 }
 
 function updateRemainingChars() {
 	var maxChars = 50;
-	var box = $("#taganswer");
+	var box = $("#tagbox");
 	var text = box.val();
 	if (text.length > maxChars) {
 		text = text.slice(0, maxChars);
@@ -140,7 +147,10 @@ function updateRemainingChars() {
 	$("#charlimit").html(msg);
 }
 
-function displayTags() {
+/////////////////////////////////////////////
+// Tagging per cluster
+/////////////////////////////////////////////
+function displayTagsPerCluster() {
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "mytags",
@@ -160,7 +170,48 @@ function displayTags() {
 	});
 }
 
-function displayIdeas() {
+function displayIdeasPerCluster() {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "ideas", 
+		"cluster_index": cluster_index,
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		var html = "Notes:<br><ul>";
+		for (i in results) {
+			var idea = results[i].idea;
+			html += "<li>" + idea
+		}
+		html += "</ul>";
+		$("#clusteredIdeas").html(html);
+	});
+}
+
+/////////////////////////////////////////////
+// Tagging per idea
+/////////////////////////////////////////////
+function displayTagsPerIdea() {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "mytags",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		var tags = results.tags;
+		var html = "My tags for note:<br><ul>";
+		for (i in tags) {
+			var tag = tags[i];
+			mytags.push(tag);
+			html += "<li>" + tag
+		}
+		html += "<div id='newtags'></div>";
+		html += "</ul>";
+		$("#mytags").html(html);
+	});
+}
+
+function displayIdeasPerIdea() {
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "ideas", 
