@@ -1,3 +1,10 @@
+/////////////////////////
+// Constants
+/////////////////////////
+var PHASE_NOTES = 1
+var PHASE_TAG_BY_CLUSTER = 2
+var PHASE_TAG_BY_NOTE = 3
+
 function getURLParameter(name) {
 	return decodeURI(
 		(RegExp(name + '=' + '(.+?)(&|$)').exec(window.location.search)||[,null])[1]

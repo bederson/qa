@@ -16,6 +16,7 @@
 
 $(function() {
 	initEventHandlers();
+	updateButtons();
 	displayModes();
 	displayQuestions();
 
@@ -29,10 +30,8 @@ $(function() {
 function initEventHandlers() {
 	$("#p0button").click(function() {
 		if (phase == 0) {
-			$(this).val("Disable data entry");
 			set_phase(1);
 		} else {
-			$(this).val("Enable data entry");
 			set_phase(0);
 		}
 	});
@@ -46,37 +45,8 @@ function initEventHandlers() {
 		set_phase(3);
 	});
 	$("#newq_button").click(function() {
-		if (isDefined($("#newq_button").data("question_id"))) {
-			// Edit question
-			var data = {
-				"client_id": client_id,
-				"title": $("#newq_title").val(),
-				"question": $("#newq_question").val(),
-				"question_id": $("#newq_button").data("question_id")
-			};
-			$.post("/editquestion", data, function(result) {
-				if (parseInt(result.question_id) > 0) {
-					window.location.href = "/admin?question_id=" + result.question_id;
-				} else {
-					$("#newq_info").html("Failed to update question.");
-				}
-			});
-		} else {
-			// Create new question
-			var data = {
-				"client_id": client_id,
-				"title": $("#newq_title").val(),
-				"question": $("#newq_question").val()
-			};
-			$.post("/newquestion", data, function(result) {
-				if (parseInt(result.question_id) > 0) {
-					window.location.href = "/admin?question_id=" + result.question_id;
-				} else {
-					$("#newq_info").html("Failed to create question - maybe it is too short.");
-				}
-			});
-		}
-	})
+		createQuestion();
+	});
 }
 
 function set_phase(new_phase) {
@@ -95,9 +65,12 @@ function set_phase(new_phase) {
 function displayModes() {
 	var question_id = getURLParameter("question_id");
 	if (isDefined(question_id)) {
-		var html = "Title: " + title + "<br>";
+		var html = "";
+		html += "<b>Code: " + question_id + "</b><br>";
+		html += "Title: " + title + "<br>";
 		html += "Question: " + question + "<br>";
-		html += "<b>Code: " + question_id + "</b><br><br>";
+		html += "# Notes: " + num_ideas + "<br>";
+		html += "<br>";
 		$("#question").html(html);
 		
 		$("#phase_table").css("display", "table");
@@ -130,6 +103,40 @@ function displayQuestionsImpl(results) {
 		}
 		html += "</ul>";
 		$("#questions").html(html);
+	}
+}
+
+function createQuestion() {
+	if (isDefined($("#newq_button").data("question_id"))) {
+		// Edit question
+		var data = {
+			"client_id": client_id,
+			"title": $("#newq_title").val(),
+			"question": $("#newq_question").val(),
+			"question_id": $("#newq_button").data("question_id")
+		};
+		$.post("/editquestion", data, function(result) {
+			if (parseInt(result.question_id) > 0) {
+				window.location.href = "/admin?question_id=" + result.question_id;
+			} else {
+				$("#newq_info").html("Failed to update question.");
+			}
+		});
+	} else {
+		// Create new question
+		var data = {
+			"client_id": client_id,
+			"title": $("#newq_title").val(),
+			"question": $("#newq_question").val()
+		};
+		$.post("/newquestion", data, function(result) {
+			if (parseInt(result.question_id) > 0) {
+				window.location.href = "/admin?question_id=" + result.question_id;
+			} else {
+				$("#newq_info").html("Failed to create question - maybe it is too short.");
+			}
+			updateButtons();
+		});
 	}
 }
 
@@ -176,18 +183,31 @@ function deleteQuestionImpl(question_id) {
 }
 
 function updateButtons() {
-	$("#p1button").removeAttr("disabled");
-	$("#p2button").removeAttr("disabled");
-	$("#p3button").removeAttr("disabled");
 	if (phase == 0) {
+		$("#p0button").val("Enable data entry");
+		$("#p1button").val("Note entry disabled");
+		$("#p2button").val("Tagging by cluster disabled");
+		$("#p3button").val("Tagging by note disabled");
 		$("#p1button").attr("disabled", "disabled");
 		$("#p2button").attr("disabled", "disabled");
 		$("#p3button").attr("disabled", "disabled");
-	} else if (phase == 1) {
-		$("#p1button").attr("disabled", "disabled");
-	} else if (phase == 2) {
-		$("#p2button").attr("disabled", "disabled");
-	} else if (phase == 3) {
-		$("#p3button").attr("disabled", "disabled");
+	} else {
+		$("#p0button").val("Disable data entry");
+		$("#p1button").val("Enable adding of notes");
+		$("#p2button").val("Enable tagging by cluster");
+		$("#p3button").val("Enable tagging by note");
+		$("#p1button").removeAttr("disabled");
+		$("#p2button").removeAttr("disabled");
+		$("#p3button").removeAttr("disabled");
+		if (phase == 1) {
+			$("#p1button").val("Note entry enabled");
+			$("#p1button").attr("disabled", "disabled");
+		} else if (phase == PHASE_TAG_BY_CLUSTER) {
+			$("#p2button").val("Tagging by cluster enabled");
+			$("#p2button").attr("disabled", "disabled");
+		} else if (phase == PHASE_TAG_BY_NOTE) {
+			$("#p3button").val("Tagging by note enabled");
+			$("#p3button").attr("disabled", "disabled");
+		}
 	}
 }

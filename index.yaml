@@ -18,6 +18,11 @@ indexes:
 - kind: Cluster
   properties:
   - name: question
+  - name: rand
+
+- kind: Cluster
+  properties:
+  - name: question
   - name: text
 
 - kind: Cluster
@@ -35,3 +40,8 @@ indexes:
   properties:
   - name: question
   - name: index
+
+- kind: Idea
+  properties:
+  - name: question
+  - name: rand

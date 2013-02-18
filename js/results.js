@@ -48,7 +48,7 @@ function init() {
 	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
 
 	displayIdeas();
-	if (phase == 2) {
+	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
 }

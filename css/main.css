@@ -90,7 +90,7 @@ h2 {
 	float: right;
 }
 
-#mytags {
+#notags, #mytags {
 	padding-left: 20px;
 	background-color: #eee;
 }

@@ -49,16 +49,10 @@ class Question(db.Model):
 	def delete(questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
-			clusterObjs = Cluster.all().filter("question =", questionObj)
-			db.delete(clusterObjs)
-			ideaObjs = Idea.all().filter("question =", questionObj)
-			db.delete(ideaObjs)
-			tagObjs = Tag.all().filter("question =", questionObj)
-			db.delete(tagObjs)
-			appObjs = App.all().filter("question =", questionObj)
-			db.delete(appObjs)
-			connectionObjs = Connection.all().filter("question =", questionObj)
-			db.delete(connectionObjs)
+			Cluster.deleteAllClusters(questionIdStr)
+			Idea.deleteAllIdeas(questionIdStr)
+			db.delete(App.all().filter("question =", questionObj))
+			db.delete(Connection.all().filter("question =", questionObj))
 			db.delete(questionObj)
 
 	@staticmethod
@@ -152,7 +146,7 @@ class Cluster(db.Model):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
 			rand = random.random()
-			return Cluster.all().filter("rand >", rand).get()
+			return Cluster.all().filter("question =", questionObj).filter("rand >", rand).get()
 		else:
 			return None
 
@@ -168,6 +162,7 @@ class Cluster(db.Model):
 	def deleteAllClusters(questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
+			ClusterAssignment.deleteAllClusterAssignments(questionIdStr)
 			clusters = Cluster.all().filter("question =", questionObj)
 			for clusterObj in clusters:
 				for idea in Idea.all().filter("cluster =", clusterObj):
@@ -184,6 +179,12 @@ class Idea(db.Model):
 	text = db.StringProperty()
 	cluster = db.ReferenceProperty(Cluster)
 	question = db.ReferenceProperty(Question)
+	rand = db.FloatProperty()
+
+	@staticmethod
+	def getIdeaById(ideaIdStr):
+		ideaObj = Idea.get_by_id(int(ideaIdStr))
+		return ideaObj
 
 	@staticmethod
 	def createIdea(idea, questionIdStr):
@@ -195,7 +196,28 @@ class Idea(db.Model):
 			ideaObj = Idea()
 			ideaObj.text = idea
 			ideaObj.question = questionObj
+			if Idea.all().filter("question =", questionObj).count() == 0:
+				ideaObj.rand = 1.0
+			else:
+				ideaObj.rand = random.random()
 			ideaObj.put()
+
+	@staticmethod
+	def numIdeas(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			return Idea.all().filter("question =", questionObj).count()
+		else:
+			return 0
+
+	@staticmethod
+	def getRandomIdea(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			rand = random.random()
+			return Idea.all().filter("question =", questionObj).filter("rand >", rand).get()
+		else:
+			return None
 
 	@staticmethod
 	def assignCluster(id, clusterObj):
@@ -204,6 +226,14 @@ class Idea(db.Model):
 		if ideaObj:
 			ideaObj.cluster = clusterObj
 			ideaObj.put()
+
+	@staticmethod
+	def deleteAllIdeas(questionIdStr):
+		IdeaTag.deleteAllIdeas(questionIdStr)
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			IdeaAssignments.deleteAllIdeaAssignments(questionIdStr)
+			db.delete(Idea.all().filter("question =", questionObj))
 
 #############################
 ##### CLUSTERASSIGNMENT #####
@@ -230,7 +260,7 @@ class ClusterAssignment(db.Model):
 					caObj.put()
 					return cluster.key().id()
 				else:
-					return None
+					return -1
 			else:
 				caObj = ca.get()
 				return ca.get().cluster.key().id()
@@ -243,90 +273,145 @@ class ClusterAssignment(db.Model):
 		if questionObj:
 			db.delete(ClusterAssignment.all().filter("question =", questionObj))
 
-###############
-##### TAG #####
-###############
-class Tag(db.Model):
+#############################
+##### IDEAASSIGNMENT #####
+#############################
+class IdeaAssignment(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
-	tag = db.StringProperty()
+	idea = db.ReferenceProperty(Idea)
 	question = db.ReferenceProperty(Question)
-	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
-	def createTag(tag, cluster_id, questionIdStr):
-		questionObj = Question.getQuestionById(questionIdStr)
-		clusterObj = Cluster.get_by_id(cluster_id)
-		if clusterObj:
-			tagObj = Tag()
-			tagObj.tag = tag
-			tagObj.question = questionObj
-			tagObj.put()
-			ClusterTag.createClusterTag(clusterObj, tagObj)
-
-	@staticmethod
-	def getTags(questionIdStr):
-		questionObj = Question.getQuestionById(questionIdStr)
-		tags = Tag.all().filter("question =", questionObj)
-		return tags
-
-	@staticmethod
-	def getTagsByUser(questionIdStr):
-		questionObj = Question.getQuestionById(questionIdStr)
-		tags = Tag.all().filter("question =", questionObj).filter("author = ", users.get_current_user())
-		return tags
-
-	@staticmethod
-	def deleteAllTags(questionIdStr):
+	def getAssignment(questionIdStr):
+		"""Get a new random idea assignent for this author"""
+		ia = None
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
-			tags = Tag.all().filter("question =", questionObj)
-			for tagObj in tags:
-				db.delete(ClusterTag.all().filter("tag =", tagObj.key()))
-			db.delete(tags)
+			numIdeas = Idea.all().filter("question =", questionObj).count()
+			numAssignments = IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", questionObj).count()
+			assignmentNeeded = True
+			# Randomly select ideas, but keep trying if we've already assigned this one.
+			# This is a BAD algorithm if there are a lot of ideas AND individuals get a lot of assignments
+			# but that seems unlikely to happen
+			MAX_TRIES = 10
+			num_tries = 0
+			while assignmentNeeded and (numIdeas > numAssignments) and (num_tries < MAX_TRIES):
+				num_tries += 1
+				idea = Idea.getRandomIdea(questionIdStr)
+				if idea:
+					assigned = (IdeaAssignment.all().filter("author =", users.get_current_user()).filter("idea =", idea).count() > 0)
+					if assigned:
+						pass	# Whoops - already seen this idea, look for another
+					else:
+						ia = IdeaAssignment()
+						ia.idea = idea
+						ia.question = questionObj
+						ia.put()
+						assignmentNeeded = False
+				else:
+					return -1
+		if ia:
+			return ia.idea.key().id()
+		else:
+			return -1
+
+	@staticmethod
+	def deleteAllIdeaAssignments(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			db.delete(IdeaAssignment.all().filter("question =", questionObj))
 
 ######################
 ##### CLUSTERTAG #####
 ######################
 class ClusterTag(db.Model):
+	tag = db.StringProperty()
+	question = db.ReferenceProperty(Question)
 	cluster = db.ReferenceProperty(Cluster)
-	tag = db.ReferenceProperty(Tag)
+	author = db.UserProperty(auto_current_user_add=True)
+	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
-	def createClusterTag(cluster, tag):
-		clusterTag = ClusterTag()
-		clusterTag.cluster = cluster
-		clusterTag.tag = tag
-		clusterTag.put()
+	def createClusterTag(tagStr, cluster_id, questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		clusterObj = Cluster.get_by_id(cluster_id)
+		if clusterObj and questionObj:
+			tagObj = ClusterTag()
+			tagObj.tag = tagStr
+			tagObj.question = questionObj
+			tagObj.cluster = clusterObj
+			tagObj.put()
 
 	@staticmethod
-	def getCluster(tagObj):
-		clusterTag = ClusterTag.all().filter("tag =", tagObj).get()
-		if clusterTag:
-			return clusterTag.cluster
+	def getTags(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			tags = ClusterTag.all().filter("question =", questionObj)
+			return tags
 		else:
 			return None
+
+	@staticmethod
+	def getTagsByUser(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			tags = ClusterTag.all().filter("question =", questionObj).filter("author = ", users.get_current_user())
+			return tags
+		else:
+			return None
+
+	@staticmethod
+	def deleteAllTags(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			tags = ClusterTag.all().filter("question =", questionObj)
+			db.delete(tags)
 
 ######################
 ##### IDEATAG #####
 ######################
 class IdeaTag(db.Model):
+	tag = db.StringProperty()
+	question = db.ReferenceProperty(Question)
 	idea = db.ReferenceProperty(Idea)
-	tag = db.ReferenceProperty(Tag)
+	author = db.UserProperty(auto_current_user_add=True)
+	date = db.DateProperty(auto_now=True)
 
 	@staticmethod
-	def createIdeaTag(idea, tag):
-		ideaTag = IdeaTag()
-		ideaTag.idea = idea
-		ideaTag.tag = tag
-		ideaTag.put()
+	def createIdeaTag(tagStr, idea_id, questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		ideaObj = Idea.get_by_id(idea_id)
+		if ideaObj and questionObj:
+			tagObj = IdeaTag()
+			tagObj.tag = tagStr
+			tagObj.question = questionObj
+			tagObj.idea = ideaObj
+			tagObj.put()
 
 	@staticmethod
-	def getIdea(tagObj):
-		ideaTag = IdeaTag.all().filter("tag =", tagObj).get()
-		if ideaTag:
-			return ideaTag.idea
+	def getTags(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			tags = ClusterTag.all().filter("question =", questionObj)
+			return tags
 		else:
 			return None
+
+	@staticmethod
+	def getTagsByUser(ideaIdStr):
+		ideaObj = Idea.getIdeaById(ideaIdStr)
+		if ideaObj:
+			tags = IdeaTag.all().filter("idea =", ideaObj).filter("author = ", users.get_current_user())
+			return tags
+		else:
+			return None
+
+	@staticmethod
+	def deleteAllTags(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			tags = IdeaTag.all().filter("question =", questionObj)
+			db.delete(tags)
 
 ######################
 ##### CONNECTION #####

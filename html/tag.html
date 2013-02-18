@@ -17,11 +17,13 @@ limitations under the License.
 
 {% extends "base.html" %}
 
+{% block title %}Q &amp; A - Tag Entry{% endblock %}
 {% block scripts %}
 	<script type="text/javascript" src="js/tag.js"></script>
 	<script>
 		var phase = parseInt("{{ phase }}");
 		var cluster_id = parseInt("{{ cluster_id }}");
+		var idea_id = parseInt("{{ idea_id }}");
 	</script>
 {% endblock %}
 
@@ -33,11 +35,9 @@ limitations under the License.
 {% endif %}
 	<div id="qcontainer">
 		<h1>Time To Tag</h1>
-		<div id="question">
-			Please enter 1 or 2 words that best characterize these notes.
-		</div>
+		<div id="question"></div>
 		<div class="help">
-			Only tags that are suggested by multiple people will be used.
+			Only tags suggested by multiple people will be used.
 		</div>
 		<br>
 		<input id="tagbox" type="text"><br>
@@ -50,6 +50,7 @@ limitations under the License.
 			Whoops - you've already entered that tag.
 		</span>
 		<br><br>
+		<div id="notags">No tags yet<br><br></div>
 		<div id="mytags"></div>
 		<div id="clusteredIdeas"></div>
 	</div>

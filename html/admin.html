@@ -17,6 +17,7 @@ limitations under the License.
 
 {% extends "base.html" %}
 
+{% block title %}Q &amp; A - Admin{% endblock %}
 {% block scripts %}
 	<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css" />
 	<script src="http://code.jquery.com/ui/1.10.0/jquery-ui.js"></script>
@@ -25,45 +26,42 @@ limitations under the License.
 		var phase = parseInt("{{ phase }}");
 		var title = "{{ title }}";
 		var question = "{{ question }}";
+		var num_ideas = "{{ num_ideas }}";
 	</script>
 {% endblock %}
 
 {% block content %}
 	<h1>Administration Interface</h1>
 	<div id="question"></div>
-	<input id="p0button" type="button" value="Disable data entry">
+	<input id="p0button" type="button">
 	<table id="phase_table" style="display:none; margin-left:25px; margin-top: 15px">
 		<tr valign="top">
-			<td>
-				<input id="p1button" type="button" value="Enable adding of notes">
+			<td width="200px">
+				<input id="p1button" type="button">
 			</td>
-			<td width="20px"></td>
 			<td>
 				Go to <a id="notes_link">add notes</a>
 			</td>
 		</tr>
 		<tr valign="top">
 			<td>
-				<input id="p2button" type="button" value="Enable tagging by cluster">
+				<input id="p2button" type="button">
 			</td>
-			<td width="20px"></td>
 			<td>
-				Go to <a id="tagbycluster_link">add tags per cluster</a>
+				Go to <a id="tagbycluster_link">add tags by cluster</a>
 			</td>
 		</tr>
 		<tr valign="top">
 			<td>
-				<input id="p3button" type="button" value="Enable tagging by note">
+				<input id="p3button" type="button">
 			</td>
-			<td width="20px"></td>
 			<td>
-				Go to <a id="tagbynote_link">add tags per note</a>
+				Go to <a id="tagbynote_link">add tags by note</a>
 			</td>
 		</tr>
 		<tr valign="top">
 			<td>
 			</td>
-			<td width="20px"></td>
 			<td>
 				=> <a id="results_link">See results</a>
 			</td>

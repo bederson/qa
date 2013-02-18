@@ -39,7 +39,7 @@ $(function() {
 	} else {
 		disableInput("Not currently accepting new submissions");
 	}
-	if (phase == 2) {
+	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
 });

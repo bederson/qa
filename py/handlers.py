@@ -32,6 +32,9 @@ from google.appengine.api import channel
 from cluster import KMeansClustering
 
 STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
+PHASE_NOTES = 1
+PHASE_TAG_BY_CLUSTER = 2
+PHASE_TAG_BY_NOTE = 3
 
 
 def get_default_template_values(requestHandler, question_id):
@@ -115,6 +118,21 @@ class IdeaPageHandler(webapp2.RequestHandler):
 		path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
 		self.response.out.write(template.render(path, template_values))
 
+# Particpant page to enter new tags
+class TagPageHandler(webapp2.RequestHandler):
+    def get(self):
+		question_id = self.request.get("question_id")
+		template_values = get_default_template_values(self, question_id)
+		phase = App.getPhase(question_id)
+		template_values["phase"] = phase
+		if phase == PHASE_TAG_BY_CLUSTER:
+			template_values["cluster_id"] = ClusterAssignment.getAssignment(question_id)
+		elif phase == PHASE_TAG_BY_NOTE:
+			template_values["idea_id"] = IdeaAssignment.getAssignment(question_id)
+
+		path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
+		self.response.out.write(template.render(path, template_values))
+
 class ResultsPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
@@ -138,23 +156,9 @@ class AdminPageHandler(webapp2.RequestHandler):
 			if questionObj:
 				template_values["title"] = questionObj.title
 				template_values["question"] = questionObj.question
+				template_values["num_ideas"] = Idea.numIdeas(question_id)
 
 		path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
-		self.response.out.write(template.render(path, template_values))
-
-# Particpant page to enter new tags
-class TagPageHandler(webapp2.RequestHandler):
-    def get(self):
-		question_id = self.request.get("question_id")
-		template_values = get_default_template_values(self, question_id)
-		phase = App.getPhase(question_id)
-		template_values["phase"] = phase
-		if phase == 2:
-			template_values["cluster_id"] = ClusterAssignment.getAssignment(question_id)
-		elif phase == 3:
-			template_values["idea_index"] = 2
-
-		path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
 		self.response.out.write(template.render(path, template_values))
 
 #####################
@@ -171,23 +175,29 @@ class QueryHandler(webapp2.RequestHandler):
 		elif request == "ideasbycluster":
 			cluster_id = self.request.get("cluster_id")
 			data = getIdeasByCluster(int(cluster_id), question_id)
-		elif request == "ideaassignment":
-			cluster_id = self.request.get("idea_index")
-#			data = getIdeasByCluster(int(cluster_id), question_id)
+		elif request == "idea":
+			idea_id = self.request.get("idea_id")
+			data = getIdea(idea_id)
 		elif request == "phase":
 			data = {"phase": App.getPhase(question_id)}
 		elif request == "tags":
 			tags = []
-			for tagObj in Tag.getTags(question_id):
+			for tagObj in ClusterTag.getTags(question_id):
 				tag = cleanTag(tagObj.tag)
-				cluster = ClusterTag.getCluster(tagObj)
+				cluster = tagObj.cluster
 				if cluster:
 					item = {"tag": tag, "cluster": cluster.key().id(), "author": cleanNickname(tagObj.author)}
 					tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters(question_id)}
-		elif request == "mytags":
+		elif request == "myclustertags":
 			tags = []
-			for tag in Tag.getTagsByUser(question_id):
+			for tag in ClusterTag.getTagsByUser(question_id):
+				tags.append(tag.tag)
+			data = {"tags": tags}
+		elif request == "myideatags":
+			tags = []
+			idea_id = self.request.get("idea_id")
+			for tag in IdeaTag.getTagsByUser(idea_id):
 				tags.append(tag.tag)
 			data = {"tags": tags}
 		elif request == "question":
@@ -260,20 +270,38 @@ class NewIdeaHandler(webapp2.RequestHandler):
 			}
 			send_message(client_id, question_id, message)		# Update other clients about this change
 
-class NewTagHandler(webapp2.RequestHandler):
+class NewClusterTagHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
 		tag = self.request.get('tag')
 		cluster_id = int(self.request.get('cluster_id'))
 		question_id = self.request.get("question_id")
 		if len(tag) > 2:
-			Tag.createTag(tag, cluster_id, question_id)
+			ClusterTag.createClusterTag(tag, cluster_id, question_id)
 
 			# Update clients
 			message = {
 				"op": "newtag",
 				"tag": tag,
 				"cluster_id": cluster_id,
+				"author": cleanNickname(users.get_current_user())
+			}
+			send_message(client_id, question_id, message)		# Update other clients about this change
+
+class NewIdeaTagHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		tag = self.request.get('tag')
+		idea_id = int(self.request.get('idea_id'))
+		question_id = self.request.get("question_id")
+		if len(tag) > 2:
+			IdeaTag.createIdeaTag(tag, idea_id, question_id)
+
+			# Update clients
+			message = {
+				"op": "newtag",
+				"tag": tag,
+				"idea_id": idea_id,
 				"author": cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, question_id, message)		# Update other clients about this change
@@ -318,11 +346,14 @@ class PhaseHandler(webapp2.RequestHandler):
 		send_message(client_id, question_id, message)		# Update other clients about this change
 
 class MigrateHandler(webapp2.RequestHandler):
-	def post(self):
+	def get(self):
 		for questionObj in Question.all():
 			i = 0
 			for ideaObj in Idea.all().filter("question =", questionObj):
-				ideaObj.index = i
+				if i == 0:
+					ideaObj.rand = 1.0
+				else:
+					ideaObj.rand = random.random()
 				ideaObj.put()
 				i += 1
 
@@ -345,6 +376,17 @@ class DisconnectedHandler(webapp2.RequestHandler):
 #####################
 # Text Support
 #####################
+
+def getIdea(ideaIdStr):
+	ideaObj = Idea.getIdeaById(ideaIdStr)
+	if ideaObj:
+		idea = {
+			"idea": ideaObj.text,
+			"author": cleanNickname(ideaObj.author)
+		}
+	else:
+		idea = {}
+	return idea
 
 def getIdeas(questionIdStr):
 	results = []
@@ -437,14 +479,14 @@ def doCluster(k, question_id):
 		clusterNum += 1
 
 	# Clean up any existing tags and cluster assignments since clusters have been reformed
-	Tag.deleteAllTags(question_id)
+	ClusterTag.deleteAllTags(question_id)
 	ClusterAssignment.deleteAllClusterAssignments(question_id)
 
 def uncluster(question_id):
 	questionObj = Question.getQuestionById(question_id)
 	if questionObj:
 		Cluster.deleteAllClusters(question_id)
-		Tag.deleteAllTags(question_id)
+		ClusterTag.deleteAllTags(question_id)
 
 def computeBagsOfWords(question_id):
 	# First define vector by extracting every word

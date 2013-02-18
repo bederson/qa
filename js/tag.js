@@ -32,14 +32,16 @@ $(function() {
 
 	$("#tagbox").focus();
 	var question_id = getURLParameter("question_id");
-	if (phase == 2) {
+	if (phase == PHASE_TAG_BY_CLUSTER) {
 		enableInput();
-		displayTagsPerCluster();
-		displayIdeasPerCluster();
-	} else if (phase == 3) {
-		enableInput();
-		displayTagsPerIdea();
-		displayIdeasPerIdea();
+		updateDisplayForTagsPerCluster();
+	} else if (phase == PHASE_TAG_BY_NOTE) {
+		if (idea_id == -1) {
+			tagsPerIdeaFinished();
+		} else {
+			enableInput();
+			updateDisplayForTagsPerIdea();
+		}
 	} else {
 		disableInput("Not currently accepting new submissions");
 	}
@@ -102,9 +104,14 @@ function submitTag() {
 		"client_id": client_id,
 		"tag": tag,
 		"cluster_id": cluster_id,
+		"idea_id": idea_id,
 		"question_id": question_id
 	};
-	$.post("/newtag", data);
+	if (phase == PHASE_TAG_BY_CLUSTER) {
+		$.post("/newclustertag", data);
+	} else {
+		$.post("/newideatag", data);
+	}
 
 	$("#thankyou").css("display", "inline");
 	$("#nodups").css("display", "none");
@@ -114,8 +121,8 @@ function submitTag() {
 		$("#thankyou").fadeOut("slow");
 	}, 2000);
 	updateRemainingChars();
-	
-	$("#newtags").append("<li>" + tag);
+
+	displayTags(mytags);
 }
 
 function onResize() {
@@ -147,26 +154,41 @@ function updateRemainingChars() {
 	$("#charlimit").html(msg);
 }
 
-/////////////////////////////////////////////
-// Tagging per cluster
-/////////////////////////////////////////////
-function displayTagsPerCluster() {
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"request": "mytags",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(results) {
-		var tags = results.tags;
-		var html = "My tags:<br><ul>";
-		for (i in tags) {
+function displayTags(tags) {
+	var html = "";
+	if (tags.length > 0) {
+		$("#notags").css("display", "none");
+		html += "My tags:<br><ul>";
+		for (var i in tags) {
 			var tag = tags[i];
-			mytags.push(tag);
 			html += "<li>" + tag
 		}
 		html += "<div id='newtags'></div>";
 		html += "</ul>";
 		$("#mytags").html(html);
+	}
+}
+
+/////////////////////////////////////////////
+// Tagging per cluster
+/////////////////////////////////////////////
+function updateDisplayForTagsPerCluster() {
+	$("#question").html("Please enter 1 or 2 words that best characterize these notes.")
+	displayTagsPerCluster();
+	displayIdeasPerCluster();
+}
+
+function displayTagsPerCluster() {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "myclustertags",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		for (var i in results.tags) {
+			mytags.push(results.tags[i]);
+		}
+		displayTags(results.tags);
 	});
 }
 
@@ -191,42 +213,46 @@ function displayIdeasPerCluster() {
 /////////////////////////////////////////////
 // Tagging per idea
 /////////////////////////////////////////////
+function updateDisplayForTagsPerIdea() {
+	$("#question").html("Please enter 1 or 2 words that best characterize the following note.")
+	displayTagsPerIdea();
+	displayIdeasPerIdea();
+}
+
 function displayTagsPerIdea() {
 	var question_id = getURLParameter("question_id");
 	var data = {
-		"request": "mytags",
-		"question_id": question_id
+		"request": "myideatags",
+		"question_id": question_id,
+		"idea_id": idea_id
 	};
 	$.getJSON("/query", data, function(results) {
-		var tags = results.tags;
-		var html = "My tags for note:<br><ul>";
-		for (i in tags) {
-			var tag = tags[i];
-			mytags.push(tag);
-			html += "<li>" + tag
+		for (var i in results.tags) {
+			mytags.push(results.tags[i]);
 		}
-		html += "<div id='newtags'></div>";
-		html += "</ul>";
-		$("#mytags").html(html);
+		displayTags(results.tags);
 	});
 }
 
 function displayIdeasPerIdea() {
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"request": "ideaassignment", 
-		"cluster_id": cluster_id,
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(results) {
-		var html = "Notes:<br><ul>";
-		for (i in results) {
-			var idea = results[i].idea;
-			html += "<li>" + idea
-		}
-		html += "</ul>";
-		$("#clusteredIdeas").html(html);
-	});
+	if (idea_id > 0) {
+		var data = {
+			"request": "idea", 
+			"idea_id": idea_id,
+		};
+		$.getJSON("/query", data, function(results) {
+			var html = "<b>The note:</b> &quot;";
+			html += results.idea;
+			html += "&quot;";
+			$("#clusteredIdeas").html(html);
+		});
+	}
+}
+
+function tagsPerIdeaFinished() {
+	var html = "<h1>Tagging complete</h1>";
+	html += "Thank you!";
+	$("#qcontainer").html(html);
 }
 
 /////////////////////////
