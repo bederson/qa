@@ -109,7 +109,7 @@ class IdeaPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
-		template_values["phase"] = App.getPhase(question_id)
+		template_values["phase"] = Question.getPhase(question_id)
 		questionObj = Question.getQuestionById(question_id)
 		if questionObj:
 			template_values["title"] = questionObj.title
@@ -123,7 +123,7 @@ class TagPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
-		phase = App.getPhase(question_id)
+		phase = Question.getPhase(question_id)
 		template_values["phase"] = phase
 		if phase == PHASE_TAG_BY_CLUSTER:
 			template_values["cluster_id"] = ClusterAssignment.getAssignment(question_id)
@@ -137,7 +137,7 @@ class ResultsPageHandler(webapp2.RequestHandler):
     def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
-		template_values["phase"] = App.getPhase(question_id)
+		template_values["phase"] = Question.getPhase(question_id)
 		questionObj = Question.getQuestionById(question_id)
 		if questionObj:
 			template_values["title"] = questionObj.title
@@ -151,11 +151,12 @@ class AdminPageHandler(webapp2.RequestHandler):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, None)
 		if question_id:
-			template_values["phase"] = App.getPhase(question_id)
+			template_values["phase"] = Question.getPhase(question_id)
 			questionObj = Question.getQuestionById(question_id)
 			if questionObj:
 				template_values["title"] = questionObj.title
 				template_values["question"] = questionObj.question
+				template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
 				template_values["num_ideas"] = Idea.numIdeas(question_id)
 
 		path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
@@ -179,7 +180,7 @@ class QueryHandler(webapp2.RequestHandler):
 			idea_id = self.request.get("idea_id")
 			data = getIdea(idea_id)
 		elif request == "phase":
-			data = {"phase": App.getPhase(question_id)}
+			data = {"phase": Question.getPhase(question_id)}
 		elif request == "tags":
 			tags = []
 			for tagObj in ClusterTag.getTags(question_id):
@@ -336,12 +337,25 @@ class PhaseHandler(webapp2.RequestHandler):
 		client_id = self.request.get('client_id')
 		phase = int(self.request.get('phase'))
 		question_id = self.request.get("question_id")
-		App.setPhase(phase, question_id)
+		Question.setPhase(phase, question_id)
 
 		# Update clients
 		message = {
 			"op": "phase",
 			"phase": phase
+		}
+		send_message(client_id, question_id, message)		# Update other clients about this change
+
+class NumNotesToTagPerPersonHandler(webapp2.RequestHandler):
+	def post(self):
+		client_id = self.request.get('client_id')
+		num_notes_to_tag_per_person = int(self.request.get('num_notes_to_tag_per_person'))
+		question_id = self.request.get("question_id")
+		Question.setNumNotesToTagPerPerson(num_notes_to_tag_per_person, question_id)
+
+		message = {
+			"op": "num_notes_to_tag_per_person",
+			"num_notes_to_tag_per_person": num_notes_to_tag_per_person
 		}
 		send_message(client_id, question_id, message)		# Update other clients about this change
 

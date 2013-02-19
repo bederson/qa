@@ -35,6 +35,7 @@ app = webapp2.WSGIApplication([
 	('/delete', DeleteHandler),
 	('/cluster', ClusterHandler),
 	('/set_phase', PhaseHandler),
+	('/set_num_notes_to_tag_per_person', NumNotesToTagPerPersonHandler),
 	
 	('/migrate', MigrateHandler),
 

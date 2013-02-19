@@ -25,6 +25,7 @@ $(function() {
 	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
 	$("#notes_link").attr("href", "/idea?question_id=" + question_id);
 	$("#results_link").attr("href", "/results?question_id=" + question_id);
+	$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
 });
 
 function initEventHandlers() {
@@ -47,6 +48,9 @@ function initEventHandlers() {
 	$("#newq_button").click(function() {
 		createQuestion();
 	});
+	$("#num_notes_to_tag_per_person").blur(function() {
+		set_num_notes_to_tag_per_person($("#num_notes_to_tag_per_person").val());
+	});
 }
 
 function set_phase(new_phase) {
@@ -60,6 +64,16 @@ function set_phase(new_phase) {
 		phase = new_phase
 		updateButtons();
 	});
+}
+
+function set_num_notes_to_tag_per_person(num_notes) {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"client_id": client_id,
+		"num_notes_to_tag_per_person": num_notes,
+		"question_id": question_id
+	};
+	$.post("/set_num_notes_to_tag_per_person", data);
 }
 
 function displayModes() {

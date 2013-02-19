@@ -27,6 +27,7 @@ limitations under the License.
 		var title = "{{ title }}";
 		var question = "{{ question }}";
 		var num_ideas = "{{ num_ideas }}";
+		var num_notes_to_tag_per_person = "{{ num_notes_to_tag_per_person }}"
 	</script>
 {% endblock %}
 
@@ -56,7 +57,8 @@ limitations under the License.
 				<input id="p3button" type="button">
 			</td>
 			<td>
-				Go to <a id="tagbynote_link">add tags by note</a>
+				Go to <a id="tagbynote_link">add tags by note</a><br>
+				# notes to tag per person <input id="num_notes_to_tag_per_person" type="text" size="3"></input>
 			</td>
 		</tr>
 		<tr valign="top">

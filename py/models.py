@@ -29,7 +29,9 @@ class Question(db.Model):
 	question = db.StringProperty()
 	author = db.UserProperty(auto_current_user_add=True)
 	code = db.StringProperty()
+	phase = db.IntegerProperty(default=0)
 	date = db.DateProperty(auto_now=True)
+	numNotesToTagPerPerson = db.IntegerProperty(default=5)
 
 	@staticmethod
 	def getQuestionById(questionIdStr):
@@ -82,38 +84,31 @@ class Question(db.Model):
 		else:
 			return -1
 
-###############
-##### APP #####
-###############
-class App(db.Model):
-	phase = db.IntegerProperty(default=0)
-	question = db.ReferenceProperty(Question)
-	date = db.DateProperty(auto_now=True)
-
 	@staticmethod
-	def getApp(questionIdStr):
+	def getPhase(questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
-			app = App.all().filter("question =", questionObj)
-			if app.count() == 0:
-				appObj = App()
-				appObj.question = questionObj
-				appObj.put()
-			else:
-				appObj = app.get()
-		else:
-			appObj = None
-		return appObj
-	
-	@staticmethod
-	def getPhase(questionIDStr):
-		return App.getApp(questionIDStr).phase
+			return questionObj.phase
 
 	@staticmethod
-	def setPhase(phase, questionIDStr):
-		appObj = App.getApp(questionIDStr)
-		appObj.phase = phase
-		appObj.put()
+	def setPhase(phase, questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			questionObj.phase = phase
+			questionObj.put()
+
+	@staticmethod
+	def getNumNotesToTagPerPerson(questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			return questionObj.numNotesToTagPerPerson
+
+	@staticmethod
+	def setNumNotesToTagPerPerson(numNotesToTagPerPerson, questionIdStr):
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			questionObj.numNotesToTagPerPerson = numNotesToTagPerPerson
+			questionObj.put()
 
 ###################
 ##### CLUSTER #####
