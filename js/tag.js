@@ -219,7 +219,7 @@ function updateDisplayForTagsPerIdea() {
 	var html = "<br><br>";
 	html += "This is note #" + num_notes_tagged + " out of " + num_notes_to_tag + ".<br>";
 	if (num_notes_tagged < num_notes_to_tag) {
-		html += "To tag the next note, ";
+		html += "To skip this OR go to the next note, ";
 		var msg = "Next note";
 	} else {
 		html += "When you are done, "
@@ -266,10 +266,19 @@ function displayIdeasPerIdea() {
 			"idea_id": idea_id,
 		};
 		$.getJSON("/query", data, function(results) {
-			var html = "<b>The note:</b> &quot;";
-			html += results.idea;
-			html += "&quot;";
-			$("#clusteredIdeas").html(html);
+			var question_id = getURLParameter("question_id");
+			data = {
+				"request": "question",
+				"question_id": question_id
+			}
+			$.getJSON("/query", data, function(results2) {
+				var html = "";
+				html += "<b>The question:</b> " + results2.question + "<br>";
+				html += "<b>The note:</b> &quot;";
+				html += results.idea;
+				html += "&quot;";
+				$("#clusteredIdeas").html(html);
+			});
 		});
 	}
 }

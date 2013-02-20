@@ -2,6 +2,7 @@ Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 
 Features
+* Allow students to edit their tags
 * Allow student pseudonym and/or google account
 * List # tags for the current question
 
