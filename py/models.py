@@ -97,18 +97,15 @@ class Question(db.Model):
 			questionObj.phase = phase
 			questionObj.put()
 
-	@staticmethod
-	def getNumNotesToTagPerPerson(questionIdStr):
-		questionObj = Question.getQuestionById(questionIdStr)
-		if questionObj:
-			return questionObj.numNotesToTagPerPerson
+	def getNumNotesToTagPerPerson(self):
+		return self.numNotesToTagPerPerson
 
-	@staticmethod
-	def setNumNotesToTagPerPerson(numNotesToTagPerPerson, questionIdStr):
-		questionObj = Question.getQuestionById(questionIdStr)
-		if questionObj:
-			questionObj.numNotesToTagPerPerson = numNotesToTagPerPerson
-			questionObj.put()
+	def setNumNotesToTagPerPerson(self, numNotesToTagPerPerson):
+		self.numNotesToTagPerPerson = numNotesToTagPerPerson
+		self.put()
+
+	def getNumNotesTaggedByUser(self):
+		return IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", self).count()
 
 ###################
 ##### CLUSTER #####
@@ -239,7 +236,7 @@ class ClusterAssignment(db.Model):
 	question = db.ReferenceProperty(Question)
 
 	@staticmethod
-	def getAssignment(questionIdStr):
+	def getAssignmentId(questionIdStr):
 		"""Determines the cluster assigned to this author"""
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
@@ -275,13 +272,33 @@ class IdeaAssignment(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
 	idea = db.ReferenceProperty(Idea)
 	question = db.ReferenceProperty(Question)
+	current = db.BooleanProperty(default=False)
 
 	@staticmethod
-	def getAssignment(questionIdStr):
+	def getCurrentAssignmentId(questionIdStr):
+		"""Gets the current assignment (or a new one if there isn't a current one)"""
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			ia = IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", questionObj).filter("current =", True).get()
+			if ia:
+				return ia.idea.key().id()
+			else:
+				return IdeaAssignment.getNewAssignmentId(questionIdStr)
+		else:
+			return -1
+		
+	@staticmethod
+	def getNewAssignmentId(questionIdStr):
 		"""Get a new random idea assignent for this author"""
 		ia = None
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
+			# First deselect any existing "current" assignment
+			currents = IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", questionObj).filter("current =", True)
+			for currentObj in currents:
+				currentObj.current = False
+				currentObj.put()
+			
 			numIdeas = Idea.all().filter("question =", questionObj).count()
 			numAssignments = IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", questionObj).count()
 			assignmentNeeded = True
@@ -301,6 +318,7 @@ class IdeaAssignment(db.Model):
 						ia = IdeaAssignment()
 						ia.idea = idea
 						ia.question = questionObj
+						ia.current = True
 						ia.put()
 						assignmentNeeded = False
 				else:
@@ -387,7 +405,7 @@ class IdeaTag(db.Model):
 	def getTags(questionIdStr):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
-			tags = ClusterTag.all().filter("question =", questionObj)
+			tags = IdeaTag.all().filter("question =", questionObj)
 			return tags
 		else:
 			return None

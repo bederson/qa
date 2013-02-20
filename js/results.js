@@ -19,7 +19,8 @@ var OFFLINE = false;					// For offline debugging
 var numIdeas = 0;
 var MAX_CLOUD_HEIGHT = 800;
 var maxChartRows = 10;
-var tag_hists = {};
+var tag_cluster_hists = {};
+var tag_idea_hists = {}
 var show_tags_in_charts = {};
 
 // Reason for this combination of google chart and jquery:
@@ -94,13 +95,13 @@ function displayIdeas(ideas) {
 	$.getJSON("/query", data, displayIdeasImpl);
 }
 
-function displayIdeasImpl(clusters) {
+function displayIdeasImpl(results) {
 	var html = "";
-	for (var i in clusters) {
-		var cluster = clusters[i];
+	for (var i in results) {
+		var cluster = results[i];
 		var clusterName = cluster.name;
 		var ideas = cluster.ideas;
-		tag_hists[cluster.id] = {};
+		tag_cluster_hists[cluster.id] = {};
 		html += "<h2>" + clusterName + "</h2>";
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
@@ -108,14 +109,17 @@ function displayIdeasImpl(clusters) {
 		html += "<ul>"
 		for (var j in ideas) {
 			var idea = ideas[j].idea;
+			tag_idea_hists[ideas[j].idea_id] = {};
+			var tagsid = "tags" + ideas[j].idea_id;
 			html += "<li>" + idea;
 			html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author + "</span>";
+			html += "<span id='" + tagsid + "' class='tags'></span>";
 			numIdeas += 1;
 		}
 		html += "</ul>"
 		html += "</div>";
 		html += "</td>";
-		if (!jQuery.browser.mobile) {
+		if (!jQuery.browser.mobile && (phase != PHASE_TAG_BY_NOTE)) {
 			var divid = "vis" + cluster.id;
 			var controlid = "control" + cluster.id;
 			html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
@@ -127,9 +131,9 @@ function displayIdeasImpl(clusters) {
 	updateNumIdeas();
 	
 	if (!jQuery.browser.mobile) {
-		if (phase < 2) {
-			for (var i in clusters) {
-				var cluster = clusters[i];
+		if ((phase == PHASE_DISABLED) || (phase == PHASE_NOTES)) {
+			for (var i in results) {
+				var cluster = results[i];
 				var ideas = cluster.ideas;
 				var cloudid = "vis" + cluster.id;
 				var height = $("#" + cloudid).parent().height();
@@ -139,9 +143,11 @@ function displayIdeasImpl(clusters) {
 				$("#" + cloudid).height(height);
 				displayCloud(cloudid, ideas);
 			}
-		} else {
-			displayTagControls(clusters);
-			displayTags();
+		} else if (phase == PHASE_TAG_BY_CLUSTER) {
+			displayTagControls(results);
+			displayClusterTags();
+		} else if (phase == PHASE_TAG_BY_NOTE) {
+			displayIdeaTags();
 		}
 	}
 }
@@ -206,40 +212,107 @@ function displayCloud(cloudid, cluster) {
 }
 
 //=================================================================================
-// Tag Chart Display
+// Idea Tags Display
 //=================================================================================
-function displayTags() {
+function displayIdeaTags() {
 	// Initialize tag counts
-	for (tag in tag_hists) {
-		tag_hists[tag] = {};
+	for (tag in tag_idea_hists) {
+		tag_idea_hists[tag] = {};
 	}
 	
 	var question_id = getURLParameter("question_id");
 	var data = {
-		"request": "tags",
+		"request": "ideatags",
 		"question_id": question_id
 	};
 	$.getJSON("/query", data, function(results) {
-		processTags(results);
+		processIdeaTags(results);
+		drawIdeaTags();
+	});	
+}
+
+function processIdeaTags(data) {
+	var tags = data.tags;
+	// Process tags to fill data structures
+	for (var i in tags) {
+		var tag = tags[i].tag;
+		var idea_id = tags[i].idea_id;
+		createIdeaTag(tag, idea_id);
+	}
+}
+
+function createIdeaTag(tag, idea_id) {
+	if (tag in tag_idea_hists[idea_id]) {
+		tag_idea_hists[idea_id][tag] += 1;
+	} else {
+		tag_idea_hists[idea_id][tag] = 1
+	}
+}
+
+function drawIdeaTags() {
+	for (var i in tag_idea_hists) {
+		var chartid = "tags" + i;
+		var hist = tag_idea_hists[i];
+
+		// Create the data table.
+		var rows = [];
+		var max = 0;
+		for (item in hist) {
+			rows.push([item, hist[item]]);
+		}
+		rows.sort(function(a, b) {
+			return(b[1] - a[1]);
+		});
+
+		if (rows.length > 0) {
+			var html = "<br>&nbsp;&nbsp;&nbsp;&nbsp;Tags: ";
+			for (j in rows) {
+				if (j > 0) {
+					html += ", ";
+				}
+				var row = rows[j];
+				html += row[0] + " (" + row[1] + ")";
+			}
+			$("#" + chartid).html(html);
+		}
+	}
+}
+
+//=================================================================================
+// Cluster Tag Chart Display
+//=================================================================================
+function displayClusterTags() {
+	// Initialize tag counts
+	for (tag in tag_cluster_hists) {
+		tag_cluster_hists[tag] = {};
+	}
+	
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "clustertags",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		processClusterTags(results);
 		drawCharts();
 	});
 }
 
-function processTags(data) {
+function processClusterTags(data) {
 	var tags = data.tags;
 	// Process tags to fill data structures
 	for (var i in tags) {
 		var tag = tags[i].tag;
 		var cluster = tags[i].cluster;
-		createTag(tag, cluster);
+		createClusterTag(tag, cluster);
 	}
 }
 
-function createTag(tag, cluster) {
-	if (tag in tag_hists[cluster]) {
-		tag_hists[cluster][tag] += 1;
+function createClusterTag(tag, cluster) {
+	if (tag in tag_cluster_hists[cluster]) {
+		tag_cluster_hists[cluster][tag] += 1;
 	} else {
-		tag_hists[cluster][tag] = 1
+		tag_cluster_hists[cluster][tag] = 1
 	}
 }
 
@@ -264,9 +337,9 @@ function displayTagControls(clusters) {
 // instantiates the chart, passes in the data and
 // draws it.
 function drawCharts() {
-	for (var i in tag_hists) {
+	for (var i in tag_cluster_hists) {
 		var chartid = "vis" + i;
-		var hist = tag_hists[i];
+		var hist = tag_cluster_hists[i];
 
 		// Create the data table.
 		var rows = [];
@@ -382,5 +455,9 @@ function handlePhase(data) {
 }
 
 function handleTag(data) {
-	displayTags();
+	if (phase == PHASE_TAG_BY_CLUSTER) {
+		displayClusterTags();
+	} else if (phase == PHASE_TAG_BY_NOTE) {
+		displayIdeaTags();
+	}
 }

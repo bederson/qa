@@ -40,6 +40,11 @@ h2 {
 	font-size: 0.8em;
 }
 
+.tags {
+	color: #048;
+	font-size: 0.8em;
+}
+
 #qcontainer {
 	margin-left: auto;
 	margin-right: auto;

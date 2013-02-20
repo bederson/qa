@@ -36,7 +36,7 @@ $(function() {
 		enableInput();
 		updateDisplayForTagsPerCluster();
 	} else if (phase == PHASE_TAG_BY_NOTE) {
-		if (idea_id == -1) {
+		if ((idea_id == -1) || (num_notes_tagged > num_notes_to_tag)) {
 			tagsPerIdeaFinished();
 		} else {
 			enableInput();
@@ -214,7 +214,32 @@ function displayIdeasPerCluster() {
 // Tagging per idea
 /////////////////////////////////////////////
 function updateDisplayForTagsPerIdea() {
-	$("#question").html("Please enter 1 or 2 words that best characterize the following note.")
+	$("#question").html("Enter 1 or 2 words that best characterize the note.")
+	
+	var html = "<br><br>";
+	html += "This is note #" + num_notes_tagged + " out of " + num_notes_to_tag + ".<br>";
+	if (num_notes_tagged < num_notes_to_tag) {
+		html += "To tag the next note, ";
+		var msg = "Next note";
+	} else {
+		html += "When you are done, "
+		var msg = "finished!";
+	}
+	html += "click on ";
+	html += "<input id='next_button' value='" + msg + "' type='button'></input>";
+	html += "<br><br>";
+	$("#next_note").html(html);
+	
+	$("#next_button").click(function() {
+		var question_id = getURLParameter("question_id");
+		var data = {
+			"question_id": question_id
+		};
+		$.getJSON("/getideaassignment", data, function(results) {
+			window.location.reload();
+		});
+	});
+	
 	displayTagsPerIdea();
 	displayIdeasPerIdea();
 }
@@ -250,8 +275,14 @@ function displayIdeasPerIdea() {
 }
 
 function tagsPerIdeaFinished() {
+	var question_id = getURLParameter("question_id");
+	var url = "/results?question_id=" + question_id;
+
 	var html = "<h1>Tagging complete</h1>";
 	html += "Thank you!";
+	html += "<br><br>";
+	html += "You can see all the <a href='" + url + "'>tags so far</a>.";
+	
 	$("#qcontainer").html(html);
 }
 

@@ -1,22 +1,16 @@
-Incomplete
-* Display tags per idea as they come in - with a chart???
-* Test cluster tagging
-* Migrate rand on ideas on appspot
-
 Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 
 Features
-* Allow student pseudonym instead of google account
-* List # tags given for the current, and # ideas for all questions
+* Allow student pseudonym and/or google account
+* List # tags for the current question
 
 Engineering
 * Only let owners or admin delete questions
-* Need to build test harness
+* Build test harness
 
 New approaches
-* New clustering approach based on tagging each item, and then cluster based on tags
-  - Need to generalize tagging so that different item types can be tagged
+* Cluster based on tags
 * New clustering approach by asking student to incrementally say which items are most similar
 * Final reclustering step based tags
 * Have student provide drawings, and do peer clustering

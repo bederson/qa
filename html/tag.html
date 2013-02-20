@@ -24,6 +24,8 @@ limitations under the License.
 		var phase = parseInt("{{ phase }}");
 		var cluster_id = parseInt("{{ cluster_id }}");
 		var idea_id = parseInt("{{ idea_id }}");
+		var num_notes_to_tag = "{{ num_notes_to_tag }}"
+		var num_notes_tagged = "{{ num_notes_tagged }}"
 	</script>
 {% endblock %}
 
@@ -37,7 +39,7 @@ limitations under the License.
 		<h1>Time To Tag</h1>
 		<div id="question"></div>
 		<div class="help">
-			Only tags suggested by multiple people will be used.
+			Pick tags you think that other people will also pick.
 		</div>
 		<br>
 		<input id="tagbox" type="text"><br>
@@ -53,5 +55,6 @@ limitations under the License.
 		<div id="notags">No tags yet<br><br></div>
 		<div id="mytags"></div>
 		<div id="clusteredIdeas"></div>
+		<div id="next_note"></div>
 	</div>
 {% endblock %}

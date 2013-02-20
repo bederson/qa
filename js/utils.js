@@ -1,6 +1,7 @@
 /////////////////////////
 // Constants
 /////////////////////////
+var PHASE_DISABLED = 0
 var PHASE_NOTES = 1
 var PHASE_TAG_BY_CLUSTER = 2
 var PHASE_TAG_BY_NOTE = 3

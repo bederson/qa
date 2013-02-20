@@ -126,9 +126,13 @@ class TagPageHandler(webapp2.RequestHandler):
 		phase = Question.getPhase(question_id)
 		template_values["phase"] = phase
 		if phase == PHASE_TAG_BY_CLUSTER:
-			template_values["cluster_id"] = ClusterAssignment.getAssignment(question_id)
+			template_values["cluster_id"] = ClusterAssignment.getAssignmentId(question_id)
 		elif phase == PHASE_TAG_BY_NOTE:
-			template_values["idea_id"] = IdeaAssignment.getAssignment(question_id)
+			template_values["idea_id"] = IdeaAssignment.getCurrentAssignmentId(question_id)
+			questionObj = Question.getQuestionById(question_id)
+			if questionObj:
+				template_values["num_notes_to_tag"] = questionObj.getNumNotesToTagPerPerson()
+				template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser()
 
 		path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
 		self.response.out.write(template.render(path, template_values))
@@ -181,7 +185,7 @@ class QueryHandler(webapp2.RequestHandler):
 			data = getIdea(idea_id)
 		elif request == "phase":
 			data = {"phase": Question.getPhase(question_id)}
-		elif request == "tags":
+		elif request == "clustertags":
 			tags = []
 			for tagObj in ClusterTag.getTags(question_id):
 				tag = cleanTag(tagObj.tag)
@@ -190,6 +194,15 @@ class QueryHandler(webapp2.RequestHandler):
 					item = {"tag": tag, "cluster": cluster.key().id(), "author": cleanNickname(tagObj.author)}
 					tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters(question_id)}
+		elif request == "ideatags":
+			tags = []
+			for tagObj in IdeaTag.getTags(question_id):
+				tag = cleanTag(tagObj.tag)
+				idea = tagObj.idea
+				if idea:
+					item = {"tag": tag, "idea_id": idea.key().id(), "author": cleanNickname(tagObj.author)}
+					tags.append(item)
+			data = {"tags": tags}
 		elif request == "myclustertags":
 			tags = []
 			for tag in ClusterTag.getTagsByUser(question_id):
@@ -332,6 +345,11 @@ class ClusterHandler(webapp2.RequestHandler):
 		}
 		send_message(client_id, question_id, message)		# Update other clients about this change
 
+class IdeaAssignmentHandler(webapp2.RequestHandler):
+	def get(self):
+		question_id = self.request.get("question_id")
+		IdeaAssignment.getNewAssignmentId(question_id)
+
 class PhaseHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')
@@ -351,7 +369,9 @@ class NumNotesToTagPerPersonHandler(webapp2.RequestHandler):
 		client_id = self.request.get('client_id')
 		num_notes_to_tag_per_person = int(self.request.get('num_notes_to_tag_per_person'))
 		question_id = self.request.get("question_id")
-		Question.setNumNotesToTagPerPerson(num_notes_to_tag_per_person, question_id)
+		questionObj = Question.getQuestionById(questionIdStr)
+		if questionObj:
+			questionObj.setNumNotesToTagPerPerson(num_notes_to_tag_per_person)
 
 		message = {
 			"op": "num_notes_to_tag_per_person",
@@ -417,6 +437,7 @@ def getIdeas(questionIdStr):
 		for ideaObj in ideaObjs:
 			idea = {
 				"idea": ideaObj.text,
+				"idea_id": ideaObj.key().id(),
 				"words": ideaObj.text.split(),
 				"author": cleanNickname(ideaObj.author)
 			}
@@ -431,6 +452,7 @@ def getIdeas(questionIdStr):
 		for ideaObj in ideaObjs:
 			idea = {
 				"idea": ideaObj.text,
+				"idea_id": ideaObj.key().id(),
 				"words": ideaObj.text.split(),
 				"author": cleanNickname(ideaObj.author)
 			}
