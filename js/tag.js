@@ -273,7 +273,7 @@ function displayIdeasPerIdea() {
 			}
 			$.getJSON("/query", data, function(results2) {
 				var html = "";
-				html += "<b>The question:</b> " + results2.question + "<br>";
+				html += "<b>The question:</b> " + results2.question + "<br><br>";
 				html += "<b>The note:</b> &quot;";
 				html += results.idea;
 				html += "&quot;";

@@ -209,13 +209,9 @@ class Idea(db.Model):
 			return 0
 
 	@staticmethod
-	def getRandomIdea(questionIdStr):
-		questionObj = Question.getQuestionById(questionIdStr)
-		if questionObj:
-			rand = random.random()
-			return Idea.all().filter("question =", questionObj).filter("rand >", rand).get()
-		else:
-			return None
+	def getRandomIdea(questionObj):
+		rand = random.random()
+		return Idea.all().filter("question =", questionObj).filter("rand >", rand).get()
 
 	@staticmethod
 	def assignCluster(id, clusterObj):
@@ -315,7 +311,7 @@ class IdeaAssignment(db.Model):
 			num_tries = 0
 			while assignmentNeeded and (numIdeas > numAssignments) and (num_tries < MAX_TRIES):
 				num_tries += 1
-				idea = Idea.getRandomIdea(questionIdStr)
+				idea = Idea.getRandomIdea(questionObj)
 				if idea:
 					assigned = (IdeaAssignment.all().filter("author =", users.get_current_user()).filter("idea =", idea).count() > 0)
 					if assigned:

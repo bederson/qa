@@ -1,4 +1,6 @@
 Bugs
+* Users occasionally get the same idea assigned to them multiple times - why???
+* Need better random assignment algorithm - seems very clumpy
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 
 Features
