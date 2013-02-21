@@ -83,7 +83,9 @@ function displayModes() {
 		html += "<b>Code: " + question_id + "</b><br>";
 		html += "Title: " + title + "<br>";
 		html += "Question: " + question + "<br>";
-		html += "# Notes: " + num_ideas + "<br>";
+		html += num_ideas + " notes, ";
+		html += num_tags_by_cluster + " tags by cluster, ";
+		html += num_tags_by_idea + " tags by idea<br>";
 		html += "<br>";
 		$("#question").html(html);
 		

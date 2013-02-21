@@ -162,6 +162,8 @@ class AdminPageHandler(webapp2.RequestHandler):
 				template_values["question"] = questionObj.question
 				template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
 				template_values["num_ideas"] = Idea.numIdeas(question_id)
+				template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
+				template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
 
 		path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
 		self.response.out.write(template.render(path, template_values))
@@ -217,7 +219,12 @@ class QueryHandler(webapp2.RequestHandler):
 		elif request == "question":
 			questionObj = Question.getQuestionById(question_id)
 			if questionObj:
-				data = {"title": questionObj.title, "question": questionObj.question}
+				data = {
+					"title": questionObj.title,
+					"question": questionObj.question,
+					"numTagsByCluster": questionObj.getNumTagsByCluster(),
+					"numTagsByIdea": questionObj.getNumTagsByIdea(),
+				}
 			else:
 				data = {"title": "", "question": ""}
 		elif request == "questions":

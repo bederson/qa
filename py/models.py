@@ -30,7 +30,7 @@ class Question(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
 	code = db.StringProperty()
 	phase = db.IntegerProperty(default=0)
-	date = db.DateProperty(auto_now=True)
+	date = db.DateTimeProperty(auto_now=True)
 	numNotesToTagPerPerson = db.IntegerProperty(default=5)
 
 	@staticmethod
@@ -107,6 +107,12 @@ class Question(db.Model):
 	def getNumNotesTaggedByUser(self):
 		return IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", self).count()
 
+	def getNumTagsByCluster(self):
+		return ClusterTag.all().filter("question =", self).count()
+
+	def getNumTagsByIdea(self):
+		return IdeaTag.all().filter("question =", self).count()
+
 ###################
 ##### CLUSTER #####
 ###################
@@ -114,7 +120,7 @@ class Cluster(db.Model):
 	text = db.StringProperty()
 	question = db.ReferenceProperty(Question)
 	rand = db.FloatProperty()
-	date = db.DateProperty(auto_now=True)
+	date = db.DateTimeProperty(auto_now=True)
 
 	@staticmethod
 	def createCluster(text, index, questionIdStr):
@@ -167,7 +173,7 @@ class Cluster(db.Model):
 ################
 class Idea(db.Model):
 	author = db.UserProperty(auto_current_user_add=True)
-	date = db.DateProperty(auto_now=True)
+	date = db.DateTimeProperty(auto_now=True)
 	text = db.StringProperty()
 	cluster = db.ReferenceProperty(Cluster)
 	question = db.ReferenceProperty(Question)
@@ -342,7 +348,7 @@ class ClusterTag(db.Model):
 	question = db.ReferenceProperty(Question)
 	cluster = db.ReferenceProperty(Cluster)
 	author = db.UserProperty(auto_current_user_add=True)
-	date = db.DateProperty(auto_now=True)
+	date = db.DateTimeProperty(auto_now=True)
 
 	@staticmethod
 	def createClusterTag(tagStr, cluster_id, questionIdStr):
@@ -388,7 +394,7 @@ class IdeaTag(db.Model):
 	question = db.ReferenceProperty(Question)
 	idea = db.ReferenceProperty(Idea)
 	author = db.UserProperty(auto_current_user_add=True)
-	date = db.DateProperty(auto_now=True)
+	date = db.DateTimeProperty(auto_now=True)
 
 	@staticmethod
 	def createIdeaTag(tagStr, idea_id, questionIdStr):
