@@ -144,7 +144,7 @@ class Cluster(db.Model):
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
 			rand = random.random()
-			return Cluster.all().filter("question =", questionObj).filter("rand >", rand).get()
+			return Cluster.all().filter("question =", questionObj).order("rand").filter("rand >", rand).get()
 		else:
 			return None
 
@@ -211,7 +211,7 @@ class Idea(db.Model):
 	@staticmethod
 	def getRandomIdea(questionObj):
 		rand = random.random()
-		return Idea.all().filter("question =", questionObj).filter("rand >", rand).get()
+		return Idea.all().filter("question =", questionObj).order("rand").filter("rand >", rand).get()
 
 	@staticmethod
 	def assignCluster(id, clusterObj):

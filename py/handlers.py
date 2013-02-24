@@ -280,7 +280,7 @@ class NewIdeaHandler(webapp2.RequestHandler):
 		client_id = self.request.get('client_id')
 		idea = self.request.get('idea')
 		question_id = self.request.get("question_id")
-		if len(idea) >= 0:			# Don't limit idea length until there is a way to give feedback about short ideas
+		if len(idea) >= 1:			# Don't limit idea length until there is a way to give feedback about short ideas
 			Idea.createIdea(idea, question_id)
 
 			# Update clients
@@ -297,7 +297,7 @@ class NewClusterTagHandler(webapp2.RequestHandler):
 		tag = self.request.get('tag')
 		cluster_id = int(self.request.get('cluster_id'))
 		question_id = self.request.get("question_id")
-		if len(tag) > 2:
+		if len(tag) >= 1:
 			ClusterTag.createClusterTag(tag, cluster_id, question_id)
 
 			# Update clients
@@ -315,7 +315,7 @@ class NewIdeaTagHandler(webapp2.RequestHandler):
 		tag = self.request.get('tag')
 		idea_id = int(self.request.get('idea_id'))
 		question_id = self.request.get("question_id")
-		if len(tag) > 2:
+		if len(tag) >= 1:
 			IdeaTag.createIdeaTag(tag, idea_id, question_id)
 
 			# Update clients

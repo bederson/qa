@@ -1,12 +1,16 @@
 Bugs
 * Users occasionally get the same idea assigned to them multiple times - why???
 * Need better random assignment algorithm - seems very clumpy
+  Made an improvement, need to try it with a class
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 
 Features
 * Stem tags???
 * Allow students to edit their tags
 * Allow student pseudonym and/or google account
+* Auto-complete or show tags that others have already entered for that cluster or idea
+  (to make it easier and faster for students to enter tags, and for there to be less diversity
+   ... if that's what we want)
 
 Engineering
 * Better downloading support

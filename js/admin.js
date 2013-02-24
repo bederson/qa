@@ -84,8 +84,8 @@ function displayModes() {
 		html += "Title: " + title + "<br>";
 		html += "Question: " + question + "<br>";
 		html += num_ideas + " notes, ";
-		html += num_tags_by_cluster + " tags by cluster, ";
-		html += num_tags_by_idea + " tags by idea<br>";
+		html += num_tags_by_cluster + " tags on clusters, ";
+		html += num_tags_by_idea + " tags on ideas<br>";
 		html += "<br>";
 		$("#question").html(html);
 		
