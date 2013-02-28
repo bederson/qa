@@ -5,6 +5,8 @@ Bugs
 * Need better random assignment algorithm - seems very clumpy
   Made an improvement, need to try it with a class
 * Can't submit idea when Chrome "disconnect.me" plugin installed
+* Require user to be logged in to create a question in admin interface
+* Reference to undefined App in Question.delete in models.py
 
 Features
 * Stem tags???
