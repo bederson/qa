@@ -19,6 +19,12 @@
 import webapp2
 from py.handlers import *
 
+# Key generated with os.urandom(64).encode('hex')
+config = {}
+config['webapp2_extras.sessions'] = {
+    'secret_key': '64b4587b7e70ca6f43592bbf5dd0870534e4b17d473cc5bc1aa8bb31f6333090cb60ca7482dbf8283ccff80a8ae0645d70adec72add7e0f38bbb4aedaef514bc'
+}
+
 app = webapp2.WSGIApplication([
 	('/', MainPageHandler),
     ('/idea', IdeaPageHandler),
@@ -42,4 +48,6 @@ app = webapp2.WSGIApplication([
 
 	('/_ah/channel/connected/', ConnectedHandler),
 	('/_ah/channel/disconnected/', DisconnectedHandler)
-], debug=True)
+    ], 
+    config=config,
+    debug=True)

@@ -24,12 +24,14 @@ import string
 import StringIO
 import csv
 import time
+import webapp2
 from models import *
 from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
 from cluster import KMeansClustering
+from webapp2_extras import sessions
 
 STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
 PHASE_NOTES = 1
@@ -53,7 +55,7 @@ def get_default_template_values(requestHandler, question_id):
 		url = users.create_login_url(requestHandler.request.uri)
 		url_linktext = 'Login w/ Google Account'
 		logged_in = "false"
-
+	
 	template_values = {
 		'client_id': client_id,
 		'token': token,
@@ -61,7 +63,8 @@ def get_default_template_values(requestHandler, question_id):
 		'url': url,
 		'url_linktext': url_linktext,
 		'logged_in': logged_in,
-		'admin': users.is_current_user_admin()
+		'admin': users.is_current_user_admin(),
+		'msg': requestHandler.session.pop("msg") if requestHandler.session.has_key("msg") else ""
 	}
 	return template_values
 
@@ -98,15 +101,33 @@ def send_message(client_id, question_id, message):
 #####################
 # Page Handlers
 #####################
-class MainPageHandler(webapp2.RequestHandler):
-    def get(self):
-		template_values = get_default_template_values(self, None)
 
+class BasePageHandler(webapp2.RequestHandler):
+	def dispatch(self):
+		self.session_store = sessions.get_store(request=self.request)
+		try:
+			webapp2.RequestHandler.dispatch(self)
+		finally:
+			self.session_store.save_sessions(self.response)
+			
+	@webapp2.cached_property
+	def session(self):
+		return self.session_store.get_session()
+			
+	def redirectWithMsg(self, msg=None, dst="/"):
+		if msg is not None:
+			self.session['msg'] = msg
+		self.redirect(dst)
+	
+class MainPageHandler(BasePageHandler):
+	def get(self):		
+		template_values = get_default_template_values(self, None)
+		
 		path = os.path.join(os.path.dirname(__file__), '../html/main.html')
 		self.response.out.write(template.render(path, template_values))
 
-class IdeaPageHandler(webapp2.RequestHandler):
-    def get(self):
+class IdeaPageHandler(BasePageHandler):
+	def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
 		template_values["phase"] = Question.getPhase(question_id)
@@ -119,8 +140,8 @@ class IdeaPageHandler(webapp2.RequestHandler):
 		self.response.out.write(template.render(path, template_values))
 
 # Particpant page to enter new tags
-class TagPageHandler(webapp2.RequestHandler):
-    def get(self):
+class TagPageHandler(BasePageHandler):
+	def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
 		phase = Question.getPhase(question_id)
@@ -137,8 +158,8 @@ class TagPageHandler(webapp2.RequestHandler):
 		path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
 		self.response.out.write(template.render(path, template_values))
 
-class ResultsPageHandler(webapp2.RequestHandler):
-    def get(self):
+class ResultsPageHandler(BasePageHandler):
+	def get(self):
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, question_id)
 		template_values["phase"] = Question.getPhase(question_id)
@@ -150,8 +171,12 @@ class ResultsPageHandler(webapp2.RequestHandler):
 		path = os.path.join(os.path.dirname(__file__), '../html/results.html')
 		self.response.out.write(template.render(path, template_values))
 
-class AdminPageHandler(webapp2.RequestHandler):
-    def get(self):
+class AdminPageHandler(BasePageHandler):
+	def get(self):
+		if not users.get_current_user():
+			self.redirectWithMsg("Please login to access admin page")
+			return
+			
 		question_id = self.request.get("question_id")
 		template_values = get_default_template_values(self, None)
 		if question_id:
@@ -172,7 +197,7 @@ class AdminPageHandler(webapp2.RequestHandler):
 # Action Handlers
 #####################
 class QueryHandler(webapp2.RequestHandler):
-    def get(self):
+	def get(self):
 		request = self.request.get("request")
 		question_id = self.request.get("question_id")
 
@@ -245,7 +270,6 @@ class NewQuestionHandler(webapp2.RequestHandler):
 		if len(title) >= 5 and len(question) >= 5:
 			question_id = Question.createQuestion(title, question)
 			data = {"question_id": question_id}
-
 			# Update clients
 			message = {
 				"op": "newquestion"
