@@ -376,7 +376,7 @@ class NumNotesToTagPerPersonHandler(webapp2.RequestHandler):
 		client_id = self.request.get('client_id')
 		num_notes_to_tag_per_person = int(self.request.get('num_notes_to_tag_per_person'))
 		question_id = self.request.get("question_id")
-		questionObj = Question.getQuestionById(questionIdStr)
+		questionObj = Question.getQuestionById(question_id)
 		if questionObj:
 			questionObj.setNumNotesToTagPerPerson(num_notes_to_tag_per_person)
 
