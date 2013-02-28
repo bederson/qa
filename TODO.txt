@@ -1,3 +1,5 @@
+TODO
+
 Bugs
 * Users occasionally get the same idea assigned to them multiple times - why???
 * Need better random assignment algorithm - seems very clumpy
@@ -8,6 +10,7 @@ Features
 * Stem tags???
 * Allow students to edit their tags
 * Allow student pseudonym and/or google account
+  (pseudonym only version would be useful for testing)
 * Auto-complete or show tags that others have already entered for that cluster or idea
   (to make it easier and faster for students to enter tags, and for there to be less diversity
    ... if that's what we want)
@@ -16,6 +19,7 @@ Engineering
 * Better downloading support
 * Only let owners or admin delete questions
 * Build test harness
+  (look at the Firefox extension Selenium: seleniumhq.org)
 
 New approaches
 * Cluster based on tags
