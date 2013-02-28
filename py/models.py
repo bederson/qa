@@ -53,7 +53,8 @@ class Question(db.Model):
 		if questionObj:
 			Cluster.deleteAllClusters(questionIdStr)
 			Idea.deleteAllIdeas(questionIdStr)
-			db.delete(App.all().filter("question =", questionObj))
+            # BUG: What is App supposed to be? (atr)
+			#db.delete(App.all().filter("question =", questionObj))
 			db.delete(Connection.all().filter("question =", questionObj))
 			db.delete(questionObj)
 
@@ -226,7 +227,7 @@ class Idea(db.Model):
 		IdeaTag.deleteAllIdeas(questionIdStr)
 		questionObj = Question.getQuestionById(questionIdStr)
 		if questionObj:
-			IdeaAssignments.deleteAllIdeaAssignments(questionIdStr)
+			IdeaAssignment.deleteAllIdeaAssignments(questionIdStr)
 			db.delete(Idea.all().filter("question =", questionObj))
 
 #############################
