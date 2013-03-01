@@ -174,7 +174,7 @@ class ResultsPageHandler(BasePageHandler):
 class AdminPageHandler(BasePageHandler):
 	def get(self):
 		if not users.get_current_user():
-			self.redirectWithMsg("Please login to access admin page")
+			self.redirectWithMsg('Please login to access admin page');
 			return
 			
 		question_id = self.request.get("question_id")
@@ -251,7 +251,11 @@ class QueryHandler(webapp2.RequestHandler):
 					"numTagsByIdea": questionObj.getNumTagsByIdea(),
 				}
 			else:
-				data = {"title": "", "question": ""}
+				data = {
+                    "title": "", 
+                    "question": "", 
+                    "msg": "Invalid code - it should be 5 digits"
+                }
 		elif request == "questions":
 			questions = []
 			for question in Question.getQuestionsByUser():

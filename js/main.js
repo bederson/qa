@@ -36,16 +36,28 @@ function initEventHandlers() {
 
 function submit() {
 	var question_id = $("#code_box").val();
+	
+	if (question_id.length==0) {
+		showInfoMessage("Please enter code");
+		$("#code_box").focus();
+		return;
+	}
+	
 	var data = {
 		"request": "question",
 		"question_id": question_id
 	};
 	$.getJSON("/query", data, function(results) {
 		if (results.title == "") {
-			$("#info").css("display", "inline");
+			showInfoMessage(results.msg);
 			$("#code_box").focus();
 		} else {
 			window.location.href="/idea?question_id=" + question_id;
 		}
 	});	
+}
+
+function showInfoMessage(msg) {
+	$("#info").html(msg);
+	$("#info").show();
 }
