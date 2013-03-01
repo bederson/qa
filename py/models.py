@@ -435,3 +435,58 @@ class IdeaTag(db.Model):
 class Connection(db.Model):
 	client_id = db.StringProperty()
 	question = db.ReferenceProperty(Question)
+
+######################
+##### NICKNAME #####
+######################
+class Nickname(db.Model):
+	question = db.ReferenceProperty(Question)
+	author = db.UserProperty(auto_current_user_add=True)
+	nickname = db.StringProperty()
+	
+	@staticmethod
+	def createNickname(nickname, questionId):
+		added = False
+		questionObj = Question.getQuestionById(questionId)
+		author = users.get_current_user()
+		if questionObj and author:
+			nicknameObj = Nickname()
+			nicknameObj.question = questionObj
+			# nicknameObj.author set automatically to current user
+			nicknameObj.nickname = nickname
+			nicknameObj.put()
+			added = True
+			
+		return added
+		
+	@staticmethod
+	def deleteNickname(questionId):
+		deleted = False
+		question = Question.getQuestionById(questionId)
+		author = users.get_current_user()
+		if question and author:
+			db.delete(Nickname.all().filter("question =", question).filter("author = ", author))
+			return True
+		
+		return deleted
+			
+	@staticmethod
+	def alreadyExists(nickname, questionId):
+		exists = False
+		question = Question.getQuestionById(questionId)
+		if question:
+			results = Nickname.all().filter("question =", question).filter("nickname = ", nickname)
+			exists = results.count()
+		return exists
+				
+	@staticmethod
+	def getNicknameForAuthor(questionId, email=None):
+		nickname = None
+		question = Question.getQuestionById(questionId)
+		author = users.get_current_user() if email is None else users.User(email)
+		if question and author:
+			match = Nickname.all().filter("question =", question).filter("author = ", author).get()
+			if match is not None:
+				nickname = match.nickname
+		
+		return nickname

@@ -138,7 +138,7 @@ function onResize() {
 		}
 	}
 
-	$("#qcontainer").width(width);
+	$(".qcontainer").width(width);
 	$("#tagbox").width(width - 6);
 }
 
@@ -292,7 +292,7 @@ function tagsPerIdeaFinished() {
 	html += "<br><br>";
 	html += "You can see all the <a href='" + url + "'>tags so far</a>.";
 	
-	$("#qcontainer").html(html);
+	$(".qcontainer").html(html);
 }
 
 /////////////////////////

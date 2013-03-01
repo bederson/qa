@@ -45,7 +45,11 @@ h2 {
 	font-size: 0.8em;
 }
 
-#qcontainer {
+.spacebelow {
+	margin-bottom: 10px;
+}
+
+.qcontainer {
 	margin-left: auto;
 	margin-right: auto;
 	padding: 10px;
