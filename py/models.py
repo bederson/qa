@@ -53,8 +53,6 @@ class Question(db.Model):
 		if questionObj:
 			Cluster.deleteAllClusters(questionIdStr)
 			Idea.deleteAllIdeas(questionIdStr)
-			# BUG: What is App supposed to be? (atr)
-			#db.delete(App.all().filter("question =", questionObj))
 			db.delete(Connection.all().filter("question =", questionObj))
 			db.delete(questionObj)
 
