@@ -52,7 +52,7 @@ def get_default_template_values(requestHandler, question_id):
 		url = users.create_logout_url(requestHandler.request.uri)
 		url_linktext = 'Logout'
 		logged_in = "true"
-		user_nickname = Nickname.getNicknameForAuthor(question_id)
+		user_nickname = Author.getNickname(question_id)
 	else:
 		url = users.create_login_url(requestHandler.request.uri)
 		url_linktext = 'Login w/ Google Account'
@@ -316,22 +316,19 @@ class NewNicknameHandler(webapp2.RequestHandler):
 		if len(nickname) == 0:
 			data["msg"] = "Empty nickname not allowed"
 			
-		elif Nickname.alreadyExists(nickname, question_id):
+		elif Author.nicknameAlreadyExists(question_id, nickname):
 			data["msg"] = "Nickname already exists"
 				
 		else:
-			success = Nickname.createNickname(nickname, question_id)
-			if success:
-				# TODO: update clients with new nickname
-				# Update clients
-				message = {
-					"op": "newnickname",
-					"text": nickname,
-					"author": cleanNickname(users.get_current_user())
-				}
-				send_message(client_id, question_id, message)
-			else:
-				data["msg"] = "Unable to add nickname"
+			Author.addNickname(question_id, nickname)
+			# TODO: update clients with new nickname
+			# Update clients
+			message = {
+				"op": "newnickname",
+				"text": nickname,
+				"author": cleanNickname(users.get_current_user())
+			}
+			send_message(client_id, question_id, message)
 	
 		self.response.headers['Content-Type'] = 'application/json'
 		self.response.out.write(json.dumps(data))
@@ -341,8 +338,7 @@ class DeleteNicknameHandler(webapp2.RequestHandler):
 		client_id = self.request.get("client_id")
 		question_id = self.request.get("question_id")
 		data = { "msg": "" }
-
-		success = Nickname.deleteNickname(question_id)
+		success = Author.deleteNickname(question_id)
 		if success:
 			# TODO: update clients with user nickname
 			# Update clients

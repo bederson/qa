@@ -33,7 +33,6 @@ $(function() {
 
 	$("#title").html(title);
 	$("#question").html(question);
-
 	if (phase == 1) {
 		enableInput();
 	} else {
@@ -42,7 +41,7 @@ $(function() {
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
-	
+
 	updateNicknameArea();
 });
 
@@ -125,65 +124,73 @@ function onResize() {
 }
 
 function updateNicknameArea() {
-	var html = '<div class="header spacebelow">Nickname</div>';
-	if (user_nickname != "") {
-		html += user_nickname + " " + '<input id="delete_nickname" type="submit" value="Remove">';
-		html += '<div class="help">';
-	    html += 'Nickname displayed with all your entries for this question';
-	    html += '</div>';
-	    $("#nickname_area").html(html);
-	    $("#user_display_name").html(user_nickname);
+	if (phase == 1) {
+		var html = '<div class="header spacebelow">Nickname</div>';
+		if (user_nickname != "") {
+			html += user_nickname + " " + '<input id="delete_nickname" type="submit" value="Remove">';
+			html += '<div class="help">';
+	    	html += 'Nickname displayed with all your entries for this question';
+	    	html += '</div>';
+	    	$("#nickname_area").html(html);
+	    	$("#nickname_area").show();
+	    	$("#user_display_name").html(user_nickname);
 	    
-		$("#delete_nickname").unbind("click");
-		$("#delete_nickname").click(function() {
-			var question_id = getURLParameter("question_id");
-			var data = {
-				"client_id": client_id,
-				"question_id": question_id
-			};
-			$.post("/deletenickname", data, function(event) {
-				if (event.msg != "") {
-					$("#nickname_msg").html(event.msg);
-				}
-				else {
-					user_nickname = "";
-					updateNicknameArea();
-				}
+	    	$("#delete_nickname").unbind("click");
+			$("#delete_nickname").click(function() {
+				var question_id = getURLParameter("question_id");
+				var data = {
+					"client_id": client_id,
+					"question_id": question_id
+				};
+				$.post("/deletenickname", data, function(event) {
+					if (event.msg != "") {
+						$("#nickname_msg").html(event.msg);
+					}
+					else {
+						user_nickname = "";
+						updateNicknameArea();
+					}
+				});
 			});
-		});
-	}
-	else {
-	    html += '<div class="help">';
-	    html += 'Enter the nickname to display with all your entries for this question. By default, your user id will be used.';
-	    html += '</div>';
-	    html += '<input id="nickname" value=""><br>';
-	    html += '<input id="submit_nickname" type="submit" value="Submit">';
-	    html += '<div id="nickname_msg" class="warning"></div>';
-	    $("#nickname_area").html(html);
-	    $("#user_display_name").html(user_login);
+		}
+		else {
+	    	html += '<div class="help">';
+	    	html += 'Enter the nickname to display with all your entries for this question. By default, your user id will be used.';
+	    	html += '</div>';
+	    	html += '<input id="nickname" value=""><br>';
+	    	html += '<input id="submit_nickname" type="submit" value="Submit">';
+	    	html += '<div id="nickname_msg" class="warning"></div>';
+	    	$("#nickname_area").html(html);
+	    	$("#user_display_name").html(user_login);
 	    
-	   	$("#submit_nickname").unbind("click");
-		$("#submit_nickname").click(function() {
-			$("#submit_nickname").attr("disabled", "disabled");
-			var question_id = getURLParameter("question_id");
-			var nickname = $("#nickname").val();
-			var data = {
-				"client_id": client_id,
-				"question_id": question_id,
-				"nickname": nickname
-			};
-			$.post("/newnickname", data, function(event) {
-				$("#submit_nickname").removeAttr("disabled");
-				if (event.msg != "") {
-					$("#nickname_msg").html(event.msg);
-				}
-				else {
-					user_nickname = nickname;
-					updateNicknameArea();
-				}
+	    	$("#submit_nickname").unbind("click");
+			$("#submit_nickname").click(function() {
+				$("#submit_nickname").attr("disabled", "disabled");
+				var question_id = getURLParameter("question_id");
+				var nickname = $("#nickname").val();
+				var data = {
+					"client_id": client_id,
+					"question_id": question_id,
+					"nickname": nickname
+				};
+				$.post("/newnickname", data, function(event) {
+					$("#submit_nickname").removeAttr("disabled");
+					if (event.msg != "") {
+						$("#nickname_msg").html(event.msg);
+					}
+					else {
+						user_nickname = nickname;
+						updateNicknameArea();
+					}
+				});
 			});
-		});
+		}
 	}
+
+	if (phase == 1) {	
+		$("#nickname_area").show();
+	}
+	
 }
 /////////////////////////
 // Channel support
