@@ -159,7 +159,7 @@ function updateNicknameArea() {
 						$("#nickname_msg").html(event.msg);
 					}
 					else {
-						user_nickname = data.nickname;
+						user_nickname = event.nickname;
 						updateNicknameArea();
 					}
 				});

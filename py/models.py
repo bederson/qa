@@ -123,7 +123,7 @@ class Author(db.Model):
 	def createAuthor(question, nickname=None):
 		if nickname is None:
 			user = users.get_current_user()
-			nickname = user.nickname()		
+			nickname = Author.cleanNickname(user)	
 		author = Author()
 		author.nickname = nickname
 		author.question = question
