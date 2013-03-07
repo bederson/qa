@@ -149,26 +149,20 @@ function updateNicknameArea() {
 			$("#change_nickname2").click(function() {
 				var question_id = getURLParameter("question_id");
 				var nickname = $("#nickname").val();
-				
-				if (nickname == "") {
-					$("#nickname_msg").html("Empty nickname not allowed");
-				}
-				else {
-					var data = {
-						"client_id": client_id,
-						"question_id": question_id,
-						"nickname": nickname
-					};
-					$.post("/newnickname", data, function(event) {
-						if (event.msg != "") {
-							$("#nickname_msg").html(event.msg);
-						}
-						else {
-							user_nickname = data.nickname;
-							updateNicknameArea();
-						}
-					});
-				}
+				var data = {
+					"client_id": client_id,
+					"question_id": question_id,
+					"nickname": nickname
+				};
+				$.post("/newnickname", data, function(event) {
+					if (event.msg != "") {
+						$("#nickname_msg").html(event.msg);
+					}
+					else {
+						user_nickname = data.nickname;
+						updateNicknameArea();
+					}
+				});
 			});
 		});
 

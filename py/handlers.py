@@ -308,16 +308,24 @@ class EditQuestionHandler(webapp2.RequestHandler):
 
 class NewNicknameHandler(webapp2.RequestHandler):
 	def post(self):
+		user = users.get_current_user()
 		client_id = self.request.get("client_id")
 		question_id = self.request.get("question_id")
 		nickname = self.request.get("nickname")
+		specialChars = set('$\'"*,')
 		data = { "question_id": question_id, "msg": "" }
+		
+		if user and len(nickname) == 0:
+			nickname = Author.cleanNickname(user)
 		
 		if len(nickname) == 0:
 			data["msg"] = "Empty nickname not allowed"
+
+		elif any((c in specialChars) for c in nickname):
+			data["msg"] = "Nickname can not contain " + "".join(specialChars)
 			
 		elif Author.nicknameAlreadyExists(question_id, nickname):
-			data["msg"] = "Nickname already exists"
+			data["msg"] = "Nickname already exists (" + nickname + ")"
 			
 		else:
 			Author.changeNickname(question_id, nickname)
@@ -325,9 +333,9 @@ class NewNicknameHandler(webapp2.RequestHandler):
 			# TODO: update clients with user nickname
 			# Update clients
 			message ={
-				"op": "changenickname",
+				"op": "newnickname",
 				"text": "",
-				"author": Author.cleanNickname(users.get_current_user())
+				"author": Author.cleanNickname(user)
 			}
 			send_message(client_id, question_id, message)
 			
