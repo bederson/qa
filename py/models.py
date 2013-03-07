@@ -151,15 +151,11 @@ class Author(db.Model):
 	
 	@staticmethod
 	def changeNickname(questionId, nickname=None):
-        # TUESDAY: add support for non-authenticated users
-        # TUESDAY: display nicknames in gui (send authenticated user info to instructor)
-		# xx only good when authenticated user exists for Author
 		question = Question.getQuestionById(questionId)
 		author = Author.getAuthor(question)
-        
 		if author:
 			# reset nickname to authenticated user if no nickname provided
-			author.nickname = nickname if nickname is not None else (author.user.nickname() if author.user else "Unknown")
+			author.nickname = nickname if nickname is not None else (Author.cleanNickname(author.user) if author.user else "Unknown")
 			author.put()
 			
 	@staticmethod
@@ -170,10 +166,20 @@ class Author(db.Model):
 				
 	@staticmethod
 	def getNickname(questionId):
-		# xx only good when authenticated user exists for Author
 		question = Question.getQuestionById(questionId)
 		author = Author.getAuthor(question)
 		return author.nickname if author is not None else None
+		
+	@staticmethod
+	def cleanNickname(user):
+	    if user:
+		    nickname = user.nickname()
+		    if nickname.count("@") == 0:
+			    return nickname
+		    else:
+			    return nickname[:nickname.index("@")]
+	    else:
+		    return "none"
 	
 ###################
 ##### CLUSTER #####

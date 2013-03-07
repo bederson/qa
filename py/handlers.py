@@ -221,7 +221,7 @@ class QueryHandler(webapp2.RequestHandler):
 				tag = cleanTag(tagObj.tag)
 				cluster = tagObj.cluster
 				if cluster:
-					item = {"tag": tag, "cluster": cluster.key().id(), "author": cleanNickname(tagObj.author)}
+					item = {"tag": tag, "cluster": cluster.key().id(), "author": Author.cleanNickname(tagObj.author)}
 					tags.append(item)
 			data = {"tags": tags, "num_clusters": Cluster.numClusters(question_id)}
 		elif request == "ideatags":
@@ -230,7 +230,7 @@ class QueryHandler(webapp2.RequestHandler):
 				tag = cleanTag(tagObj.tag)
 				idea = tagObj.idea
 				if idea:
-					item = {"tag": tag, "idea_id": idea.key().id(), "author": cleanNickname(tagObj.author)}
+					item = {"tag": tag, "idea_id": idea.key().id(), "author": Author.cleanNickname(tagObj.author)}
 					tags.append(item)
 			data = {"tags": tags}
 		elif request == "myclustertags":
@@ -327,7 +327,7 @@ class NewNicknameHandler(webapp2.RequestHandler):
 			message ={
 				"op": "changenickname",
 				"text": "",
-				"author": cleanNickname(users.get_current_user())
+				"author": Author.cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, question_id, message)
 			
@@ -346,7 +346,7 @@ class NewIdeaHandler(webapp2.RequestHandler):
 			message = {
 				"op": "newidea",
 				"text": idea,
-				"author": cleanNickname(users.get_current_user())
+				"author": Author.cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, question_id, message)		# Update other clients about this change
 
@@ -364,7 +364,7 @@ class NewClusterTagHandler(webapp2.RequestHandler):
 				"op": "newtag",
 				"tag": tag,
 				"cluster_id": cluster_id,
-				"author": cleanNickname(users.get_current_user())
+				"author": Author.cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, question_id, message)		# Update other clients about this change
 
@@ -382,7 +382,7 @@ class NewIdeaTagHandler(webapp2.RequestHandler):
 				"op": "newtag",
 				"tag": tag,
 				"idea_id": idea_id,
-				"author": cleanNickname(users.get_current_user())
+				"author": Author.cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, question_id, message)		# Update other clients about this change
 
@@ -482,7 +482,7 @@ def getIdea(ideaIdStr):
 	if ideaObj:
 		idea = {
 			"idea": ideaObj.text,
-			"author": cleanNickname(ideaObj.author)
+			"author": Author.cleanNickname(ideaObj.author)
 		}
 	else:
 		idea = {}
@@ -505,7 +505,7 @@ def getIdeas(questionIdStr):
 				"idea": ideaObj.text,
 				"idea_id": ideaObj.key().id(),
 				"words": ideaObj.text.split(),
-				"author": cleanNickname(ideaObj.author)
+				"author": Author.cleanNickname(ideaObj.author)
 			}
 			ideas.append(idea)
 		entry["ideas"] = ideas
@@ -520,7 +520,7 @@ def getIdeas(questionIdStr):
 				"idea": ideaObj.text,
 				"idea_id": ideaObj.key().id(),
 				"words": ideaObj.text.split(),
-				"author": cleanNickname(ideaObj.author)
+				"author": Author.cleanNickname(ideaObj.author)
 			}
 			ideas.append(idea)
 		entry["ideas"] = ideas
@@ -539,7 +539,7 @@ def getIdeasByCluster(cluster_id, questionIdStr):
 		idea = {
 			"idea": ideaObj.text,
 			"words": ideaObj.text.split(),
-			"author": cleanNickname(ideaObj.author)
+			"author": Author.cleanNickname(ideaObj.author)
 		}
 		ideas.append(idea)
 	return ideas;
@@ -650,13 +650,3 @@ def cleanWord(word):
 	
 def isStopWord(word):
 	return (word in STOP_WORDS)
-
-def cleanNickname(user):
-	if user:
-		nickname = user.nickname()
-		if nickname.count("@") == 0:
-			return nickname
-		else:
-			return nickname[:nickname.index("@")]
-	else:
-		return "none"
