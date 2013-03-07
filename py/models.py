@@ -172,14 +172,14 @@ class Author(db.Model):
 		
 	@staticmethod
 	def cleanNickname(user):
-	    if user:
-		    nickname = user.nickname()
-		    if nickname.count("@") == 0:
-			    return nickname
-		    else:
-			    return nickname[:nickname.index("@")]
-	    else:
-		    return "none"
+		if user:
+			nickname = user.nickname()
+			if nickname.count("@") == 0:
+				return nickname
+			else:
+				return nickname[:nickname.index("@")]
+		else:
+			return "none"
 	
 ###################
 ##### CLUSTER #####
