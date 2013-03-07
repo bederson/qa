@@ -126,69 +126,54 @@ function onResize() {
 function updateNicknameArea() {
 	if (phase == 1) {
 		var html = '<div class="header spacebelow">Nickname</div>';
-		if (user_nickname != "") {
-			html += user_nickname + " " + '<input id="delete_nickname" type="submit" value="Remove">';
+		html += user_nickname + " " + '<input id="change_nickname1" type="submit" value="Change">';
+		html += '<div class="help">';
+	    html += 'Nickname displayed with all your entries for this question';
+	    html += '</div>';
+		$("#nickname_area").html(html);
+			
+		$("#change_nickname1").click(function() {
+			var html = '<div class="header spacebelow">Nickname</div>';
+			html +=  '<input id="nickname" value="' + user_nickname + '"> <input id="change_nickname2" type="submit" value="Change">';
 			html += '<div class="help">';
 	    	html += 'Nickname displayed with all your entries for this question';
-	    	html += '</div>';
-	    	$("#nickname_area").html(html);
-	    	$("#nickname_area").show();
-	    	$("#user_display_name").html(user_nickname);
-	    
-	    	$("#delete_nickname").unbind("click");
-			$("#delete_nickname").click(function() {
-				var question_id = getURLParameter("question_id");
-				var data = {
-					"client_id": client_id,
-					"question_id": question_id
-				};
-				$.post("/deletenickname", data, function(event) {
-					if (event.msg != "") {
-						$("#nickname_msg").html(event.msg);
-					}
-					else {
-						user_nickname = "";
-						updateNicknameArea();
-					}
-				});
-			});
-		}
-		else {
-	    	html += '<div class="help">';
-	    	html += 'Enter the nickname to display with all your entries for this question. By default, your user id will be used.';
-	    	html += '</div>';
-	    	html += '<input id="nickname" value=""><br>';
-	    	html += '<input id="submit_nickname" type="submit" value="Submit">';
 	    	html += '<div id="nickname_msg" class="warning"></div>';
-	    	$("#nickname_area").html(html);
-	    	$("#user_display_name").html(user_login);
-	    
-	    	$("#submit_nickname").unbind("click");
-			$("#submit_nickname").click(function() {
-				$("#submit_nickname").attr("disabled", "disabled");
+	    	html += '</div>';
+			$("#nickname_area").html(html);
+			$("#change_nickname2").prop("disabled", true);
+			
+			$("#nickname").keyup(function() {
+				$("#change_nickname2").prop("disabled", false);
+			});
+			
+			$("#change_nickname2").click(function() {
 				var question_id = getURLParameter("question_id");
 				var nickname = $("#nickname").val();
-				var data = {
-					"client_id": client_id,
-					"question_id": question_id,
-					"nickname": nickname
-				};
-				$.post("/newnickname", data, function(event) {
-					$("#submit_nickname").removeAttr("disabled");
-					if (event.msg != "") {
-						$("#nickname_msg").html(event.msg);
-					}
-					else {
-						user_nickname = nickname;
-						updateNicknameArea();
-					}
-				});
+				
+				if (nickname == "") {
+					$("#nickname_msg").html("Empty nickname not allowed");
+				}
+				else {
+					var data = {
+						"client_id": client_id,
+						"question_id": question_id,
+						"nickname": nickname
+					};
+					$.post("/newnickname", data, function(event) {
+						if (event.msg != "") {
+							$("#nickname_msg").html(event.msg);
+						}
+						else {
+							user_nickname = data.nickname;
+							updateNicknameArea();
+						}
+					});
+				}
 			});
-		}
-	}
+		});
 
-	if (phase == 1) {	
 		$("#nickname_area").show();
+	    //$("#user_display_name").html(user_login);
 	}
 	
 }

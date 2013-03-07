@@ -312,49 +312,28 @@ class NewNicknameHandler(webapp2.RequestHandler):
 		question_id = self.request.get("question_id")
 		nickname = self.request.get("nickname")
 		data = { "question_id": question_id, "msg": "" }
-
+		
 		if len(nickname) == 0:
 			data["msg"] = "Empty nickname not allowed"
 			
 		elif Author.nicknameAlreadyExists(question_id, nickname):
 			data["msg"] = "Nickname already exists"
-				
+			
 		else:
-			Author.addNickname(question_id, nickname)
-			# TODO: update clients with new nickname
-			# Update clients
-			message = {
-				"op": "newnickname",
-				"text": nickname,
-				"author": cleanNickname(users.get_current_user())
-			}
-			send_message(client_id, question_id, message)
-	
-		self.response.headers['Content-Type'] = 'application/json'
-		self.response.out.write(json.dumps(data))
+			Author.changeNickname(question_id, nickname)
 
-class DeleteNicknameHandler(webapp2.RequestHandler):
-	def post(self):
-		client_id = self.request.get("client_id")
-		question_id = self.request.get("question_id")
-		data = { "msg": "" }
-		success = Author.deleteNickname(question_id)
-		if success:
 			# TODO: update clients with user nickname
 			# Update clients
-			message = {
-				"op": "deletenickname",
-				"text": "", # required?
+			message ={
+				"op": "changenickname",
+				"text": "",
 				"author": cleanNickname(users.get_current_user())
 			}
 			send_message(client_id, question_id, message)
-		else:
-			data["msg"] = "Unable to delete nickname"
 			
 		self.response.headers['Content-Type'] = 'application/json'
 		self.response.out.write(json.dumps(data)) 
-		
-					
+				
 class NewIdeaHandler(webapp2.RequestHandler):
 	def post(self):
 		client_id = self.request.get('client_id')

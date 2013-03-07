@@ -40,7 +40,6 @@ app = webapp2.WSGIApplication([
 	('/newclustertag', NewClusterTagHandler),
 	('/newideatag', NewIdeaTagHandler),
 	('/delete', DeleteHandler),
-    ('/deletenickname', DeleteNicknameHandler),
 	('/cluster', ClusterHandler),
 	('/getideaassignment', IdeaAssignmentHandler),
 	('/set_phase', PhaseHandler),

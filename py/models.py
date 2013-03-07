@@ -150,17 +150,17 @@ class Author(db.Model):
 		author.put()
 	
 	@staticmethod
-	def deleteNickname(questionId):
+	def changeNickname(questionId, nickname=None):
+        # TUESDAY: add support for non-authenticated users
+        # TUESDAY: display nicknames in gui (send authenticated user info to instructor)
 		# xx only good when authenticated user exists for Author
-		deleted = False
 		question = Question.getQuestionById(questionId)
 		author = Author.getAuthor(question)
-		if author and author.user is not None:
-			# reset nickname to authenticated user
-			author.nickname = author.user.nickname()
+        
+		if author:
+			# reset nickname to authenticated user if no nickname provided
+			author.nickname = nickname if nickname is not None else (author.user.nickname() if author.user else "Unknown")
 			author.put()
-			deleted = True	
-		return deleted
 			
 	@staticmethod
 	def nicknameAlreadyExists(questionId, nickname):

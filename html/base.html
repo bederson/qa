@@ -50,11 +50,7 @@ limitations under the License.
 			<td align="right" width="45%">
 			    <span id="user_display_name">
 				{% if user %}
-					{% if user_nickname %}
-						{{ user_nickname }}
-					{% else %}
 						{{ user }}
-					{% endif %}
 				{% endif %}
 				</span>
 				<a href="{{ url }}">{{ url_linktext }}</a>
