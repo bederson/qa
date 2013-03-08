@@ -34,11 +34,11 @@ app = webapp2.WSGIApplication([
 
     ('/login', LoginHandler),
     ('/logout', LoginHandler),
+    ('/nickname', NicknameHandler),
 	('/query', QueryHandler),
 	('/newquestion', NewQuestionHandler),
 	('/editquestion', EditQuestionHandler),
 	('/newidea', NewIdeaHandler),
-    ('/newnickname', NewNicknameHandler),
 	('/newclustertag', NewClusterTagHandler),
 	('/newideatag', NewIdeaTagHandler),
 	('/delete', DeleteHandler),

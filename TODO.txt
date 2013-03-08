@@ -16,6 +16,9 @@ Features
   (to make it easier and faster for students to enter tags, and for there to be less diversity
    ... if that's what we want)
 
+Misc
+* Need to make myself gae admin so users.is_current_user_admin returns true
+
 Engineering
 * Better downloading support
 * Only let owners or admin delete questions

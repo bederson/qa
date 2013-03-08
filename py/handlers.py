@@ -46,6 +46,7 @@ def get_default_template_values(requestHandler, question_id):
     token = None
     question = Question.getQuestionById(question_id) if question_id is not None else None
     person = Person.getPerson(question=question)
+    isLocalAdmin = users.get_current_user() and "http://localhost" in requestHandler.request.uri
     
     if question:
         nickname = None
@@ -74,7 +75,7 @@ def get_default_template_values(requestHandler, question_id):
         'url': url,
         'url_linktext': url_linktext,
         'logged_in': logged_in,
-        'admin': users.is_current_user_admin(),
+        'admin': users.is_current_user_admin() or isLocalAdmin,
         'msg': requestHandler.session.pop("msg") if requestHandler.session.has_key("msg") else ""
     }
     return template_values
@@ -215,7 +216,53 @@ class LogoutHandler(webapp2.RequestHandler):
         person = Person.logoutPerson(nickname=nickname, question=question)  
         page = self.request.get("page", "/")
         self.redirect(str(page))
-                   
+
+class NicknameHandler(webapp2.RequestHandler):
+    def post(self):
+        clientId = self.request.get("client_id")
+        questionId = self.request.get("question_id")
+        nickname = self.request.get("nickname")
+        person = Person.getPersonFromClientId(clientId)
+
+        specialChars = set('$\'"*,')
+        nicknameNotChanged = False
+        if person.user is not None:
+            # base nickname on login if none provided
+            if len(nickname) == 0:
+                nickname = Person.cleanNickname(person.user)
+
+            # check if nickname changed
+            nicknameNotChanged = person is not None and person.nickname == nickname
+        
+        data = { "question_id": questionId, "nickname": nickname, "msg": "" }
+        
+        if nicknameNotChanged:
+            pass    # do nothing
+        
+        elif len(nickname) == 0:
+            data["msg"] = "Empty nickname not allowed"
+
+        elif any((c in specialChars) for c in nickname):
+            data["msg"] = "Nickname can not contain " + "".join(specialChars)
+            
+        elif Person.nicknameAlreadyExists(questionId, nickname):
+            data["msg"] = "Nickname already exists (" + nickname + ")"
+            
+        else:
+            person.setNickname(nickname)
+            
+            # TODO: update clients with user nickname
+            # Update clients
+            message ={
+                "op": "nickname",
+                "text": "",
+                "author": Person.cleanNickname(person.user)
+            }
+            send_message(clientId, questionId, message)      # Update other clients about this change
+            
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.out.write(json.dumps(data)) 
+                           
 class QueryHandler(webapp2.RequestHandler):
     def get(self):
         request = self.request.get("request")
@@ -324,52 +371,6 @@ class EditQuestionHandler(webapp2.RequestHandler):
 
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(data))
-
-class NewNicknameHandler(webapp2.RequestHandler):
-    def post(self):
-        clientId = self.request.get("client_id")
-        questionId = self.request.get("question_id")
-        nickname = self.request.get("nickname")
-        person = Person.getPersonFromClientId(clientId)
-
-        specialChars = set('$\'"*,')
-        nicknameNotChanged = False
-        if person.user is not None:
-            # base nickname on login if none provided
-            if len(nickname) == 0:
-                nickname = Person.cleanNickname(person.user)
-
-            # check if nickname changed
-            nicknameNotChanged = person is not None and person.nickname == nickname
-        
-        data = { "question_id": questionId, "nickname": nickname, "msg": "" }
-        
-        if nicknameNotChanged:
-            pass    # do nothing
-        
-        elif len(nickname) == 0:
-            data["msg"] = "Empty nickname not allowed"
-
-        elif any((c in specialChars) for c in nickname):
-            data["msg"] = "Nickname can not contain " + "".join(specialChars)
-            
-        elif Person.nicknameAlreadyExists(questionId, nickname):
-            data["msg"] = "Nickname already exists (" + nickname + ")"
-            
-        else:
-            person.setNickname(nickname)
-            
-            # TODO: update clients with user nickname
-            # Update clients
-            message ={
-                "op": "newnickname",
-                "text": "",
-                "author": Person.cleanNickname(person.user)
-            }
-            send_message(clientId, questionId, message)      # Update other clients about this change
-            
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(data)) 
                 
 class NewIdeaHandler(webapp2.RequestHandler):
     def post(self):

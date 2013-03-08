@@ -463,6 +463,6 @@ function handleTag(data) {
 }
 
 function handleNickname(data) {
-	// would be better to only refresh changed data
+	// TODO: would be better to only refresh changed data
 	window.location.reload();
 }

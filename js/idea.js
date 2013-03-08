@@ -154,7 +154,7 @@ function updateNicknameArea() {
 					"question_id": question_id,
 					"nickname": nickname
 				};
-				$.post("/newnickname", data, function(event) {
+				$.post("/nickname", data, function(event) {
 					if (event.msg != "") {
 						$("#nickname_msg").html(event.msg);
 					}

@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+import logging
 import random
 from google.appengine.ext import db
 from google.appengine.api import users
@@ -328,15 +329,15 @@ class ClusterAssignment(db.Model):
         """Determines the cluster assigned to this author"""
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
+            author = Person.getPerson(question=questionObj)
             ca = ClusterAssignment.all()
-            # need to pass nickname
-            ca = ca.filter("author =", Person.getPerson(question=questionObj))
+            ca = ca.filter("author =", author)
             ca = ca.filter("question =", questionObj)
             if ca.count() == 0:
                 cluster = Cluster.getRandomCluster(questionIdStr)
                 if cluster:
                     caObj = ClusterAssignment()
-                    caObj.author = Person.getPerson(question=questionObj)
+                    caObj.author = author
                     caObj.cluster = cluster
                     caObj.question = questionObj
                     caObj.put()

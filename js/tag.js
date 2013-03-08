@@ -316,5 +316,4 @@ function handleTag(data) {
 
 function handleNickname(data) {
 	// Ignore it
-	// not sure if need to refresh or not
 }
