@@ -58,7 +58,7 @@ def get_default_template_values(requestHandler, question_id):
             client_id, token = connect(person)
         
     if person:
-        url = users.create_logout_url(requestHandler.request.uri)
+        url = users.create_logout_url("/logout?page="+requestHandler.request.uri)
         url_linktext = 'Logout'
         logged_in = "true"
     else:
@@ -206,7 +206,16 @@ class LoginHandler(webapp2.RequestHandler):
         person = Person.getOrCreatePerson(nickname=nickname, question=question)         
         page = self.request.get("page", "/")
         self.redirect(str(page))
-            
+
+class LogoutHandler(webapp2.RequestHandler):
+    def get(self):
+        nickname = self.request.get("nickname", None)
+        question_id = self.request.get("question_id", None)
+        question = Question.getQuestionById(question_id) if question_id is not None else None
+        person = Person.logoutPerson(nickname=nickname, question=question)  
+        page = self.request.get("page", "/")
+        self.redirect(str(page))
+                   
 class QueryHandler(webapp2.RequestHandler):
     def get(self):
         request = self.request.get("request")
@@ -283,13 +292,15 @@ class NewQuestionHandler(webapp2.RequestHandler):
         question = self.request.get('question')
         data = {}
         if len(title) >= 5 and len(question) >= 5:
-            question_id = Question.createQuestion(title, question)
-            data = {"question_id": question_id}
-            # Update clients
-            message = {
-                "op": "newquestion"
-            }
-            send_message(client_id, question_id, message)        # Update other clients about this change
+            question = Question.createQuestion(title, question)
+            if question:
+                question_id = question.code
+                data = {"question_id": question_id}
+                # Update clients
+                message = {
+                    "op": "newquestion"
+                }
+                send_message(client_id, question_id, message)        # Update other clients about this change
 
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(data))
@@ -319,7 +330,7 @@ class NewNicknameHandler(webapp2.RequestHandler):
         clientId = self.request.get("client_id")
         questionId = self.request.get("question_id")
         nickname = self.request.get("nickname")
-        person = Person.getPersonByClientId(clientId)
+        person = Person.getPersonFromClientId(clientId)
 
         specialChars = set('$\'"*,')
         nicknameNotChanged = False
@@ -334,8 +345,7 @@ class NewNicknameHandler(webapp2.RequestHandler):
         data = { "question_id": questionId, "nickname": nickname, "msg": "" }
         
         if nicknameNotChanged:
-            # do nothing
-            pass
+            pass    # do nothing
         
         elif len(nickname) == 0:
             data["msg"] = "Empty nickname not allowed"

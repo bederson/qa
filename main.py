@@ -33,6 +33,7 @@ app = webapp2.WSGIApplication([
 	('/tag', TagPageHandler),
 
     ('/login', LoginHandler),
+    ('/logout', LoginHandler),
 	('/query', QueryHandler),
 	('/newquestion', NewQuestionHandler),
 	('/editquestion', EditQuestionHandler),

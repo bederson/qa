@@ -19,14 +19,14 @@
 import random
 from google.appengine.ext import db
 from google.appengine.api import users
-    
+       
 ####################
 ##### QUESTION #####
 ####################
 class Question(db.Model):
     title = db.StringProperty()
     question = db.StringProperty()
-    author = db.UserProperty(auto_current_user_add=True) # must be logged in to create a question
+    author = db.UserProperty(auto_current_user_add=True)
     code = db.StringProperty()
     phase = db.IntegerProperty(default=0)
     date = db.DateTimeProperty(auto_now=True)
@@ -37,25 +37,26 @@ class Question(db.Model):
         return Question.all().filter("code = ", questionIdStr).get() if questionIdStr is not None else None
 
     @staticmethod
-    def getQuestionsByUser(nickname=None):
-        person = Person.getPerson(question=self, nickname=nickname)
-        return Question.all().filter("author = ", person) if person else None
+    def getQuestionsByUser():
+        return Question.all().filter("author = ", users.get_current_user())
 
     @staticmethod
     def createQuestion(title, question):
-        codeNeeded = True
-        while codeNeeded:
-            code = str(random.randint(10000, 99999))
-            q = Question.all().filter("code = ", code).get()
-            if not q:
-                codeNeeded = False
+        questionObj = None
+        if users.get_current_user():
+            codeNeeded = True
+            while codeNeeded:
+                code = str(random.randint(10000, 99999))
+                q = Question.all().filter("code = ", code).get()
+                if not q:
+                    codeNeeded = False
         
-        questionObj = Question()
-        questionObj.title = title
-        questionObj.question = question
-        questionObj.code = code
-        questionObj.put()
-        return code
+            questionObj = Question()
+            questionObj.title = title
+            questionObj.question = question
+            questionObj.code = code
+            questionObj.put()
+        return questionObj
 
     @staticmethod
     def editQuestion(questionIdStr, title, question):
@@ -98,8 +99,7 @@ class Question(db.Model):
         self.put()
 
     def getNumNotesTaggedByUser(self, nickname=None):
-        person = Person.getPerson(question=self, nickname=nickname)
-        return IdeaAssignment.all().filter("author =", person).filter("question =", self).count() if person else 0
+        return IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", self).count()
 
     def getNumTagsByCluster(self):
         return ClusterTag.all().filter("question =", self).count()
@@ -116,6 +116,11 @@ class Person(db.Model):
     nickname = db.StringProperty()    
     question = db.ReferenceProperty(Question)
     
+    def setNickname(self, nickname=None):
+        # reset nickname to authenticated user if no nickname provided
+        self.nickname = nickname if nickname is not None else (Person.cleanNickname(self.user) if self.user else "Unknown")
+        self.put()
+            
     @staticmethod
     def getOrCreatePerson(nickname=None, question=None):
         person = Person.getPerson(nickname=nickname, question=question)
@@ -168,15 +173,7 @@ class Person(db.Model):
             person_id = tokens[1]
             person = Person.get_by_id(long(person_id))
         return person
-    
-    @staticmethod
-    def setNickname(questionId, nickname=None):
-        person = Person.getPerson(questionId=questionId)
-        if person:
-            # reset nickname to authenticated user if no nickname provided
-            person.nickname = nickname if nickname is not None else (Person.cleanNickname(person.user) if person.user else "Unknown")
-            person.put()
-                                    
+                                        
     @staticmethod
     def cleanNickname(user):
         if user:
@@ -193,7 +190,14 @@ class Person(db.Model):
         question = Question.getQuestionById(questionId)
         person = Person.all().filter("question =", question).filter("nickname =", nickname).get()
         return person is not None
-            
+    
+    @staticmethod
+    def logoutPerson(nickname=None, question=None):
+        person = Person.getPerson(nickname, question)
+        person.client_ids = []
+        person.put()
+        return person
+                
 ###################
 ##### CLUSTER #####
 ###################
