@@ -45,3 +45,8 @@ indexes:
   properties:
   - name: question
   - name: rand
+
+- kind: Person
+  properties:
+  - name: question
+  - name: client_id

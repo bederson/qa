@@ -313,3 +313,8 @@ function handlePhase(data) {
 function handleTag(data) {
 	// Ignore it
 }
+
+function handleNickname(data) {
+	// Ignore it
+	// not sure if need to refresh or not
+}

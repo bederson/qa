@@ -189,3 +189,7 @@ function handlePhase(data) {
 function handleTag(data) {
 	// Ignore it
 }
+
+function handleNickname(data) {
+	// Ignore it
+}

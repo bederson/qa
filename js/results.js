@@ -461,3 +461,8 @@ function handleTag(data) {
 		displayIdeaTags();
 	}
 }
+
+function handleNickname(data) {
+	// would be better to only refresh changed data
+	window.location.reload();
+}
