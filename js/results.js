@@ -22,7 +22,7 @@ var maxChartRows = 10;
 var tag_cluster_hists = {};
 var tag_idea_hists = {}
 var show_tags_in_charts = {};
-
+    
 // Reason for this combination of google chart and jquery:
 // http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
 if (OFFLINE) {
@@ -37,6 +37,10 @@ if (OFFLINE) {
 	});
 }
 
+$(document).ready(function() {
+	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
+});
+    
 function init() {
 	initChannel();
 	initEventHandlers();
@@ -112,7 +116,11 @@ function displayIdeasImpl(results) {
 			tag_idea_hists[ideas[j].idea_id] = {};
 			var tagsid = "tags" + ideas[j].idea_id;
 			html += "<li>" + idea;
-			html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author + "</span>";
+			html += "<br>" + "<span ";
+			if (ideas[j].author.user_identity != "" && ideas[j].author.user_identity != ideas[j].author.nickname) {
+				html += "title='" + ideas[j].author.user_identity + "' ";
+			}
+			html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author.nickname + "</span>";
 			html += "<span id='" + tagsid + "' class='tags'></span>";
 			numIdeas += 1;
 		}
@@ -154,7 +162,7 @@ function displayIdeasImpl(results) {
 
 function createIdea(idea) {
 	var html = "<li>" + idea.text;
-	html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + "</span><br>";
+	html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + "</span><br>";
 	$("#unclusteredIdeas").prepend(html);
 	numIdeas += 1;
 	updateNumIdeas();

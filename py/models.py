@@ -117,12 +117,22 @@ class Person(db.Model):
     user = db.UserProperty(auto_current_user_add=True)
     nickname = db.StringProperty()    
     question = db.ReferenceProperty(Question)
-    
+
     def setNickname(self, nickname=None):
         # reset nickname to authenticated user if no nickname provided
         self.nickname = nickname if nickname is not None else (Person.cleanNickname(self.user) if self.user else "Unknown")
         self.put()
-            
+
+    @staticmethod
+    def toDict(person):
+        user = users.get_current_user()
+        userIdentity = Person.cleanNickname(person.user) if user else ""
+        isQuestionAuthor = user == person.question.author if user and person and person.question else False
+        return {
+            "nickname": person.nickname,
+            "user_identity":  userIdentity if isQuestionAuthor else ""
+        }      
+              
     @staticmethod
     def getOrCreatePerson(nickname=None, question=None):
         person = Person.getPerson(nickname=nickname, question=question)
@@ -292,6 +302,7 @@ class Idea(db.Model):
             else:
                 ideaObj.rand = random.random()
             ideaObj.put()
+            return ideaObj
 
     @staticmethod
     def numIdeas(questionIdStr):
@@ -456,6 +467,7 @@ class ClusterTag(db.Model):
             tagObj.cluster = clusterObj
             tagObj.author = Person.getPerson(question=questionObj)
             tagObj.put()
+        return clusterObj
 
     @staticmethod
     def getTags(questionIdStr):
@@ -504,6 +516,7 @@ class IdeaTag(db.Model):
             tagObj.idea = ideaObj
             tagObj.author = Person.getPerson(question=questionObj)
             tagObj.put()
+        return tagObj
 
     @staticmethod
     def getTags(questionIdStr):

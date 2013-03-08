@@ -202,7 +202,7 @@ class LoginHandler(webapp2.RequestHandler):
         nickname = self.request.get("nickname", None)
         question_id = self.request.get("question_id", None)
         question = Question.getQuestionById(question_id) if question_id is not None else None
-        person = Person.getOrCreatePerson(nickname=nickname, question=question)         
+        Person.getOrCreatePerson(nickname=nickname, question=question)         
         page = self.request.get("page", "/")
         self.redirect(str(page))
 
@@ -211,7 +211,7 @@ class LogoutHandler(webapp2.RequestHandler):
         nickname = self.request.get("nickname", None)
         question_id = self.request.get("question_id", None)
         question = Question.getQuestionById(question_id) if question_id is not None else None
-        person = Person.logoutPerson(nickname=nickname, question=question)  
+        Person.logoutPerson(nickname=nickname, question=question)  
         page = self.request.get("page", "/")
         self.redirect(str(page))
 
@@ -249,12 +249,11 @@ class NicknameHandler(webapp2.RequestHandler):
         else:
             person.setNickname(nickname)
             
-            # TODO: update clients with user nickname
             # Update clients
-            message ={
+            message = {
                 "op": "nickname",
                 "text": "",
-                "author": Person.cleanNickname(person.user)
+                "author": Person.toDict(person)
             }
             send_message(clientId, questionId, message)      # Update other clients about this change
             
@@ -283,7 +282,7 @@ class QueryHandler(webapp2.RequestHandler):
                 tag = cleanTag(tagObj.tag)
                 cluster = tagObj.cluster
                 if cluster:
-                    item = {"tag": tag, "cluster": cluster.key().id(), "author": tagObj.author.nickname}
+                    item = {"tag": tag, "cluster": cluster.key().id(), "author": Person.toDict(tagObj.author)}
                     tags.append(item)
             data = {"tags": tags, "num_clusters": Cluster.numClusters(question_id)}
         elif request == "ideatags":
@@ -292,7 +291,7 @@ class QueryHandler(webapp2.RequestHandler):
                 tag = cleanTag(tagObj.tag)
                 idea = tagObj.idea
                 if idea:
-                    item = {"tag": tag, "idea_id": idea.key().id(), "author": tagObj.author.nickname}
+                    item = {"tag": tag, "idea_id": idea.key().id(), "author": Person.toDict(tagObj.author)}
                     tags.append(item)
             data = {"tags": tags}
         elif request == "myclustertags":
@@ -376,13 +375,13 @@ class NewIdeaHandler(webapp2.RequestHandler):
         idea = self.request.get('idea')
         question_id = self.request.get("question_id")
         if len(idea) >= 1:            # Don't limit idea length until there is a way to give feedback about short ideas
-            Idea.createIdea(idea, question_id)
+            ideaObj = Idea.createIdea(idea, question_id)
 
             # Update clients
             message = {
                 "op": "newidea",
                 "text": idea,
-                "author": Person.cleanNickname(users.get_current_user())
+                "author": Person.toDict(ideaObj.author)
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
 
@@ -393,14 +392,14 @@ class NewClusterTagHandler(webapp2.RequestHandler):
         cluster_id = int(self.request.get('cluster_id'))
         question_id = self.request.get("question_id")
         if len(tag) >= 1:
-            ClusterTag.createClusterTag(tag, cluster_id, question_id)
+            clusterTagObj = ClusterTag.createClusterTag(tag, cluster_id, question_id)
 
             # Update clients
             message = {
                 "op": "newtag",
                 "tag": tag,
                 "cluster_id": cluster_id,
-                "author": Person.cleanNickname(users.get_current_user())
+                "author": Person.toDict(clusterTagObj.author)
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
 
@@ -411,14 +410,14 @@ class NewIdeaTagHandler(webapp2.RequestHandler):
         idea_id = int(self.request.get('idea_id'))
         question_id = self.request.get("question_id")
         if len(tag) >= 1:
-            IdeaTag.createIdeaTag(tag, idea_id, question_id)
+            ideaTagObj = IdeaTag.createIdeaTag(tag, idea_id, question_id)
 
             # Update clients
             message = {
                 "op": "newtag",
                 "tag": tag,
                 "idea_id": idea_id,
-                "author": Person.cleanNickname(users.get_current_user())
+                "author": Person.toDict(ideaTagObj.author)
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
 
@@ -514,7 +513,7 @@ def getIdea(ideaIdStr):
     if ideaObj:
         idea = {
             "idea": ideaObj.text,
-            "author": ideaObj.author.nickname
+            "author": Person.toDict(ideaObj.author)
         }
     else:
         idea = {}
@@ -537,7 +536,7 @@ def getIdeas(questionIdStr):
                 "idea": ideaObj.text,
                 "idea_id": ideaObj.key().id(),
                 "words": ideaObj.text.split(),
-                "author": ideaObj.author.nickname
+                "author": Person.toDict(ideaObj.author)
             }
             ideas.append(idea)
         entry["ideas"] = ideas
@@ -552,7 +551,7 @@ def getIdeas(questionIdStr):
                 "idea": ideaObj.text,
                 "idea_id": ideaObj.key().id(),
                 "words": ideaObj.text.split(),
-                "author": ideaObj.author.nickname
+                "author": Person.toDict(ideaObj.author)
             }
             ideas.append(idea)
         entry["ideas"] = ideas
@@ -571,7 +570,7 @@ def getIdeasByCluster(cluster_id, questionIdStr):
         idea = {
             "idea": ideaObj.text,
             "words": ideaObj.text.split(),
-            "author": ideaObj.author.nickname
+            "author": Person.toDict(ideaObj.author)
         }
         ideas.append(idea)
     return ideas;

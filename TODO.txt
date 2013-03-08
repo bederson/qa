@@ -18,6 +18,8 @@ Features
 
 Misc
 * Need to make myself gae admin so users.is_current_user_admin returns true
+  Should any logged in user be allowed to create question but only admin be allowed to change current phase
+* Need to minify query js
 
 Engineering
 * Better downloading support
@@ -38,6 +40,7 @@ New approaches
 
 Design issues
 * General tension between student individual focus and how much they see of collective activity
+* Should complete user name (which is email) be displaed on mouse over in instructor view?
 
 Clustering
 * Look at MALLET - http://mallet.cs.umass.edu/topics.php
