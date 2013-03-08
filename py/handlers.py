@@ -38,7 +38,6 @@ PHASE_NOTES = 1
 PHASE_TAG_BY_CLUSTER = 2
 PHASE_TAG_BY_NOTE = 3
 
-
 def get_default_template_values(requestHandler, question_id):
     """Return a dictionary of template values used for login template"""        
 
@@ -46,8 +45,7 @@ def get_default_template_values(requestHandler, question_id):
     token = None
     question = Question.getQuestionById(question_id) if question_id is not None else None
     person = Person.getPerson(question=question)
-    isLocalAdmin = users.get_current_user() and "http://localhost" in requestHandler.request.uri
-    
+
     if question:
         nickname = None
         user = users.get_current_user()
@@ -75,7 +73,7 @@ def get_default_template_values(requestHandler, question_id):
         'url': url,
         'url_linktext': url_linktext,
         'logged_in': logged_in,
-        'admin': users.is_current_user_admin() or isLocalAdmin,
+        'admin': Person.isAdmin(requestHandler),
         'msg': requestHandler.session.pop("msg") if requestHandler.session.has_key("msg") else ""
     }
     return template_values
@@ -176,12 +174,12 @@ class ResultsPageHandler(BasePageHandler):
 
 class AdminPageHandler(BasePageHandler):
     def get(self):
-        if not users.get_current_user():
-            self.redirectWithMsg('Please login to access admin page');
+        template_values = get_default_template_values(self, None)
+        if not template_values["admin"]:
+            self.redirect("/")
             return
             
         question_id = self.request.get("question_id")
-        template_values = get_default_template_values(self, None)
         if question_id:
             template_values["phase"] = Question.getPhase(question_id)
             questionObj = Question.getQuestionById(question_id)
@@ -498,8 +496,6 @@ class MigrateHandler(webapp2.RequestHandler):
 class ConnectedHandler(webapp2.RequestHandler):
     # Notified when clients connect
     def post(self):
-        # FRIDAY: check for client_id AND user id
-        # FRIDAY: connect does not have users.get_current_user!!
         clientId = self.request.get("from")
         Person.addClientId(clientId)    
             

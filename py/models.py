@@ -100,7 +100,8 @@ class Question(db.Model):
         self.put()
 
     def getNumNotesTaggedByUser(self, nickname=None):
-        return IdeaAssignment.all().filter("author =", users.get_current_user()).filter("question =", self).count()
+        person = Person.getPerson(question=self, nickname=nickname)
+        return IdeaAssignment.all().filter("author =", person).filter("question =", self).count()
 
     def getNumTagsByCluster(self):
         return ClusterTag.all().filter("question =", self).count()
@@ -198,6 +199,11 @@ class Person(db.Model):
         person.client_ids = []
         person.put()
         return person
+    
+    @staticmethod
+    def isAdmin(requestHandler):
+        isLocalAdmin = "http://localhost" in requestHandler.request.uri and users.get_current_user()
+        return users.is_current_user_admin() or isLocalAdmin
                 
 ###################
 ##### CLUSTER #####
