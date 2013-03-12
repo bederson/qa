@@ -129,6 +129,7 @@ function createQuestion() {
 			"client_id": client_id,
 			"title": $("#newq_title").val(),
 			"question": $("#newq_question").val(),
+			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0",
 			"question_id": $("#newq_button").data("question_id")
 		};
 		$.post("/editquestion", data, function(result) {
@@ -143,7 +144,8 @@ function createQuestion() {
 		var data = {
 			"client_id": client_id,
 			"title": $("#newq_title").val(),
-			"question": $("#newq_question").val()
+			"question": $("#newq_question").val(),
+			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
 		};
 		$.post("/newquestion", data, function(result) {
 			if (parseInt(result.question_id) > 0) {
@@ -157,6 +159,7 @@ function createQuestion() {
 }
 
 function editQuestion(question_id) {
+	$("#newq_info").html("");
 	data = {
 		"request": "question",
 		"question_id": question_id
@@ -164,6 +167,7 @@ function editQuestion(question_id) {
 	$.getJSON("/query", data, function(results) {
 		$("#newq_title").val(results.title);
 		$("#newq_question").val(results.question);
+		$("#newq_nickname_authentication").attr("checked", results.nicknameAuthentication);
 		$("#newq_button").val("Update question");
 		$("#newq_button").data("question_id", question_id);
 	});

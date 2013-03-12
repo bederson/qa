@@ -311,19 +311,21 @@ class QueryHandler(webapp2.RequestHandler):
                 data = {
                     "title": questionObj.title,
                     "question": questionObj.question,
+                    "nicknameAuthentication": questionObj.nicknameAuthentication,
                     "numTagsByCluster": questionObj.getNumTagsByCluster(),
                     "numTagsByIdea": questionObj.getNumTagsByIdea(),
                 }
             else:
                 data = {
                     "title": "", 
-                    "question": "", 
+                    "question": "",
+                    "nicknameAuthentication": False,
                     "msg": "Invalid code - it should be 5 digits"
                 }
         elif request == "questions":
             questions = []
             for question in Question.getQuestionsByUser():
-                questions.append({"title": question.title, "question": question.question, "question_id": question.code})
+                questions.append({"title": question.title, "question": question.question, "nickname_authentication": question.nicknameAuthentication, "question_id": question.code})
             data = {"questions": questions}
 
         self.response.headers['Content-Type'] = 'application/json'
@@ -334,9 +336,11 @@ class NewQuestionHandler(webapp2.RequestHandler):
         client_id = self.request.get('client_id')
         title = self.request.get('title')
         question = self.request.get('question')
+        nicknameAuthentication = self.request.get('nickname_authentication') == "1" if True else False
+        logging.info("NEW QUESTION: {0}, {1}, {2}".format(title, question, nicknameAuthentication))
         data = {}
         if len(title) >= 5 and len(question) >= 5:
-            question = Question.createQuestion(title, question)
+            question = Question.createQuestion(title, question, nicknameAuthentication)
             if question:
                 question_id = question.code
                 data = {"question_id": question_id}
@@ -352,12 +356,13 @@ class NewQuestionHandler(webapp2.RequestHandler):
 class EditQuestionHandler(webapp2.RequestHandler):
     def post(self):
         client_id = self.request.get('client_id')
+        question_id = self.request.get("question_id")
         title = self.request.get('title')
         question = self.request.get('question')
-        question_id = self.request.get("question_id")
+        nicknameAuthentication = self.request.get('nickname_authentication') == "1" if True else False
         data = {}
         if len(title) >= 5 and len(question) >= 5:
-            question_id = Question.editQuestion(question_id, title, question)
+            question_id = Question.editQuestion(question_id, title, question, nicknameAuthentication)
             data = {"question_id": question_id}
 
             # Update clients

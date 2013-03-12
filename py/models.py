@@ -32,6 +32,7 @@ class Question(db.Model):
     phase = db.IntegerProperty(default=0)
     date = db.DateTimeProperty(auto_now=True)
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
+    nicknameAuthentication = db.BooleanProperty(default=False)
 
     @staticmethod
     def getQuestionById(questionIdStr):
@@ -42,7 +43,7 @@ class Question(db.Model):
         return Question.all().filter("author = ", users.get_current_user())
 
     @staticmethod
-    def createQuestion(title, question):
+    def createQuestion(title, question, nicknameAuthentication=False):
         questionObj = None
         if users.get_current_user():
             codeNeeded = True
@@ -55,16 +56,18 @@ class Question(db.Model):
             questionObj = Question()
             questionObj.title = title
             questionObj.question = question
+            questionObj.nicknameAuthentication = nicknameAuthentication
             questionObj.code = code
             questionObj.put()
         return questionObj
 
     @staticmethod
-    def editQuestion(questionIdStr, title, question):
+    def editQuestion(questionIdStr, title, question, nicknameAuthentication=False):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
             questionObj.title = title
             questionObj.question = question
+            questionObj.nicknameAuthentication = nicknameAuthentication
             questionObj.put()
             return questionObj.code
         else:
@@ -327,7 +330,7 @@ class Idea(db.Model):
 
     @staticmethod
     def deleteAllIdeas(questionIdStr):
-        IdeaTag.deleteAllIdeas(questionIdStr)
+        IdeaTag.deleteAllTags(questionIdStr)
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
             IdeaAssignment.deleteAllIdeaAssignments(questionIdStr)
