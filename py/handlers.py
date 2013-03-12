@@ -176,7 +176,7 @@ class AdminPageHandler(BasePageHandler):
     def get(self):
         template_values = get_default_template_values(self, None)
         if not template_values["admin"]:
-            self.redirect("/")
+            self.redirectWithMsg("Must login as admin")
             return
             
         question_id = self.request.get("question_id")

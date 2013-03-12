@@ -17,9 +17,8 @@ Features
    ... if that's what we want)
 
 Misc
-* Need to make myself gae admin so users.is_current_user_admin returns true
-  Should any logged in user be allowed to create question but only admin be allowed to change current phase
-* Need to minify query js
+* Need to make myself a gae admin so users.is_current_user_admin returns true
+* Change so any logged in user can create a question and edit it
 
 Engineering
 * Better downloading support

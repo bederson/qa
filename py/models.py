@@ -215,8 +215,7 @@ class Person(db.Model):
     
     @staticmethod
     def isAdmin(requestHandler):
-        isLocalAdmin = "http://localhost" in requestHandler.request.uri and users.get_current_user()
-        return users.is_current_user_admin() or isLocalAdmin
+        return users.is_current_user_admin()
                 
 ###################
 ##### CLUSTER #####

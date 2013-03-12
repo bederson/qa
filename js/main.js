@@ -35,8 +35,8 @@ function initEventHandlers() {
 }
 
 function submit() {
-	var question_id = $("#code_box").val();
-	
+	$("#msg").html("");
+	var question_id = $("#code_box").val();	
 	if (question_id.length==0) {
 		showInfoMessage("Please enter code");
 		$("#code_box").focus();
