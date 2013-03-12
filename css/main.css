@@ -25,7 +25,7 @@ h2 {
 	font-size: 1.2em;
 }
 
-.help {
+.help, .note {
 	color: #888;
 	font-size: 0.8em;
 }
