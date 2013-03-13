@@ -57,7 +57,8 @@ def get_default_template_values(requestHandler, question_id):
             client_id, token = connect(person)
         
     if person:
-        url = users.create_logout_url("/logout?page="+requestHandler.request.uri)
+        url = users.create_logout_url("/logout")
+#       url = users.create_logout_url("/logout?page="+requestHandler.request.uri)
         url_linktext = 'Logout'
         logged_in = "true"
     else:
@@ -175,8 +176,8 @@ class ResultsPageHandler(BasePageHandler):
 class AdminPageHandler(BasePageHandler):
     def get(self):
         template_values = get_default_template_values(self, None)
-        if not template_values["admin"]:
-            self.redirectWithMsg("Must login as admin")
+        if not template_values["user"]:
+            self.redirectWithMsg("Please login")
             return
             
         question_id = self.request.get("question_id")

@@ -15,6 +15,10 @@
 //
 
 $(function() {
+	if (!logged_in) {
+		enableDisable($("#admin_button"), false);
+		$("#admin_help").show();
+	}
 	initEventHandlers();
 	$("#code_box").focus();
 });

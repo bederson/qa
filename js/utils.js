@@ -70,3 +70,12 @@ onError = function(error) {
 
 onClose = function() {
 }
+
+enableDisable = function(obj, enable) {
+	if (enable) {
+		obj.removeAttr("disabled");
+	}
+	else {
+		obj.attr("disabled", "disabled");
+	}
+}
