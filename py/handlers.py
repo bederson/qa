@@ -46,6 +46,7 @@ def get_default_template_values(requestHandler, question_id):
     question = Question.getQuestionById(question_id) if question_id is not None else None
     person = Person.getPerson(question=question)
 
+    admin = Person.isAdmin(requestHandler)
     if question:
         nickname = None
         user = users.get_current_user()
@@ -55,6 +56,9 @@ def get_default_template_values(requestHandler, question_id):
            
         if person:
             client_id, token = connect(person)
+            
+        if question and user and question.author == user:
+            admin = True
         
     if person:
         url = users.create_logout_url("/logout")
@@ -74,7 +78,7 @@ def get_default_template_values(requestHandler, question_id):
         'url': url,
         'url_linktext': url_linktext,
         'logged_in': logged_in,
-        'admin': Person.isAdmin(requestHandler),
+        'admin': admin,
         'msg': requestHandler.session.pop("msg") if requestHandler.session.has_key("msg") else ""
     }
     return template_values
@@ -175,22 +179,34 @@ class ResultsPageHandler(BasePageHandler):
 
 class AdminPageHandler(BasePageHandler):
     def get(self):
+        question_id = self.request.get("question_id")
+        questionObj = Question.getQuestionById(question_id)
+
         template_values = get_default_template_values(self, None)
+        
+        # check if user logged in
         if not template_values["user"]:
             self.redirectWithMsg("Please login")
             return
             
-        question_id = self.request.get("question_id")
-        if question_id:
-            template_values["phase"] = Question.getPhase(question_id)
-            questionObj = Question.getQuestionById(question_id)
-            if questionObj:
-                template_values["title"] = questionObj.title
-                template_values["question"] = questionObj.question
-                template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
-                template_values["num_ideas"] = Idea.numIdeas(question_id)
-                template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
-                template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
+        # check if valid question code
+        if question_id and not questionObj:
+            self.redirectWithMsg("Invalid question code", "/admin")
+            return
+        
+        # check if question owned by logged in user
+        if questionObj and not Person.isAdmin(self) and questionObj.author != users.get_current_user():
+            self.redirectWithMsg("You are not allowed to edit this question", "/admin")
+            return 
+        
+        if questionObj:
+            template_values["phase"] = questionObj.phase
+            template_values["title"] = questionObj.title
+            template_values["question"] = questionObj.question
+            template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
+            template_values["num_ideas"] = Idea.numIdeas(question_id)
+            template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
+            template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
 
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, template_values))

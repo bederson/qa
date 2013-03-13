@@ -18,7 +18,6 @@ Features
 
 Misc
 * Need to make myself a gae admin so users.is_current_user_admin returns true
-* Change so any logged in user can create a question and edit it
 
 Engineering
 * Better downloading support

@@ -116,6 +116,9 @@ function displayQuestionsImpl(results) {
 			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
 			html += "<br>";
 			html += question.question;
+			if (question.nickname_authentication) {
+				html += '<br/><span class="note">Nickname authentication</span>'
+			}
 		}
 		html += "</ul>";
 		$("#questions").html(html);
