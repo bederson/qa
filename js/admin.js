@@ -111,13 +111,13 @@ function displayQuestionsImpl(results) {
 		var html = "<ul>";
 		for (var i in questions) {
 			var question = questions[i];
-			html += "<li><a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a>";
+			html += "<li><a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a> <span class='note'>#"+question.question_id+"</span>";
 			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.question_id + ")'>[edit]</a>";
 			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
 			html += "<br>";
 			html += question.question;
 			if (question.nickname_authentication) {
-				html += '<br/><span class="note">Nickname authentication</span>'
+				html += '<br/><span class="small"><em>Nickname authentication</em></span>'
 			}
 		}
 		html += "</ul>";
