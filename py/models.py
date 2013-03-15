@@ -462,6 +462,7 @@ class ClusterTag(db.Model):
     def createClusterTag(tagStr, cluster_id, questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)
         clusterObj = Cluster.get_by_id(cluster_id)
+        tagObj = None
         if clusterObj and questionObj:
             tagObj = ClusterTag()
             tagObj.tag = tagStr
@@ -469,7 +470,7 @@ class ClusterTag(db.Model):
             tagObj.cluster = clusterObj
             tagObj.author = Person.getPerson(question=questionObj)
             tagObj.put()
-        return clusterObj
+        return tagObj
 
     @staticmethod
     def getTags(questionIdStr):
