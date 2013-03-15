@@ -42,7 +42,9 @@ $(function() {
 		$("#start_tagging").css("display", "inline");
 	}
 
-	updateNicknameArea();
+	if (change_nickname_allowed) {
+		updateNicknameArea();
+	}
 });
 
 // Shouldn't have to enableInput, but Firefox strangely caches state of elements.
@@ -167,7 +169,6 @@ function updateNicknameArea() {
 		});
 
 		$("#nickname_area").show();
-	    //$("#user_display_name").html(user_login);
 	}
 	
 }

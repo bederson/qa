@@ -25,61 +25,58 @@ import StringIO
 import csv
 import time
 import webapp2
+from lib import gaesessions
 from models import *
 from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
 from cluster import KMeansClustering
-from webapp2_extras import sessions
 
 STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
 PHASE_NOTES = 1
 PHASE_TAG_BY_CLUSTER = 2
 PHASE_TAG_BY_NOTE = 3
 
-def get_default_template_values(requestHandler, question_id):
+def get_default_template_values(requestHandler, person, question):
     """Return a dictionary of template values used for login template"""        
-
+    
     client_id = None
     token = None
-    question = Question.getQuestionById(question_id) if question_id is not None else None
-    person = Person.getPerson(question=question)
-
-    admin = Person.isAdmin(requestHandler)
-    if question:
-        nickname = None
-        user = users.get_current_user()
-        # FIX: need to check if user logged in via google or nickname
-        if not person and (user or nickname):
-            person = Person.getOrCreatePerson(question=question)
-           
-        if person:
-            client_id, token = connect(person)
-            
-        if question and user and question.author == user:
-            admin = True
-        
-    if person:
-        url = users.create_logout_url("/logout")
-#       url = users.create_logout_url("/logout?page="+requestHandler.request.uri)
+    user_login = None
+    
+    if person:            
+        client_id, token = connect(person)
+        url = users.create_logout_url("/logout") if person.user else "/logout"
         url_linktext = 'Logout'
         logged_in = "true"
+        user_login = person.user if not question or not question.nicknameAuthentication else person.nickname
+
     else:
-        url = users.create_login_url("/login?page="+requestHandler.request.uri)
-        url_linktext = 'Login w/ Google Account'
+        if question and question.nicknameAuthentication:
+            url = "/loginpage?question_id="+question.code
+            url_linktext = "Login w/ Nickname"
+        else:
+            url = "/login?page="+requestHandler.request.uri
+            if question:
+                url += "&question_id="+question.code
+            url = users.create_login_url(url)
+            url_linktext = 'Login w/ Google Account'
         logged_in = "false"
-    
+
+    session = gaesessions.get_current_session()
+    msg = session.pop("msg") if session.has_key("msg") else ""
+        
     template_values = {
         'client_id': client_id,
         'token': token,
-        'user': person.user if person is not None else "",
-        'user_nickname': person.nickname if person is not None else "",
+        'user_login': user_login if user_login else "",
+        'user_nickname': person.nickname if person else "",
         'url': url,
         'url_linktext': url_linktext,
         'logged_in': logged_in,
-        'admin': admin,
-        'msg': requestHandler.session.pop("msg") if requestHandler.session.has_key("msg") else ""
+        'admin': Person.isAdmin(requestHandler) or (question and person and person.user and question.author == person.user),
+        'msg': msg
     }
     return template_values
 
@@ -108,55 +105,82 @@ def send_message(client_id, question_id, message):
 # Page Handlers
 #####################
 
-class BasePageHandler(webapp2.RequestHandler):
-    def dispatch(self):
-        self.session_store = sessions.get_store(request=self.request)
-        try:
-            webapp2.RequestHandler.dispatch(self)
-        finally:
-            self.session_store.save_sessions(self.response)
+class BaseHandler(webapp2.RequestHandler):
+    def initUserContext(self, admin=False, create=False):
+        # Get the current browser session, if any
+        # Otherwise, create one
+        session = gaesessions.get_current_session()          
+        if session.sid is None:
+            session.start()
             
-    @webapp2.cached_property
-    def session(self):
-        return self.session_store.get_session()
-            
-    def redirectWithMsg(self, msg=None, dst="/"):
+        question_id = self.request.get("question_id")
+        question = Question.getQuestionById(question_id)
+        nickname = self.request.get("nickname")
+                
+        # if question allows nickname authentication
+        # check if nickname stored in session, if not provided
+        if question and question.nicknameAuthentication and not nickname:
+            questionValues = session.get(question.code) if session.has_key(question.code) else None
+            nickname = questionValues["nickname"] if questionValues else None
+           
+        # if admin, force check for authenticated user not affiliated with any specific question
+        if admin:
+            question = None
+            nickname = None
+         
+        person = Person.getPerson(question, nickname)
+                    
+        # if no person found
+        # create person if create is true, OR,
+        # create person if question requires login authentication and person already logged in
+        user = users.get_current_user()
+        if not person and (create or (question and not question.nicknameAuthentication and user)):            
+            person = Person.createPerson(question, nickname)      
+
+        return person        
+
+    def redirectWithMsg(self, msg=None, dst="/"):        
         if msg is not None:
-            self.session['msg'] = msg
+            session = gaesessions.get_current_session()
+            session['msg'] = msg
         self.redirect(dst)
     
-class MainPageHandler(BasePageHandler):
-    def get(self):        
-        template_values = get_default_template_values(self, None)
+class MainPageHandler(BaseHandler):
+    def get(self):
+        person = self.initUserContext()       
+        template_values = get_default_template_values(self, person, None)
         
         path = os.path.join(os.path.dirname(__file__), '../html/main.html')
         self.response.out.write(template.render(path, template_values))
         
-class IdeaPageHandler(BasePageHandler):
+class IdeaPageHandler(BaseHandler):
     def get(self):        
+        person = self.initUserContext()
         question_id = self.request.get("question_id")
-        template_values = get_default_template_values(self, question_id)
-        template_values["phase"] = Question.getPhase(question_id)
         questionObj = Question.getQuestionById(question_id)
+        template_values = get_default_template_values(self, person, questionObj)
+        template_values["phase"] = Question.getPhase(question_id)
         if questionObj:
             template_values["title"] = questionObj.title
             template_values["question"] = questionObj.question
+            template_values["change_nickname_allowed"] = json.dumps(not questionObj.nicknameAuthentication)
 
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, template_values))
 
 # Participant page to enter new tags
-class TagPageHandler(BasePageHandler):
+class TagPageHandler(BaseHandler):
     def get(self):
+        person = self.initUserContext()
         question_id = self.request.get("question_id")
-        template_values = get_default_template_values(self, question_id)
+        questionObj = Question.getQuestionById(question_id)
+        template_values = get_default_template_values(self, person, questionObj)
         phase = Question.getPhase(question_id)
         template_values["phase"] = phase
         if phase == PHASE_TAG_BY_CLUSTER:
             template_values["cluster_id"] = ClusterAssignment.getAssignmentId(question_id)
         elif phase == PHASE_TAG_BY_NOTE:
             template_values["idea_id"] = IdeaAssignment.getCurrentAssignmentId(question_id)
-            questionObj = Question.getQuestionById(question_id)
             if questionObj:
                 template_values["num_notes_to_tag"] = questionObj.getNumNotesToTagPerPerson()
                 template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser()
@@ -164,12 +188,13 @@ class TagPageHandler(BasePageHandler):
         path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
         self.response.out.write(template.render(path, template_values))
 
-class ResultsPageHandler(BasePageHandler):
+class ResultsPageHandler(BaseHandler):
     def get(self):
+        person = self.initUserContext()
         question_id = self.request.get("question_id")
-        template_values = get_default_template_values(self, question_id)
-        template_values["phase"] = Question.getPhase(question_id)
         questionObj = Question.getQuestionById(question_id)
+        template_values = get_default_template_values(self, person, questionObj)
+        template_values["phase"] = Question.getPhase(question_id)
         if questionObj:
             template_values["title"] = questionObj.title
             template_values["question"] = questionObj.question
@@ -177,15 +202,15 @@ class ResultsPageHandler(BasePageHandler):
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, template_values))
 
-class AdminPageHandler(BasePageHandler):
+class AdminPageHandler(BaseHandler):
     def get(self):
+        person = self.initUserContext(admin=True)
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
-
-        template_values = get_default_template_values(self, None)
+        template_values = get_default_template_values(self, person, questionObj)
         
         # check if user logged in
-        if not template_values["user"]:
+        if not person or not person.user:
             self.redirectWithMsg("Please login")
             return
             
@@ -211,29 +236,73 @@ class AdminPageHandler(BasePageHandler):
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, template_values))
 
+class LoginPageHandler(BaseHandler):
+    def get(self):
+        person = self.initUserContext()       
+        question_id = self.request.get("question_id")
+        questionObj = Question.getQuestionById(question_id)
+        template_values = get_default_template_values(self, person, questionObj)
+        if questionObj:
+            template_values["question_id"] = questionObj.code
+            template_values["title"] = questionObj.title
+            template_values["question"] = questionObj.question
+            template_values["phase"] = questionObj.phase
+        path = os.path.join(os.path.dirname(__file__), '../html/login.html')
+        self.response.out.write(template.render(path, template_values))
+        
 #####################
 # Action Handlers
 #####################
-class LoginHandler(webapp2.RequestHandler):
-    def get(self):
-        nickname = self.request.get("nickname", None)
-        question_id = self.request.get("question_id", None)
-        question = Question.getQuestionById(question_id) if question_id is not None else None
-        Person.getOrCreatePerson(nickname=nickname, question=question)         
-        page = self.request.get("page", "/")
-        self.redirect(str(page))
 
-class LogoutHandler(webapp2.RequestHandler):
+class LoginHandler(BaseHandler):
     def get(self):
-        nickname = self.request.get("nickname", None)
-        question_id = self.request.get("question_id", None)
-        question = Question.getQuestionById(question_id) if question_id is not None else None
-        Person.logoutPerson(nickname=nickname, question=question)  
-        page = self.request.get("page", "/")
-        self.redirect(str(page))
+        nickname = self.request.get("nickname")
+        questionId = self.request.get("question_id")
+        question = Question.getQuestionById(questionId)
 
-class NicknameHandler(webapp2.RequestHandler):
+        # if question allows nickname authentication
+        # store nickname in session if ok
+        if question:
+            person = Person.getPerson(question, nickname)
+            if person and len(person.client_ids) > 0:
+                if question.nicknameAuthentication:
+                    self.redirectWithMsg("Someone is already logged in as " + nickname, "/loginpage?question_id="+questionId)
+                else:
+                    self.redirectWithMsg(str(person.user) + " is already logged in", dst="/")
+                return
+                
+            if question.nicknameAuthentication and nickname:
+                specialChars = set('$\'"*,')
+                if any((c in specialChars) for c in nickname):
+                    self.redirectWithMsg("Nickname can not contain " + "".join(specialChars), "/loginpage?question_id="+questionId)
+                    return
+                
+                session = gaesessions.get_current_session()
+                session[questionId] = { "nickname": nickname }
+
+        person = self.initUserContext(create=True)
+        url = getPhaseUrl(person.question)
+        self.redirect(url)
+
+def getPhaseUrl(question=None):
+    url = "/"
+    if question:
+        if question.phase <= PHASE_NOTES:
+            url = "/idea?question_id="+question.code
+        elif question.phase == PHASE_TAG_BY_CLUSTER or question.phase == PHASE_TAG_BY_NOTE:
+            url = "/tag?question_id="+question.code
+    return url
+
+class LogoutHandler(BaseHandler):
+    def get(self):
+        session = gaesessions.get_current_session()
+        if session.is_active():
+            session.terminate(True)
+        self.redirect("/")
+
+class NicknameHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         clientId = self.request.get("client_id")
         questionId = self.request.get("question_id")
         nickname = self.request.get("nickname")
@@ -277,8 +346,9 @@ class NicknameHandler(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(data)) 
                            
-class QueryHandler(webapp2.RequestHandler):
+class QueryHandler(BaseHandler):
     def get(self):
+        self.initUserContext()
         request = self.request.get("request")
         question_id = self.request.get("question_id")
 
@@ -348,13 +418,13 @@ class QueryHandler(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(data))
 
-class NewQuestionHandler(webapp2.RequestHandler):
+class NewQuestionHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         title = self.request.get('title')
         question = self.request.get('question')
         nicknameAuthentication = self.request.get('nickname_authentication') == "1" if True else False
-        logging.info("NEW QUESTION: {0}, {1}, {2}".format(title, question, nicknameAuthentication))
         data = {}
         if len(title) >= 5 and len(question) >= 5:
             question = Question.createQuestion(title, question, nicknameAuthentication)
@@ -370,8 +440,9 @@ class NewQuestionHandler(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(data))
 
-class EditQuestionHandler(webapp2.RequestHandler):
+class EditQuestionHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         question_id = self.request.get("question_id")
         title = self.request.get('title')
@@ -391,8 +462,9 @@ class EditQuestionHandler(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(data))
                 
-class NewIdeaHandler(webapp2.RequestHandler):
+class NewIdeaHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         idea = self.request.get('idea')
         question_id = self.request.get("question_id")
@@ -407,8 +479,9 @@ class NewIdeaHandler(webapp2.RequestHandler):
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
 
-class NewClusterTagHandler(webapp2.RequestHandler):
+class NewClusterTagHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         tag = self.request.get('tag')
         cluster_id = int(self.request.get('cluster_id'))
@@ -425,8 +498,9 @@ class NewClusterTagHandler(webapp2.RequestHandler):
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
 
-class NewIdeaTagHandler(webapp2.RequestHandler):
+class NewIdeaTagHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         tag = self.request.get('tag')
         idea_id = int(self.request.get('idea_id'))
@@ -443,8 +517,9 @@ class NewIdeaTagHandler(webapp2.RequestHandler):
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
 
-class DeleteHandler(webapp2.RequestHandler):
+class DeleteHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         question_id = self.request.get("question_id")
         Question.delete(question_id)
@@ -455,8 +530,9 @@ class DeleteHandler(webapp2.RequestHandler):
         }
         send_message(client_id, question_id, message)        # Update other clients about this change
 
-class ClusterHandler(webapp2.RequestHandler):
+class ClusterHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         num_clusters = int(self.request.get('num_clusters'))
         question_id = self.request.get("question_id")
@@ -468,13 +544,15 @@ class ClusterHandler(webapp2.RequestHandler):
         }
         send_message(client_id, question_id, message)        # Update other clients about this change
 
-class IdeaAssignmentHandler(webapp2.RequestHandler):
+class IdeaAssignmentHandler(BaseHandler):
     def get(self):
+        self.initUserContext()
         question_id = self.request.get("question_id")
         IdeaAssignment.getNewAssignmentId(question_id)
 
-class PhaseHandler(webapp2.RequestHandler):
+class PhaseHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         phase = int(self.request.get('phase'))
         question_id = self.request.get("question_id")
@@ -487,8 +565,9 @@ class PhaseHandler(webapp2.RequestHandler):
         }
         send_message(client_id, question_id, message)        # Update other clients about this change
 
-class NumNotesToTagPerPersonHandler(webapp2.RequestHandler):
+class NumNotesToTagPerPersonHandler(BaseHandler):
     def post(self):
+        self.initUserContext()
         client_id = self.request.get('client_id')
         num_notes_to_tag_per_person = int(self.request.get('num_notes_to_tag_per_person'))
         question_id = self.request.get("question_id")
@@ -502,8 +581,9 @@ class NumNotesToTagPerPersonHandler(webapp2.RequestHandler):
         }
         send_message(client_id, question_id, message)        # Update other clients about this change
 
-class MigrateHandler(webapp2.RequestHandler):
+class MigrateHandler(BaseHandler):
     def get(self):
+        self.initUserContext()
         for questionObj in Question.all():
             i = 0
             for ideaObj in Idea.all().filter("question =", questionObj):
@@ -518,13 +598,17 @@ class ConnectedHandler(webapp2.RequestHandler):
     # Notified when clients connect
     def post(self):
         clientId = self.request.get("from")
-        Person.addClientId(clientId)    
+        person = Person.getPersonFromClientId(clientId)
+        if person:
+            person.addClientId(clientId)    
             
 class DisconnectedHandler(webapp2.RequestHandler):
     # Notified when clients disconnect
     def post(self):
         clientId = self.request.get("from")
-        Person.removeClientId(clientId)
+        person = Person.getPersonFromClientId(clientId)
+        if person:
+            person.removeClientId(clientId)
 
 #####################
 # Text Support

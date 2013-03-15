@@ -18,6 +18,7 @@
 
 import logging
 import random
+from lib import gaesessions
 from google.appengine.ext import db
 from google.appengine.api import users
        
@@ -123,62 +124,48 @@ class Person(db.Model):
 
     def setNickname(self, nickname=None):
         # reset nickname to authenticated user if no nickname provided
-        self.nickname = nickname if nickname is not None else (Person.cleanNickname(self.user) if self.user else "Unknown")
+        self.nickname = nickname if nickname else (Person.cleanNickname(self.user) if self.user else None)
         self.put()
-
+            
+    def addClientId(self, client_id):    
+        if client_id is not None and client_id not in self.client_ids:
+            self.client_ids.append(client_id)
+            self.put()
+        return len(self.client_ids)
+    
+    def removeClientId(self, client_id):
+        if client_id is not None and client_id in self.client_ids:
+            self.client_ids.remove(client_id)  
+            self.put()
+        return len(self.client_ids)
+                
     @staticmethod
-    def toDict(person):
-        user = users.get_current_user()
-        userIdentity = Person.cleanNickname(person.user) if user else ""
-        isQuestionAuthor = user == person.question.author if user and person and person.question else False
-        return {
-            "nickname": person.nickname,
-            "user_identity":  userIdentity if isQuestionAuthor else ""
-        }      
-              
-    @staticmethod
-    def getOrCreatePerson(nickname=None, question=None):
-        person = Person.getPerson(nickname=nickname, question=question)
-        if person is None:
-            person = Person()
-            # person user added automatically
-            person.nickname = nickname if nickname is not None else Person.cleanNickname(person.user)
-            person.question = question
-            person.put()
+    def createPerson(question=None, nickname=None):            
+        person = Person()
+        # person user added automatically
+        person.nickname = nickname if nickname else (Person.cleanNickname(person.user) if person.user else None)
+        person.question = question
+        person.put()
         return person
     
     @staticmethod
-    def getPerson(nickname=None, question=None):
+    def getPerson(question=None, nickname=None):
         person = None
         user = users.get_current_user()
-        if user is not None:
-            person = Person.all().filter("question =", question).filter("user =", user).get()
-        # TODO: need to check if nickname logins allowed for question
-        elif question is not None and nickname is not None:
-            person = Person.all().filter("question = ", question).filter("nickname =", nickname).get()
+        if question:
+            if question.nicknameAuthentication:
+                # if no nickname provided, check session
+                if not nickname:
+                    session = gaesessions.get_current_session()
+                    questionSessionValues = session.get(question.code)
+                    nickname = questionSessionValues["nickname"] if questionSessionValues else None
+                if nickname:
+                    person = Person.all().filter("question =", question).filter("nickname =", nickname).get()
+            elif user is not None:
+                person = Person.all().filter("question =", question).filter("user =", user).get()
+        elif user:
+            person = Person.all().filter("question =", None).filter("user =", user).get()
         return person
-        
-    @staticmethod
-    def addClientId(client_id):
-        person = Person.getPersonFromClientId(client_id)
-        if person is None:
-            return -1
-    
-        if client_id is not None and client_id not in person.client_ids:
-            person.client_ids.append(client_id)
-            person.put()
-        return len(person.client_ids)
-    
-    @staticmethod
-    def removeClientId(client_id):
-        person = Person.getPersonFromClientId(client_id)
-        if person is None:
-            return -1
-            
-        if client_id is not None and client_id in person.client_ids:
-            person.client_ids.remove(client_id)  
-            person.put()
-        return len(person.client_ids)
                 
     @staticmethod
     def getPersonFromClientId(client_id):
@@ -205,17 +192,20 @@ class Person(db.Model):
         question = Question.getQuestionById(questionId)
         person = Person.all().filter("question =", question).filter("nickname =", nickname).get()
         return person is not None
-    
-    @staticmethod
-    def logoutPerson(nickname=None, question=None):
-        person = Person.getPerson(nickname, question)
-        person.client_ids = []
-        person.put()
-        return person
-    
+        
     @staticmethod
     def isAdmin(requestHandler):
         return users.is_current_user_admin()
+    
+    @staticmethod
+    def toDict(person):
+        user = users.get_current_user()
+        userIdentity = Person.cleanNickname(person.user) if user else ""
+        isQuestionAuthor = user == person.question.author if user and person and person.question else False
+        return {
+            "nickname": person.nickname,
+            "user_identity":  userIdentity if isQuestionAuthor else ""
+        }      
                 
 ###################
 ##### CLUSTER #####

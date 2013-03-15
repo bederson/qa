@@ -5,17 +5,18 @@ Bugs
 * Need better random assignment algorithm - seems very clumpy
   Made an improvement, need to try it with a class
 * Can't submit idea when Chrome "disconnect.me" plugin installed
-* Require user to be logged in to create a question in admin interface
 
 Features
 * Stem tags???
 * Allow students to edit their tags
-* Allow student pseudonym and/or google account
-  (pseudonym only version would be useful for testing)
 * Auto-complete or show tags that others have already entered for that cluster or idea
   (to make it easier and faster for students to enter tags, and for there to be less diversity
    ... if that's what we want)
 
+Testing
+* Questions require either user authentication (via google account) or nickname authentication (nickname stored in session)
+  Implemented but needs to be tested (esp. nickname authentication)
+  
 Misc
 * Need to make myself a gae admin so users.is_current_user_admin returns true
 

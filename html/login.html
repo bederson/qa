@@ -14,6 +14,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 <!DOCTYPE HTML>
 <html>
   <head>
@@ -23,12 +24,7 @@ limitations under the License.
 	<script type="text/javascript" src="/_ah/channel/jsapi"></script>
 	<script src="js/jquery-1.9.1.min.js"></script>
 	<script type="text/javascript" src="js/utils.js"></script>
-	<script>
-		var client_id = "{{ client_id }}";
-		var token = "{{ token }}";
-		var logged_in = {{ logged_in }};		
-		var user_nickname = "{{ user_nickname }}";	
-	</script>
+	<script type="text/javascript" src="js/login.js"></script>
 	{% block scripts %}{% endblock %}
   </head>
   <body>
@@ -37,14 +33,14 @@ limitations under the License.
 		<tr>
 			<td width="45%"><a href="/">Q &amp; A</a></td>
 			<td align="middle" width="10%"></td>
-			<td align="right" width="45%">
-			    <span id="user_login">{{user_login}}</span>
-				<a href="{{ url }}">{{ url_linktext }}</a>
-			</td>
+			<td align="right" width="45%"></td>
 		</tr>
 	</table>
-	<br>
+	<br/>
+	<h1>Login with Nickname</h1>
+	{{ title }} <span class="note">#{{ question_id }}</span><br/>
+	{{ question }}<br/>
+	Nickname: <input id="nickname" type="text" size="10" value=""> <input id="login_button" type="button" value="Login"><br/>
 	<div id="msg" class="warning">{{ msg }}</div>
-	{% block content %}{% endblock %}
   </body>
 </html>
