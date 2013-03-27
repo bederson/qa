@@ -152,7 +152,7 @@ function createQuestion() {
 		};
 		$.post("/newquestion", data, function(result) {
 			if (parseInt(result.question_id) > 0) {
-				window.location.href = "/admin?question_id=" + result.question_id;
+				window.location.href = "/admin?question_key=" + result.question_key
 			} else {
 				$("#newq_info").html("Failed to create question - maybe it is too short.");
 			}

@@ -205,9 +205,17 @@ class ResultsPageHandler(BaseHandler):
 class AdminPageHandler(BaseHandler):
     def get(self):
         person = self.initUserContext(admin=True)
+        questionObj = None
         question_id = self.request.get("question_id")
-        questionObj = Question.getQuestionById(question_id)
-        template_values = get_default_template_values(self, person, questionObj)
+        if question_id:
+            questionObj = Question.getQuestionById(question_id)
+        
+        # check if question_key
+        # newly created questions may not be searchable by question_id immediately
+        # but they should be retrievable with a question_key
+        question_key = self.request.get("question_key")
+        if question_key:
+            questionObj = Question.get_by_id(long(question_key))
         
         # check if user logged in
         if not person or not person.user:
@@ -215,7 +223,7 @@ class AdminPageHandler(BaseHandler):
             return
             
         # check if valid question code
-        if question_id and not questionObj:
+        if (question_id or question_key) and not questionObj:
             self.redirectWithMsg("Invalid question code", "/admin")
             return
         
@@ -223,7 +231,8 @@ class AdminPageHandler(BaseHandler):
         if questionObj and not Person.isAdmin(self) and questionObj.author != users.get_current_user():
             self.redirectWithMsg("You are not allowed to edit this question", "/admin")
             return 
-        
+
+        template_values = get_default_template_values(self, person, questionObj)        
         if questionObj:
             template_values["phase"] = questionObj.phase
             template_values["title"] = questionObj.title
@@ -235,7 +244,7 @@ class AdminPageHandler(BaseHandler):
 
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, template_values))
-
+        
 class LoginPageHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()       
@@ -430,7 +439,9 @@ class NewQuestionHandler(BaseHandler):
             question = Question.createQuestion(title, question, nicknameAuthentication)
             if question:
                 question_id = question.code
-                data = {"question_id": question_id}
+                question_key = question.key().id()
+                # question_key was getting truncated somewhere so saved as string instead
+                data = {"question_id": question_id, "question_key": str(question_key)}
                 # Update clients
                 message = {
                     "op": "newquestion"

@@ -16,6 +16,12 @@
 # limitations under the License.
 #
 
+# Functions that query the datastore may not include a newly put() object
+# if called immediately after the object is stored.  Use an object's key id
+# if you need to retreive an object immediately after stored. This behavior 
+# was noticed when Question.getQuestionById(code) was called immediately 
+# after a new question was created.
+    
 import logging
 import random
 from lib import gaesessions
@@ -36,8 +42,8 @@ class Question(db.Model):
     nicknameAuthentication = db.BooleanProperty(default=False)
 
     @staticmethod
-    def getQuestionById(questionIdStr):
-        return Question.all().filter("code = ", questionIdStr).get() if questionIdStr is not None else None
+    def getQuestionById(code):
+        return Question.all().filter("code = ", code).get() if code is not None else None
 
     @staticmethod
     def getQuestionsByUser():
