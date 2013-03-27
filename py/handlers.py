@@ -127,15 +127,21 @@ class BaseHandler(webapp2.RequestHandler):
         if admin:
             question = None
             nickname = None
-         
-        person = Person.getPerson(question, nickname)
+        
+        # check if person_key stored in session
+        # if so use to retrieve logged in user 
+        session = gaesessions.get_current_session()
+        person_key = session.pop("person_key") if session.has_key("person_key") else None
+        person = Person.getPerson(question, nickname, person_key)
                     
         # if no person found
         # create person if create is true, OR,
         # create person if question requires login authentication and person already logged in
         user = users.get_current_user()
         if not person and (create or (question and not question.nicknameAuthentication and user)):            
-            person = Person.createPerson(question, nickname)      
+            person = Person.createPerson(question, nickname)
+            # store person_key in session so new person can be retrieved from the datastore
+            session["person_key"] = person.key().id()
 
         return person        
 

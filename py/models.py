@@ -17,10 +17,11 @@
 #
 
 # Functions that query the datastore may not include a newly put() object
-# if called immediately after the object is stored.  Use an object's key id
-# if you need to retreive an object immediately after stored. This behavior 
-# was noticed when Question.getQuestionById(code) was called immediately 
-# after a new question was created.
+# if called immediately after the object is created (ok if updated).  
+# Use an object's key id if you need to retrieve an object immediately after 
+# stored. This behavior was noticed when Question.getQuestionById(code) was 
+# called immediately after a new question was created.  Same behavior
+# noticed when Person created for the first time.
     
 import logging
 import random
@@ -155,22 +156,25 @@ class Person(db.Model):
         return person
     
     @staticmethod
-    def getPerson(question=None, nickname=None):
+    def getPerson(question=None, nickname=None, person_id=None):
         person = None
-        user = users.get_current_user()
-        if question:
-            if question.nicknameAuthentication:
-                # if no nickname provided, check session
-                if not nickname:
-                    session = gaesessions.get_current_session()
-                    questionSessionValues = session.get(question.code)
-                    nickname = questionSessionValues["nickname"] if questionSessionValues else None
-                if nickname:
-                    person = Person.all().filter("question =", question).filter("nickname =", nickname).get()
-            elif user is not None:
-                person = Person.all().filter("question =", question).filter("user =", user).get()
-        elif user:
-            person = Person.all().filter("question =", None).filter("user =", user).get()
+        if person_id:
+            person = Person.get_by_id(person_id) 
+        else:
+            user = users.get_current_user()
+            if question:
+                if question.nicknameAuthentication:
+                    # if no nickname provided, check session
+                    if not nickname:
+                        session = gaesessions.get_current_session()
+                        questionSessionValues = session.get(question.code)
+                        nickname = questionSessionValues["nickname"] if questionSessionValues else None
+                    if nickname:
+                        person = Person.all().filter("question =", question).filter("nickname =", nickname).get()
+                elif user is not None:
+                    person = Person.all().filter("question =", question).filter("user =", user).get()
+            elif user:
+                person = Person.all().filter("question =", None).filter("user =", user).get()
         return person
                 
     @staticmethod
