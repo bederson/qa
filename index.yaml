@@ -50,3 +50,14 @@ indexes:
   properties:
   - name: question
   - name: client_id
+
+- kind: Question
+  properties:
+  - name: author
+  - name: date
+    direction: desc
+
+- kind: Question
+  properties:
+  - name: author
+  - name: title

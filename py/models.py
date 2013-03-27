@@ -47,7 +47,7 @@ class Question(db.Model):
 
     @staticmethod
     def getQuestionsByUser():
-        return Question.all().filter("author = ", users.get_current_user())
+        return Question.all().filter("author = ", users.get_current_user()).order("-date")
 
     @staticmethod
     def createQuestion(title, question, nicknameAuthentication=False):
