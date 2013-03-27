@@ -206,9 +206,6 @@ class AdminPageHandler(BaseHandler):
     def get(self):
         person = self.initUserContext(admin=True)
         questionObj = None
-        question_id = self.request.get("question_id")
-        if question_id:
-            questionObj = Question.getQuestionById(question_id)
         
         # check if question_key
         # newly created questions may not be searchable by question_id immediately
@@ -216,6 +213,10 @@ class AdminPageHandler(BaseHandler):
         question_key = self.request.get("question_key")
         if question_key:
             questionObj = Question.get_by_id(long(question_key))
+            
+        question_id = self.request.get("question_id")
+        if question_id and not questionObj:
+            questionObj = Question.getQuestionById(question_id)
         
         # check if user logged in
         if not person or not person.user:
