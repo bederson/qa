@@ -42,6 +42,9 @@ $(function() {
 			enableInput();
 			updateDisplayForTagsPerIdea();
 		}
+	} else if (phase == PHASE_TAG_BY_SIMILARITY) {
+		// xx NOT COMPLETE
+		alert("init tag.js")
 	} else {
 		disableInput("Not currently accepting new submissions");
 	}
@@ -109,6 +112,10 @@ function submitTag() {
 	};
 	if (phase == PHASE_TAG_BY_CLUSTER) {
 		$.post("/newclustertag", data);
+	else if (phase == PHASE_TAG_BY_SIMILARITY) {
+		alert("submitTag");
+		// xx NOT COMPLETE
+	}
 	} else {
 		$.post("/newideatag", data);
 	}

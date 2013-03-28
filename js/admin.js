@@ -23,9 +23,12 @@ $(function() {
 	var question_id = getURLParameter("question_id");
 	$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
 	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
+	// xx NOT COMPLETE
+	$("#tagbysimilarity_link").attr("href", "/");
 	$("#notes_link").attr("href", "/idea?question_id=" + question_id);
 	$("#results_link").attr("href", "/results?question_id=" + question_id);
 	$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
+	$("#num_notes_to_compare_per_person").val(num_notes_to_compare_per_person);
 });
 
 function initEventHandlers() {
@@ -45,11 +48,17 @@ function initEventHandlers() {
 	$("#p3button").click(function() {
 		set_phase(3);
 	});
+	$("#p4button").click(function() {
+		set_phase(4);
+	});
 	$("#newq_button").click(function() {
 		createQuestion();
 	});
 	$("#num_notes_to_tag_per_person").blur(function() {
 		set_num_notes_to_tag_per_person($("#num_notes_to_tag_per_person").val());
+	});
+	$("#num_notes_to_compare_per_person").blur(function() {
+		set_num_notes_to_compare_per_person($("#num_notes_to_compare_per_person").val());
 	});
 }
 
@@ -74,6 +83,16 @@ function set_num_notes_to_tag_per_person(num_notes) {
 		"question_id": question_id
 	};
 	$.post("/set_num_notes_to_tag_per_person", data);
+}
+
+function set_num_notes_to_compare_per_person(num_notes) {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"client_id": client_id,
+		"num_notes_to_compare_per_person": num_notes,
+		"question_id": question_id
+	};
+	$.post("/set_num_notes_to_compare_per_person", data);
 }
 
 function displayModes() {
@@ -211,17 +230,21 @@ function updateButtons() {
 		$("#p1button").val("Note entry disabled");
 		$("#p2button").val("Tagging by cluster disabled");
 		$("#p3button").val("Tagging by note disabled");
+		$("#p4button").val("Comparing by similarity disabled");
 		$("#p1button").attr("disabled", "disabled");
 		$("#p2button").attr("disabled", "disabled");
 		$("#p3button").attr("disabled", "disabled");
+		$("#p4button").attr("disabled", "disabled");
 	} else {
 		$("#p0button").val("Disable data entry");
 		$("#p1button").val("Enable adding of notes");
 		$("#p2button").val("Enable tagging by cluster");
 		$("#p3button").val("Enable tagging by note");
+		$("#p4button").val("Enable tagging by similarity");
 		$("#p1button").removeAttr("disabled");
 		$("#p2button").removeAttr("disabled");
 		$("#p3button").removeAttr("disabled");
+		$("#p4button").removeAttr("disabled");
 		if (phase == 1) {
 			$("#p1button").val("Note entry enabled");
 			$("#p1button").attr("disabled", "disabled");
@@ -231,6 +254,9 @@ function updateButtons() {
 		} else if (phase == PHASE_TAG_BY_NOTE) {
 			$("#p3button").val("Tagging by note enabled");
 			$("#p3button").attr("disabled", "disabled");
+		} else if (phase == PHASE_TAG_BY_SIMILARITY) {
+			$("#p4button").val("Comparing by similarity enabled");
+			$("#p4button").attr("disabled", "disabled");
 		}
 	}
 }

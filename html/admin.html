@@ -28,6 +28,7 @@ limitations under the License.
 		var question = "{{ question }}";
 		var num_ideas = "{{ num_ideas }}";
 		var num_notes_to_tag_per_person = "{{ num_notes_to_tag_per_person }}";
+		var num_notes_to_compare_per_person = "{{ num_notes_to_compare_per_person }}";
 		var num_tags_by_cluster = "{{ num_tags_by_cluster }}";
 		var num_tags_by_idea = "{{ num_tags_by_idea }}";
 	</script>
@@ -65,6 +66,15 @@ limitations under the License.
 			<td>
 				Go to <a id="tagbynote_link">add tags by note</a><br>
 				# notes to tag per person <input id="num_notes_to_tag_per_person" type="text" size="3"></input>
+			</td>
+		</tr>
+		<tr valign="top">
+			<td>
+				<input id="p4button" type="button">
+			</td>
+			<td>
+				Go to <a id="tagbysimilarity_link">compare tags by similarity</a><br>
+				# notes to compare per person <input id="num_notes_to_compare_per_person" type="text" size="3"></input>
 			</td>
 		</tr>
 		<tr valign="top">

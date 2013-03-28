@@ -37,6 +37,7 @@ STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", 
 PHASE_NOTES = 1
 PHASE_TAG_BY_CLUSTER = 2
 PHASE_TAG_BY_NOTE = 3
+PHASE_TAG_BY_SIMILARITY = 4
 
 def get_default_template_values(requestHandler, person, question):
     """Return a dictionary of template values used for login template"""        
@@ -190,6 +191,11 @@ class TagPageHandler(BaseHandler):
             if questionObj:
                 template_values["num_notes_to_tag"] = questionObj.getNumNotesToTagPerPerson()
                 template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser()
+        elif phase == PHASE_TAG_BY_SIMILARITY:
+            # xx NOT COMPLETE
+            if questionObj:
+                template_values["num_notes_to_compare"] = questionObj.getNumNotesToComparePerPerson()
+                template_values["num_notes_compared"] = questionObj.getNumNotesComparedByUser()
 
         path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
         self.response.out.write(template.render(path, template_values))
@@ -245,6 +251,7 @@ class AdminPageHandler(BaseHandler):
             template_values["title"] = questionObj.title
             template_values["question"] = questionObj.question
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
+            template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson
             template_values["num_ideas"] = Idea.numIdeas(question_id)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
@@ -307,6 +314,9 @@ def getPhaseUrl(question=None):
             url = "/idea?question_id="+question.code
         elif question.phase == PHASE_TAG_BY_CLUSTER or question.phase == PHASE_TAG_BY_NOTE:
             url = "/tag?question_id="+question.code
+        elif question.phase == PHASE_TAG_BY_SIMILARITY:
+            # xx NOT COMPLETE
+            url = "/"
     return url
 
 class LogoutHandler(BaseHandler):
@@ -595,10 +605,26 @@ class NumNotesToTagPerPersonHandler(BaseHandler):
 
         message = {
             "op": "num_notes_to_tag_per_person",
-            "num_notes_to_tag_per_person": num_notes_to_tag_per_person
+            "num_notes_to_tag_per_person": num_notes_to_tag_per_person,
         }
         send_message(client_id, question_id, message)        # Update other clients about this change
 
+class NumNotesToComparePerPersonHandler(BaseHandler):
+    def post(self):
+        self.initUserContext()
+        client_id = self.request.get('client_id')
+        num_notes_to_compare_per_person = int(self.request.get('num_notes_to_compare_per_person'))
+        question_id = self.request.get("question_id")
+        questionObj = Question.getQuestionById(question_id)
+        if questionObj:
+            questionObj.setNumNotesToComparePerPerson(num_notes_to_compare_per_person)
+
+        message = {
+            "op": "num_notes_to_compare_per_person",
+            "num_notes_to_compare_per_person": num_notes_to_compare_per_person,
+        }
+        send_message(client_id, question_id, message)        # Update other clients about this change
+        
 class MigrateHandler(BaseHandler):
     def get(self):
         self.initUserContext()

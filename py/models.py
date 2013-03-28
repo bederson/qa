@@ -40,6 +40,7 @@ class Question(db.Model):
     phase = db.IntegerProperty(default=0)
     date = db.DateTimeProperty(auto_now=True)
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
+    numNotesToComparePerPerson = db.IntegerProperty(default=5)
     nicknameAuthentication = db.BooleanProperty(default=False)
 
     @staticmethod
@@ -114,6 +115,19 @@ class Question(db.Model):
         person = Person.getPerson(question=self, nickname=nickname)
         return IdeaAssignment.all().filter("author =", person).filter("question =", self).count()
 
+    def getNumNotesToComparePerPerson(self):
+        return self.numNotesToComparePerPerson
+
+    def setNumNotesToComparePerPerson(self, numNotesToComparePerPerson):
+        self.numNotesToComparePerPerson = numNotesToComparePerPerson
+        self.put()
+
+    def getNumNotesComparedByUser(self, nickname=None):
+        person = Person.getPerson(question=self, nickname=nickname)
+        return 0
+        # xx NOT COMPLETE
+        #return IdeaAssignment.all().filter("author =", person).filter("question =", self).count()
+    
     def getNumTagsByCluster(self):
         return ClusterTag.all().filter("question =", self).count()
 

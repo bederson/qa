@@ -41,6 +41,9 @@ $(function() {
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
+	if (phase == PHASE_TAG_BY_SIMILARITY) {
+		// xx NOT COMPLETE
+	}
 
 	if (change_nickname_allowed) {
 		updateNicknameArea();
