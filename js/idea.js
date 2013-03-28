@@ -42,7 +42,7 @@ $(function() {
 		$("#start_tagging").css("display", "inline");
 	}
 	if (phase == PHASE_TAG_BY_SIMILARITY) {
-		// xx NOT COMPLETE
+		window.location.href="/similar?question_id=" + question_id;
 	}
 
 	if (change_nickname_allowed) {

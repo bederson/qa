@@ -23,8 +23,7 @@ $(function() {
 	var question_id = getURLParameter("question_id");
 	$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
 	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
-	// xx NOT COMPLETE
-	$("#tagbysimilarity_link").attr("href", "/");
+	$("#tagbysimilarity_link").attr("href", "/similar?question_id=" + question_id);
 	$("#notes_link").attr("href", "/idea?question_id=" + question_id);
 	$("#results_link").attr("href", "/results?question_id=" + question_id);
 	$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
@@ -105,10 +104,11 @@ function displayModes() {
 		html += num_ideas + " notes, ";
 		html += num_tags_by_cluster + " tags on clusters, ";
 		html += num_tags_by_idea + " tags on ideas<br>";
+		html += num_tags_by_similarity + " tags by similarity<br>";
 		html += "<br>";
 		$("#question").html(html);
 		
-		$("#phase_table").css("display", "table");
+		$("#question_buttons").css("display", "table");
 		updateButtons();
 	}
 }
@@ -230,7 +230,7 @@ function updateButtons() {
 		$("#p1button").val("Note entry disabled");
 		$("#p2button").val("Tagging by cluster disabled");
 		$("#p3button").val("Tagging by note disabled");
-		$("#p4button").val("Comparing by similarity disabled");
+		$("#p4button").val("Tagging by similarity disabled");
 		$("#p1button").attr("disabled", "disabled");
 		$("#p2button").attr("disabled", "disabled");
 		$("#p3button").attr("disabled", "disabled");
@@ -255,7 +255,7 @@ function updateButtons() {
 			$("#p3button").val("Tagging by note enabled");
 			$("#p3button").attr("disabled", "disabled");
 		} else if (phase == PHASE_TAG_BY_SIMILARITY) {
-			$("#p4button").val("Comparing by similarity enabled");
+			$("#p4button").val("Tagging by similarity enabled");
 			$("#p4button").attr("disabled", "disabled");
 		}
 	}

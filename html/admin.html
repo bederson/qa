@@ -27,61 +27,68 @@ limitations under the License.
 		var title = "{{ title }}";
 		var question = "{{ question }}";
 		var num_ideas = "{{ num_ideas }}";
-		var num_notes_to_tag_per_person = "{{ num_notes_to_tag_per_person }}";
-		var num_notes_to_compare_per_person = "{{ num_notes_to_compare_per_person }}";
+		var num_notes_to_tag_per_person = parseInt("{{ num_notes_to_tag_per_person }}");
+		var num_notes_to_compare_per_person = parseInt("{{ num_notes_to_compare_per_person }}");
 		var num_tags_by_cluster = "{{ num_tags_by_cluster }}";
 		var num_tags_by_idea = "{{ num_tags_by_idea }}";
+		var num_tags_by_similarity = "{{ num_tags_by_similarity }}";
 	</script>
 {% endblock %}
 
 {% block content %}
 	<h1>Administration Interface</h1>
 	<div id="question"></div>
-	<table id="phase_table" style="display:none; margin-left:25px; margin-top: 15px">
+	<table id="question_buttons" style="display:none">
 		<tr valign="top">
 			<td colspan="2">
 				<input id="p0button" type="button">
 			</td>
 		</tr>
-		<tr valign="top">
-			<td width="200px">
-				<input id="p1button" type="button">
-			</td>
+		<tr>
 			<td>
-				Go to <a id="notes_link">add notes</a>
-			</td>
-		</tr>
-		<tr valign="top">
-			<td>
-				<input id="p2button" type="button">
-			</td>
-			<td>
-				Go to <a id="tagbycluster_link">add tags by cluster</a>
-			</td>
-		</tr>
-		<tr valign="top">
-			<td>
-				<input id="p3button" type="button">
-			</td>
-			<td>
-				Go to <a id="tagbynote_link">add tags by note</a><br>
-				# notes to tag per person <input id="num_notes_to_tag_per_person" type="text" size="3"></input>
-			</td>
-		</tr>
-		<tr valign="top">
-			<td>
-				<input id="p4button" type="button">
-			</td>
-			<td>
-				Go to <a id="tagbysimilarity_link">compare tags by similarity</a><br>
-				# notes to compare per person <input id="num_notes_to_compare_per_person" type="text" size="3"></input>
-			</td>
-		</tr>
-		<tr valign="top">
-			<td>
-			</td>
-			<td>
-				=> <a id="results_link">See results</a>
+				<table id="phase_table" style="margin-left:25px; margin-top: 15px">
+					<tr valign="top">
+						<td width="200px">
+							<input id="p1button" type="button">
+						</td>
+						<td>
+							Go to <a id="notes_link">add notes</a>
+						</td>
+					</tr>
+					<tr valign="top">
+						<td>
+							<input id="p2button" type="button">
+						</td>
+						<td>
+							Go to <a id="tagbycluster_link">add tags by cluster</a>
+						</td>
+					</tr>
+					<tr valign="top">
+						<td>
+							<input id="p3button" type="button">
+						</td>
+						<td>
+							Go to <a id="tagbynote_link">add tags by note</a><br>
+							# notes to tag per person <input id="num_notes_to_tag_per_person" type="text" size="3"></input>
+						</td>
+					</tr>
+					<tr valign="top">
+						<td>
+							<input id="p4button" type="button">
+						</td>
+						<td>
+							Go to <a id="tagbysimilarity_link">compare tags by similarity</a><br>
+							# notes to compare per person <input id="num_notes_to_compare_per_person" type="text" size="3"></input>
+						</td>
+					</tr>
+					<tr valign="top">
+						<td>
+						</td>
+						<td>
+							=> <a id="results_link">See results</a>
+						</td>
+					</tr>
+				</table>
 			</td>
 		</tr>
 	</table>

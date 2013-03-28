@@ -34,6 +34,18 @@ h2 {
 	font-size: 0.8em;
 }
 
+.smallspaceafter {
+	margin-bottom: 5px;
+}
+
+.spaceabove {
+	margin-top: 10px;
+}
+
+.spaceafter {
+	margin-bottom: 10px;
+}
+
 .warning {
 	color: #f55;
 	font-weight: bold;
@@ -103,7 +115,7 @@ h2 {
 	float: right;
 }
 
-#notags, #mytags {
+#notags, #mytags, #nosimilar, #similarnotes {
 	padding-left: 20px;
 	background-color: #eee;
 }

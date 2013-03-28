@@ -19,6 +19,7 @@ Testing
   
 Misc
 * Need to make myself a gae admin so users.is_current_user_admin returns true
+* Need consistent terminology (e.g., submission/note/response/idea for responses to questions)
 
 Engineering
 * Better downloading support

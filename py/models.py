@@ -45,6 +45,7 @@ class Question(db.Model):
 
     @staticmethod
     def getQuestionById(code):
+        # this function retrieves question by question code, not datastore id
         return Question.all().filter("code = ", code).get() if code is not None else None
 
     @staticmethod
@@ -111,8 +112,7 @@ class Question(db.Model):
         self.numNotesToTagPerPerson = numNotesToTagPerPerson
         self.put()
 
-    def getNumNotesTaggedByUser(self, nickname=None):
-        person = Person.getPerson(question=self, nickname=nickname)
+    def getNumNotesTaggedByUser(self, person):
         return IdeaAssignment.all().filter("author =", person).filter("question =", self).count()
 
     def getNumNotesToComparePerPerson(self):
@@ -122,17 +122,17 @@ class Question(db.Model):
         self.numNotesToComparePerPerson = numNotesToComparePerPerson
         self.put()
 
-    def getNumNotesComparedByUser(self, nickname=None):
-        person = Person.getPerson(question=self, nickname=nickname)
-        return 0
-        # xx NOT COMPLETE
-        #return IdeaAssignment.all().filter("author =", person).filter("question =", self).count()
+    def getNumNotesComparedByUser(self, person):
+        return SimilarAssignment.all().filter("author =", person).filter("question =", self).count()
     
     def getNumTagsByCluster(self):
         return ClusterTag.all().filter("question =", self).count()
 
     def getNumTagsByIdea(self):
         return IdeaTag.all().filter("question =", self).count()
+    
+    def getNumTagsBySimilarity(self):
+        return SimilarTag.all().filter("question = ", self).count()
 
 ######################
 ##### Person #####
@@ -303,14 +303,14 @@ class Idea(db.Model):
         return ideaObj
 
     @staticmethod
-    def createIdea(idea, questionIdStr):
+    def createIdea(idea, questionIdStr, person):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
             if len(idea) > 500:
                 idea = idea[:500]
             idea = idea.replace("\n", "")
             ideaObj = Idea()
-            ideaObj.author = Person.getPerson(question=questionObj)
+            ideaObj.author = person
             ideaObj.text = idea
             ideaObj.question = questionObj
             if Idea.all().filter("question =", questionObj).count() == 0:
@@ -343,10 +343,12 @@ class Idea(db.Model):
 
     @staticmethod
     def deleteAllIdeas(questionIdStr):
-        IdeaTag.deleteAllTags(questionIdStr)
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
+            IdeaTag.deleteAllTags(questionIdStr)
             IdeaAssignment.deleteAllIdeaAssignments(questionIdStr)
+            SimilarTag.deleteAllTags(questionIdStr)
+            SimilarAssignment.deleteAllAssignments(questionIdStr)
             db.delete(Idea.all().filter("question =", questionObj))
 
 #############################
@@ -358,11 +360,11 @@ class ClusterAssignment(db.Model):
     question = db.ReferenceProperty(Question)
 
     @staticmethod
-    def getAssignmentId(questionIdStr):
+    def getAssignmentId(questionIdStr, person):
         """Determines the cluster assigned to this author"""
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
-            author = Person.getPerson(question=questionObj)
+            author = person
             ca = ClusterAssignment.all()
             ca = ca.filter("author =", author)
             ca = ca.filter("question =", questionObj)
@@ -399,34 +401,30 @@ class IdeaAssignment(db.Model):
     current = db.BooleanProperty(default=False)
 
     @staticmethod
-    def getCurrentAssignmentId(questionIdStr):
+    def getCurrentAssignment(questionObj, person):
         """Gets the current assignment (or a new one if there isn't a current one)"""
-        questionObj = Question.getQuestionById(questionIdStr)
-        if questionObj:
-            # need to pass nickname
-            ia = IdeaAssignment.all().filter("author =", Person.getPerson(question=questionObj)).filter("question =", questionObj).filter("current =", True).get()
+        if questionObj and person:
+            ia = IdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
             if ia:
-                return ia.idea.key().id()
+                return ia.idea
             else:
-                return IdeaAssignment.getNewAssignmentId(questionIdStr)
+                return IdeaAssignment.getNewAssignment(questionObj, person)
         else:
-            return -1
+            return None
         
     @staticmethod
-    def getNewAssignmentId(questionIdStr):
-        """Get a new random idea assignent for this author"""
+    def getNewAssignment(questionObj, person):
+        """Get a new random idea assignment for this author"""
         ia = None
-        questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
             # First deselect any existing "current" assignment
-            currents = IdeaAssignment.all().filter("author =", Person.getPerson(question=questionObj)).filter("question =", questionObj).filter("current =", True)
+            currents = IdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True)
             for currentObj in currents:
                 currentObj.current = False
                 currentObj.put()
             
             numIdeas = Idea.all().filter("question =", questionObj).count()
-            # need to pass nickname
-            numAssignments = IdeaAssignment.all().filter("author =", Person.getPerson(question=questionObj)).filter("question =", questionObj).count()
+            numAssignments = IdeaAssignment.all().filter("author =", person).filter("question =", questionObj).count()
             assignmentNeeded = True
             # Randomly select ideas, but keep trying if we've already assigned this one.
             # This is a BAD algorithm if there are a lot of ideas AND individuals get a lot of assignments
@@ -437,30 +435,93 @@ class IdeaAssignment(db.Model):
                 num_tries += 1
                 idea = Idea.getRandomIdea(questionObj)
                 if idea:
-                    # need to pass nickname
-                    assigned = (IdeaAssignment.all().filter("author =", Person.getPerson(question=questionObj)).filter("idea =", idea).count() > 0)
+                    assigned = (IdeaAssignment.all().filter("author =", person).filter("idea =", idea).count() > 0)
                     if assigned:
                         pass    # Whoops - already seen this idea, look for another
                     else:
                         ia = IdeaAssignment()
-                        ia.author = Person.getPerson(question=questionObj)
+                        ia.author = person
                         ia.idea = idea
                         ia.question = questionObj
                         ia.current = True
                         ia.put()
                         assignmentNeeded = False
-                else:
-                    return -1
-        if ia:
-            return ia.idea.key().id()
-        else:
-            return -1
+                
+        return ia.idea if ia else None
 
     @staticmethod
     def deleteAllIdeaAssignments(questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
             db.delete(IdeaAssignment.all().filter("question =", questionObj))
+
+#############################
+##### SimilarAssignment #####
+#############################
+class SimilarAssignment(db.Model):
+    author = db.ReferenceProperty(Person)
+    idea = db.ReferenceProperty(Idea)
+    question = db.ReferenceProperty(Question)
+    current = db.BooleanProperty(default=False)
+
+    @staticmethod
+    def getCurrentAssignment(questionObj, person):
+        """Gets the current assignment (or a new one if there isn't a current one)"""
+        if questionObj and person:
+            ia = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
+            if ia:
+                return ia.idea
+            else:
+                return SimilarAssignment.getNewAssignment(questionObj, person)
+        else:
+            return None
+        
+    @staticmethod
+    def getNewAssignment(questionObj, person):
+        """Get a new random idea assignment for this author"""
+        ia = None
+        if questionObj:
+            # First deselect any existing "current" assignment
+            currents = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True)
+            for currentObj in currents:
+                currentObj.current = False
+                currentObj.put()
+            
+            numIdeas = Idea.all().filter("question =", questionObj).count()
+            numAssignments = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).count()
+            assignmentNeeded = True
+            # Randomly select ideas, but keep trying if we've already assigned this one.
+            # This is a BAD algorithm if there are a lot of ideas AND individuals get a lot of assignments
+            # but that seems unlikely to happen
+            MAX_TRIES = 10
+            num_tries = 0
+            while assignmentNeeded and (numIdeas > numAssignments) and (num_tries < MAX_TRIES):
+                num_tries += 1
+                idea = Idea.getRandomIdea(questionObj)
+                if idea:
+                    assigned = (SimilarAssignment.all().filter("author =", person).filter("idea =", idea).count() > 0)
+                    if assigned:
+                        pass    # Whoops - already seen this idea, look for another
+                    else:
+                        ia = SimilarAssignment()
+                        ia.author = person
+                        ia.idea = idea
+                        ia.question = questionObj
+                        ia.current = True
+                        ia.put()
+                        assignmentNeeded = False
+                else:
+                    return None
+        if ia:
+            return ia.idea
+        else:
+            return None
+
+    @staticmethod
+    def deleteAllAssignments(questionIdStr):
+        questionObj = Question.getQuestionById(questionIdStr)
+        if questionObj:
+            db.delete(SimilarAssignment.all().filter("question =", questionObj))
 
 ######################
 ##### CLUSTERTAG #####
@@ -473,7 +534,7 @@ class ClusterTag(db.Model):
     date = db.DateTimeProperty(auto_now=True)
 
     @staticmethod
-    def createClusterTag(tagStr, cluster_id, questionIdStr):
+    def createClusterTag(tagStr, cluster_id, questionIdStr, person):
         questionObj = Question.getQuestionById(questionIdStr)
         clusterObj = Cluster.get_by_id(cluster_id)
         tagObj = None
@@ -482,7 +543,7 @@ class ClusterTag(db.Model):
             tagObj.tag = tagStr
             tagObj.question = questionObj
             tagObj.cluster = clusterObj
-            tagObj.author = Person.getPerson(question=questionObj)
+            tagObj.author = person
             tagObj.put()
         return tagObj
 
@@ -496,11 +557,10 @@ class ClusterTag(db.Model):
             return None
 
     @staticmethod
-    def getTagsByUser(questionIdStr):
+    def getTagsByUser(questionIdStr, person):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
-            # need to pass nickname
-            tags = ClusterTag.all().filter("question =", questionObj).filter("author = ", Person.getPerson(question=questionObj))
+            tags = ClusterTag.all().filter("question =", questionObj).filter("author = ", person)
             return tags
         else:
             return None
@@ -523,7 +583,7 @@ class IdeaTag(db.Model):
     date = db.DateTimeProperty(auto_now=True)
 
     @staticmethod
-    def createIdeaTag(tagStr, idea_id, questionIdStr):
+    def createIdeaTag(tagStr, idea_id, questionIdStr, person):
         questionObj = Question.getQuestionById(questionIdStr)
         ideaObj = Idea.get_by_id(idea_id)
         if ideaObj and questionObj:
@@ -531,7 +591,7 @@ class IdeaTag(db.Model):
             tagObj.tag = tagStr
             tagObj.question = questionObj
             tagObj.idea = ideaObj
-            tagObj.author = Person.getPerson(question=questionObj)
+            tagObj.author = person
             tagObj.put()
         return tagObj
 
@@ -545,11 +605,10 @@ class IdeaTag(db.Model):
             return None
 
     @staticmethod
-    def getTagsByUser(ideaIdStr):
+    def getTagsByUser(ideaIdStr, person):
         ideaObj = Idea.getIdeaById(ideaIdStr)
         if ideaObj:
-            # need to pass nickname
-            tags = IdeaTag.all().filter("idea =", ideaObj).filter("author = ", Person.getPerson(question=ideaObj.question))
+            tags = IdeaTag.all().filter("idea =", ideaObj).filter("author = ", person)
             return tags
         else:
             return None
@@ -559,4 +618,53 @@ class IdeaTag(db.Model):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
             tags = IdeaTag.all().filter("question =", questionObj)
+            db.delete(tags)
+            
+######################
+##### SIMILARTAG #####
+######################
+class SimilarTag(db.Model):
+    question = db.ReferenceProperty(Question)
+    idea = db.ReferenceProperty(Idea, collection_name='idea_similartag_set')
+    similar = db.ReferenceProperty(Idea, collection_name='similar_similartag_set')
+    author = db.ReferenceProperty(Person)
+    date = db.DateTimeProperty(auto_now=True)
+ 
+    @staticmethod
+    def createSimilarTag(similar_idea_id, idea_id, questionIdStr, person):
+        questionObj = Question.getQuestionById(questionIdStr)
+        ideaObj = Idea.get_by_id(idea_id)
+        similarIdeaObj = Idea.get_by_id(similar_idea_id)
+        if ideaObj and questionObj:
+            tagObj = SimilarTag()
+            tagObj.question = questionObj
+            tagObj.idea = ideaObj
+            tagObj.similar = similarIdeaObj
+            tagObj.author = person
+            tagObj.put()
+        return tagObj
+ 
+    @staticmethod
+    def getTags(questionIdStr):
+        questionObj = Question.getQuestionById(questionIdStr)
+        if questionObj:
+            tags = SimilarTag.all().filter("question =", questionObj)
+            return tags
+        else:
+            return None
+ 
+    @staticmethod
+    def getTagsByUser(ideaIdStr, person):
+        ideaObj = Idea.getIdeaById(ideaIdStr)
+        if ideaObj:
+            tags = SimilarTag.all().filter("idea =", ideaObj).filter("author = ", person)
+            return tags
+        else:
+            return None
+ 
+    @staticmethod
+    def deleteAllTags(questionIdStr):
+        questionObj = Question.getQuestionById(questionIdStr)
+        if questionObj:
+            tags = SimilarTag.all().filter("question =", questionObj)
             db.delete(tags)

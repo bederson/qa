@@ -185,21 +185,38 @@ class TagPageHandler(BaseHandler):
         phase = Question.getPhase(question_id)
         template_values["phase"] = phase
         if phase == PHASE_TAG_BY_CLUSTER:
-            template_values["cluster_id"] = ClusterAssignment.getAssignmentId(question_id)
+            template_values["cluster_id"] = ClusterAssignment.getAssignmentId(question_id, person)
         elif phase == PHASE_TAG_BY_NOTE:
-            template_values["idea_id"] = IdeaAssignment.getCurrentAssignmentId(question_id)
+            idea = IdeaAssignment.getCurrentAssignment(questionObj, person)
+            template_values["idea_id"] = idea.key().id() if idea is not None else -1
             if questionObj:
                 template_values["num_notes_to_tag"] = questionObj.getNumNotesToTagPerPerson()
-                template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser()
-        elif phase == PHASE_TAG_BY_SIMILARITY:
-            # xx NOT COMPLETE
-            if questionObj:
-                template_values["num_notes_to_compare"] = questionObj.getNumNotesToComparePerPerson()
-                template_values["num_notes_compared"] = questionObj.getNumNotesComparedByUser()
+                template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser(person)
 
         path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
         self.response.out.write(template.render(path, template_values))
 
+# Participant page to compare similarity of notes
+class SimilarPageHandler(BaseHandler):
+    def get(self):
+        person = self.initUserContext()
+        question_id = self.request.get("question_id")
+        questionObj = Question.getQuestionById(question_id)
+        template_values = get_default_template_values(self, person, questionObj)
+        phase = Question.getPhase(question_id)
+        template_values["phase"] = phase
+        if phase == PHASE_TAG_BY_SIMILARITY:
+            idea = SimilarAssignment.getCurrentAssignment(questionObj, person)
+            template_values["idea_id"] = idea.key().id() if idea is not None else -1
+            template_values["idea"] = idea.text if idea is not None else ""
+            if questionObj:
+                template_values["question"] = questionObj.question
+                template_values["num_notes_to_compare"] = questionObj.getNumNotesToComparePerPerson()
+                template_values["num_notes_compared"] = questionObj.getNumNotesComparedByUser(person)
+
+        path = os.path.join(os.path.dirname(__file__), '../html/similar.html')
+        self.response.out.write(template.render(path, template_values))
+        
 class ResultsPageHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
@@ -255,6 +272,7 @@ class AdminPageHandler(BaseHandler):
             template_values["num_ideas"] = Idea.numIdeas(question_id)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
+            template_values["num_tags_by_similarity"] = questionObj.getNumTagsBySimilarity()
 
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, template_values))
@@ -315,8 +333,7 @@ def getPhaseUrl(question=None):
         elif question.phase == PHASE_TAG_BY_CLUSTER or question.phase == PHASE_TAG_BY_NOTE:
             url = "/tag?question_id="+question.code
         elif question.phase == PHASE_TAG_BY_SIMILARITY:
-            # xx NOT COMPLETE
-            url = "/"
+            url = "/similar?question_id="+question.code
     return url
 
 class LogoutHandler(BaseHandler):
@@ -374,7 +391,7 @@ class NicknameHandler(BaseHandler):
                            
 class QueryHandler(BaseHandler):
     def get(self):
-        self.initUserContext()
+        person = self.initUserContext()
         request = self.request.get("request")
         question_id = self.request.get("question_id")
 
@@ -409,13 +426,13 @@ class QueryHandler(BaseHandler):
             data = {"tags": tags}
         elif request == "myclustertags":
             tags = []
-            for tag in ClusterTag.getTagsByUser(question_id):
+            for tag in ClusterTag.getTagsByUser(question_id, person):
                 tags.append(tag.tag)
             data = {"tags": tags}
         elif request == "myideatags":
             tags = []
             idea_id = self.request.get("idea_id")
-            for tag in IdeaTag.getTagsByUser(idea_id):
+            for tag in IdeaTag.getTagsByUser(idea_id, person):
                 tags.append(tag.tag)
             data = {"tags": tags}
         elif request == "question":
@@ -492,12 +509,12 @@ class EditQuestionHandler(BaseHandler):
                 
 class NewIdeaHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        person = self.initUserContext()
         client_id = self.request.get('client_id')
         idea = self.request.get('idea')
         question_id = self.request.get("question_id")
         if len(idea) >= 1:            # Don't limit idea length until there is a way to give feedback about short ideas
-            ideaObj = Idea.createIdea(idea, question_id)
+            ideaObj = Idea.createIdea(idea, question_id, person)
 
             # Update clients
             message = {
@@ -509,13 +526,13 @@ class NewIdeaHandler(BaseHandler):
 
 class NewClusterTagHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        person = self.initUserContext()
         client_id = self.request.get('client_id')
         tag = self.request.get('tag')
         cluster_id = int(self.request.get('cluster_id'))
         question_id = self.request.get("question_id")
         if len(tag) >= 1:
-            clusterTagObj = ClusterTag.createClusterTag(tag, cluster_id, question_id)
+            clusterTagObj = ClusterTag.createClusterTag(tag, cluster_id, question_id, person)
 
             # Update clients
             message = {
@@ -528,13 +545,13 @@ class NewClusterTagHandler(BaseHandler):
 
 class NewIdeaTagHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        person = self.initUserContext()
         client_id = self.request.get('client_id')
         tag = self.request.get('tag')
         idea_id = int(self.request.get('idea_id'))
         question_id = self.request.get("question_id")
         if len(tag) >= 1:
-            ideaTagObj = IdeaTag.createIdeaTag(tag, idea_id, question_id)
+            ideaTagObj = IdeaTag.createIdeaTag(tag, idea_id, question_id, person)
 
             # Update clients
             message = {
@@ -574,10 +591,24 @@ class ClusterHandler(BaseHandler):
 
 class IdeaAssignmentHandler(BaseHandler):
     def get(self):
-        self.initUserContext()
+        person = self.initUserContext()
         question_id = self.request.get("question_id")
-        IdeaAssignment.getNewAssignmentId(question_id)
+        question = Question.getQuestionById(question_id)
+        idea = IdeaAssignment.getNewAssignment(question, person)
+        data = { "idea_id" : idea.key().id() if idea is not None else -1 }
+        self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
+        self.response.out.write(json.dumps(data))
 
+class SimilarAssignmentHandler(BaseHandler):
+    def get(self):
+        person = self.initUserContext()
+        question_id = self.request.get("question_id")
+        question = Question.getQuestionById(question_id)
+        idea = SimilarAssignment.getNewAssignment(question_id, person)
+        data = { "idea_id" : idea.key().id() if idea is not None else -1 }
+        self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
+        self.response.out.write(json.dumps(data))
+        
 class PhaseHandler(BaseHandler):
     def post(self):
         self.initUserContext()
