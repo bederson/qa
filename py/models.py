@@ -123,7 +123,7 @@ class Question(db.Model):
         self.put()
 
     def getNumNotesComparedByUser(self, person):
-        return SimilarAssignment.all().filter("author =", person).filter("question =", self).count()
+        return SimilarIdeaAssignment.all().filter("author =", person).filter("question =", self).count()
     
     def getNumTagsByCluster(self):
         return ClusterTag.all().filter("question =", self).count()
@@ -364,7 +364,7 @@ class Idea(db.Model):
             IdeaTag.deleteAllTags(questionIdStr)
             IdeaAssignment.deleteAllIdeaAssignments(questionIdStr)
             SimilarIdea.deleteAllSimilarIdeas(questionIdStr)
-            SimilarAssignment.deleteAllAssignments(questionIdStr)
+            SimilarIdeaAssignment.deleteAllAssignments(questionIdStr)
             db.delete(Idea.all().filter("question =", questionObj))
 
 #############################
@@ -472,9 +472,9 @@ class IdeaAssignment(db.Model):
             db.delete(IdeaAssignment.all().filter("question =", questionObj))
 
 #############################
-##### SimilarAssignment #####
+##### SimilarIdeaAssignment #####
 #############################
-class SimilarAssignment(db.Model):
+class SimilarIdeaAssignment(db.Model):
     author = db.ReferenceProperty(Person)
     idea = db.ReferenceProperty(Idea)
     question = db.ReferenceProperty(Question)
@@ -490,7 +490,7 @@ class SimilarAssignment(db.Model):
                 session = gaesessions.get_current_session()
                 assignment_id = session.pop("qa_similar_assignment_id") if session.has_key("qa_similar_assignment_id") else None
                 if assignment_id:
-                    assignment = SimilarAssignment.get_by_id(assignment_id)
+                    assignment = SimilarIdeaAssignment.get_by_id(assignment_id)
                     # check if assignment id stored in session corresponds to inputs
                     if assignment and questionObj != assignment.question:
                         assignment = None
@@ -498,10 +498,10 @@ class SimilarAssignment(db.Model):
                         assignment = None
                 
                 if not assignment:  
-                    assignment = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
+                    assignment = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
                     
                 if not assignment:
-                    assignment = SimilarAssignment.createNewAssignment(questionObj, person)
+                    assignment = SimilarIdeaAssignment.createNewAssignment(questionObj, person)
         
         return assignment if assignment else None
             
@@ -511,11 +511,11 @@ class SimilarAssignment(db.Model):
         ia = None
         if questionObj:
             # First deselect any existing "current" assignment
-            SimilarAssignment.unselectAllAssignments(questionObj, person)
+            SimilarIdeaAssignment.unselectAllAssignments(questionObj, person)
             
             # Get list of ideas already assigned to user (don't want to show duplicates)
             numIdeas = Idea.all().filter("question =", questionObj).count()
-            assignments = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj)
+            assignments = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj)
             numAssignments = assignments.count()            
             ideaIdsAlreadyAssigned = []
             for assignment in assignments:
@@ -531,12 +531,12 @@ class SimilarAssignment(db.Model):
                 num_tries += 1
                 idea = Idea.getRandomIdea(questionObj)
                 if idea:
-                    #assigned = (SimilarAssignment.all().filter("author =", person).filter("idea =", idea).count() > 0)
+                    #assigned = (SimilarIdeaAssignment.all().filter("author =", person).filter("idea =", idea).count() > 0)
                     assigned = idea.key().id() in ideaIdsAlreadyAssigned
                     if assigned:
                         pass    # Whoops - already seen this idea, look for another
                     else:
-                        ia = SimilarAssignment()
+                        ia = SimilarIdeaAssignment()
                         ia.author = person
                         ia.idea = idea
                         ia.question = questionObj
@@ -555,7 +555,7 @@ class SimilarAssignment(db.Model):
 
     @staticmethod
     def unselectAllAssignments(questionObj, person):
-        currents = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True)
+        currents = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True)
         for currentObj in currents:
             currentObj.current = False
             currentObj.put()
@@ -564,7 +564,7 @@ class SimilarAssignment(db.Model):
     def deleteAllAssignments(questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
-            db.delete(SimilarAssignment.all().filter("question =", questionObj))
+            db.delete(SimilarIdeaAssignment.all().filter("question =", questionObj))
 
 ######################
 ##### CLUSTERTAG #####

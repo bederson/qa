@@ -203,7 +203,7 @@ class SimilarPageHandler(BaseHandler):
             numNotesCompared = questionObj.getNumNotesComparedByUser(person)        
             maxNumToCompare = questionObj.getNumNotesToComparePerPerson()
             if numNotesCompared < maxNumToCompare:
-                assignment = SimilarAssignment.getCurrentAssignment(questionObj, person)
+                assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person)
 
         template_values = get_default_template_values(self, person, questionObj)
         template_values["phase"] = phase
@@ -596,16 +596,16 @@ class IdeaAssignmentHandler(BaseHandler):
         self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
         self.response.out.write(json.dumps({}))
 
-class SimilarAssignmentHandler(BaseHandler):
+class SimilarIdeaAssignmentHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
         isFinished = self.request.get("complete", "0") == "1"
         if not isFinished:
-            SimilarAssignment.createNewAssignment(question, person)
+            SimilarIdeaAssignment.createNewAssignment(question, person)
         else:
-            SimilarAssignment.unselectAllAssignments(question, person)
+            SimilarIdeaAssignment.unselectAllAssignments(question, person)
         self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
         self.response.out.write(json.dumps({}))
         

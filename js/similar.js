@@ -114,7 +114,7 @@ function updateDisplayForNotesToCompare() {
 			"question_id": question_id,
 			"complete": moreToDo ? "0" : "1"
 		};
-		$.getJSON("/getsimilarassignment", data, function(results) {
+		$.getJSON("/getsimilarideaassignment", data, function(results) {
 			window.location.reload();
 		});
 	});
