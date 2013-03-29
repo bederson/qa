@@ -37,7 +37,7 @@ STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", 
 PHASE_NOTES = 1
 PHASE_TAG_BY_CLUSTER = 2
 PHASE_TAG_BY_NOTE = 3
-PHASE_TAG_BY_SIMILARITY = 4
+PHASE_COMPARE_BY_SIMILARITY = 4
 
 def get_default_template_values(requestHandler, person, question):
     """Return a dictionary of template values used for login template"""        
@@ -199,7 +199,7 @@ class SimilarPageHandler(BaseHandler):
         assignment = None
 
         phase = Question.getPhase(question_id)        
-        if phase == PHASE_TAG_BY_SIMILARITY and questionObj:
+        if phase == PHASE_COMPARE_BY_SIMILARITY and questionObj:
             numNotesCompared = questionObj.getNumNotesComparedByUser(person)        
             maxNumToCompare = questionObj.getNumNotesToComparePerPerson()
             if numNotesCompared < maxNumToCompare:
@@ -270,7 +270,7 @@ class AdminPageHandler(BaseHandler):
             template_values["num_ideas"] = Idea.numIdeas(question_id)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
-            template_values["num_tags_by_similarity"] = questionObj.getNumTagsBySimilarity()
+            template_values["num_similar_ideas"] = questionObj.getNumSimilarIdeas()
 
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, template_values))
@@ -330,7 +330,7 @@ def getPhaseUrl(question=None):
             url = "/idea?question_id="+question.code
         elif question.phase == PHASE_TAG_BY_CLUSTER or question.phase == PHASE_TAG_BY_NOTE:
             url = "/tag?question_id="+question.code
-        elif question.phase == PHASE_TAG_BY_SIMILARITY:
+        elif question.phase == PHASE_COMPARE_BY_SIMILARITY:
             url = "/similar?question_id="+question.code
     return url
 

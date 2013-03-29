@@ -41,7 +41,7 @@ $(function() {
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
-	if (phase == PHASE_TAG_BY_SIMILARITY) {
+	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 		window.location.href="/similar?question_id=" + question_id;
 	}
 

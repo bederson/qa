@@ -23,7 +23,7 @@ $(function() {
 	var question_id = getURLParameter("question_id");
 	$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
 	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
-	$("#tagbysimilarity_link").attr("href", "/similar?question_id=" + question_id);
+	$("#comparebysimilarity_link").attr("href", "/similar?question_id=" + question_id);
 	$("#notes_link").attr("href", "/idea?question_id=" + question_id);
 	$("#results_link").attr("href", "/results?question_id=" + question_id);
 	$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
@@ -104,7 +104,7 @@ function displayModes() {
 		html += num_ideas + " notes, ";
 		html += num_tags_by_cluster + " tags on clusters, ";
 		html += num_tags_by_idea + " tags on ideas<br>";
-		html += num_tags_by_similarity + " tags by similarity<br>";
+		html += num_similar_ideas + " similar ideas<br>";
 		html += "<br>";
 		$("#question").html(html);
 		
@@ -230,7 +230,7 @@ function updateButtons() {
 		$("#p1button").val("Note entry disabled");
 		$("#p2button").val("Tagging by cluster disabled");
 		$("#p3button").val("Tagging by note disabled");
-		$("#p4button").val("Tagging by similarity disabled");
+		$("#p4button").val("Comparing by similarity disabled");
 		$("#p1button").attr("disabled", "disabled");
 		$("#p2button").attr("disabled", "disabled");
 		$("#p3button").attr("disabled", "disabled");
@@ -240,7 +240,7 @@ function updateButtons() {
 		$("#p1button").val("Enable adding of notes");
 		$("#p2button").val("Enable tagging by cluster");
 		$("#p3button").val("Enable tagging by note");
-		$("#p4button").val("Enable tagging by similarity");
+		$("#p4button").val("Enable comparing by similarity");
 		$("#p1button").removeAttr("disabled");
 		$("#p2button").removeAttr("disabled");
 		$("#p3button").removeAttr("disabled");
@@ -254,8 +254,8 @@ function updateButtons() {
 		} else if (phase == PHASE_TAG_BY_NOTE) {
 			$("#p3button").val("Tagging by note enabled");
 			$("#p3button").attr("disabled", "disabled");
-		} else if (phase == PHASE_TAG_BY_SIMILARITY) {
-			$("#p4button").val("Tagging by similarity enabled");
+		} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+			$("#p4button").val("Comparing by similarity enabled");
 			$("#p4button").attr("disabled", "disabled");
 		}
 	}

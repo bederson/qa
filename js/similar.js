@@ -32,7 +32,7 @@ $(function() {
 		return;
 	}
 	
-	if (phase != PHASE_TAG_BY_SIMILARITY) {
+	if (phase != PHASE_COMPARE_BY_SIMILARITY) {
 		$("#taskmsg").html("Not currently accepting new comparisons");
 		return;
 	}
@@ -64,7 +64,7 @@ function initEventHandlers() {
 
 function submitComparison() {
 	var question_id = getURLParameter("question_id");
-	if (phase == PHASE_TAG_BY_SIMILARITY) {
+	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 		// STILL TODO
 	}
 

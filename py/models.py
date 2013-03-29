@@ -131,8 +131,8 @@ class Question(db.Model):
     def getNumTagsByIdea(self):
         return IdeaTag.all().filter("question =", self).count()
     
-    def getNumTagsBySimilarity(self):
-        return SimilarTag.all().filter("question = ", self).count()
+    def getNumSimilarIdeas(self):
+        return SimilarIdea.all().filter("question = ", self).count()
 
 ######################
 ##### Person #####
@@ -363,7 +363,7 @@ class Idea(db.Model):
         if questionObj:
             IdeaTag.deleteAllTags(questionIdStr)
             IdeaAssignment.deleteAllIdeaAssignments(questionIdStr)
-            SimilarTag.deleteAllTags(questionIdStr)
+            SimilarIdea.deleteAllSimilarIdeas(questionIdStr)
             SimilarAssignment.deleteAllAssignments(questionIdStr)
             db.delete(Idea.all().filter("question =", questionObj))
 
@@ -664,50 +664,50 @@ class IdeaTag(db.Model):
             db.delete(tags)
             
 ######################
-##### SIMILARTAG #####
+##### SIMILARIDEA #####
 ######################
-class SimilarTag(db.Model):
+class SimilarIdea(db.Model):
     question = db.ReferenceProperty(Question)
-    idea = db.ReferenceProperty(Idea, collection_name='idea_similartag_set')
-    similar = db.ReferenceProperty(Idea, collection_name='similar_similartag_set')
+    idea = db.ReferenceProperty(Idea, collection_name='idea_similaridea_set')
+    similar = db.ReferenceProperty(Idea, collection_name='similar_similaridea_set')
     author = db.ReferenceProperty(Person)
     date = db.DateTimeProperty(auto_now=True)
  
     @staticmethod
-    def createSimilarTag(similar_idea_id, idea_id, questionIdStr, person):
+    def createSimilarIdea(similar_idea_id, idea_id, questionIdStr, person):
         questionObj = Question.getQuestionById(questionIdStr)
         ideaObj = Idea.get_by_id(idea_id)
         similarIdeaObj = Idea.get_by_id(similar_idea_id)
         if ideaObj and questionObj:
-            tagObj = SimilarTag()
-            tagObj.question = questionObj
-            tagObj.idea = ideaObj
-            tagObj.similar = similarIdeaObj
-            tagObj.author = person
-            tagObj.put()
-        return tagObj
+            similarObj = SimilarIdea()
+            similarObj.question = questionObj
+            similarObj.idea = ideaObj
+            similarObj.similar = similarIdeaObj
+            similarObj.author = person
+            similarObj.put()
+        return similarObj
  
     @staticmethod
-    def getTags(questionIdStr):
+    def getAllSimilarIdeas(questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
-            tags = SimilarTag.all().filter("question =", questionObj)
-            return tags
+            similarIdeas = SimilarIdea.all().filter("question =", questionObj)
+            return similarIdeas
         else:
             return None
  
     @staticmethod
-    def getTagsByUser(ideaIdStr, person):
+    def getSimilarIdeasByUser(ideaIdStr, person):
         ideaObj = Idea.getIdeaById(ideaIdStr)
         if ideaObj:
-            tags = SimilarTag.all().filter("idea =", ideaObj).filter("author = ", person)
-            return tags
+            similarIdeas = SimilarIdea.all().filter("idea =", ideaObj).filter("author = ", person)
+            return similarIdeas
         else:
             return None
  
     @staticmethod
-    def deleteAllTags(questionIdStr):
+    def deleteAllSimilarIdeas(questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
-            tags = SimilarTag.all().filter("question =", questionObj)
-            db.delete(tags)
+            similarIdeas = SimilarIdea.all().filter("question =", questionObj)
+            db.delete(similarIdeas)

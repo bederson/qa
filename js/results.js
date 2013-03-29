@@ -56,7 +56,7 @@ function init() {
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
-	if (phase == PHASE_TAG_BY_SIMILARITY) {
+	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 		// xx NOT COMPLETE
 	}
 }
@@ -135,7 +135,7 @@ function displayIdeasImpl(results) {
 			var controlid = "control" + cluster.id;
 			html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
 		}
-		if (phase == PHASE_TAG_BY_SIMILARITY) {
+		if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 			// xx NOT COMPLETE
 		}
 		html += "</tr></table>"
@@ -162,7 +162,7 @@ function displayIdeasImpl(results) {
 			displayClusterTags();
 		} else if (phase == PHASE_TAG_BY_NOTE) {
 			displayIdeaTags();
-		} else if (phase == PHASE_TAG_BY_SIMILARITY) {
+		} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 			// xx NOT COMPLETE
 			alert("display similar tags");
 		}
@@ -476,7 +476,7 @@ function handleTag(data) {
 		displayClusterTags();
 	} else if (phase == PHASE_TAG_BY_NOTE) {
 		displayIdeaTags();
-	} else if (phase == PHASE_TAG_BY_SIMILARITY) {
+	} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 		alert("handleTag");
 		// XX NOT COMPLETE
 	}
