@@ -204,12 +204,13 @@ class SimilarPageHandler(BaseHandler):
             maxNumToCompare = questionObj.getNumNotesToComparePerPerson()
             if numNotesCompared < maxNumToCompare:
                 assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person)
-
+                
         template_values = get_default_template_values(self, person, questionObj)
         template_values["phase"] = phase
         template_values["question"] = questionObj.question if questionObj else ""
         template_values["idea_id"] = assignment.idea.key().id() if assignment else -1
         template_values["idea"] = assignment.idea.text if assignment else ""
+        template_values["compare_to_ideas"] = [idea.text for idea in assignment.compareToIdeas] if assignment else []
         template_values["num_notes_to_compare"] = maxNumToCompare if maxNumToCompare else 0
         template_values["num_notes_compared"] = numNotesCompared if numNotesCompared else 0 
         path = os.path.join(os.path.dirname(__file__), '../html/similar.html')

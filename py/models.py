@@ -350,6 +350,23 @@ class Idea(db.Model):
         return Idea.all().filter("question =", questionObj).order("rand").filter("rand >", rand).get()
 
     @staticmethod
+    def getRandomIdeas(questionObj, ideasToSkip=[], limit=5):
+        ideas = []
+        rand = random.random()
+        results = Idea.all().filter("question =", questionObj).order("rand").filter("rand >", rand).run(limit=limit+len(ideasToSkip))
+        for idea in results:
+            if idea not in ideasToSkip:
+                ideas.append(idea)
+                if len(ideas) == limit:
+                    break
+        
+        # TODO: need to continue until complete # of ideas is fetched
+        if len(ideas) < limit:
+            logging.info("*** PROBLEM: NOT ENOUGH RANDOM IDEAS FETCHED ***")
+            
+        return ideas
+    
+    @staticmethod
     def assignCluster(id, clusterObj):
         """Assigns specified cluster to the specified idea"""
         ideaObj = Idea.get_by_id(id)
@@ -477,8 +494,13 @@ class IdeaAssignment(db.Model):
 class SimilarIdeaAssignment(db.Model):
     author = db.ReferenceProperty(Person)
     idea = db.ReferenceProperty(Idea)
+    compareToKeys = db.ListProperty(db.Key)
     question = db.ReferenceProperty(Question)
     current = db.BooleanProperty(default=False)
+    
+    @property
+    def compareToIdeas(self):
+        return [db.get(key) for key in self.compareToKeys]
 
     @staticmethod
     def getCurrentAssignment(questionObj, person):
@@ -508,7 +530,7 @@ class SimilarIdeaAssignment(db.Model):
     @staticmethod
     def createNewAssignment(questionObj, person):
         """Get a new random assignment for this author"""
-        ia = None
+        assignment = None
         if questionObj:
             # First deselect any existing "current" assignment
             SimilarIdeaAssignment.unselectAllAssignments(questionObj, person)
@@ -535,24 +557,39 @@ class SimilarIdeaAssignment(db.Model):
                     assigned = idea.key().id() in ideaIdsAlreadyAssigned
                     if assigned:
                         pass    # Whoops - already seen this idea, look for another
-                    else:
-                        ia = SimilarIdeaAssignment()
-                        ia.author = person
-                        ia.idea = idea
-                        ia.question = questionObj
-                        ia.current = True
-                        ia.put()
+                    else:                 
+                        compareToKeys = []
+                        compareToIdeas = Idea.getRandomIdeas(questionObj, [idea], 3)
+                        for idea in compareToIdeas:
+                            compareToKeys.append(idea.key())
+                            
+                        assignment = SimilarIdeaAssignment()
+                        assignment.author = person
+                        assignment.idea = idea
+                        assignment.compareToKeys = compareToKeys
+                        assignment.question = questionObj
+                        assignment.current = True
+                        assignment.put()
+                        
                         assignmentNeeded = False
                         
                         # save to session since this assignment
                         # may not be immediately retrievable from datastore
                         session = gaesessions.get_current_session()
-                        session["qa_similar_assignment_id"] = ia.key().id()
+                        session["qa_similar_assignment_id"] = assignment.key().id()
                 else:
                     return None
                 
-        return ia if ia else None
+        return assignment if assignment else None
 
+    @staticmethod
+    def getIdeasForComparison(questionObj, idea, size=5):
+        ideas = Idea.getRandomIdea(questionObj)
+        count = 0
+        while count < size:
+            
+            count += 1
+        
     @staticmethod
     def unselectAllAssignments(questionObj, person):
         currents = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True)

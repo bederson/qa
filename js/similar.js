@@ -92,8 +92,15 @@ function onResize() {
 // Compare notes
 /////////////////////////////////////////////
 function updateDisplayForNotesToCompare() {
+
+	var html = "";
+	for (var i=0; i<compare_to_ideas.length; i++) {
+		html += "<input type=\"radio\" name=\"compare_to\" value=\"i\">" + compare_to_ideas[i] + "<br/>";
+	}
+	$("#other_notes").html(html);
+	
 	var current_note_num = num_notes_compared+1;
-	var html = "<br><br>";
+	html = "<br><br>";
 	html += "This is note #" + current_note_num + " out of " + num_notes_to_compare + ".<br>";
 	var moreToDo = current_note_num < num_notes_to_compare;
 	if (moreToDo) {
