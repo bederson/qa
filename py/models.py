@@ -167,20 +167,36 @@ class Person(db.Model):
         person.nickname = nickname if nickname else (Person.cleanNickname(person.user) if person.user else None)
         person.question = question
         person.put()
+        
+        # save to session since this person
+        # may not be immediately retrievable from datastore
+        session = gaesessions.get_current_session()
+        session["qa_person_id"] = person.key().id()
+        
         return person
     
     @staticmethod
-    def getPerson(question=None, nickname=None, person_id=None):
+    def getPerson(question=None, nickname=None):
         person = None
+        
+        # check if person id stored in session
+        # if so use to retrieve logged in user 
+        session = gaesessions.get_current_session()
+        person_id = session.pop("qa_person_id") if session.has_key("qa_person_id") else None
         if person_id:
-            person = Person.get_by_id(person_id) 
-        else:
+            person = Person.get_by_id(person_id)
+            # check if person id stored in session corresponds to inputs
+            if question and question != person.question:
+                person = None
+            if nickname and nickname != person.nickname:
+                person = None
+        
+        if not person:
             user = users.get_current_user()
             if question:
                 if question.nicknameAuthentication:
                     # if no nickname provided, check session
                     if not nickname:
-                        session = gaesessions.get_current_session()
                         questionSessionValues = session.get(question.code)
                         nickname = questionSessionValues["nickname"] if questionSessionValues else None
                     if nickname:
@@ -406,14 +422,14 @@ class IdeaAssignment(db.Model):
         if questionObj and person:
             ia = IdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
             if ia:
-                return ia.idea
+                return ia
             else:
-                return IdeaAssignment.getNewAssignment(questionObj, person)
+                return IdeaAssignment.createNewAssignment(questionObj, person)
         else:
             return None
         
     @staticmethod
-    def getNewAssignment(questionObj, person):
+    def createNewAssignment(questionObj, person):
         """Get a new random idea assignment for this author"""
         ia = None
         if questionObj:
@@ -447,7 +463,7 @@ class IdeaAssignment(db.Model):
                         ia.put()
                         assignmentNeeded = False
                 
-        return ia.idea if ia else None
+        return ia if ia else None
 
     @staticmethod
     def deleteAllIdeaAssignments(questionIdStr):
@@ -467,28 +483,44 @@ class SimilarAssignment(db.Model):
     @staticmethod
     def getCurrentAssignment(questionObj, person):
         """Gets the current assignment (or a new one if there isn't a current one)"""
-        if questionObj and person:
-            ia = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
-            if ia:
-                return ia.idea
-            else:
-                return SimilarAssignment.getNewAssignment(questionObj, person)
-        else:
-            return None
+        assignment = None
+        if questionObj and person:                
+                # check if assignment id stored in session
+                # if so use to retrieve assignment
+                session = gaesessions.get_current_session()
+                assignment_id = session.pop("qa_similar_assignment_id") if session.has_key("qa_similar_assignment_id") else None
+                if assignment_id:
+                    assignment = SimilarAssignment.get_by_id(assignment_id)
+                    # check if assignment id stored in session corresponds to inputs
+                    if assignment and questionObj != assignment.question:
+                        assignment = None
+                    if assignment and person != assignment.author:
+                        assignment = None
+                
+                if not assignment:  
+                    assignment = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
+                    
+                if not assignment:
+                    assignment = SimilarAssignment.createNewAssignment(questionObj, person)
         
+        return assignment if assignment else None
+            
     @staticmethod
-    def getNewAssignment(questionObj, person):
+    def createNewAssignment(questionObj, person):
         """Get a new random assignment for this author"""
         ia = None
         if questionObj:
             # First deselect any existing "current" assignment
-            currents = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True)
-            for currentObj in currents:
-                currentObj.current = False
-                currentObj.put()
+            SimilarAssignment.unselectAllAssignments(questionObj, person)
             
+            # Get list of ideas already assigned to user (don't want to show duplicates)
             numIdeas = Idea.all().filter("question =", questionObj).count()
-            numAssignments = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).count()
+            assignments = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj)
+            numAssignments = assignments.count()            
+            ideaIdsAlreadyAssigned = []
+            for assignment in assignments:
+                ideaIdsAlreadyAssigned.append(assignment.idea.key().id())
+            
             assignmentNeeded = True
             # Randomly select ideas, but keep trying if we've already assigned this one.
             # This is a BAD algorithm if there are a lot of ideas AND individuals get a lot of assignments
@@ -499,7 +531,8 @@ class SimilarAssignment(db.Model):
                 num_tries += 1
                 idea = Idea.getRandomIdea(questionObj)
                 if idea:
-                    assigned = (SimilarAssignment.all().filter("author =", person).filter("idea =", idea).count() > 0)
+                    #assigned = (SimilarAssignment.all().filter("author =", person).filter("idea =", idea).count() > 0)
+                    assigned = idea.key().id() in ideaIdsAlreadyAssigned
                     if assigned:
                         pass    # Whoops - already seen this idea, look for another
                     else:
@@ -510,13 +543,23 @@ class SimilarAssignment(db.Model):
                         ia.current = True
                         ia.put()
                         assignmentNeeded = False
+                        
+                        # save to session since this assignment
+                        # may not be immediately retrievable from datastore
+                        session = gaesessions.get_current_session()
+                        session["qa_similar_assignment_id"] = ia.key().id()
                 else:
                     return None
-        if ia:
-            return ia.idea
-        else:
-            return None
+                
+        return ia if ia else None
 
+    @staticmethod
+    def unselectAllAssignments(questionObj, person):
+        currents = SimilarAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True)
+        for currentObj in currents:
+            currentObj.current = False
+            currentObj.put()
+                
     @staticmethod
     def deleteAllAssignments(questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)

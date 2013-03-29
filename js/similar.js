@@ -91,10 +91,12 @@ function onResize() {
 /////////////////////////////////////////////
 // Compare notes
 /////////////////////////////////////////////
-function updateDisplayForNotesToCompare() {	
+function updateDisplayForNotesToCompare() {
+	var current_note_num = num_notes_compared+1;
 	var html = "<br><br>";
-	html += "This is note #" + num_notes_compared + " out of " + num_notes_to_compare + ".<br>";
-	if (num_notes_compared < num_notes_to_compare) {
+	html += "This is note #" + current_note_num + " out of " + num_notes_to_compare + ".<br>";
+	var moreToDo = current_note_num < num_notes_to_compare;
+	if (moreToDo) {
 		html += "To skip this OR go to the next note, ";
 		var msg = "Next note";
 	} else {
@@ -109,7 +111,8 @@ function updateDisplayForNotesToCompare() {
 	$("#next_button").click(function() {
 		var question_id = getURLParameter("question_id");
 		var data = {
-			"question_id": question_id
+			"question_id": question_id,
+			"complete": moreToDo ? "0" : "1"
 		};
 		$.getJSON("/getsimilarassignment", data, function(results) {
 			window.location.reload();
@@ -124,10 +127,11 @@ function displaySimilarNotes() {
 	// STILL TODO
 }
 
-function comparisonFinished() {
+function comparisonFinished(idea_id) {
 	var question_id = getURLParameter("question_id");
 	var url = "/results?question_id=" + question_id;
-	var html = "<h1>Similarity comparison complete</h1>";
+	
+	var html = "<h1>Comparison complete</h1>";
 	html += "Thank you!";
 	html += "<br/><br/>";
 	html += "You can see all the <a href='" + url + "'>similar notes so far</a>.";

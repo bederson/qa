@@ -129,11 +129,7 @@ class BaseHandler(webapp2.RequestHandler):
             question = None
             nickname = None
         
-        # check if person_key stored in session
-        # if so use to retrieve logged in user 
-        session = gaesessions.get_current_session()
-        person_key = session.pop("person_key") if session.has_key("person_key") else None
-        person = Person.getPerson(question, nickname, person_key)
+        person = Person.getPerson(question, nickname)
                     
         # if no person found
         # create person if create is true, OR,
@@ -141,8 +137,6 @@ class BaseHandler(webapp2.RequestHandler):
         user = users.get_current_user()
         if not person and (create or (question and not question.nicknameAuthentication and user)):            
             person = Person.createPerson(question, nickname)
-            # store person_key in session so new person can be retrieved from the datastore
-            session["person_key"] = person.key().id()
 
         return person        
 
@@ -202,18 +196,22 @@ class SimilarPageHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
-        template_values = get_default_template_values(self, person, questionObj)
-        phase = Question.getPhase(question_id)
-        template_values["phase"] = phase
-        if phase == PHASE_TAG_BY_SIMILARITY:
-            idea = SimilarAssignment.getCurrentAssignment(questionObj, person)
-            template_values["idea_id"] = idea.key().id() if idea is not None else -1
-            template_values["idea"] = idea.text if idea is not None else ""
-            if questionObj:
-                template_values["question"] = questionObj.question
-                template_values["num_notes_to_compare"] = questionObj.getNumNotesToComparePerPerson()
-                template_values["num_notes_compared"] = questionObj.getNumNotesComparedByUser(person)
+        assignment = None
 
+        phase = Question.getPhase(question_id)        
+        if phase == PHASE_TAG_BY_SIMILARITY and questionObj:
+            numNotesCompared = questionObj.getNumNotesComparedByUser(person)        
+            maxNumToCompare = questionObj.getNumNotesToComparePerPerson()
+            if numNotesCompared < maxNumToCompare:
+                assignment = SimilarAssignment.getCurrentAssignment(questionObj, person)
+
+        template_values = get_default_template_values(self, person, questionObj)
+        template_values["phase"] = phase
+        template_values["question"] = questionObj.question if questionObj else ""
+        template_values["idea_id"] = assignment.idea.key().id() if assignment else -1
+        template_values["idea"] = assignment.idea.text if assignment else ""
+        template_values["num_notes_to_compare"] = maxNumToCompare if maxNumToCompare else 0
+        template_values["num_notes_compared"] = numNotesCompared if numNotesCompared else 0 
         path = os.path.join(os.path.dirname(__file__), '../html/similar.html')
         self.response.out.write(template.render(path, template_values))
         
@@ -594,20 +592,22 @@ class IdeaAssignmentHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
-        idea = IdeaAssignment.getNewAssignment(question, person)
-        data = { "idea_id" : idea.key().id() if idea is not None else -1 }
+        IdeaAssignment.createNewAssignment(question, person)
         self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
-        self.response.out.write(json.dumps(data))
+        self.response.out.write(json.dumps({}))
 
 class SimilarAssignmentHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
-        idea = SimilarAssignment.getNewAssignment(question, person)
-        data = { "idea_id" : idea.key().id() if idea is not None else -1 }
+        isFinished = self.request.get("complete", "0") == "1"
+        if not isFinished:
+            SimilarAssignment.createNewAssignment(question, person)
+        else:
+            SimilarAssignment.unselectAllAssignments(question, person)
         self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
-        self.response.out.write(json.dumps(data))
+        self.response.out.write(json.dumps({}))
         
 class PhaseHandler(BaseHandler):
     def post(self):

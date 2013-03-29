@@ -23,8 +23,8 @@ limitations under the License.
 	<script>
 		var phase = parseInt("{{ phase }}");
 		var idea_id = "{{ idea_id }}";
-		var num_notes_to_compare = parseInt("{{ num_notes_to_compare }}");
 		var num_notes_compared = parseInt("{{ num_notes_compared }}");
+		var num_notes_to_compare = parseInt("{{ num_notes_to_compare }}");
 	</script>
 {% endblock %}
 
@@ -37,9 +37,9 @@ limitations under the License.
 	<div class="qcontainer">
 		<h1>Time To Compare Notes</h1>
 		<div>Please select the note that is the most similar to this one.</div>
-		<div class="help">If none of the other notes are similar, click Next note.</div>
+		<div class="help spaceafter">If none of the other notes are similar, click Next note.</div>
 		<div id="taskmsg" class="help"></div>
-		<div id="taskarea" class="spaceabove spaceafter" style="display:none">
+		<div id="taskarea" class="spaceafter" style="display:none">
 			<div class="smallspaceafter"><strong>This note:</strong> <span id="selected_note">{{ idea }}</span></div>
 			<div class="smallspaceafter"><strong>is most similar to:</strong> <span id="other_notes"></span></div>
 			<input id="submit" class="spaceafter" type="submit" value="Submit"><br/>
