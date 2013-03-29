@@ -478,7 +478,7 @@ class SimilarAssignment(db.Model):
         
     @staticmethod
     def getNewAssignment(questionObj, person):
-        """Get a new random idea assignment for this author"""
+        """Get a new random assignment for this author"""
         ia = None
         if questionObj:
             # First deselect any existing "current" assignment

@@ -604,7 +604,7 @@ class SimilarAssignmentHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
-        idea = SimilarAssignment.getNewAssignment(question_id, person)
+        idea = SimilarAssignment.getNewAssignment(question, person)
         data = { "idea_id" : idea.key().id() if idea is not None else -1 }
         self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
         self.response.out.write(json.dumps(data))
