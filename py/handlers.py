@@ -607,8 +607,8 @@ class SimilarIdeaAssignmentHandler(BaseHandler):
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
         assignment = None
-        isFinished = self.request.get("complete", "0") == "1"
-        if not isFinished:
+        requestNewAssignment = self.request.get("request_new", "0") == "1"
+        if requestNewAssignment:
             assignment = SimilarIdeaAssignment.createNewAssignment(question, person)
         else:
             SimilarIdeaAssignment.unselectAllAssignments(question, person)

@@ -127,11 +127,14 @@ function updateUI(assignment) {
 		displaySimilarNotes();
 
 		$("#next_button").click(function() {
-			var question_id = getURLParameter("question_id");
-			$.getJSON("/getsimilarideaassignment", { "question_id" : question_id }, function(data) {
+			var data = {
+				"question_id" : getURLParameter("question_id"),
+				"request_new" : current_note < num_notes_to_compare ? "1" : "0"
+			};
+			$.getJSON("/similarideaassignment", data, function(results) {
 				current_note++;
 				num_notes_compared++;
-				assignment = data;
+				assignment = results;
 				updateUI(assignment);
 			});
 		});

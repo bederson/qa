@@ -40,7 +40,7 @@ app = webapp2.WSGIApplication([
 	('/delete', DeleteHandler),
 	('/cluster', ClusterHandler),
 	('/getideaassignment', IdeaAssignmentHandler),
-    ('/getsimilarideaassignment', SimilarIdeaAssignmentHandler),
+    ('/similarideaassignment', SimilarIdeaAssignmentHandler),
 	('/set_phase', PhaseHandler),
 	('/set_num_notes_to_tag_per_person', NumNotesToTagPerPersonHandler),
     ('/set_num_notes_to_compare_per_person', NumNotesToComparePerPersonHandler),
