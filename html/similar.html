@@ -22,14 +22,8 @@ limitations under the License.
 	<script type="text/javascript" src="js/similar.js"></script>
 	<script>
 		var phase = parseInt("{{ phase }}");
-		var num_notes_compared = parseInt("{{ num_notes_compared }}");
+		var assignment = {{ assignment|safe }};
 		var num_notes_to_compare = parseInt("{{ num_notes_to_compare }}");
-
-		var idea_id = "{{ idea_id }}";		
-		var compare_to_ideas = [];
-		{% for idea in compare_to_ideas %}compare_to_ideas.push("{{idea}}");
-		{% endfor %}
-
 	</script>
 {% endblock %}
 
@@ -45,7 +39,7 @@ limitations under the License.
 		<div class="help spaceafter">If none of the other notes are similar, click Next note.</div>
 		<div id="taskmsg" class="help"></div>
 		<div id="taskarea" class="spaceafter" style="display:none">
-			<div class="smallspaceafter"><strong>This note:</strong> <span id="selected_note">{{ idea }}</span></div>
+			<div class="smallspaceafter"><strong>This note:</strong> <span id="selected_note"></span></div>
 			<div class="smallspaceafter"><strong>is the most similar to:</strong><br/><span id="other_notes"></span></div>
 			<input id="submit" class="spaceafter" type="submit" value="Submit"><br/>
 			<div id="thankyou">Thank you. Please compare as many notes as you'd like.</div>

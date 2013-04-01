@@ -14,9 +14,10 @@
 // limitations under the License.
 //
 
-var mytags = [];
+var num_notes_compared = 0;
+var current_note = 0;
 
-$(function() {
+$(document).ready(function() {
 	initChannel();
 	initEventHandlers();
 
@@ -37,13 +38,8 @@ $(function() {
 		return;
 	}
 	
-	if ((idea_id == "-1") || (num_notes_compared > num_notes_to_compare)) {
-		comparisonFinished();
-	} else {
-		updateDisplayForNotesToCompare();
-	}
-		
-	$("#taskarea").show()	
+	current_note = 1;
+	updateUI(assignment);
 });
 
 function initEventHandlers() {
@@ -88,61 +84,65 @@ function onResize() {
 	$(".qcontainer").width(width);
 }
 
-/////////////////////////////////////////////
-// Compare notes
-/////////////////////////////////////////////
-function updateDisplayForNotesToCompare() {
+function updateUI(assignment) {
+	var question_id = getURLParameter("question_id");
 
-	var html = "";
-	for (var i=0; i<compare_to_ideas.length; i++) {
-		html += "<input type=\"radio\" name=\"compare_to\" value=\"i\">" + compare_to_ideas[i] + "<br/>";
+	var isFinished = num_notes_compared == num_notes_to_compare;
+	if (isFinished) {
+		var url = "/results?question_id=" + question_id;
+		var html = "<h1>Comparison complete</h1>";
+		html += "Thank you!";
+		html += "<br/><br/>";
+		html += "You can see all the <a href='" + url + "'>similar notes so far</a>.";
+		$(".qcontainer").html(html);
 	}
-	$("#other_notes").html(html);
 	
-	var current_note_num = num_notes_compared+1;
-	html = "<br><br>";
-	html += "This is note #" + current_note_num + " out of " + num_notes_to_compare + ".<br>";
-	var moreToDo = current_note_num < num_notes_to_compare;
-	if (moreToDo) {
-		html += "To skip this OR go to the next note, ";
-		var msg = "Next note";
-	} else {
-		html += "When you are done, "
-		var msg = "finished!";
-	}
-	html += "click on ";
-	html += "<input id='next_button' value='" + msg + "' type='button'></input>";
-	html += "<br><br>";
-	$("#next_note").html(html);
+	else {
+		if (isDefined(assignment.idea)) {
+			$("#selected_note").html(assignment.idea.text);
+		}
+		
+		if (isDefined(assignment.compare_to)) {
+			var html = "";
+			for (var i=0; i<assignment.compare_to.length; i++) {
+				html += "<input type=\"radio\" name=\"compare_to\" value=\"i\">" + assignment.compare_to[i].text + "<br/>";
+			}
+		}
+		$("#other_notes").html(html);
 	
-	$("#next_button").click(function() {
-		var question_id = getURLParameter("question_id");
-		var data = {
-			"question_id": question_id,
-			"complete": moreToDo ? "0" : "1"
-		};
-		$.getJSON("/getsimilarideaassignment", data, function(results) {
-			window.location.reload();
+		html = "<br><br>";
+		html += "This is note #" + current_note + " out of " + num_notes_to_compare + ".<br/>";
+		var isLastNote = current_note == num_notes_to_compare;
+		if (!isLastNote) {
+			html += "To skip this OR go to the next note, ";
+			var msg = "Next note";
+		} else {
+			html += "When you are done, "
+			var msg = "finished!";
+		}
+		html += "click on ";
+		html += "<input id='next_button' value='" + msg + "' type='button'></input>";
+		html += "<br><br>";
+		$("#next_note").html(html);
+		displaySimilarNotes();
+
+		$("#next_button").click(function() {
+			var question_id = getURLParameter("question_id");
+			$.getJSON("/getsimilarideaassignment", { "question_id" : question_id }, function(data) {
+				current_note++;
+				num_notes_compared++;
+				assignment = data;
+				updateUI(assignment);
+			});
 		});
-	});
-	
-	displaySimilarNotes();
+		
+		$("#taskarea").show();
+	}
 }
 
 function displaySimilarNotes() {
 	var question_id = getURLParameter("question_id");
 	// STILL TODO
-}
-
-function comparisonFinished(idea_id) {
-	var question_id = getURLParameter("question_id");
-	var url = "/results?question_id=" + question_id;
-	
-	var html = "<h1>Comparison complete</h1>";
-	html += "Thank you!";
-	html += "<br/><br/>";
-	html += "You can see all the <a href='" + url + "'>similar notes so far</a>.";
-	$(".qcontainer").html(html);
 }
 
 /////////////////////////
@@ -153,7 +153,7 @@ function handleNew(data) {
 }
 
 function handleRefresh(data) {
-	window.location.reload();
+	// Ignore it
 }
 
 function handlePhase(data) {

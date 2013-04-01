@@ -319,7 +319,15 @@ class Idea(db.Model):
     cluster = db.ReferenceProperty(Cluster)
     question = db.ReferenceProperty(Question)
     rand = db.FloatProperty()
-
+    
+    def toDict(self):
+        return {
+            "author": Person.toDict(self.author),
+            "date":  self.date,
+            "text": self.text,
+            "question_code": self.question.code
+        }
+        
     @staticmethod
     def getIdeaById(ideaIdStr):
         ideaObj = Idea.get_by_id(int(ideaIdStr))
@@ -382,7 +390,7 @@ class Idea(db.Model):
             SimilarIdea.deleteAllSimilarIdeas(questionIdStr)
             SimilarIdeaAssignment.deleteAllAssignments(questionIdStr)
             db.delete(Idea.all().filter("question =", questionObj))
-            
+                    
     @staticmethod
     def contains(ideas, match):
         found = False
@@ -398,11 +406,6 @@ class Idea(db.Model):
         questionsMatch = (idea1.question == None and idea2.question == None) or (idea1.question.code == idea2.question.code)
         authorsMatch = Person.equals(idea1.author, idea2.author)
         datesMatch = idea1.date == idea2.date
-        logging.info("=== EQUALS ===")
-        logging.info("question: {0}, {1}, {2}".format(idea1.question.code,idea2.question.code,questionsMatch))
-        logging.info("idea: {0}, {1}, {2}".format(idea1.text,idea2.text,textsMatch))
-        logging.info("author: {0}, {1}, {2}".format(idea1.author,idea2.author,authorsMatch))
-        logging.info("timestamp: {0}, {1}, {2}".format(idea1.date,idea2.date,datesMatch))
         return textsMatch and questionsMatch and authorsMatch and datesMatch
 
 #############################
@@ -523,6 +526,15 @@ class SimilarIdeaAssignment(db.Model):
     def compareToIdeas(self):
         return [db.get(key) for key in self.compareToKeys]
 
+    def toDict(self):
+        return {
+            "author": Person.toDict(self.author),
+            "idea": self.idea.toDict(),    
+            "question_code": self.question.code,
+            "compare_to": [idea.toDict() for idea in self.compareToIdeas],
+            "current": self.current
+        }
+        
     @staticmethod
     def getCurrentAssignment(questionObj, person):
         """Gets the current assignment (or a new one if there isn't a current one)"""
@@ -559,7 +571,6 @@ class SimilarIdeaAssignment(db.Model):
             # Get list of ideas already assigned to user (don't want to show duplicates)
             numIdeas = Idea.all().filter("question =", questionObj).count()
             assignments = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj)
-            assignedIdeas = [ assignment.idea for assignment in assignments ]
             numAssignments = assignments.count()
             
             assignmentNeeded = True
@@ -572,12 +583,13 @@ class SimilarIdeaAssignment(db.Model):
                 num_tries += 1
                 idea = Idea.getRandomIdea(questionObj)
                 if idea:
+                    assignedIdeas = [ assignment.idea for assignment in assignments ]
                     assigned = Idea.contains(assignedIdeas, idea)
                     if assigned:
                         pass    # Whoops - already seen this idea, look for another
                     else: 
-                        ideas = Idea.all().filter("question =", questionObj).filter("__key__ !=", idea.key())
-                        compareToIdeas = Idea.getRandomIdeas(questionObj, list(ideas), size=5)
+                        otherIdeas = Idea.all().filter("question =", questionObj).filter("__key__ !=", idea.key())
+                        compareToIdeas = Idea.getRandomIdeas(questionObj, list(otherIdeas), size=5)
                         assignment = SimilarIdeaAssignment()
                         assignment.author = person
                         assignment.idea = idea
@@ -585,7 +597,10 @@ class SimilarIdeaAssignment(db.Model):
                         assignment.question = questionObj
                         assignment.current = True
                         assignment.put()
+                        import helpers
+                        helpers.log("CREATE NEW SIMILAR IDEA ASSIGNMENT: {0}".format(idea.text))
                         assignmentNeeded = False
+                        numAssignments += 1
                         
                         # save to session since this assignment
                         # may not be immediately retrievable from datastore

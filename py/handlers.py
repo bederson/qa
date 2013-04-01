@@ -25,6 +25,7 @@ import StringIO
 import csv
 import time
 import webapp2
+import helpers
 from lib import gaesessions
 from models import *
 from google.appengine.ext import db
@@ -140,6 +141,10 @@ class BaseHandler(webapp2.RequestHandler):
 
         return person        
 
+    def writeResponseAsJson(self, data):
+        self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
+        self.response.out.write(helpers.to_json(data))
+        
     def redirectWithMsg(self, msg=None, dst="/"):        
         if msg is not None:
             session = gaesessions.get_current_session()
@@ -210,11 +215,8 @@ class SimilarPageHandler(BaseHandler):
         template_values = get_default_template_values(self, person, questionObj)
         template_values["phase"] = phase
         template_values["question"] = questionObj.question if questionObj else ""
-        template_values["idea_id"] = assignment.idea.key().id() if assignment else -1
-        template_values["idea"] = assignment.idea.text if assignment else ""
-        template_values["compare_to_ideas"] = [idea.text for idea in assignment.compareToIdeas] if assignment else []
-        template_values["num_notes_to_compare"] = maxNumToCompare
-        template_values["num_notes_compared"] = numNotesCompared
+        template_values["assignment"] = helpers.to_json(assignment.toDict() if assignment else {})
+        template_values["num_notes_to_compare"] = maxNumToCompare 
         path = os.path.join(os.path.dirname(__file__), '../html/similar.html')
         self.response.out.write(template.render(path, template_values))
         
@@ -604,13 +606,15 @@ class SimilarIdeaAssignmentHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
+        assignment = None
         isFinished = self.request.get("complete", "0") == "1"
         if not isFinished:
-            SimilarIdeaAssignment.createNewAssignment(question, person)
+            assignment = SimilarIdeaAssignment.createNewAssignment(question, person)
         else:
             SimilarIdeaAssignment.unselectAllAssignments(question, person)
-        self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
-        self.response.out.write(json.dumps({}))
+            
+        assignment = assignment.toDict() if assignment else {}
+        self.writeResponseAsJson(assignment)
         
 class PhaseHandler(BaseHandler):
     def post(self):
