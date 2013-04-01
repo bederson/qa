@@ -245,7 +245,14 @@ class Person(db.Model):
         return {
             "nickname": person.nickname,
             "user_identity":  userIdentity if isQuestionAuthor else ""
-        }      
+        } 
+    
+    @staticmethod
+    def equals(person1, person2):        
+        usersMatch = person1.user == person2.user
+        nicknamesMatch = person1.nickname == person2.nickname
+        questionsMatch = (person1.question == None and person2.question == None) or (person1.question.code == person2.question.code)        
+        return usersMatch and nicknamesMatch and questionsMatch     
                 
 ###################
 ##### CLUSTER #####
@@ -350,21 +357,13 @@ class Idea(db.Model):
         return Idea.all().filter("question =", questionObj).order("rand").filter("rand >", rand).get()
 
     @staticmethod
-    def getRandomIdeas(questionObj, ideasToSkip=[], limit=5):
-        ideas = []
-        rand = random.random()
-        results = Idea.all().filter("question =", questionObj).order("rand").filter("rand >", rand).run(limit=limit+len(ideasToSkip))
-        for idea in results:
-            if idea not in ideasToSkip:
-                ideas.append(idea)
-                if len(ideas) == limit:
-                    break
-        
-        # TODO: need to continue until complete # of ideas is fetched
-        if len(ideas) < limit:
-            logging.info("*** PROBLEM: NOT ENOUGH RANDOM IDEAS FETCHED ***")
-            
-        return ideas
+    def getRandomIdeas(questionObj, ideas, size=5):
+        numIdeas = len(ideas) if ideas else 0
+        if numIdeas >= size:
+            return random.sample(ideas, size)
+        else:
+            logging.info("WARNING: Cannot return {0} random ideas since only {1} ideas available".format(size, numIdeas))
+            return []
     
     @staticmethod
     def assignCluster(id, clusterObj):
@@ -383,6 +382,28 @@ class Idea(db.Model):
             SimilarIdea.deleteAllSimilarIdeas(questionIdStr)
             SimilarIdeaAssignment.deleteAllAssignments(questionIdStr)
             db.delete(Idea.all().filter("question =", questionObj))
+            
+    @staticmethod
+    def contains(ideas, match):
+        found = False
+        for idea in ideas:
+            if Idea.equals(idea, match):
+                found = True
+                break
+        return found
+    
+    @staticmethod
+    def equals(idea1, idea2):
+        textsMatch = idea1.text == idea2.text
+        questionsMatch = (idea1.question == None and idea2.question == None) or (idea1.question.code == idea2.question.code)
+        authorsMatch = Person.equals(idea1.author, idea2.author)
+        datesMatch = idea1.date == idea2.date
+        logging.info("=== EQUALS ===")
+        logging.info("question: {0}, {1}, {2}".format(idea1.question.code,idea2.question.code,questionsMatch))
+        logging.info("idea: {0}, {1}, {2}".format(idea1.text,idea2.text,textsMatch))
+        logging.info("author: {0}, {1}, {2}".format(idea1.author,idea2.author,authorsMatch))
+        logging.info("timestamp: {0}, {1}, {2}".format(idea1.date,idea2.date,datesMatch))
+        return textsMatch and questionsMatch and authorsMatch and datesMatch
 
 #############################
 ##### CLUSTERASSIGNMENT #####
@@ -538,10 +559,8 @@ class SimilarIdeaAssignment(db.Model):
             # Get list of ideas already assigned to user (don't want to show duplicates)
             numIdeas = Idea.all().filter("question =", questionObj).count()
             assignments = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj)
-            numAssignments = assignments.count()            
-            ideaIdsAlreadyAssigned = []
-            for assignment in assignments:
-                ideaIdsAlreadyAssigned.append(assignment.idea.key().id())
+            assignedIdeas = [ assignment.idea for assignment in assignments ]
+            numAssignments = assignments.count()
             
             assignmentNeeded = True
             # Randomly select ideas, but keep trying if we've already assigned this one.
@@ -553,24 +572,19 @@ class SimilarIdeaAssignment(db.Model):
                 num_tries += 1
                 idea = Idea.getRandomIdea(questionObj)
                 if idea:
-                    #assigned = (SimilarIdeaAssignment.all().filter("author =", person).filter("idea =", idea).count() > 0)
-                    assigned = idea.key().id() in ideaIdsAlreadyAssigned
+                    assigned = Idea.contains(assignedIdeas, idea)
                     if assigned:
                         pass    # Whoops - already seen this idea, look for another
-                    else:                 
-                        compareToKeys = []
-                        compareToIdeas = Idea.getRandomIdeas(questionObj, [idea], 3)
-                        for idea in compareToIdeas:
-                            compareToKeys.append(idea.key())
-                            
+                    else: 
+                        ideas = Idea.all().filter("question =", questionObj).filter("__key__ !=", idea.key())
+                        compareToIdeas = Idea.getRandomIdeas(questionObj, list(ideas), size=5)
                         assignment = SimilarIdeaAssignment()
                         assignment.author = person
                         assignment.idea = idea
-                        assignment.compareToKeys = compareToKeys
+                        assignment.compareToKeys = [ idea.key() for idea in compareToIdeas ]
                         assignment.question = questionObj
                         assignment.current = True
                         assignment.put()
-                        
                         assignmentNeeded = False
                         
                         # save to session since this assignment
@@ -581,14 +595,6 @@ class SimilarIdeaAssignment(db.Model):
                     return None
                 
         return assignment if assignment else None
-
-    @staticmethod
-    def getIdeasForComparison(questionObj, idea, size=5):
-        ideas = Idea.getRandomIdea(questionObj)
-        count = 0
-        while count < size:
-            
-            count += 1
         
     @staticmethod
     def unselectAllAssignments(questionObj, person):

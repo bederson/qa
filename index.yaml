@@ -44,7 +44,17 @@ indexes:
 - kind: Idea
   properties:
   - name: question
+  - name: key
+
+- kind: Idea
+  properties:
+  - name: question
   - name: rand
+
+- kind: Idea
+  properties:
+  - name: question
+  - name: text
 
 - kind: Person
   properties:

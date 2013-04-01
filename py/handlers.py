@@ -196,9 +196,11 @@ class SimilarPageHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
-        assignment = None
 
-        phase = Question.getPhase(question_id)        
+        phase = Question.getPhase(question_id)
+        assignment = None
+        numNotesCompared = 0
+        maxNumToCompare = 0
         if phase == PHASE_COMPARE_BY_SIMILARITY and questionObj:
             numNotesCompared = questionObj.getNumNotesComparedByUser(person)        
             maxNumToCompare = questionObj.getNumNotesToComparePerPerson()
@@ -211,8 +213,8 @@ class SimilarPageHandler(BaseHandler):
         template_values["idea_id"] = assignment.idea.key().id() if assignment else -1
         template_values["idea"] = assignment.idea.text if assignment else ""
         template_values["compare_to_ideas"] = [idea.text for idea in assignment.compareToIdeas] if assignment else []
-        template_values["num_notes_to_compare"] = maxNumToCompare if maxNumToCompare else 0
-        template_values["num_notes_compared"] = numNotesCompared if numNotesCompared else 0 
+        template_values["num_notes_to_compare"] = maxNumToCompare
+        template_values["num_notes_compared"] = numNotesCompared
         path = os.path.join(os.path.dirname(__file__), '../html/similar.html')
         self.response.out.write(template.render(path, template_values))
         
