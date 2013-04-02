@@ -201,21 +201,18 @@ class SimilarPageHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
-
         phase = Question.getPhase(question_id)
+
         assignment = None
-        numNotesCompared = 0
         maxNumToCompare = 0
         if phase == PHASE_COMPARE_BY_SIMILARITY and questionObj:
-            numNotesCompared = questionObj.getNumNotesComparedByUser(person)        
+            # Try to get new assignment regardless of how many completed so far
             maxNumToCompare = questionObj.getNumNotesToComparePerPerson()
-            if numNotesCompared < maxNumToCompare:
-                assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person)
+            assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person)
                 
         template_values = get_default_template_values(self, person, questionObj)
-        template_values["phase"] = phase
-        template_values["question"] = questionObj.question if questionObj else ""
-        template_values["assignment"] = helpers.to_json(assignment.toDict() if assignment else {})
+        template_values["phase"] = phase if phase else -1
+        template_values["assignment"] = helpers.to_json(assignment.toDict() if assignment else None)
         template_values["num_notes_to_compare"] = maxNumToCompare 
         path = os.path.join(os.path.dirname(__file__), '../html/similar.html')
         self.response.out.write(template.render(path, template_values))
@@ -601,20 +598,38 @@ class IdeaAssignmentHandler(BaseHandler):
         self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
         self.response.out.write(json.dumps({}))
 
-class SimilarIdeaAssignmentHandler(BaseHandler):
+class SimilarIdeaHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
+        assignment_json = self.request.get("assignment")
+        current_assignment = helpers.from_json(assignment_json) if assignment_json else None
+        similar_to = self.request.get("similar_to")
+        similar_to_index = int(similar_to) if similar_to and similar_to.isdigit() else None
+        request_new_assignment = self.request.get("request_new", "0") == "1"
+        
+        data = {}              
         question = Question.getQuestionById(question_id)
-        assignment = None
-        requestNewAssignment = self.request.get("request_new", "0") == "1"
-        if requestNewAssignment:
-            assignment = SimilarIdeaAssignment.createNewAssignment(question, person)
+        if not question:
+            data["status"] = 0
+            data["msg"] = "Invalid question code"
+        
         else:
-            SimilarIdeaAssignment.unselectAllAssignments(question, person)
+            data["status"] = 1
+            if current_assignment and similar_to_index is not None:
+                idea_id = long(current_assignment["idea"]["id"])
+                compare_to_ideas = current_assignment["compare_to"]
+                similar_idea_id = long(compare_to_ideas[similar_to_index]["id"])
+                SimilarIdea.createSimilarIdea(idea_id, similar_idea_id, question, person)
             
-        assignment = assignment.toDict() if assignment else {}
-        self.writeResponseAsJson(assignment)
+            data["assignment"] = None
+            if request_new_assignment:
+                new_assignment = SimilarIdeaAssignment.createNewAssignment(question, person)
+                data["assignment"] = new_assignment.toDict() if new_assignment else None
+            else:
+                SimilarIdeaAssignment.unselectAllAssignments(question, person)        
+    
+        self.writeResponseAsJson(data)
         
 class PhaseHandler(BaseHandler):
     def post(self):

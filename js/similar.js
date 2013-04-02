@@ -14,32 +14,33 @@
 // limitations under the License.
 //
 
-var num_notes_compared = 0;
-var current_note = 0;
-
 $(document).ready(function() {
 	initChannel();
 	initEventHandlers();
 
-	var question_id = getURLParameter("question_id");
-	
 	if (!logged_in) {
-		$("#taskmsg").html("Please log in to compare notes");
+		$("#warning").html("Please log in to compare notes");
 		return;
 	}
-
-	if (isUndefined(question_id)) {
-		$("#taskmsg").html("Invalid question code");
+	
+	question_id = getURLParameter("question_id");
+	if (!question_id) {
+		$("#warning").html("Question code required");
+		return;
+	}
+		
+	if (phase == -1) {
+		$("#warning").html("Invalid question code");
 		return;
 	}
 	
 	if (phase != PHASE_COMPARE_BY_SIMILARITY) {
-		$("#taskmsg").html("Not currently accepting new comparisons");
+		$("#warning").html("Not currently comparing notes by similarity");
 		return;
 	}
 	
 	current_note = 1;
-	updateUI(assignment);
+	updateUI();
 });
 
 function initEventHandlers() {
@@ -49,25 +50,99 @@ function initEventHandlers() {
 	});
 	
 	$("#submit").click(function() {
-		submitComparison();
+		saveComparison();
 	});
 
 	$("#admin_button").click(function() {
-		var question_id = getURLParameter("question_id");
 		window.location.href="/admin?question_id=" + question_id;
 	});
 }
 
-function submitComparison() {
-	var question_id = getURLParameter("question_id");
-	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		// STILL TODO
+function updateUI() {
+	var isFinished = current_note == 0;	
+	if (isFinished) {
+		var url = "/results?question_id=" + question_id;
+		var html = "<h1>Comparison complete</h1>";
+		html += "Thank you!";
+		html += "<br/><br/>";
+		html += "You can see all the <a href='" + url + "'>similar notes so far</a>.";
+		$(".qcontainer").html(html);
 	}
+	
+	// BEHAVIOR: This may also happen if server does not retrieve random idea within
+	// max number of tries
+	else if (!current_assignment) {
+		var url = "/results?question_id=" + question_id;
+		var html = "<h1>Time to Compare Notes</h1>";
+		html += "No assignments are currently available.";
+		html += "<br/><br/>";
+		html += "You can see all the <a href='" + url + "'>similar notes so far</a>.";
+		$(".qcontainer").html(html);
+	}
+	
+	else {
+		$("#selected_note").html(current_assignment.idea.text);		
+		var html = "";
+		for (var i=0; i<current_assignment.compare_to.length; i++) {
+			html += "<input type=\"radio\" name=\"compare_to\" value=\""+i+"\">" + current_assignment.compare_to[i].text + "<br/>";
+		}
+		$("#compare_to_notes").html(html);
 
-	//$("#thankyou").css("display", "inline");
-	//setTimeout(function() {
-	//	$("#thankyou").fadeOut("slow");
-	//}, 2000);
+		// other notes marked as similar
+		var html = "No similar notes yet";
+		$("#mysimilar").html(html);
+	
+		// next note area
+		var isLastNote = current_note == num_notes_to_compare;
+		var html = "This is note #" + current_note + " out of " + num_notes_to_compare + ".<br/>";
+		if (!isLastNote) {
+			html += "To skip this OR go to the next note, click on ";
+			html += "<input id='next_button' value='Next note' type='button'></input>";
+		} else {
+			html += "When you are done, click on "
+			html += "<input id='next_button' value='finished!' type='button'></input>";
+		}
+		$("#next_note").html(html);
+
+		$("#next_button").click(function() {
+			updateAssignment();
+		});
+		
+		$("#taskarea").show();
+	}
+}
+
+function saveComparison() {
+	var similarTo = $("input:radio[name=compare_to]:checked").val();
+	if (!similarTo) {
+		$("#warning").html("Please select a similar note.");
+		return;
+	}
+	
+	updateAssignment(similarTo);
+}
+
+function updateAssignment(similarTo) {
+	var data = {
+		"question_id" : question_id,
+		"request_new" : current_note < num_notes_to_compare ? "1" : "0"
+	}
+	if (isDefined(similarTo)) {
+		data["similar_to"] = similarTo;
+		data["assignment"] = $.toJSON(current_assignment);
+	}
+	
+	$.getJSON("/similar_idea", data, function(results) {
+		if (results.status == 0) {
+			$("#warning").html(results.msg);
+		}
+		else {
+			$("#warning").html("");
+			current_note = current_note < num_notes_to_compare ? current_note + 1 : 0;
+			current_assignment = results.assignment;
+			updateUI();
+		}
+	});
 }
 
 function onResize() {
@@ -82,70 +157,6 @@ function onResize() {
 		}
 	}
 	$(".qcontainer").width(width);
-}
-
-function updateUI(assignment) {
-	var question_id = getURLParameter("question_id");
-
-	var isFinished = num_notes_compared == num_notes_to_compare;
-	if (isFinished) {
-		var url = "/results?question_id=" + question_id;
-		var html = "<h1>Comparison complete</h1>";
-		html += "Thank you!";
-		html += "<br/><br/>";
-		html += "You can see all the <a href='" + url + "'>similar notes so far</a>.";
-		$(".qcontainer").html(html);
-	}
-	
-	else {
-		if (isDefined(assignment.idea)) {
-			$("#selected_note").html(assignment.idea.text);
-		}
-		
-		if (isDefined(assignment.compare_to)) {
-			var html = "";
-			for (var i=0; i<assignment.compare_to.length; i++) {
-				html += "<input type=\"radio\" name=\"compare_to\" value=\"i\">" + assignment.compare_to[i].text + "<br/>";
-			}
-		}
-		$("#other_notes").html(html);
-	
-		html = "<br><br>";
-		html += "This is note #" + current_note + " out of " + num_notes_to_compare + ".<br/>";
-		var isLastNote = current_note == num_notes_to_compare;
-		if (!isLastNote) {
-			html += "To skip this OR go to the next note, ";
-			var msg = "Next note";
-		} else {
-			html += "When you are done, "
-			var msg = "finished!";
-		}
-		html += "click on ";
-		html += "<input id='next_button' value='" + msg + "' type='button'></input>";
-		html += "<br><br>";
-		$("#next_note").html(html);
-		displaySimilarNotes();
-
-		$("#next_button").click(function() {
-			var data = {
-				"question_id" : getURLParameter("question_id"),
-				"request_new" : current_note < num_notes_to_compare ? "1" : "0"
-			};
-			$.getJSON("/similarideaassignment", data, function(results) {
-				current_note++;
-				num_notes_compared++;
-				assignment = results;
-				updateUI(assignment);
-			});
-		});
-		
-		$("#taskarea").show();
-	}
-}
-
-function displaySimilarNotes() {
-	var question_id = getURLParameter("question_id");
-	// STILL TODO
 }
 
 /////////////////////////

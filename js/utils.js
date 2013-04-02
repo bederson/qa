@@ -8,9 +8,11 @@ var PHASE_TAG_BY_NOTE = 3
 var PHASE_COMPARE_BY_SIMILARITY = 4
 
 function getURLParameter(name) {
-	return decodeURI(
-		(RegExp(name + '=' + '(.+?)(&|$)').exec(window.location.search)||[,null])[1]
-	);
+	//return decodeURI(
+	//	(RegExp(name + '=' + '(.+?)(&|$)').exec(window.location.search)||[,null])[1]
+	//);
+    return decodeURIComponent((new RegExp('[?|&|#]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+	
 }
 
 function isDefined(obj) {
@@ -18,7 +20,7 @@ function isDefined(obj) {
 }
 
 function isUndefined(obj) {
-    return ((typeof(obj) == "undefined") || (obj == "null"));
+    return typeof(obj) == "undefined" || obj == null;
 }
 
 /**

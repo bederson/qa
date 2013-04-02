@@ -22,7 +22,10 @@ limitations under the License.
 	<script type="text/javascript" src="js/similar.js"></script>
 	<script>
 		var phase = parseInt("{{ phase }}");
-		var assignment = {{ assignment|safe }};
+		var question_id = null;
+		var current_assignment = {{ assignment|safe }};
+		var current_note = 0;
+		var num_notes_compared = 0;
 		var num_notes_to_compare = parseInt("{{ num_notes_to_compare }}");
 	</script>
 {% endblock %}
@@ -37,16 +40,15 @@ limitations under the License.
 		<h1>Time To Compare Notes</h1>
 		<div>Please select the note that is the most similar to this one.</div>
 		<div class="help spaceafter">If none of the other notes are similar, click Next note.</div>
-		<div id="taskmsg" class="help"></div>
+		<div id="warning" class="warning smallspaceafter"></div>
 		<div id="taskarea" class="spaceafter" style="display:none">
-			<div class="smallspaceafter"><strong>This note:</strong> <span id="selected_note"></span></div>
-			<div class="smallspaceafter"><strong>is the most similar to:</strong><br/><span id="other_notes"></span></div>
-			<input id="submit" class="spaceafter" type="submit" value="Submit"><br/>
-			<div id="thankyou">Thank you. Please compare as many notes as you'd like.</div>
-			<br/><br/>
-			<div id="nosimilar">No similar notes yet<br/><br/></div>
-			<div id="mysimiliar"></div>
-			<div id="next_note"></div>
+			<div class="largespaceafter">
+				<div class="smallspaceafter"><strong>This note:</strong> <span id="selected_note"></span></div>
+				<div class="smallspaceafter"><strong>is the most similar to:</strong><br/><span id="compare_to_notes"></span></div>
+				<input id="submit" class="spaceafter" type="submit" value="Submit">
+			</div>
+			<div id="mysimilar" class="largespaceafter" style="padding-bottom:20px;"></div>
+			<div id="next_note" class="largespaceafter"></div>
 		</div>
 	</div>
 {% endblock %}

@@ -22,7 +22,8 @@
 # stored. This behavior was noticed when Question.getQuestionById(code) was 
 # called immediately after a new question was created.  Same behavior
 # noticed when Person created for the first time.
-    
+
+import helpers    
 import logging
 import random
 from lib import gaesessions
@@ -322,10 +323,11 @@ class Idea(db.Model):
     
     def toDict(self):
         return {
-            "author": Person.toDict(self.author),
-            "date":  self.date,
-            "text": self.text,
-            "question_code": self.question.code
+            "id" : str(self.key().id()), # tmp fix: save as string; otherwise rounded when passed between client-server somewhere
+            "author" : Person.toDict(self.author),
+            "date" : self.date,
+            "text" : self.text,
+            "question_code" : self.question.code
         }
         
     @staticmethod
@@ -370,7 +372,7 @@ class Idea(db.Model):
         if numIdeas >= size:
             return random.sample(ideas, size)
         else:
-            logging.info("WARNING: Cannot return {0} random ideas since only {1} ideas available".format(size, numIdeas))
+            helpers.log("WARNING: Cannot return {0} random ideas since only {1} ideas available".format(size, numIdeas))
             return []
     
     @staticmethod
@@ -503,6 +505,9 @@ class IdeaAssignment(db.Model):
                         ia.current = True
                         ia.put()
                         assignmentNeeded = False
+                        
+            if assignmentNeeded and num_tries >= MAX_TRIES:
+                helpers.log("WARNING: Random idea assignment not found. Tried {0} times.".format(MAX_TRIES))
                 
         return ia if ia else None
 
@@ -539,25 +544,11 @@ class SimilarIdeaAssignment(db.Model):
     def getCurrentAssignment(questionObj, person):
         """Gets the current assignment (or a new one if there isn't a current one)"""
         assignment = None
-        if questionObj and person:                
-                # check if assignment id stored in session
-                # if so use to retrieve assignment
-                session = gaesessions.get_current_session()
-                assignment_id = session.pop("qa_similar_assignment_id") if session.has_key("qa_similar_assignment_id") else None
-                if assignment_id:
-                    assignment = SimilarIdeaAssignment.get_by_id(assignment_id)
-                    # check if assignment id stored in session corresponds to inputs
-                    if assignment and questionObj != assignment.question:
-                        assignment = None
-                    if assignment and person != assignment.author:
-                        assignment = None
-                
-                if not assignment:  
-                    assignment = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
-                    
+        if questionObj and person:
+                assignment = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj).filter("current =", True).get()
                 if not assignment:
                     assignment = SimilarIdeaAssignment.createNewAssignment(questionObj, person)
-        
+
         return assignment if assignment else None
             
     @staticmethod
@@ -570,8 +561,8 @@ class SimilarIdeaAssignment(db.Model):
             
             # Get list of ideas already assigned to user (don't want to show duplicates)
             numIdeas = Idea.all().filter("question =", questionObj).count()
-            assignments = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj)
-            numAssignments = assignments.count()
+            userAssignments = SimilarIdeaAssignment.all().filter("author =", person).filter("question =", questionObj)
+            numUserAssignments = userAssignments.count()
             
             assignmentNeeded = True
             # Randomly select ideas, but keep trying if we've already assigned this one.
@@ -579,13 +570,13 @@ class SimilarIdeaAssignment(db.Model):
             # but that seems unlikely to happen
             MAX_TRIES = 10
             num_tries = 0
-            while assignmentNeeded and (numIdeas > numAssignments) and (num_tries < MAX_TRIES):
+            while assignmentNeeded and (numIdeas > numUserAssignments) and (num_tries < MAX_TRIES):
                 num_tries += 1
                 idea = Idea.getRandomIdea(questionObj)
                 if idea:
-                    assignedIdeas = [ assignment.idea for assignment in assignments ]
-                    assigned = Idea.contains(assignedIdeas, idea)
-                    if assigned:
+                    ideasAssigned = [ userAssignment.idea for userAssignment in userAssignments ]
+                    alreadyAssigned = Idea.contains(ideasAssigned, idea)
+                    if alreadyAssigned:
                         pass    # Whoops - already seen this idea, look for another
                     else: 
                         otherIdeas = Idea.all().filter("question =", questionObj).filter("__key__ !=", idea.key())
@@ -597,17 +588,12 @@ class SimilarIdeaAssignment(db.Model):
                         assignment.question = questionObj
                         assignment.current = True
                         assignment.put()
-                        import helpers
-                        helpers.log("CREATE NEW SIMILAR IDEA ASSIGNMENT: {0}".format(idea.text))
                         assignmentNeeded = False
-                        numAssignments += 1
-                        
-                        # save to session since this assignment
-                        # may not be immediately retrievable from datastore
-                        session = gaesessions.get_current_session()
-                        session["qa_similar_assignment_id"] = assignment.key().id()
                 else:
                     return None
+                
+            if assignmentNeeded and num_tries >= MAX_TRIES:
+                helpers.log("WARNING: Random idea not found. Tried {0} times.".format(MAX_TRIES))
                 
         return assignment if assignment else None
         
@@ -732,15 +718,15 @@ class SimilarIdea(db.Model):
     date = db.DateTimeProperty(auto_now=True)
  
     @staticmethod
-    def createSimilarIdea(similar_idea_id, idea_id, questionIdStr, person):
-        questionObj = Question.getQuestionById(questionIdStr)
-        ideaObj = Idea.get_by_id(idea_id)
-        similarIdeaObj = Idea.get_by_id(similar_idea_id)
-        if ideaObj and questionObj:
+    def createSimilarIdea(idea_id, similar_idea_id, question, person):
+        idea = Idea.get_by_id(idea_id)
+        similarIdea = Idea.get_by_id(similar_idea_id)
+        similarObj = None
+        if idea and similarIdea and question:
             similarObj = SimilarIdea()
-            similarObj.question = questionObj
-            similarObj.idea = ideaObj
-            similarObj.similar = similarIdeaObj
+            similarObj.question = question
+            similarObj.idea = idea
+            similarObj.similar = similarIdea
             similarObj.author = person
             similarObj.put()
         return similarObj
