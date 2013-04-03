@@ -186,8 +186,8 @@ class TagPageHandler(BaseHandler):
         if phase == PHASE_TAG_BY_CLUSTER:
             template_values["cluster_id"] = ClusterAssignment.getAssignmentId(question_id, person)
         elif phase == PHASE_TAG_BY_NOTE:
-            idea = IdeaAssignment.getCurrentAssignment(questionObj, person)
-            template_values["idea_id"] = idea.key().id() if idea is not None else -1
+            assignment = IdeaAssignment.getCurrentAssignment(questionObj, person)
+            template_values["idea_id"] = assignment.idea.key().id() if assignment else -1
             if questionObj:
                 template_values["num_notes_to_tag"] = questionObj.getNumNotesToTagPerPerson()
                 template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser(person)
