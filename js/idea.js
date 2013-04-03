@@ -167,7 +167,7 @@ function updateNicknameArea() {
 						user_nickname = event.nickname;
 						updateNicknameArea();
 					}
-				});
+				}, "json");
 			});
 		});
 

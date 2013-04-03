@@ -5,7 +5,7 @@ Bugs
 * Need better random assignment algorithm - seems very clumpy
   Made an improvement, need to try it with a class
 * Can't submit idea when Chrome "disconnect.me" plugin installed
-
+  
 Features
 * Stem tags???
 * Allow students to edit their tags
@@ -20,6 +20,10 @@ Testing
 Misc
 * Need to make myself a gae admin so users.is_current_user_admin returns true
 * Need consistent terminology (e.g., submission/note/response/idea for responses to questions)
+* Datastore ids getting truncated when passed via json to client
+  Current solution to run dev_server with --auto_id_policy=sequential
+  May not be issue in public server (have not tested)
+  http://stackoverflow.com/questions/15536229/app-engine-version-1-7-6-old-dev-appserver-py-model-key-id-not-returning-the
 
 Engineering
 * Better downloading support

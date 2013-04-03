@@ -83,7 +83,7 @@ def get_default_template_values(requestHandler, person, question):
     
     if question:
         phase = Question.getPhase(question)
-        template_values["phase"] = phase if phase else -1,
+        template_values["phase"] = phase if phase else -1
         template_values["title"] = question.title
         template_values["question"] = question.question
             
@@ -377,9 +377,8 @@ class NicknameHandler(BaseHandler):
                 "author": Person.toDict(person)
             }
             send_message(clientId, questionId, message)      # Update other clients about this change
-            
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(data)) 
+        
+        self.writeResponseAsJson(data)
                            
 class QueryHandler(BaseHandler):
     def get(self):
@@ -418,7 +417,8 @@ class QueryHandler(BaseHandler):
                     tags.append(item)
             data = {"tags": tags}
         elif request == "similarideas":
-            ideas = []
+            ideas = [ idea.toDict() for idea in SimilarIdea.getAllSimilarIdeas(question) ]
+            data = {"ideas": ideas}
         elif request == "myclustertags":
             tags = []
             for tag in ClusterTag.getTagsByUser(question_id, person):
@@ -454,8 +454,7 @@ class QueryHandler(BaseHandler):
                 userQuestions.append({"title": userQuestion.title, "question": userQuestion.question, "nickname_authentication": userQuestion.nicknameAuthentication, "question_id": userQuestion.code})
             data = {"questions": userQuestions}
 
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(data))
+        self.writeResponseAsJson(data)
 
 class NewQuestionHandler(BaseHandler):
     def post(self):
@@ -470,16 +469,14 @@ class NewQuestionHandler(BaseHandler):
             if question:
                 question_id = question.code
                 question_key = question.key().id()
-                # question_key was getting truncated somewhere so saved as string instead
-                data = {"question_id": question_id, "question_key": str(question_key)}
+                data = {"question_id": question_id, "question_key": question_key}
                 # Update clients
                 message = {
                     "op": "newquestion"
                 }
                 send_message(client_id, question_id, message)        # Update other clients about this change
 
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(data))
+        self.writeResponseAsJson(data)
 
 class EditQuestionHandler(BaseHandler):
     def post(self):
@@ -500,8 +497,7 @@ class EditQuestionHandler(BaseHandler):
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
 
-        self.response.headers['Content-Type'] = 'application/json'
-        self.response.out.write(json.dumps(data))
+        self.writeResponseAsJson(data)
                 
 class NewIdeaHandler(BaseHandler):
     def post(self):
@@ -519,7 +515,7 @@ class NewIdeaHandler(BaseHandler):
                 "author": Person.toDict(ideaObj.author)
             }
             send_message(client_id, question_id, message)        # Update other clients about this change
-
+            
 class NewClusterTagHandler(BaseHandler):
     def post(self):
         person = self.initUserContext()
@@ -591,8 +587,7 @@ class IdeaAssignmentHandler(BaseHandler):
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
         IdeaAssignment.createNewAssignment(question, person)
-        self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
-        self.response.out.write(json.dumps({}))
+        self.writeResponseAsJson({})
 
 class SimilarIdeaHandler(BaseHandler):
     def get(self):

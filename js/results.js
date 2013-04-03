@@ -21,6 +21,7 @@ var MAX_CLOUD_HEIGHT = 800;
 var maxChartRows = 10;
 var tag_cluster_hists = {};
 var tag_idea_hists = {}
+var similar_idea_hists = {}
 var show_tags_in_charts = {};
     
 // Reason for this combination of google chart and jquery:
@@ -118,6 +119,8 @@ function displayIdeasImpl(results) {
 			var idea = ideas[j].idea;
 			tag_idea_hists[ideas[j].idea_id] = {};
 			var tagsid = "tags" + ideas[j].idea_id;
+			similar_idea_hists[ideas[j].idea_id] = {};
+			var similarid = "similar" + ideas[j].idea_id;
 			html += "<li>" + idea;
 			html += "<br>" + "<span ";
 			if (ideas[j].author.user_identity != "" && ideas[j].author.user_identity != ideas[j].author.nickname) {
@@ -125,6 +128,7 @@ function displayIdeasImpl(results) {
 			}
 			html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author.nickname + "</span>";
 			html += "<span id='" + tagsid + "' class='tags'></span>";
+			html += "<span id='" + similarid + "' class='tags'></span>";
 			numIdeas += 1;
 		}
 		html += "</ul>"
@@ -135,12 +139,8 @@ function displayIdeasImpl(results) {
 			var controlid = "control" + cluster.id;
 			html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
 		}
-		if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			// xx NOT COMPLETE
-		}
 		html += "</tr></table>"
 	}
-
 	$("#clusteredIdeas").html(html);
 	updateNumIdeas();
 	
@@ -163,8 +163,7 @@ function displayIdeasImpl(results) {
 		} else if (phase == PHASE_TAG_BY_NOTE) {
 			displayIdeaTags();
 		} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			// xx NOT COMPLETE
-			alert("display similar tags");
+			displaySimilarIdeas();
 		}
 	}
 }
@@ -291,6 +290,70 @@ function drawIdeaTags() {
 				html += row[0] + " (" + row[1] + ")";
 			}
 			$("#" + chartid).html(html);
+		}
+	}
+}
+
+//=================================================================================
+// Similar Ideas Display
+//=================================================================================
+function displaySimilarIdeas() {
+	// Initialize counts
+	for (idea_id in similar_idea_hists) {
+		similar_idea_hists[idea_id] = {};
+	}
+		
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"request": "similarideas",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		processSimilarIdeas(results);
+		drawSimilarIdeas();
+	});	
+}
+
+function processSimilarIdeas(data) {	
+	var similar_ideas = data.ideas;
+	for (var i in similar_ideas) {
+		var idea = similar_ideas[i].idea;
+		var similar_to = similar_ideas[i].similar;
+		createSimilarIdea(similar_to.text, idea.id);
+	}
+}
+
+function createSimilarIdea(similar, idea_id) {
+	if (similar in similar_idea_hists[idea_id]) {
+		similar_idea_hists[idea_id][similar] += 1;
+	} else {
+		similar_idea_hists[idea_id][similar] = 1
+	}
+}
+
+function drawSimilarIdeas() {
+	for (var idea_id in similar_idea_hists) {
+		// Create the data table.
+		var rows = [];
+		var max = 0;
+		var hist = similar_idea_hists[idea_id];
+		for (item in hist) {
+			rows.push([item, hist[item]]);
+		}
+		rows.sort(function(a, b) {
+			return(b[1] - a[1]);
+		});
+
+		if (rows.length > 0) {
+			var html = "<br/>&nbsp;&nbsp;&nbsp;&nbsp;Similar: ";
+			for (j in rows) {
+				if (j > 0) {
+					html += ", ";
+				}
+				var row = rows[j];
+				html += row[0] + " (" + row[1] + ")";
+			}
+			$("#similar" + idea_id).html(html);
 		}
 	}
 }
@@ -477,7 +540,7 @@ function handleTag(data) {
 	} else if (phase == PHASE_TAG_BY_NOTE) {
 		displayIdeaTags();
 	} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		alert("handleTag");
+		alert("handleTag for comparing by similarity not implemented yet");
 		// XX NOT COMPLETE
 	}
 }

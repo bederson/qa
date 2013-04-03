@@ -108,8 +108,8 @@ function displayModes() {
 		html += "Question: " + question + "<br>";
 		html += num_ideas + " notes, ";
 		html += num_tags_by_cluster + " tags on clusters, ";
-		html += num_tags_by_idea + " tags on ideas<br>";
-		html += num_similar_ideas + " similar ideas<br>";
+		html += num_tags_by_idea + " tags on ideas, ";
+		html += num_similar_ideas + " similar ideas<br/>";
 		html += "<br>";
 		$("#question").html(html);
 		
@@ -165,7 +165,7 @@ function createQuestion() {
 			} else {
 				$("#newq_info").html("Failed to update question.");
 			}
-		});
+		}, "json");
 	} else {
 		// Create new question
 		var data = {
@@ -181,7 +181,7 @@ function createQuestion() {
 				$("#newq_info").html("Failed to create question - maybe it is too short.");
 			}
 			updateButtons();
-		});
+		}, "json");
 	}
 }
 

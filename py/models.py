@@ -325,7 +325,7 @@ class Idea(db.Model):
     
     def toDict(self):
         return {
-            "id" : str(self.key().id()), # tmp fix: save as string; otherwise rounded when passed between client-server somewhere
+            "id" : self.key().id(),
             "author" : Person.toDict(self.author),
             "date" : self.date,
             "text" : self.text,
@@ -719,6 +719,15 @@ class SimilarIdea(db.Model):
     author = db.ReferenceProperty(Person)
     date = db.DateTimeProperty(auto_now=True)
  
+    def toDict(self):
+        return {
+            "idea" : self.idea.toDict(),
+            "similar" : self.similar.toDict(),
+            "author" : Person.toDict(self.author),
+            "date" : self.date,
+            "question_code" : self.question.code
+        }
+        
     @staticmethod
     def createSimilarIdea(idea_id, similar_idea_id, question, person):
         idea = Idea.get_by_id(idea_id)
@@ -734,14 +743,9 @@ class SimilarIdea(db.Model):
         return similarObj
  
     @staticmethod
-    def getAllSimilarIdeas(questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
-        if questionObj:
-            similarIdeas = SimilarIdea.all().filter("question =", questionObj)
-            return similarIdeas
-        else:
-            return None
- 
+    def getAllSimilarIdeas(question):
+        return SimilarIdea.all().filter("question =", question) if question else None
+        
     @staticmethod
     def getSimilarIdeasByUser(ideaIdStr, person):
         ideaObj = Idea.getIdeaById(ideaIdStr)
