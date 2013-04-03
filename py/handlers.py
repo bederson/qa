@@ -80,6 +80,13 @@ def get_default_template_values(requestHandler, person, question):
         'admin': Person.isAdmin(requestHandler) or (question and person and person.user and question.author == person.user),
         'msg': msg
     }
+    
+    if question:
+        phase = Question.getPhase(question)
+        template_values["phase"] = phase if phase else -1,
+        template_values["title"] = question.title
+        template_values["question"] = question.question
+            
     return template_values
 
 #####################
@@ -165,10 +172,7 @@ class IdeaPageHandler(BaseHandler):
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
         template_values = get_default_template_values(self, person, questionObj)
-        template_values["phase"] = Question.getPhase(question_id)
         if questionObj:
-            template_values["title"] = questionObj.title
-            template_values["question"] = questionObj.question
             template_values["change_nickname_allowed"] = json.dumps(not questionObj.nicknameAuthentication)
 
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
@@ -181,16 +185,16 @@ class TagPageHandler(BaseHandler):
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
         template_values = get_default_template_values(self, person, questionObj)
-        phase = Question.getPhase(question_id)
-        template_values["phase"] = phase
-        if phase == PHASE_TAG_BY_CLUSTER:
-            template_values["cluster_id"] = ClusterAssignment.getAssignmentId(question_id, person)
-        elif phase == PHASE_TAG_BY_NOTE:
-            assignment = IdeaAssignment.getCurrentAssignment(questionObj, person)
-            template_values["idea_id"] = assignment.idea.key().id() if assignment else -1
-            if questionObj:
-                template_values["num_notes_to_tag"] = questionObj.getNumNotesToTagPerPerson()
-                template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser(person)
+        if questionObj:
+            phase = Question.getPhase(questionObj)
+            if phase == PHASE_TAG_BY_CLUSTER:
+                template_values["cluster_id"] = ClusterAssignment.getAssignmentId(question_id, person)
+            elif phase == PHASE_TAG_BY_NOTE:
+                assignment = IdeaAssignment.getCurrentAssignment(questionObj, person)
+                template_values["idea_id"] = assignment.idea.key().id() if assignment else -1
+                if questionObj:
+                    template_values["num_notes_to_tag"] = questionObj.getNumNotesToTagPerPerson()
+                    template_values["num_notes_tagged"] = questionObj.getNumNotesTaggedByUser(person)
 
         path = os.path.join(os.path.dirname(__file__), '../html/tag.html')
         self.response.out.write(template.render(path, template_values))
@@ -201,7 +205,7 @@ class SimilarPageHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
-        phase = Question.getPhase(question_id)
+        phase = Question.getPhase(questionObj)
 
         isComparePhase = phase == PHASE_COMPARE_BY_SIMILARITY and questionObj
         maxNumToCompare = questionObj.getNumNotesToComparePerPerson() if isComparePhase else 0
@@ -209,7 +213,6 @@ class SimilarPageHandler(BaseHandler):
         assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person) if isComparePhase else None
                 
         template_values = get_default_template_values(self, person, questionObj)
-        template_values["phase"] = phase if phase else -1
         template_values["assignment"] = helpers.to_json(assignment.toDict() if assignment else None)
         template_values["num_notes_to_compare"] = maxNumToCompare
         template_values["num_notes_for_comparison"] = numNotesForComparison
@@ -222,11 +225,6 @@ class ResultsPageHandler(BaseHandler):
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
         template_values = get_default_template_values(self, person, questionObj)
-        template_values["phase"] = Question.getPhase(question_id)
-        if questionObj:
-            template_values["title"] = questionObj.title
-            template_values["question"] = questionObj.question
-
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, template_values))
 
@@ -263,9 +261,6 @@ class AdminPageHandler(BaseHandler):
 
         template_values = get_default_template_values(self, person, questionObj)        
         if questionObj:
-            template_values["phase"] = questionObj.phase
-            template_values["title"] = questionObj.title
-            template_values["question"] = questionObj.question
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
             template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson
             template_values["num_notes_for_comparison"] = questionObj.numNotesForComparison
@@ -285,9 +280,6 @@ class LoginPageHandler(BaseHandler):
         template_values = get_default_template_values(self, person, questionObj)
         if questionObj:
             template_values["question_id"] = questionObj.code
-            template_values["title"] = questionObj.title
-            template_values["question"] = questionObj.question
-            template_values["phase"] = questionObj.phase
         path = os.path.join(os.path.dirname(__file__), '../html/login.html')
         self.response.out.write(template.render(path, template_values))
         
@@ -394,6 +386,7 @@ class QueryHandler(BaseHandler):
         person = self.initUserContext()
         request = self.request.get("request")
         question_id = self.request.get("question_id")
+        question = Question.getQuestionById(question_id)
 
         data = {}
         if request == "ideas":
@@ -405,7 +398,7 @@ class QueryHandler(BaseHandler):
             idea_id = self.request.get("idea_id")
             data = getIdea(idea_id)
         elif request == "phase":
-            data = {"phase": Question.getPhase(question_id)}
+            data = {"phase": Question.getPhase(question)}
         elif request == "clustertags":
             tags = []
             for tagObj in ClusterTag.getTags(question_id):
@@ -424,6 +417,8 @@ class QueryHandler(BaseHandler):
                     item = {"tag": tag, "idea_id": idea.key().id(), "author": Person.toDict(tagObj.author)}
                     tags.append(item)
             data = {"tags": tags}
+        elif request == "similarideas":
+            ideas = []
         elif request == "myclustertags":
             tags = []
             for tag in ClusterTag.getTagsByUser(question_id, person):
@@ -438,14 +433,13 @@ class QueryHandler(BaseHandler):
                     tags.append(tag.tag)
             data = {"tags": tags}
         elif request == "question":
-            questionObj = Question.getQuestionById(question_id)
-            if questionObj:
+            if question:
                 data = {
-                    "title": questionObj.title,
-                    "question": questionObj.question,
-                    "nicknameAuthentication": questionObj.nicknameAuthentication,
-                    "numTagsByCluster": questionObj.getNumTagsByCluster(),
-                    "numTagsByIdea": questionObj.getNumTagsByIdea(),
+                    "title": question.title,
+                    "question": question.question,
+                    "nicknameAuthentication": question.nicknameAuthentication,
+                    "numTagsByCluster": question.getNumTagsByCluster(),
+                    "numTagsByIdea": question.getNumTagsByIdea(),
                 }
             else:
                 data = {
@@ -455,10 +449,10 @@ class QueryHandler(BaseHandler):
                     "msg": "Invalid code - it should be 5 digits"
                 }
         elif request == "questions":
-            questions = []
-            for question in Question.getQuestionsByUser():
-                questions.append({"title": question.title, "question": question.question, "nickname_authentication": question.nicknameAuthentication, "question_id": question.code})
-            data = {"questions": questions}
+            userQuestions = []
+            for userQuestion in Question.getQuestionsByUser():
+                userQuestions.append({"title": userQuestion.title, "question": userQuestion.question, "nickname_authentication": userQuestion.nicknameAuthentication, "question_id": userQuestion.code})
+            data = {"questions": userQuestions}
 
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps(data))

@@ -95,10 +95,8 @@ class Question(db.Model):
             db.delete(questionObj)
             
     @staticmethod
-    def getPhase(questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
-        if questionObj:
-            return questionObj.phase
+    def getPhase(questionObj):
+        return questionObj.phase if questionObj else None
 
     @staticmethod
     def setPhase(phase, questionObj):
