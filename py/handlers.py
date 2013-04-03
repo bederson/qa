@@ -602,33 +602,41 @@ class SimilarIdeaHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
+        question = Question.getQuestionById(question_id)
         assignment_json = self.request.get("assignment")
         current_assignment = helpers.from_json(assignment_json) if assignment_json else None
         similar_to = self.request.get("similar_to")
         similar_to_index = int(similar_to) if similar_to and similar_to.isdigit() else None
         request_new_assignment = self.request.get("request_new", "0") == "1"
-        
         data = {}              
-        question = Question.getQuestionById(question_id)
-        if not question:
+        
+        if not person:
+            data["status"] = 0
+            data["msg"] = "Please log in"
+                 
+        elif not question:
             data["status"] = 0
             data["msg"] = "Invalid question code"
         
         else:
-            data["status"] = 1
+            # save similar idea (if provided)
             if current_assignment and similar_to_index is not None:
                 idea_id = long(current_assignment["idea"]["id"])
                 compare_to_ideas = current_assignment["compare_to"]
                 similar_idea_id = long(compare_to_ideas[similar_to_index]["id"])
                 SimilarIdea.createSimilarIdea(idea_id, similar_idea_id, question, person)
             
-            data["assignment"] = None
+            # get new assignment (if requested)
+            new_assignment = None
             if request_new_assignment:
-                new_assignment = SimilarIdeaAssignment.createNewAssignment(question, person)
-                data["assignment"] = new_assignment.toDict() if new_assignment else None
+                new_assignment = SimilarIdeaAssignment.createNewAssignment(question, person)     
             else:
-                SimilarIdeaAssignment.unselectAllAssignments(question, person)        
+                SimilarIdeaAssignment.unselectAllAssignments(question, person)
+                      
+            data["status"] = 1
+            data["assignment"] = new_assignment.toDict() if new_assignment else None
     
+        helpers.log(data)
         self.writeResponseAsJson(data)
         
 class PhaseHandler(BaseHandler):

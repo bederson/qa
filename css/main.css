@@ -101,7 +101,7 @@ h2 {
 	display: none;
 }
 
-#notags, #mytags, #mysimilar {
+#notags, #mytags {
 	padding-left: 20px;
 	background-color: #eee;
 }

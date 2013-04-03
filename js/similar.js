@@ -14,6 +14,16 @@
 // limitations under the License.
 //
 
+// BEHAVIOR: A user compares a selected note with a set of other notes,
+// and must select the most similar note.  The number of tasks
+// presented to the user is defined by num_notes_to_compare. 
+// A page refresh or another visit allows the user to get another 
+// set of tasks (if available and while the instructor has this phase enabled).
+//
+// LIMITATION: The server attempts to select a random note, not previously assigned 
+// to the user. If a note is not found within x tries, the user will be
+// told that no assignments are currently available.
+
 $(document).ready(function() {
 	initChannel();
 	initEventHandlers();
@@ -87,10 +97,6 @@ function updateUI() {
 			html += "<input type=\"radio\" name=\"compare_to\" value=\""+i+"\">" + current_assignment.compare_to[i].text + "<br/>";
 		}
 		$("#compare_to_notes").html(html);
-
-		// other notes marked as similar
-		var html = "No similar notes yet";
-		$("#mysimilar").html(html);
 	
 		// next note area
 		var isLastNote = current_note == num_notes_to_compare;
