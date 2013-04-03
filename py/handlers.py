@@ -432,8 +432,10 @@ class QueryHandler(BaseHandler):
         elif request == "myideatags":
             tags = []
             idea_id = self.request.get("idea_id")
-            for tag in IdeaTag.getTagsByUser(idea_id, person):
-                tags.append(tag.tag)
+            user_tags = IdeaTag.getTagsByUser(idea_id, person)
+            if user_tags:
+                for tag in user_tags:
+                    tags.append(tag.tag)
             data = {"tags": tags}
         elif request == "question":
             questionObj = Question.getQuestionById(question_id)
