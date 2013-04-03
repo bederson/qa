@@ -29,6 +29,7 @@ limitations under the License.
 		var num_ideas = "{{ num_ideas }}";
 		var num_notes_to_tag_per_person = parseInt("{{ num_notes_to_tag_per_person }}");
 		var num_notes_to_compare_per_person = parseInt("{{ num_notes_to_compare_per_person }}");
+		var num_notes_for_comparison = parseInt("{{ num_notes_for_comparison }}");
 		var num_tags_by_cluster = "{{ num_tags_by_cluster }}";
 		var num_tags_by_idea = "{{ num_tags_by_idea }}";
 		var num_similar_ideas = "{{ num_similar_ideas }}";
@@ -77,8 +78,9 @@ limitations under the License.
 							<input id="p4button" type="button">
 						</td>
 						<td>
-							Go to <a id="comparebysimilarity_link">compare ideas by similarity</a><br>
-							# notes to compare per person <input id="num_notes_to_compare_per_person" type="text" size="3"></input>
+							Go to <a id="comparebysimilarity_link">compare ideas by similarity</a><br/>
+							# notes to compare per person <input id="num_notes_to_compare_per_person" type="text" size="3"></input><br/>
+							# notes to compare selected note to <input id="num_notes_for_comparison" type="text" size="3"></input>
 						</td>
 					</tr>
 					<tr valign="top">

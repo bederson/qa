@@ -42,6 +42,7 @@ class Question(db.Model):
     date = db.DateTimeProperty(auto_now=True)
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
     numNotesToComparePerPerson = db.IntegerProperty(default=5)
+    numNotesForComparison = db.IntegerProperty(default=5)
     nicknameAuthentication = db.BooleanProperty(default=False)
 
     @staticmethod
@@ -100,8 +101,7 @@ class Question(db.Model):
             return questionObj.phase
 
     @staticmethod
-    def setPhase(phase, questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
+    def setPhase(phase, questionObj):
         if questionObj:
             questionObj.phase = phase
             questionObj.put()
@@ -118,9 +118,13 @@ class Question(db.Model):
 
     def getNumNotesToComparePerPerson(self):
         return self.numNotesToComparePerPerson
+    
+    def getNumNotesForComparison(self):
+        return self.numNotesForComparison
 
-    def setNumNotesToComparePerPerson(self, numNotesToComparePerPerson):
+    def setCompareNotesOptions(self, numNotesToComparePerPerson, numNotesForComparison):
         self.numNotesToComparePerPerson = numNotesToComparePerPerson
+        self.numNotesForComparison = numNotesForComparison
         self.put()
 
     def getNumNotesComparedByUser(self, person):
@@ -580,7 +584,7 @@ class SimilarIdeaAssignment(db.Model):
                         pass    # Whoops - already seen this idea, look for another
                     else: 
                         otherIdeas = Idea.all().filter("question =", questionObj).filter("__key__ !=", idea.key())
-                        compareToIdeas = Idea.getRandomIdeas(questionObj, list(otherIdeas), size=5)
+                        compareToIdeas = Idea.getRandomIdeas(questionObj, list(otherIdeas), size=questionObj.numNotesForComparison)
                         assignment = SimilarIdeaAssignment()
                         assignment.author = person
                         assignment.idea = idea

@@ -43,7 +43,7 @@ app = webapp2.WSGIApplication([
     ('/similar_idea', SimilarIdeaHandler),
 	('/set_phase', PhaseHandler),
 	('/set_num_notes_to_tag_per_person', NumNotesToTagPerPersonHandler),
-    ('/set_num_notes_to_compare_per_person', NumNotesToComparePerPersonHandler),
+    ('/set_compare_notes_options', CompareNotesOptionsHandler),
 	
 	('/migrate', MigrateHandler),
 

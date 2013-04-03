@@ -28,6 +28,7 @@ $(function() {
 	$("#results_link").attr("href", "/results?question_id=" + question_id);
 	$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
 	$("#num_notes_to_compare_per_person").val(num_notes_to_compare_per_person);
+	$("#num_notes_for_comparison").val(num_notes_for_comparison);
 });
 
 function initEventHandlers() {
@@ -57,7 +58,10 @@ function initEventHandlers() {
 		set_num_notes_to_tag_per_person($("#num_notes_to_tag_per_person").val());
 	});
 	$("#num_notes_to_compare_per_person").blur(function() {
-		set_num_notes_to_compare_per_person($("#num_notes_to_compare_per_person").val());
+		set_compare_notes_options($("#num_notes_to_compare_per_person").val(), $("#num_notes_for_comparison").val());
+	});
+	$("#num_notes_for_comparison").blur(function() {
+		set_compare_notes_options($("#num_notes_to_compare_per_person").val(), $("#num_notes_for_comparison").val());
 	});
 }
 
@@ -84,14 +88,15 @@ function set_num_notes_to_tag_per_person(num_notes) {
 	$.post("/set_num_notes_to_tag_per_person", data);
 }
 
-function set_num_notes_to_compare_per_person(num_notes) {
+function set_compare_notes_options(num_notes, num_comparison_notes) {
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
 		"num_notes_to_compare_per_person": num_notes,
+		"num_notes_for_comparison": num_comparison_notes,
 		"question_id": question_id
 	};
-	$.post("/set_num_notes_to_compare_per_person", data);
+	$.post("/set_compare_notes_options", data);
 }
 
 function displayModes() {

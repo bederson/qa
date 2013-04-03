@@ -203,17 +203,16 @@ class SimilarPageHandler(BaseHandler):
         questionObj = Question.getQuestionById(question_id)
         phase = Question.getPhase(question_id)
 
-        assignment = None
-        maxNumToCompare = 0
-        if phase == PHASE_COMPARE_BY_SIMILARITY and questionObj:
-            # Try to get new assignment regardless of how many completed so far
-            maxNumToCompare = questionObj.getNumNotesToComparePerPerson()
-            assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person)
+        isComparePhase = phase == PHASE_COMPARE_BY_SIMILARITY and questionObj
+        maxNumToCompare = questionObj.getNumNotesToComparePerPerson() if isComparePhase else 0
+        numNotesForComparison = questionObj.getNumNotesForComparison() if isComparePhase else 0
+        assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person) if isComparePhase else None
                 
         template_values = get_default_template_values(self, person, questionObj)
         template_values["phase"] = phase if phase else -1
         template_values["assignment"] = helpers.to_json(assignment.toDict() if assignment else None)
-        template_values["num_notes_to_compare"] = maxNumToCompare 
+        template_values["num_notes_to_compare"] = maxNumToCompare
+        template_values["num_notes_for_comparison"] = numNotesForComparison
         path = os.path.join(os.path.dirname(__file__), '../html/similar.html')
         self.response.out.write(template.render(path, template_values))
         
@@ -269,6 +268,7 @@ class AdminPageHandler(BaseHandler):
             template_values["question"] = questionObj.question
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
             template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson
+            template_values["num_notes_for_comparison"] = questionObj.numNotesForComparison
             template_values["num_ideas"] = Idea.numIdeas(question_id)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
@@ -636,7 +636,6 @@ class SimilarIdeaHandler(BaseHandler):
             data["status"] = 1
             data["assignment"] = new_assignment.toDict() if new_assignment else None
     
-        helpers.log(data)
         self.writeResponseAsJson(data)
         
 class PhaseHandler(BaseHandler):
@@ -645,14 +644,16 @@ class PhaseHandler(BaseHandler):
         client_id = self.request.get('client_id')
         phase = int(self.request.get('phase'))
         question_id = self.request.get("question_id")
-        Question.setPhase(phase, question_id)
-
-        # Update clients
-        message = {
-            "op": "phase",
-            "phase": phase
-        }
-        send_message(client_id, question_id, message)        # Update other clients about this change
+        question = Question.getQuestionById(question_id)        
+        if question:
+            phase = Question.setPhase(phase, question)
+    
+            # Update clients
+            message = {
+                "op": "phase",
+                "phase": phase
+            }
+            send_message(client_id, question_id, message)        # Update other clients about this change
 
 class NumNotesToTagPerPersonHandler(BaseHandler):
     def post(self):
@@ -663,28 +664,28 @@ class NumNotesToTagPerPersonHandler(BaseHandler):
         questionObj = Question.getQuestionById(question_id)
         if questionObj:
             questionObj.setNumNotesToTagPerPerson(num_notes_to_tag_per_person)
+            message = {
+                "op": "num_notes_to_tag_per_person",
+                "num_notes_to_tag_per_person": num_notes_to_tag_per_person,
+            }
+            send_message(client_id, question_id, message)        # Update other clients about this change
 
-        message = {
-            "op": "num_notes_to_tag_per_person",
-            "num_notes_to_tag_per_person": num_notes_to_tag_per_person,
-        }
-        send_message(client_id, question_id, message)        # Update other clients about this change
-
-class NumNotesToComparePerPersonHandler(BaseHandler):
+class CompareNotesOptionsHandler(BaseHandler):
     def post(self):
         self.initUserContext()
         client_id = self.request.get('client_id')
         num_notes_to_compare_per_person = int(self.request.get('num_notes_to_compare_per_person'))
+        num_notes_for_comparison = int(self.request.get('num_notes_for_comparison'))
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
         if questionObj:
-            questionObj.setNumNotesToComparePerPerson(num_notes_to_compare_per_person)
-
-        message = {
-            "op": "num_notes_to_compare_per_person",
-            "num_notes_to_compare_per_person": num_notes_to_compare_per_person,
-        }
-        send_message(client_id, question_id, message)        # Update other clients about this change
+            questionObj.setCompareNotesOptions(num_notes_to_compare_per_person, num_notes_for_comparison)
+            message = {
+                "op": "compare_phase_options",
+                "num_notes_to_compare_per_person": num_notes_to_compare_per_person,
+                "num_notes_for_comparison": num_notes_for_comparison
+            }
+            send_message(client_id, question_id, message)        # Update other clients about this change
         
 class MigrateHandler(BaseHandler):
     def get(self):
