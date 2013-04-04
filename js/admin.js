@@ -14,7 +14,12 @@
 // limitations under the License.
 // 
 
-$(function() {
+$(document).ready(function() {
+	if (!logged_in) {
+		$("#msg").html("Please log in to create/edit your own questions");
+		return;
+	}
+	
 	initEventHandlers();
 	updateButtons();
 	displayModes();
@@ -29,6 +34,8 @@ $(function() {
 	$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
 	$("#num_notes_to_compare_per_person").val(num_notes_to_compare_per_person);
 	$("#num_notes_for_comparison").val(num_notes_for_comparison);
+	
+	$("#admin_area").show();
 });
 
 function initEventHandlers() {
@@ -175,11 +182,11 @@ function createQuestion() {
 			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
 		};
 		$.post("/newquestion", data, function(result) {
-			if (parseInt(result.question_id) > 0) {
-				window.location.href = "/admin?question_id=" + result.question_id + "&question_key=" + result.question_key
-			} else {
-				$("#newq_info").html("Failed to create question - maybe it is too short.");
+			if (result.status == 0) {
+				$("newq_info").html(result.msg);
+				return;
 			}
+			window.location.href = "/admin?question_id=" + result.question_id + "&question_key=" + result.question_key
 			updateButtons();
 		}, "json");
 	}

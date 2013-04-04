@@ -38,6 +38,8 @@ limitations under the License.
 
 {% block content %}
 	<h1>Administration Interface</h1>
+	<div id="msg" class="warning spaceafter">{{ msg }}</div>
+	<div id="admin_area" style="display:none">
 	<div id="question"></div>
 	<table id="question_buttons" style="display:none">
 		<tr valign="top">
@@ -138,5 +140,6 @@ limitations under the License.
 	<div id="questions"></div>
 	<div id="delete_confirm" title="Delete Confirmation" style="display:none">
 		<p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>All data (items, tags, etc.) associated with this question will be permanently deleted and cannot be recovered. Are you sure?</p>
+	</div>
 	</div>
 {% endblock %}

@@ -43,47 +43,46 @@ PHASE_COMPARE_BY_SIMILARITY = 4
 def get_default_template_values(requestHandler, person, question):
     """Return a dictionary of template values used for login template"""        
     
-    client_id = None
-    token = None
-    user_login = None
-    
-    if person:            
+    page = requestHandler.request.path
+    requiresGoogleAuthentication = page == "/" or page == "/admin" or not question or not question.nicknameAuthentication
+
+    # user already logged in    
+    if person:
         client_id, token = connect(person)
-        url = users.create_logout_url("/logout") if person.user else "/logout"
         url_linktext = 'Logout'
-        logged_in = "true"
-        user_login = person.user if not question or not question.nicknameAuthentication else person.nickname
+        url = users.create_logout_url("/logout") if person.user else "/logout"
+         
+    # no one logged in, and required Google authentication
+    elif requiresGoogleAuthentication:
+        url_linktext = 'Login w/ Google Account'
+        url = "/login?page=" + requestHandler.request.uri + ("&question_id="+question.code if question else "")
+        url = users.create_login_url(url)
 
+    # no one logged in, and nickname authentication allowed
     else:
-        if question and question.nicknameAuthentication:
-            url = "/loginpage?question_id="+question.code
-            url_linktext = "Login w/ Nickname"
-        else:
-            url = "/login?page="+requestHandler.request.uri
-            if question:
-                url += "&question_id="+question.code
-            url = users.create_login_url(url)
-            url_linktext = 'Login w/ Google Account'
-        logged_in = "false"
-
+        url_linktext = "Login w/ Nickname"
+        url = "/loginpage" + ("?question_id=" + question.code if question else "")
+        
     session = gaesessions.get_current_session()
     msg = session.pop("msg") if session.has_key("msg") else ""
+
+    template_values = {}
+    template_values['logged_in'] = "true" if person else "false"       
+    template_values['url_linktext'] = url_linktext
+    template_values['url'] = url
+    template_values['msg'] = msg
         
-    template_values = {
-        'client_id': client_id,
-        'token': token,
-        'user_login': user_login if user_login else "",
-        'user_nickname': person.nickname if person else "",
-        'url': url,
-        'url_linktext': url_linktext,
-        'logged_in': logged_in,
-        'admin': Person.isAdmin(requestHandler) or (question and person and person.user and question.author == person.user),
-        'msg': msg
-    }
-    
+    if person:
+        template_values['client_id'] = client_id
+        template_values['token'] = token
+        # the displayed user login should be the nickname if on question page (e.g., url has question_id param)
+        # and nickname authentication is allowed; otherwise the Google login should be displayed
+        template_values['user_login'] = person.user if requiresGoogleAuthentication else person.nickname
+        template_values['user_nickname'] = person.nickname
+        template_values['admin'] = Person.isAdmin(requestHandler) or (question and person.user and question.author == person.user)
+            
     if question:
-        phase = Question.getPhase(question)
-        template_values["phase"] = phase if phase else -1
+        template_values["phase"] = question.phase
         template_values["title"] = question.title
         template_values["question"] = question.question
             
@@ -94,21 +93,22 @@ def get_default_template_values(requestHandler, person, question):
 #####################
 def connect(person):
     """User has connected, so remember that"""
-    client_id = str(random.randint(1000000000000, 10000000000000)) + "_" + str(person.key().id())
+    client_id = str(random.randint(1000000000000, 10000000000000))
+    if person:
+        client_id += "_" + str(person.key().id())
     token = channel.create_channel(client_id)
     return client_id, token
 
 # Check: is question_id needed since person_id can be parsed from client_id and question is associated with person
-def send_message(client_id, question_id, message):
+def send_message(from_client_id, question_id, message):
     """Send message to all listeners (except self) to this topic"""
     questionObj = Question.getQuestionById(question_id)
     if questionObj:
-        others = Person.all()
-        others = others.filter("question = ", questionObj)
-        others = others.filter("client_id !=", client_id)
-        for person in others:
-            for client_id in person.client_ids:
-                channel.send_message(client_id, json.dumps(message))
+        users = Person.all().filter("question = ", questionObj)
+        for person in users:
+            for to_client_id in person.client_ids:
+                if to_client_id != from_client_id:
+                    channel.send_message(to_client_id, json.dumps(message))
 
 #####################
 # Page Handlers
@@ -244,20 +244,19 @@ class AdminPageHandler(BaseHandler):
         if question_id and not questionObj:
             questionObj = Question.getQuestionById(question_id)
         
+        session = gaesessions.get_current_session()
+        
         # check if user logged in
         if not person or not person.user:
-            self.redirectWithMsg("Please login")
-            return
+            session['msg'] = "Please login"
             
         # check if valid question code
-        if (question_id or question_key) and not questionObj:
-            self.redirectWithMsg("Invalid question code", "/admin")
-            return
+        elif (question_id or question_key) and not questionObj:
+            session['msg'] = "Invalid question code"
         
         # check if question owned by logged in user
-        if questionObj and not Person.isAdmin(self) and questionObj.author != users.get_current_user():
-            self.redirectWithMsg("You are not allowed to edit this question", "/admin")
-            return 
+        elif questionObj and not Person.isAdmin(self) and questionObj.author != users.get_current_user():
+            session['msg'] = "You do not have permission to edit this question"
 
         template_values = get_default_template_values(self, person, questionObj)        
         if questionObj:
@@ -290,6 +289,7 @@ class LoginPageHandler(BaseHandler):
 class LoginHandler(BaseHandler):
     def get(self):
         nickname = self.request.get("nickname")
+        page = self.request.get("page")
         questionId = self.request.get("question_id")
         question = Question.getQuestionById(questionId)
 
@@ -314,7 +314,7 @@ class LoginHandler(BaseHandler):
                 session[questionId] = { "nickname": nickname }
 
         person = self.initUserContext(create=True)
-        url = getPhaseUrl(person.question)
+        url = str(page) if page else getPhaseUrl(person.question)
         self.redirect(url)
 
 def getPhaseUrl(question=None):
@@ -458,22 +458,33 @@ class QueryHandler(BaseHandler):
 
 class NewQuestionHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        person = self.initUserContext()
         client_id = self.request.get('client_id')
         title = self.request.get('title')
-        question = self.request.get('question')
+        questionText = self.request.get('question')
         nicknameAuthentication = self.request.get('nickname_authentication') == "1" if True else False
-        data = {}
-        if len(title) >= 5 and len(question) >= 5:
-            question = Question.createQuestion(title, question, nicknameAuthentication)
-            if question:
+
+        data = {}        
+        if not person:
+            data["status"] = 0
+            data["msg"] = "Please log in"
+        
+        elif len(title) < 5 or len(questionText) < 5:
+            data["status"] = 0
+            data["msg"] = "Title and question must must be at least 5 characters"
+                     
+        else:
+            question = Question.createQuestion(title, questionText, nicknameAuthentication)
+            
+            if not question:
+                data["status"] = 0
+                data["msg"] = "Error saving question"
+                
+            else:
                 question_id = question.code
-                question_key = question.key().id()
-                data = {"question_id": question_id, "question_key": question_key}
+                data = {"status": 1, "question_id": question_id, "question_key": question.key().id()}
                 # Update clients
-                message = {
-                    "op": "newquestion"
-                }
+                message = { "op": "newquestion" }
                 send_message(client_id, question_id, message)        # Update other clients about this change
 
         self.writeResponseAsJson(data)
@@ -514,6 +525,7 @@ class NewIdeaHandler(BaseHandler):
                 "text": idea,
                 "author": Person.toDict(ideaObj.author)
             }
+            helpers.log("SEND_MESSAGE: from={0}, question={1}, message={2}".format(client_id,question_id,message))
             send_message(client_id, question_id, message)        # Update other clients about this change
             
 class NewClusterTagHandler(BaseHandler):

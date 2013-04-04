@@ -24,25 +24,18 @@ var tag_idea_hists = {}
 var similar_idea_hists = {}
 var show_tags_in_charts = {};
     
-// Reason for this combination of google chart and jquery:
-// http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
-if (OFFLINE) {
-	$(function() {
-		init();
-	});	
-} else {
-	google.setOnLoadCallback(function() {
-		$(function() {
-			init();
-		});
-	});
-}
-
 $(document).ready(function() {
-	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
-});
-    
-function init() {
+	if (!logged_in) {
+		$("#msg").html("Please log in to view results");
+		return;
+	}
+
+	var question_id = getURLParameter("question_id");
+	if (!question_id) {
+		$("#msg").html("Question code required");
+		return;
+	}
+	
 	initChannel();
 	initEventHandlers();
 
@@ -50,17 +43,24 @@ function init() {
 		$("#admin_buttons").css("display", "none");
 	}
 
-	var question_id = getURLParameter("question_id");
-	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
-
-	displayIdeas();
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
-	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		// xx NOT COMPLETE
+	else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+		// xx TBD
 	}
-}
+	
+	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
+	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
+	
+	if (OFFLINE) {
+		displayIdeas();
+	}
+	else {
+		// http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
+		google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': displayIdeas });
+	}
+});
 
 function initEventHandlers() {
 	$("#numclusters").change(function() {
@@ -85,6 +85,7 @@ function initEventHandlers() {
 		var question_id = getURLParameter("question_id");
 		window.location.href="/admin?question_id=" + question_id;
 	});
+	
 	$("#tag_button").click(function() {
 		var question_id = getURLParameter("question_id");
 		window.location.href="/tag?question_id=" + question_id;
@@ -540,8 +541,7 @@ function handleTag(data) {
 	} else if (phase == PHASE_TAG_BY_NOTE) {
 		displayIdeaTags();
 	} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		alert("handleTag for comparing by similarity not implemented yet");
-		// XX NOT COMPLETE
+		displaySimilarIdeas();
 	}
 }
 

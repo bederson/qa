@@ -24,12 +24,20 @@ limitations under the License.
 	<script src="js/jquery-1.9.1.min.js"></script>
 	<script type="text/javascript" src="/js/jquery.json-2.3.min.js"></script>
 	<script type="text/javascript" src="/js/utils.js"></script>
-	<script>
+	<script type="text/javascript">
 		var client_id = "{{ client_id }}";
 		var token = "{{ token }}";
-		var logged_in = {{ logged_in }};		
+		var logged_in = {{ logged_in }};
+		var user_login = "{{ user_login }}";		
 		var user_nickname = "{{ user_nickname }}";	
+	
+		$(document).ready(function() {
+			if (logged_in) {
+				$("#user_login").html(user_login ? user_login : user_nickname);
+			}
+		});
 	</script>
+
 	{% block scripts %}{% endblock %}
   </head>
   <body>
@@ -39,13 +47,12 @@ limitations under the License.
 			<td width="45%"><a href="/">Q &amp; A</a></td>
 			<td align="middle" width="10%"></td>
 			<td align="right" width="45%">
-			    <span id="user_login">{{user_login}}</span>
+			    <span id="user_login"></span>
 				<a href="{{ url }}">{{ url_linktext }}</a>
 			</td>
 		</tr>
 	</table>
 	<br>
-	<div id="msg" class="warning">{{ msg }}</div>
 	{% block content %}{% endblock %}
   </body>
 </html>
