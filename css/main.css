@@ -119,3 +119,12 @@ h2 {
 #thankyou {
 	display: none;
 }
+
+.ui-slider-horizontal {
+	height: .6em !important;
+}
+
+.ui-slider .ui-slider-handle {
+	width: 1em !important;
+	height: 1em !important;
+}

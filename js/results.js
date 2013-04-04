@@ -36,6 +36,8 @@ $(document).ready(function() {
 		return;
 	}
 	
+	$("#num_clusters_slider").slider({ min:0, max:11, value:6});
+	
 	initChannel();
 	initEventHandlers();
 
@@ -63,14 +65,15 @@ $(document).ready(function() {
 });
 
 function initEventHandlers() {
-	$("#numclusters").change(function() {
-		var label = "Create " + $(this).val() + " clusters";
-		$("#clusterbutton").val(label);
+	$("#num_clusters_slider").on("slide", function() {
+		var num_clusters = $(this).slider("value");
+		var label = "Create " + num_clusters + " clusters";
+		$("#cluster_button").val(label);
 	});
 	
-	$("#clusterbutton").click(function() {
+	$("#cluster_button").click(function() {
 		var question_id = getURLParameter("question_id");
-		var num_clusters = $("#numclusters").val();
+		var num_clusters = $("#num_cluster_values").slider("value");
 		var data = {
 			"client_id": client_id,
 			"num_clusters": num_clusters,
