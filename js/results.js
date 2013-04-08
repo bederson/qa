@@ -126,10 +126,11 @@ function displayIdeasImpl(results) {
 			var similarid = "similar" + ideas[j].idea_id;
 			html += "<li>" + idea;
 			html += "<br>" + "<span ";
-			if (ideas[j].author.user_identity != "" && ideas[j].author.user_identity != ideas[j].author.nickname) {
+			var identityHidden = ideas[j].author.user_identity != "" && ideas[j].author.user_identity != ideas[j].author.nickname;
+			if (identityHidden) {
 				html += "title='" + ideas[j].author.user_identity + "' ";
 			}
-			html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author.nickname + "</span>";
+			html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + ideas[j].author.nickname + (identityHidden?"*":"") + "</span>";
 			html += "<span id='" + tagsid + "' class='tags'></span>";
 			html += "<span id='" + similarid + "' class='tags'></span>";
 			numIdeas += 1;
