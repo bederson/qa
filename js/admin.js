@@ -143,20 +143,28 @@ function displayQuestionsImpl(results) {
 	} else {
 		var html = "<ul>";
 		for (var i in questions) {
-			var question = questions[i];
-			html += "<li><a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a> <span class='note'>#"+question.question_id+"</span>";
-			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.question_id + ")'>[edit]</a>";
-			html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
-			html += "<br>";
-			html += question.question;
-			if (question.nickname_authentication) {
-				html += '<br/><span class="note"><em>Nickname authentication</em></span>';
-			}
-			html += '<br/><em><span id="question_'+question.question_id+'_phase" class="note">'+phaseToString(question.phase)+'</em></span>';
+			html += '<li id="question_'+questions[i].question_id+'"></li>';
 		}
 		html += "</ul>";
 		$("#questions").html(html);
+
+		for (var i in questions) {
+			updateQuestionListItem(questions[i]);
+		}
 	}
+}
+
+function updateQuestionListItem(question) {
+	var html = "<a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a> <span class='note'>#"+question.question_id+"</span>";
+	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.question_id + ")'>[edit]</a>";
+	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
+	html += "<br>";
+	html += question.question;
+	if (question.nickname_authentication) {
+		html += '<br/><span class="note"><em>Nickname authentication</em></span>';
+	}
+	html += '<br/><em><span id="question_'+question.question_id+'_phase" class="note">'+phaseToString(question.phase)+'</em></span>';
+	$("#question_"+question.question_id).html(html);
 }
 
 function createQuestion() {
@@ -176,11 +184,11 @@ function createQuestion() {
 			"question_id": $("#newq_button").data("question_id")
 		};
 		$.post("/editquestion", data, function(result) {
-			if (parseInt(result.question_id) > 0) {
-				window.location.href = "/admin?question_id=" + result.question_id;
-			} else {
-				$("#newq_info").html("Failed to update question.");
+			if (result.status == 0) {
+				$("#newq_info").html(result.msg);
+				return;
 			}
+			updateQuestionListItem(result.question);
 		}, "json");
 	} else {
 		// Create new question

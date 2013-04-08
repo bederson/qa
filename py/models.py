@@ -48,7 +48,7 @@ class Question(db.Model):
     @staticmethod
     def getQuestionById(code):
         # this function retrieves question by question code, not datastore id
-        return Question.all().filter("code = ", code).get() if code is not None else None
+        return Question.all().filter("code = ", code).get() if code else None
 
     @staticmethod
     def getQuestionsByUser():
@@ -73,18 +73,13 @@ class Question(db.Model):
             questionObj.put()
         return questionObj
 
-    @staticmethod
-    def editQuestion(questionIdStr, title, question, nicknameAuthentication=False):
-        questionObj = Question.getQuestionById(questionIdStr)
-        if questionObj:
-            questionObj.title = title
-            questionObj.question = question
-            questionObj.nicknameAuthentication = nicknameAuthentication
-            questionObj.put()
-            return questionObj.code
-        else:
-            return -1
-
+    def editQuestion(self, title, question, nicknameAuthentication=False):
+        self.title = title
+        self.question = question
+        self.nicknameAuthentication = nicknameAuthentication
+        self.put()
+        return self
+       
     @staticmethod
     def delete(questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)

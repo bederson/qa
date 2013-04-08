@@ -506,16 +506,34 @@ class NewQuestionHandler(BaseHandler):
 
 class EditQuestionHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        person = self.initUserContext()
         client_id = self.request.get('client_id')
         question_id = self.request.get("question_id")
-        title = self.request.get('title')
-        question = self.request.get('question')
+        question = Question.getQuestionById(question_id)
+        title_text = self.request.get('title')
+        question_text = self.request.get('question')
+
         nicknameAuthentication = self.request.get('nickname_authentication') == "1" if True else False
         data = {}
-        if len(title) >= 5 and len(question) >= 5:
-            question_id = Question.editQuestion(question_id, title, question, nicknameAuthentication)
-            data = {"question_id": question_id}
+        if not person or not person.user:
+            data["status"] = 0
+            data["msg"] = "Please log in"
+                 
+        elif not question:
+            data["status"] = 0
+            data["msg"] = "Invalid question code"
+            
+        elif question.author != person.user:
+            data["status"] = 0
+            data["msg"] = "You do not have permission to edit this question"
+        
+        elif len(title_text) < 5 or len(question_text) < 5:
+            data["status"] = 0
+            data["msg"] = "Title and question must must be at least 5 characters"
+
+        else:
+            question = question.editQuestion(title_text, question_text, nicknameAuthentication)
+            data = { "status": 1, "question": question.toDict() }
 
             # Update clients
             message = {
