@@ -233,12 +233,13 @@ class AdminPageHandler(BaseHandler):
         person = self.initUserContext(admin=True)
         questionObj = None
         
-        # check if question_key
-        # newly created questions may not be searchable by question_id immediately
-        # but they should be retrievable with a question_key
-        question_key = self.request.get("question_key")
-        if question_key:
-            questionObj = Question.get_by_id(long(question_key))
+        # check if new_question_id stored in session
+        # newly created questions may not be searchable immediately
+        # but they should be retrievable with a key
+        session = gaesessions.get_current_session()
+        question_id = session.pop("new_question_key") if session.has_key("new_question_key") else None                
+        if question_id:
+            questionObj = Question.get_by_id(question_id)
             
         question_id = self.request.get("question_id")
         if question_id and not questionObj:
@@ -252,7 +253,7 @@ class AdminPageHandler(BaseHandler):
             session['msg'] = "Please login"
             
         # check if valid question code
-        elif (question_id or question_key) and not questionObj:
+        elif question_id and not questionObj:
             session['msg'] = "Invalid question code"
         
         # check if question owned by logged in user
@@ -484,7 +485,10 @@ class NewQuestionHandler(BaseHandler):
                 
             else:
                 question_id = question.code
-                data = {"status": 1, "question_id": question_id, "question_key": question.key().id()}
+                session = gaesessions.get_current_session()
+                session["new_question_key"] = question.key().id()
+                
+                data = {"status": 1, "question_id": question_id }
                 # Update clients
                 message = { "op": "newquestion" }
                 send_message(client_id, question_id, message)        # Update other clients about this change

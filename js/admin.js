@@ -193,7 +193,7 @@ function createQuestion() {
 				$("#newq_info").html(result.msg);
 				return;
 			}
-			window.location.href = "/admin?question_id=" + result.question_id + "&question_key=" + result.question_key
+			window.location.href = "/admin?question_id=" + result.question_id
 			updateButtons();
 		}, "json");
 	}
