@@ -248,6 +248,7 @@ class AdminPageHandler(BaseHandler):
         
         # check if user logged in
         if not person or not person.user:
+            questionObj = None
             session['msg'] = "Please login"
             
         # check if valid question code
@@ -256,9 +257,10 @@ class AdminPageHandler(BaseHandler):
         
         # check if question owned by logged in user
         elif questionObj and not Person.isAdmin(self) and questionObj.author != users.get_current_user():
+            questionObj = None
             session['msg'] = "You do not have permission to edit this question"
 
-        template_values = get_default_template_values(self, person, questionObj)        
+        template_values = get_default_template_values(self, person, questionObj) 
         if questionObj:
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
             template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson

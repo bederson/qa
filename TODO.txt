@@ -14,8 +14,8 @@ Features
    ... if that's what we want)
 
 Testing
-* Questions require either user authentication (via google account) or nickname authentication (nickname stored in session)
-  Implemented but needs to be tested (esp. nickname authentication)
+* Questions require either user authentication (via google account) or nickname authentication 
+  (nickname stored in session). Implemented but needs to be tested (esp. nickname authentication)
   
 Misc
 * Need to make myself a gae admin so users.is_current_user_admin returns true

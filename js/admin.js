@@ -19,23 +19,15 @@ $(document).ready(function() {
 		$("#msg").html("Please log in to create/edit your own questions");
 		return;
 	}
-	
-	initEventHandlers();
-	updateButtons();
-	displayModes();
-	displayQuestions();
 
-	var question_id = getURLParameter("question_id");
-	$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
-	$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
-	$("#comparebysimilarity_link").attr("href", "/similar?question_id=" + question_id);
-	$("#notes_link").attr("href", "/idea?question_id=" + question_id);
-	$("#results_link").attr("href", "/results?question_id=" + question_id);
-	$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
-	$("#num_notes_to_compare_per_person").val(num_notes_to_compare_per_person);
-	$("#num_notes_for_comparison").val(num_notes_for_comparison);
-	
-	$("#admin_area").show();
+	question_id = getURLParameter("question_id");
+	if (!question_id || question!="") {	
+		initEventHandlers();
+		updateButtons();
+		displayModes();
+		displayQuestions();	
+		$("#admin_area").show();
+	}
 });
 
 function initEventHandlers() {
@@ -120,6 +112,15 @@ function displayModes() {
 		html += "<br>";
 		$("#question").html(html);
 		
+		$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
+		$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
+		$("#comparebysimilarity_link").attr("href", "/similar?question_id=" + question_id);
+		$("#notes_link").attr("href", "/idea?question_id=" + question_id);
+		$("#results_link").attr("href", "/results?question_id=" + question_id);
+		$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
+		$("#num_notes_to_compare_per_person").val(num_notes_to_compare_per_person);
+		$("#num_notes_for_comparison").val(num_notes_for_comparison);
+	
 		$("#question_buttons").css("display", "table");
 		updateButtons();
 	}
@@ -157,12 +158,18 @@ function displayQuestionsImpl(results) {
 }
 
 function createQuestion() {
-	if (isDefined($("#newq_button").data("question_id"))) {
+	var title = $("#newq_title").val();
+	var question = $("#newq_question").val();
+	
+	if (!title || !question) {
+		$("#newq_info").html("Title and question required");
+	}
+	else if (isDefined($("#newq_button").data("question_id"))) {
 		// Edit question
 		var data = {
 			"client_id": client_id,
-			"title": $("#newq_title").val(),
-			"question": $("#newq_question").val(),
+			"title": title,
+			"question": question,
 			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0",
 			"question_id": $("#newq_button").data("question_id")
 		};
@@ -177,13 +184,13 @@ function createQuestion() {
 		// Create new question
 		var data = {
 			"client_id": client_id,
-			"title": $("#newq_title").val(),
-			"question": $("#newq_question").val(),
+			"title": title,
+			"question": question,
 			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
 		};
 		$.post("/newquestion", data, function(result) {
 			if (result.status == 0) {
-				$("newq_info").html(result.msg);
+				$("#newq_info").html(result.msg);
 				return;
 			}
 			window.location.href = "/admin?question_id=" + result.question_id + "&question_key=" + result.question_key
