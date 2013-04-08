@@ -218,7 +218,7 @@ function editQuestion(question_id) {
 	$.getJSON("/query", data, function(results) {
 		$("#newq_title").val(results.title);
 		$("#newq_question").val(results.question);
-		$("#newq_nickname_authentication").attr("checked", results.nicknameAuthentication);
+		$("#newq_nickname_authentication").attr("checked", results.nickname_authentication);
 		$("#newq_button").val("Update question");
 		$("#newq_button").data("question_id", question_id);
 	});
