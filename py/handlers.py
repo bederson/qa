@@ -45,7 +45,7 @@ def get_default_template_values(requestHandler, person, question):
     
     page = requestHandler.request.path
     requiresGoogleAuthentication = page == "/" or page == "/admin" or not question or not question.nicknameAuthentication
-
+    
     # user already logged in    
     if person:
         client_id, token = connect(person)
@@ -57,7 +57,7 @@ def get_default_template_values(requestHandler, person, question):
         url_linktext = 'Login w/ Google Account'
         url = "/login?page=" + requestHandler.request.uri + ("&question_id="+question.code if question else "")
         url = users.create_login_url(url)
-
+        
     # no one logged in, and nickname authentication allowed
     else:
         url_linktext = "Login w/ Nickname"
@@ -115,7 +115,7 @@ def send_message(from_client_id, question_id, message):
 #####################
 
 class BaseHandler(webapp2.RequestHandler):
-    def initUserContext(self, admin=False, create=False):
+    def initUserContext(self, force_check=False, create=False):
         # Get the current browser session, if any
         # Otherwise, create one
         session = gaesessions.get_current_session()          
@@ -132,17 +132,17 @@ class BaseHandler(webapp2.RequestHandler):
             questionValues = session.get(question.code) if session.has_key(question.code) else None
             nickname = questionValues["nickname"] if questionValues else None
            
-        # if admin, force check for authenticated user not affiliated with any specific question
-        if admin:
+        # if requested, force check for authenticated user not affiliated with any specific question
+        if force_check:
             question = None
             nickname = None
         
         person = Person.getPerson(question, nickname)
-                    
+        user = users.get_current_user()
+                            
         # if no person found
         # create person if create is true, OR,
         # create person if question requires login authentication and person already logged in
-        user = users.get_current_user()
         if not person and (create or (question and not question.nicknameAuthentication and user)):            
             person = Person.createPerson(question, nickname)
 
@@ -224,13 +224,26 @@ class ResultsPageHandler(BaseHandler):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
+        
+        # if no person found, check if question author trying to view results page
+        # if so, display page even if nickname authentication required
+        isQuestionAuthor = False
+        if not person:
+            user = users.get_current_user()        
+            isQuestionAuthor = questionObj and user and questionObj.author == user
+            if isQuestionAuthor:
+                person = Person.all().filter("question =", None).filter("user =", user).get()
+
         template_values = get_default_template_values(self, person, questionObj)
+        if isQuestionAuthor and person:
+            user_login = template_values["user_login"] = person.user
+            
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, template_values))
 
 class AdminPageHandler(BaseHandler):
     def get(self):
-        person = self.initUserContext(admin=True)
+        person = self.initUserContext(force_check=True)
         questionObj = None
         
         # check if new_question_id stored in session
@@ -527,7 +540,6 @@ class NewIdeaHandler(BaseHandler):
                 "text": idea,
                 "author": Person.toDict(ideaObj.author)
             }
-            helpers.log("SEND_MESSAGE: from={0}, question={1}, message={2}".format(client_id,question_id,message))
             send_message(client_id, question_id, message)        # Update other clients about this change
             
 class NewClusterTagHandler(BaseHandler):

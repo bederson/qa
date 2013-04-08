@@ -16,7 +16,7 @@
 
 $(document).ready(function() {
 	if (!logged_in) {
-		$("#msg").html("Please log in to create/edit your own questions");
+		$("#msg").html("Please log in with a Google account to create/edit your own questions");
 		return;
 	}
 

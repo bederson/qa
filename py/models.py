@@ -143,10 +143,7 @@ class Question(db.Model):
             "title": self.title,
             "question": self.question,
             "nickname_authentication": self.nicknameAuthentication,
-            "phase": self.phase,
-            "num_tags_by_cluster": self.getNumTagsByCluster(),
-            "num_tags_by_idea": self.getNumTagsByIdea(),
-            "num_similar_ideas": self.getNumSimilarIdeas()
+            "phase": self.phase
         } 
 
 ######################
@@ -154,7 +151,7 @@ class Question(db.Model):
 ######################
 class Person(db.Model):
     client_ids = db.StringListProperty(default=[])
-    user = db.UserProperty(auto_current_user_add=True)
+    user = db.UserProperty()
     nickname = db.StringProperty()    
     question = db.ReferenceProperty(Question)
 
@@ -176,9 +173,9 @@ class Person(db.Model):
         return len(self.client_ids)
                 
     @staticmethod
-    def createPerson(question=None, nickname=None):            
+    def createPerson(question=None, nickname=None):   
         person = Person()
-        # person user added automatically
+        person.user = users.get_current_user() if not question or not question.nicknameAuthentication else None
         person.nickname = nickname if nickname else (Person.cleanNickname(person.user) if person.user else None)
         person.question = question
         person.put()
@@ -258,7 +255,7 @@ class Person(db.Model):
     @staticmethod
     def toDict(person):
         user = users.get_current_user()
-        userIdentity = Person.cleanNickname(person.user) if user else ""
+        userIdentity = Person.cleanNickname(person.user) if person.user else ""
         isQuestionAuthor = user == person.question.author if user and person and person.question else False
         return {
             "nickname": person.nickname,
