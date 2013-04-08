@@ -254,6 +254,7 @@ function deleteQuestionImpl(question_id) {
 }
 
 function updateButtons() {
+	var enableTaggingByCluster = num_clusters > 0;
 	if (phase == 0) {
 		$("#p0button").val("Enable data entry");
 		$("#p1button").val("Note entry disabled");
@@ -264,6 +265,7 @@ function updateButtons() {
 		$("#p2button").attr("disabled", "disabled");
 		$("#p3button").attr("disabled", "disabled");
 		$("#p4button").attr("disabled", "disabled");
+		$("#tagsbycluster_msg").html("");
 	} else {
 		$("#p0button").val("Disable data entry");
 		$("#p1button").val("Enable adding of notes");
@@ -274,6 +276,13 @@ function updateButtons() {
 		$("#p2button").removeAttr("disabled");
 		$("#p3button").removeAttr("disabled");
 		$("#p4button").removeAttr("disabled");
+		
+		if (!enableTaggingByCluster) {
+			var question_id = getURLParameter("question_id");
+			$("#p2button").attr("disabled", "disabled");
+			$("#tagsbycluster_msg").html('Must <a class="warning" href="/results?question_id='+question_id+'">create clusters</a> first');
+		}
+		
 		if (phase == 1) {
 			$("#p1button").val("Note entry enabled");
 			$("#p1button").attr("disabled", "disabled");

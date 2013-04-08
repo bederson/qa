@@ -23,6 +23,7 @@ var tag_cluster_hists = {};
 var tag_idea_hists = {}
 var similar_idea_hists = {}
 var show_tags_in_charts = {};
+var num_clusters_to_create = 6;
     
 $(document).ready(function() {
 	if (!logged_in) {
@@ -36,7 +37,7 @@ $(document).ready(function() {
 		return;
 	}
 	
-	$("#num_clusters_slider").slider({ min:0, max:11, value:6});
+	$("#num_clusters_slider").slider({ min:1, max:10, value:num_clusters_to_create});
 	
 	initChannel();
 	initEventHandlers();
@@ -47,9 +48,6 @@ $(document).ready(function() {
 
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
-	}
-	else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		// xx TBD
 	}
 	
 	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
@@ -64,24 +62,26 @@ $(document).ready(function() {
 });
 
 function initEventHandlers() {
-	$("#num_clusters_slider").on("slide", function() {
-		var num_clusters = $(this).slider("value");
-		var label = "Create " + num_clusters + " clusters";
-		$("#cluster_button").val(label);
-	});
-	
-	$("#cluster_button").click(function() {
-		var question_id = getURLParameter("question_id");
-		var num_clusters = $("#num_cluster_values").slider("value");
-		var data = {
-			"client_id": client_id,
-			"num_clusters": num_clusters,
-			"question_id": question_id
-		};
-		$.post("/cluster", data, function() {
-			window.location.reload();
+	if (phase == PHASE_NOTES) {
+		$("#num_clusters_slider").on("slide", function(event, ui) {
+			num_clusters_to_create = ui.value;
+			var label = "Create " + num_clusters_to_create + " clusters";
+			$("#cluster_button").val(label);
 		});
-	})
+		
+		$("#cluster_button").click(function() {
+			var question_id = getURLParameter("question_id");
+			var data = {
+				"client_id": client_id,
+				"num_clusters": num_clusters_to_create,
+				"question_id": question_id
+			};
+			$.post("/cluster", data, function() {
+				window.location.reload();
+			});
+		});
+		$("#cluster_controls").show();
+	}
 
 	$("#admin_button").click(function() {
 		var question_id = getURLParameter("question_id");

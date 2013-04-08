@@ -79,6 +79,22 @@ h2 {
 	font-weight: bold;
 }
 
+a, a:visited {
+	color: #000000;
+}
+
+a:hover {
+	color: #595454;
+}
+
+a.warning, a.warning:visited {
+	color: #f55;
+}
+
+a.warning:hover {
+	color: #595454;
+}
+
 #admin_buttons {
 	float: right;
 }

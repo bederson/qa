@@ -281,10 +281,11 @@ class AdminPageHandler(BaseHandler):
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
             template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson
             template_values["num_notes_for_comparison"] = questionObj.numNotesForComparison
-            template_values["num_ideas"] = Idea.numIdeas(question_id)
+            template_values["num_ideas"] = Idea.getNumIdeas(questionObj)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
             template_values["num_similar_ideas"] = questionObj.getNumSimilarIdeas()
+            template_values["num_clusters"] = Cluster.numClusters(questionObj)
 
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, template_values))
@@ -424,7 +425,7 @@ class QueryHandler(BaseHandler):
                 if cluster:
                     item = {"tag": tag, "cluster": cluster.key().id(), "author": Person.toDict(tagObj.author)}
                     tags.append(item)
-            data = {"tags": tags, "num_clusters": Cluster.numClusters(question_id)}
+            data = {"tags": tags, "num_clusters": Cluster.numClusters(question) if question else 0}
         elif request == "ideatags":
             tags = []
             for tagObj in IdeaTag.getTags(question_id):
@@ -617,7 +618,7 @@ class ClusterHandler(BaseHandler):
         client_id = self.request.get('client_id')
         num_clusters = int(self.request.get('num_clusters'))
         question_id = self.request.get("question_id")
-        data = doCluster(num_clusters, question_id)
+        doCluster(num_clusters, question_id)
 
         # Update clients
         message = {
@@ -861,6 +862,7 @@ def doCluster(k, question_id):
     # Clean up any existing tags and cluster assignments since clusters have been reformed
     ClusterTag.deleteAllTags(question_id)
     ClusterAssignment.deleteAllClusterAssignments(question_id)
+    return clusterNum
 
 def uncluster(question_id):
     questionObj = Question.getQuestionById(question_id)

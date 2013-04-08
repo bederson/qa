@@ -300,10 +300,9 @@ class Cluster(db.Model):
             return None
 
     @staticmethod
-    def numClusters(questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
-        if questionObj:
-            return Cluster.all().filter("question =", questionObj).count()
+    def numClusters(question):
+        if question:
+            return Cluster.all().filter("question =", question).count()
         else:
             return 0
 
@@ -363,12 +362,8 @@ class Idea(db.Model):
             return ideaObj
 
     @staticmethod
-    def numIdeas(questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
-        if questionObj:
-            return Idea.all().filter("question =", questionObj).count()
-        else:
-            return 0
+    def getNumIdeas(question):
+        return Idea.all().filter("question =", question).count() if question else 0
 
     @staticmethod
     def getRandomIdea(questionObj):

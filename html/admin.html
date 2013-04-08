@@ -30,9 +30,10 @@ limitations under the License.
 		var num_notes_to_tag_per_person = parseInt("{{ num_notes_to_tag_per_person }}");
 		var num_notes_to_compare_per_person = parseInt("{{ num_notes_to_compare_per_person }}");
 		var num_notes_for_comparison = parseInt("{{ num_notes_for_comparison }}");
-		var num_tags_by_cluster = "{{ num_tags_by_cluster }}";
-		var num_tags_by_idea = "{{ num_tags_by_idea }}";
-		var num_similar_ideas = "{{ num_similar_ideas }}";
+		var num_tags_by_cluster = parseInt("{{ num_tags_by_cluster }}");
+		var num_tags_by_idea = parseInt("{{ num_tags_by_idea }}");
+		var num_similar_ideas = parseInt("{{ num_similar_ideas }}");
+		var num_clusters = parseInt("{{ num_clusters }}");
 	</script>
 {% endblock %}
 
@@ -64,6 +65,7 @@ limitations under the License.
 						</td>
 						<td>
 							Go to <a id="tagbycluster_link">add tags by cluster</a>
+							<span id="tagsbycluster_msg" class="warning small"></span>
 						</td>
 					</tr>
 					<tr valign="top">
