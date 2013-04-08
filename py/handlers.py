@@ -236,6 +236,8 @@ class AdminPageHandler(BaseHandler):
         # check if new_question_id stored in session
         # newly created questions may not be searchable immediately
         # but they should be retrievable with a key
+        # would not be required if js did not immediately reload page
+        # with question_id as url param (which forces new question search)
         session = gaesessions.get_current_session()
         question_id = session.pop("new_question_key") if session.has_key("new_question_key") else None                
         if question_id:
@@ -437,13 +439,7 @@ class QueryHandler(BaseHandler):
             data = {"tags": tags}
         elif request == "question":
             if question:
-                data = {
-                    "title": question.title,
-                    "question": question.question,
-                    "nicknameAuthentication": question.nicknameAuthentication,
-                    "numTagsByCluster": question.getNumTagsByCluster(),
-                    "numTagsByIdea": question.getNumTagsByIdea(),
-                }
+                data = question.toDict()
             else:
                 data = {
                     "title": "", 
@@ -454,7 +450,7 @@ class QueryHandler(BaseHandler):
         elif request == "questions":
             userQuestions = []
             for userQuestion in Question.getQuestionsByUser():
-                userQuestions.append({"title": userQuestion.title, "question": userQuestion.question, "nickname_authentication": userQuestion.nicknameAuthentication, "question_id": userQuestion.code})
+                userQuestions.append(userQuestion.toDict())
             data = {"questions": userQuestions}
 
         self.writeResponseAsJson(data)

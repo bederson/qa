@@ -74,6 +74,7 @@ function set_phase(new_phase) {
 	$.post("/set_phase", data, function() {
 		phase = new_phase
 		updateButtons();
+		$("#question_"+data.question_id+"_phase").html(phaseToString(new_phase));
 	});
 }
 
@@ -149,8 +150,9 @@ function displayQuestionsImpl(results) {
 			html += "<br>";
 			html += question.question;
 			if (question.nickname_authentication) {
-				html += '<br/><span class="small"><em>Nickname authentication</em></span>'
+				html += '<br/><span class="note"><em>Nickname authentication</em></span>';
 			}
+			html += '<br/><em><span id="question_'+question.question_id+'_phase" class="note">'+phaseToString(question.phase)+'</em></span>';
 		}
 		html += "</ul>";
 		$("#questions").html(html);

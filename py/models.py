@@ -136,6 +136,18 @@ class Question(db.Model):
     
     def getNumSimilarIdeas(self):
         return SimilarIdea.all().filter("question = ", self).count()
+    
+    def toDict(self):
+        return {
+            "question_id": self.code,
+            "title": self.title,
+            "question": self.question,
+            "nickname_authentication": self.nicknameAuthentication,
+            "phase": self.phase,
+            "num_tags_by_cluster": self.getNumTagsByCluster(),
+            "num_tags_by_idea": self.getNumTagsByIdea(),
+            "num_similar_ideas": self.getNumSimilarIdeas()
+        } 
 
 ######################
 ##### Person #####
@@ -174,7 +186,7 @@ class Person(db.Model):
         # save to session since this person
         # may not be immediately retrievable from datastore
         session = gaesessions.get_current_session()
-        session["qa_person_id"] = person.key().id()
+        session["new_person_id"] = person.key().id()
         
         return person
     
@@ -185,13 +197,16 @@ class Person(db.Model):
         # check if person id stored in session
         # if so use to retrieve logged in user 
         session = gaesessions.get_current_session()
-        person_id = session.pop("qa_person_id") if session.has_key("qa_person_id") else None
+        person_id = session.pop("new_person_id") if session.has_key("new_person_id") else None
         if person_id:
             person = Person.get_by_id(person_id)
             # check if person id stored in session corresponds to inputs
-            if question and question != person.question:
+            if not person:
                 person = None
-            if nickname and nickname != person.nickname:
+                helpers.log("WARNING: Person not found by id {0}".format(person_id))
+            elif question and question != person.question:
+                person = None
+            elif nickname and nickname != person.nickname:
                 person = None
         
         if not person:

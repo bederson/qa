@@ -82,3 +82,28 @@ enableDisable = function(obj, enable) {
 		obj.attr("disabled", "disabled");
 	}
 }
+
+function phaseToString(phase) {
+	var str = "";
+	switch(phase) {
+		case PHASE_DISABLED:
+			str = "Disabled";
+			break;
+		case PHASE_NOTES:
+			str = "Note entry";
+			break;
+		case PHASE_TAG_BY_CLUSTER:
+			str = "Tagging by cluster";
+			break;
+		case PHASE_TAG_BY_NOTE:
+			str = "Tagging by note";
+			break;
+		case PHASE_COMPARE_BY_SIMILARITY:
+			str = "Compare notes by similarity";
+			break;
+		default:
+			str = "Unknown phase";
+			break;
+	}
+	return str;
+}
