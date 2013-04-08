@@ -53,7 +53,6 @@ $(document).ready(function() {
 	}
 	
 	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
-	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
 	
 	if (OFFLINE) {
 		displayIdeas();
@@ -170,6 +169,9 @@ function displayIdeasImpl(results) {
 			displaySimilarIdeas();
 		}
 	}
+	
+	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
+	
 }
 
 function createIdea(idea) {

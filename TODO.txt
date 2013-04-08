@@ -27,7 +27,6 @@ Misc
 
 Engineering
 * Better downloading support
-* Only let owners or admin delete questions
 * Build test harness
   (look at the Firefox extension Selenium: seleniumhq.org)
 
@@ -44,7 +43,7 @@ New approaches
 
 Design issues
 * General tension between student individual focus and how much they see of collective activity
-* Should complete user name (which is email) be displaed on mouse over in instructor view?
+* Should complete user name (which is email) be displayed on mouse over in instructor view?
 
 Clustering
 * Look at MALLET - http://mallet.cs.umass.edu/topics.php
