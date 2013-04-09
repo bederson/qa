@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
 # Copyright 2013 Ben Bederson - http://www.cs.umd.edu/~bederson
+# Anne Rose - http://www.cs.umd.edu/hcil/members/arose
 # University of Maryland
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
