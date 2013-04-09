@@ -26,6 +26,7 @@ var show_tags_in_charts = {};
 var num_clusters_to_create = 6;
     
 $(document).ready(function() {
+	
 	if (!logged_in) {
 		$("#msg").html("Please log in to view results");
 		return;
@@ -36,15 +37,18 @@ $(document).ready(function() {
 		$("#msg").html("Question code required");
 		return;
 	}
+		
+	if (!jQuery.browser.mobile) {
+		$("#admin_buttons").show();
+	}
 	
-	$("#num_clusters_slider").slider({ min:1, max:10, value:num_clusters_to_create});
+	if (phase == PHASE_NOTES) {
+		$("#num_clusters_slider").slider({ min:1, max:10, value:num_clusters_to_create});
+		$("#cluster_controls").show();
+	}
 	
 	initChannel();
 	initEventHandlers();
-
-	if (jQuery.browser.mobile) {
-		$("#admin_buttons").css("display", "none");
-	}
 
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
@@ -62,26 +66,27 @@ $(document).ready(function() {
 });
 
 function initEventHandlers() {
-	if (phase == PHASE_NOTES) {
-		$("#num_clusters_slider").on("slide", function(event, ui) {
-			num_clusters_to_create = ui.value;
-			var label = "Create " + num_clusters_to_create + " clusters";
-			$("#cluster_button").val(label);
-		});
+	$("#num_clusters_slider").on("slide", function(event, ui) {
+		num_clusters_to_create = ui.value;
+		var label = "Create " + num_clusters_to_create + " clusters";
+		$("#cluster_button").val(label);
+	});
 		
-		$("#cluster_button").click(function() {
-			var question_id = getURLParameter("question_id");
-			var data = {
-				"client_id": client_id,
-				"num_clusters": num_clusters_to_create,
-				"question_id": question_id
-			};
-			$.post("/cluster", data, function() {
-				window.location.reload();
-			});
-		});
-		$("#cluster_controls").show();
-	}
+	$("#cluster_button").click(function() {
+		var question_id = getURLParameter("question_id");
+		var data = {
+			"client_id": client_id,
+			"num_clusters": num_clusters_to_create,
+			"question_id": question_id
+		};
+		$.post("/cluster", data, function(result) {
+			if (result.status == 0) {
+				$("#msg").html(result.msg);
+				return;
+			}
+			window.location.reload();
+		}, "json");
+	});
 
 	$("#admin_button").click(function() {
 		var question_id = getURLParameter("question_id");

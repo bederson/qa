@@ -84,7 +84,7 @@ class Question(db.Model):
     def delete(questionIdStr):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
-            Cluster.deleteAllClusters(questionIdStr)
+            Cluster.deleteAllClusters(questionObj)
             Idea.deleteAllIdeas(questionIdStr)
             db.delete(Person.all().filter("question =", questionObj))
             db.delete(questionObj)
@@ -307,10 +307,9 @@ class Cluster(db.Model):
             return 0
 
     @staticmethod
-    def deleteAllClusters(questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
+    def deleteAllClusters(questionObj):
         if questionObj:
-            ClusterAssignment.deleteAllClusterAssignments(questionIdStr)
+            ClusterAssignment.deleteAllClusterAssignments(questionObj)
             clusters = Cluster.all().filter("question =", questionObj)
             for clusterObj in clusters:
                 for idea in Idea.all().filter("cluster =", clusterObj):
@@ -449,8 +448,7 @@ class ClusterAssignment(db.Model):
             return -1
 
     @staticmethod
-    def deleteAllClusterAssignments(questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
+    def deleteAllClusterAssignments(questionObj):
         if questionObj:
             db.delete(ClusterAssignment.all().filter("question =", questionObj))
 
@@ -657,8 +655,7 @@ class ClusterTag(db.Model):
             return None
 
     @staticmethod
-    def deleteAllTags(questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
+    def deleteAllTags(questionObj):
         if questionObj:
             tags = ClusterTag.all().filter("question =", questionObj)
             db.delete(tags)

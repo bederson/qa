@@ -79,8 +79,8 @@ def get_default_template_values(requestHandler, person, question):
         # and nickname authentication is allowed; otherwise the Google login should be displayed
         template_values['user_login'] = person.user if requiresGoogleAuthentication else person.nickname
         template_values['user_nickname'] = person.nickname
-        template_values['admin'] = Person.isAdmin(requestHandler) or (question and person.user and question.author == person.user)
-            
+        template_values['admin'] = Person.isAdmin(requestHandler) or (person.user and (not question or question.author == person.user))
+
     if question:
         template_values["phase"] = question.phase
         template_values["title"] = question.title
@@ -614,17 +614,31 @@ class DeleteHandler(BaseHandler):
 
 class ClusterHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
-        client_id = self.request.get('client_id')
-        num_clusters = int(self.request.get('num_clusters'))
+        person = self.initUserContext()
+        client_id = self.request.get("client_id")
+        num_clusters = int(self.request.get("num_clusters"))
         question_id = self.request.get("question_id")
-        doCluster(num_clusters, question_id)
-
-        # Update clients
-        message = {
-            "op": "refresh"
-        }
-        send_message(client_id, question_id, message)        # Update other clients about this change
+        question = Question.getQuestionById(question_id)
+        data = {}
+        
+        if not person:
+            data["status"] = 0
+            data["msg"] = "Please log in"
+                 
+        elif not question:
+            data["status"] = 0
+            data["msg"] = "Invalid question code"
+           
+        else: 
+            data = doCluster(num_clusters, question)
+            if data["status"] == 1:
+                # Update clients
+                message = {
+                           "op": "refresh"
+                }
+                send_message(client_id, question_id, message)        # Update other clients about this change
+            
+        self.writeResponseAsJson(data)
 
 class IdeaAssignmentHandler(BaseHandler):
     def get(self):
@@ -823,21 +837,22 @@ def getIdeasByCluster(cluster_id, questionIdStr):
         ideas.append(idea)
     return ideas;
 
-def doCluster(k, question_id):
+def doCluster(k, question):
+    question_id = question.code if question else None
     if k == 1:
-        uncluster(question_id)
-        return
+        uncluster(question)
+        return { "status" : 1,  "num_clusters" : 0 }
 
-    if k > Idea.all().count():
-        return
-
+    if k > Idea.all().filter("question = ", question).count():
+        return { "status" : 0,  "msg" : "Not enough notes to create {0} clusters".format(k) }
+    
     vectors, texts, phrases, ids = computeBagsOfWords(question_id)
     cl = KMeansClustering(vectors)
     clusters = cl.getclusters(k)
 
     # Delete existing clusters from database
-    Cluster.deleteAllClusters(question_id)
-    
+    Cluster.deleteAllClusters(question)
+
     clusterNum = 0
     for cluster in clusters:
         clusterObj = Cluster.createCluster("Cluster #" + str(clusterNum + 1), clusterNum, question_id)
@@ -860,15 +875,14 @@ def doCluster(k, question_id):
         clusterNum += 1
 
     # Clean up any existing tags and cluster assignments since clusters have been reformed
-    ClusterTag.deleteAllTags(question_id)
-    ClusterAssignment.deleteAllClusterAssignments(question_id)
-    return clusterNum
+    ClusterTag.deleteAllTags(question)
+    ClusterAssignment.deleteAllClusterAssignments(question)
+    return { "status" : 1, "num_clusters" : clusterNum }
 
-def uncluster(question_id):
-    questionObj = Question.getQuestionById(question_id)
-    if questionObj:
-        Cluster.deleteAllClusters(question_id)
-        ClusterTag.deleteAllTags(question_id)
+def uncluster(question):
+    if question:
+        Cluster.deleteAllClusters(question)
+        ClusterTag.deleteAllTags(question)
 
 def computeBagsOfWords(question_id):
     # First define vector by extracting every word

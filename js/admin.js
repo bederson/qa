@@ -64,13 +64,19 @@ function initEventHandlers() {
 	});
 }
 
-function set_phase(new_phase) {
+function set_phase(new_phase) {	
+	if (new_phase == PHASE_TAG_BY_CLUSTER && num_clusters==0) {
+		alert('Clusters must be created before tagging by cluster can be enabled. Go to the Results page to create clusters.');
+		return;
+	}
+	
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
 		"phase": new_phase,
 		"question_id": question_id
 	};
+	
 	$.post("/set_phase", data, function() {
 		phase = new_phase
 		updateButtons();
@@ -279,7 +285,6 @@ function updateButtons() {
 		
 		if (!enableTaggingByCluster) {
 			var question_id = getURLParameter("question_id");
-			$("#p2button").attr("disabled", "disabled");
 			$("#tagsbycluster_msg").html('Must <a class="warning" href="/results?question_id='+question_id+'">create clusters</a> first');
 		}
 		
