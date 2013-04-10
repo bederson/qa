@@ -17,7 +17,6 @@
 # limitations under the License.
 #
 import os
-import webapp2
 import json
 import logging
 import random
@@ -25,6 +24,7 @@ import string
 import StringIO
 import csv
 import time
+import collections
 import webapp2
 import helpers
 from lib import gaesessions
@@ -212,7 +212,10 @@ class SimilarPageHandler(BaseHandler):
         maxNumToCompare = questionObj.getNumNotesToComparePerPerson() if isComparePhase else 0
         numNotesForComparison = questionObj.getNumNotesForComparison() if isComparePhase else 0
         assignment = SimilarIdeaAssignment.getCurrentAssignment(questionObj, person) if isComparePhase else None
-                
+
+        if assignment and len(assignment.compareToKeys) < numNotesForComparison:
+            assignment = None
+                    
         template_values = get_default_template_values(self, person, questionObj)
         template_values["assignment"] = helpers.to_json(assignment.toDict() if assignment else None)
         template_values["num_notes_to_compare"] = maxNumToCompare
@@ -641,6 +644,111 @@ class ClusterHandler(BaseHandler):
             
         self.writeResponseAsJson(data)
 
+class ClusterSimilarHandler(BaseHandler):
+    def post(self):
+        person = self.initUserContext()
+        client_id = self.request.get("client_id")
+        question_id = self.request.get("question_id")
+        question = Question.getQuestionById(question_id)
+        data = {}
+        
+        if not person:
+            data["status"] = 0
+            data["msg"] = "Please log in"
+                 
+        elif not question:
+            data["status"] = 0
+            data["msg"] = "Invalid question code"
+           
+        else:       
+            similarityDict = self.createSimilarityDict(question)
+            ideaClusters = self.clusterBySimilarity(similarityDict)
+            # TODO: clusters not currently stored in database
+           
+            data["status"] = 1
+            data["clusters"] = ideaClusters
+            # TODO: need to return unclustered items also
+            
+            # Update clients
+            message = {
+                "op": "refresh"
+            }
+            send_message(client_id, question_id, message)        # Update other clients about this change
+            
+        self.writeResponseAsJson(data)
+  
+    def createSimilarityDict(self, question):
+        # create dictionary with similarity counts
+        # e.g., similarityDict[idea1_key][idea2_key] = <# users who said this pair of ideas was similar>
+        # idea pairs that were never marked as similar are not contained in dictionary        
+        similarityDict = collections.OrderedDict()                
+        results = SimilarIdea.all().filter("question =", question)              
+        for similarIdea in results:
+            idea1 = similarIdea.idea
+            idea2 = similarIdea.similar
+            idea1_key = str(idea1.key().id())
+            idea2_key = str(idea2.key().id())
+                
+            if idea1_key not in similarityDict:
+                similarityDict[idea1_key] = {"idea": idea1.toDict()}
+                    
+            if idea2_key not in similarityDict:
+                similarityDict[idea2_key] = {"idea": idea2.toDict()}
+      
+            if idea2_key not in similarityDict[idea1_key]:
+                similarityDict[idea1_key][idea2_key] = 0
+                    
+            if idea1_key not in similarityDict[idea2_key]:
+                similarityDict[idea2_key][idea1_key] = 0
+                    
+            similarityDict[idea1_key][idea2_key] += 1
+            similarityDict[idea2_key][idea1_key] += 1
+        
+        return similarityDict
+            
+    def clusterBySimilarity(self, similarityDict):
+        import numpy
+        from lib.networkx import convert
+        from lib.networkx.classes import graph, digraph
+        from lib.networkx.algorithms.components import strongly_connected
+
+        # create two-dimensional array with similarity values                     
+        # TODO: check how clusters differ if actual count used 
+        # (i.e., # of users who said items were similar) vs. 0/1 flag
+        # FORMAT: [[0,1,0,1,0,0],[1,1,0,1,0,0],[0,1,0,1,0,0],[1,0,0,0,0,0],[0,0,1,0,1,1],[0,0,0,0,1,1]]
+        row = 0
+        rowKeys = []
+        similarityArray = []
+        for idea1_key in similarityDict:
+            rowKeys.append(idea1_key)
+            similarityArray.append([])
+            for idea2_key in similarityDict:
+                # if idea1 and idea2 are the same, value is 1
+                # if idea1 and idea2 were never marked as similar, value is 0
+                # otherwise, value is # of user who marked idea1 and idea2 as similiar
+                value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else (1 if idea1_key == idea2_key else 0)
+                flag = 1 if value > 0 else 0
+                similarityArray[row].append(flag)                    
+            row += 1
+
+        # documentation for strong_connected_componented_subgraphs says it 
+        # works on a directed graph but it seems to work on our undirected graph too
+        similarityMatrix = numpy.array(similarityArray)
+        similarityGraph = convert.from_numpy_matrix(similarityMatrix, create_using=graph.Graph())
+
+        # create array of idea clusters to be passed to client
+        ideaClusters = []
+        for cluster in strongly_connected.strongly_connected_component_subgraphs(similarityGraph):
+            #helpers.log("CLUSTER NODES: {0}".format(cluster.nodes()))
+            ideas = []
+            for node in cluster.nodes():
+                idea_key = rowKeys[node]
+                idea = similarityDict[idea_key]["idea"]
+                ideas.append(idea)
+            ideaClusters.append(ideas)
+            
+        return ideaClusters
+    
 class IdeaAssignmentHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
@@ -680,7 +788,7 @@ class SimilarIdeaHandler(BaseHandler):
             # get new assignment (if requested)
             new_assignment = None
             if request_new_assignment:
-                new_assignment = SimilarIdeaAssignment.createNewAssignment(question, person)     
+                new_assignment = SimilarIdeaAssignment.createNewAssignment(question, person)
             else:
                 SimilarIdeaAssignment.unselectAllAssignments(question, person)
                       

@@ -43,6 +43,7 @@ limitations under the License.
 		<div id="num_clusters_slider" style="width:200px; margin-right:10px; float:left"></div>
 		<input id="cluster_button" type="button" value="Create 6 clusters">
 		</span>
+		<input id="cluster_by_similarity_button" type="button" value="Cluster by similarity" style="display:none">
 		<input id="admin_button" type="button" value="Admin">
 	</div>
 	{% endif %}
@@ -55,7 +56,7 @@ limitations under the License.
 	<hr>
 	<div id="ideaOverview"></div>
 	<ul>
-		<div id="unclusteredIdeas"></div>
+	<div id="unclusteredIdeas"></div>
 	</ul>
 	<div id="clusteredIdeas"></div>
 {% endblock %}

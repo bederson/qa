@@ -337,7 +337,11 @@ class Idea(db.Model):
             "text" : self.text,
             "question_code" : self.question.code
         }
-        
+    
+    @staticmethod
+    def getNumIdeas(question):
+        return Idea.all().filter("question =", question).count() if question else 0
+            
     @staticmethod
     def getIdeaById(ideaIdStr):
         ideaObj = Idea.get_by_id(int(ideaIdStr))
@@ -360,10 +364,6 @@ class Idea(db.Model):
                 ideaObj.rand = random.random()
             ideaObj.put()
             return ideaObj
-
-    @staticmethod
-    def getNumIdeas(question):
-        return Idea.all().filter("question =", question).count() if question else 0
 
     @staticmethod
     def getRandomIdea(questionObj):
@@ -584,14 +584,18 @@ class SimilarIdeaAssignment(db.Model):
                     else: 
                         otherIdeas = Idea.all().filter("question =", questionObj).filter("__key__ !=", idea.key())
                         compareToIdeas = Idea.getRandomIdeas(questionObj, list(otherIdeas), size=questionObj.numNotesForComparison)
-                        assignment = SimilarIdeaAssignment()
-                        assignment.author = person
-                        assignment.idea = idea
-                        assignment.compareToKeys = [ idea.key() for idea in compareToIdeas ]
-                        assignment.question = questionObj
-                        assignment.current = True
-                        assignment.put()
-                        assignmentNeeded = False
+                        if len(compareToIdeas) < questionObj.numNotesForComparison:
+                            # skip if cannot find enough ideas to compare to
+                            assignmentNeeded = False
+                        else:                          
+                            assignment = SimilarIdeaAssignment()
+                            assignment.author = person
+                            assignment.idea = idea
+                            assignment.compareToKeys = [ idea.key() for idea in compareToIdeas ]
+                            assignment.question = questionObj
+                            assignment.current = True
+                            assignment.put()
+                            assignmentNeeded = False
                 else:
                     return None
                 

@@ -18,6 +18,11 @@
 #
 
 import webapp2
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+
 from py.handlers import *
 
 app = webapp2.WSGIApplication([
@@ -40,6 +45,7 @@ app = webapp2.WSGIApplication([
 	('/newideatag', NewIdeaTagHandler),
 	('/delete', DeleteHandler),
 	('/cluster', ClusterHandler),
+    ('/clustersimilar', ClusterSimilarHandler),
 	('/getideaassignment', IdeaAssignmentHandler),
     ('/similar_idea', SimilarIdeaHandler),
 	('/set_phase', PhaseHandler),

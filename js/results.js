@@ -55,6 +55,10 @@ $(document).ready(function() {
 		$("#start_tagging").css("display", "inline");
 	}
 	
+	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+		$("#cluster_by_similarity_button").show();
+	}
+	
 	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
 	
 	if (OFFLINE) {
@@ -89,6 +93,35 @@ function initEventHandlers() {
 		}, "json");
 	});
 
+	$("#cluster_by_similarity_button").click(function() {
+		$("#clusteredIdeas").html("Clusters loading ...");
+		var question_id = getURLParameter("question_id");
+		var data = {
+			"client_id": client_id,
+			"question_id": question_id
+		};
+		$.ajax({
+			type: "POST",
+			url: "/clustersimilar",
+			data: data,
+			dataType: "json",
+			cache: false,
+			success: function(result) {
+				if (result.status == 0) {
+					$("#msg").html(result.msg);
+					return;
+				}
+				else {
+					displayClusters(result.clusters);
+					displaySimilarIdeas();
+				}
+			},
+			error: function(XMLHttpRequest, textStatus, errorThrown) {
+				$("#clusteredIdeas").html("Error calling /clustersimilar");
+			}
+		});
+	});
+	
 	$("#admin_button").click(function() {
 		var question_id = getURLParameter("question_id");
 		window.location.href="/admin?question_id=" + question_id;
@@ -98,6 +131,53 @@ function initEventHandlers() {
 		var question_id = getURLParameter("question_id");
 		window.location.href="/tag?question_id=" + question_id;
 	});
+}
+
+function displayClusters(clusters) {
+	var html = "";
+	html += "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";
+	html += "<div class=\"warning\">";
+	html += "IN PROGRESS<br/>";
+	html += "Clusters not saved on server yet.<br/>";
+	html += "Need to click \"Cluster by similarity\" button every time page is loaded.<br/>";
+	html += "Unclustered ideas not displayed.<br/>";
+	html += "New ideas not displayed dynamically.";
+	html += "</div>";
+	
+	for (var i in clusters) {
+		html += "<h2>Cluster #" + (parseInt(i)+1) + "</h2>";
+		html += "<table style='width: 100%'><tr>";
+		html += "<td style='width: 50%'>";
+		html += "<div class='ideas'>";
+		html += "<ul>"
+		for (var j in clusters[i]) {
+			var idea = clusters[i][j];
+			tag_idea_hists[idea.id] = {};
+			var tagsid = "tags" + idea.id;
+			similar_idea_hists[idea.id] = {};
+			var similarid = "similar" + idea.id;
+			html += "<li>" + idea.text;
+			html += "<br>" + "<span ";
+			var identityHidden = idea.author.user_identity != "" && idea.author.user_identity != idea.author.nickname;
+			if (identityHidden) {
+				html += "title='" + idea.author.user_identity + "' ";
+			}
+			html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + (identityHidden?"*":"") + "</span>";
+			html += "<span id='" + tagsid + "' class='tags'></span>";
+			html += "<span id='" + similarid + "' class='tags'></span>";
+			numIdeas += 1;
+		}
+		html += "</ul>"
+		html += "</div>";
+		html += "</td>";
+		if (!jQuery.browser.mobile && (phase != PHASE_TAG_BY_NOTE)) {
+			var divid = "vis" + (i+1);
+			var controlid = "control" + (i+1);
+			html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
+		}
+		html += "</tr></table>"
+	}
+	$("#clusteredIdeas").html(html);
 }
 
 function displayIdeas(ideas) {
@@ -322,13 +402,13 @@ function displaySimilarIdeas() {
 		"question_id": question_id
 	};
 	$.getJSON("/query", data, function(results) {
-		processSimilarIdeas(results);
+		var similar_ideas = results.ideas;
+		processSimilarIdeas(similar_ideas);
 		drawSimilarIdeas();
 	});	
 }
 
-function processSimilarIdeas(data) {	
-	var similar_ideas = data.ideas;
+function processSimilarIdeas(similar_ideas) {	
 	for (var i in similar_ideas) {
 		var idea = similar_ideas[i].idea;
 		var similar_to = similar_ideas[i].similar;
