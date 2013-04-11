@@ -94,7 +94,8 @@ function initEventHandlers() {
 	});
 
 	$("#cluster_by_similarity_button").click(function() {
-		$("#clusteredIdeas").html("Clusters loading ...");
+		$("#clusteredIdeas").hide();
+		$("#clustersLoading").show();
 		var question_id = getURLParameter("question_id");
 		var data = {
 			"client_id": client_id,
@@ -109,15 +110,20 @@ function initEventHandlers() {
 			success: function(result) {
 				if (result.status == 0) {
 					$("#msg").html(result.msg);
+					$("#clustersLoading").hide();
+					$("#clusteredIdeas").show();
 					return;
 				}
 				else {
+					$("#clustersLoading").hide();
 					displayClusters(result.clusters);
 					displaySimilarIdeas();
 				}
 			},
 			error: function(XMLHttpRequest, textStatus, errorThrown) {
-				$("#clusteredIdeas").html("Error calling /clustersimilar");
+				$("#msg").html("Error calling /clustersimilar");
+				$("#clustersLoading").hide();
+				$("#clusteredIdeas").show();
 			}
 		});
 	});
@@ -140,7 +146,7 @@ function displayClusters(clusters) {
 	html += "IN PROGRESS<br/>";
 	html += "Clusters not saved on server yet.<br/>";
 	html += "Need to click \"Cluster by similarity\" button every time page is loaded.<br/>";
-	html += "New ideas not displayed dynamically.";
+	html += "New ideas not displayed dynamically, and unclustered ideas not shown.";
 	html += "</div>";
 	
 	for (var i in clusters) {
@@ -177,6 +183,7 @@ function displayClusters(clusters) {
 		html += "</tr></table>"
 	}
 	$("#clusteredIdeas").html(html);
+	$("#clusteredIdeas").show();
 
 	// TODO: update when to display clouds when similarity clusters are saved 
 	// (i.e., not just available in PHASE_COMPARE_BY_SIMILARITY)	
