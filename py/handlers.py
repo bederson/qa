@@ -45,7 +45,7 @@ def get_default_template_values(requestHandler, person, question):
     """Return a dictionary of template values used for login template"""        
     
     page = requestHandler.request.path
-    requiresGoogleAuthentication = page == "/" or page == "/admin" or not question or not question.nicknameAuthentication
+    requiresGoogleAuthentication = page == "/admin" or not question or not question.nicknameAuthentication
     
     # user already logged in    
     if person:
@@ -53,7 +53,7 @@ def get_default_template_values(requestHandler, person, question):
         url_linktext = 'Logout'
         url = users.create_logout_url("/logout") if person.user else "/logout"
          
-    # no one logged in, and required Google authentication
+    # no one logged in, and Google authentication required
     elif requiresGoogleAuthentication:
         url_linktext = 'Login w/ Google Account'
         url = "/login?page=" + requestHandler.request.uri + ("&question_id="+question.code if question else "")
@@ -80,7 +80,8 @@ def get_default_template_values(requestHandler, person, question):
         # and nickname authentication is allowed; otherwise the Google login should be displayed
         template_values['user_login'] = person.user if requiresGoogleAuthentication else person.nickname
         template_values['user_nickname'] = person.nickname
-        template_values['admin'] = Person.isAdmin(requestHandler) or (person.user and (not question or question.author == person.user))
+        googleUser = users.get_current_user()
+        template_values['admin'] = Person.isAdmin(requestHandler) or (googleUser and (not question or question.author == googleUser))
 
     if question:
         template_values["phase"] = question.phase
