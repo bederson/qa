@@ -140,7 +140,6 @@ function displayClusters(clusters) {
 	html += "IN PROGRESS<br/>";
 	html += "Clusters not saved on server yet.<br/>";
 	html += "Need to click \"Cluster by similarity\" button every time page is loaded.<br/>";
-	html += "Unclustered ideas not displayed.<br/>";
 	html += "New ideas not displayed dynamically.";
 	html += "</div>";
 	
@@ -178,6 +177,25 @@ function displayClusters(clusters) {
 		html += "</tr></table>"
 	}
 	$("#clusteredIdeas").html(html);
+
+	// TODO: update when to display clouds when similarity clusters are saved 
+	// (i.e., not just available in PHASE_COMPARE_BY_SIMILARITY)	
+	if (!jQuery.browser.mobile) {
+		if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+			for (var i in clusters) {
+				var cluster = clusters[i];
+				var cloudid = "vis" + (i+1);
+				var height = $("#" + cloudid).parent().height();
+				if (height > MAX_CLOUD_HEIGHT) {
+					height = MAX_CLOUD_HEIGHT;
+				}
+				$("#" + cloudid).height(height);
+				displayCloud(cloudid, cluster);
+			}
+		}
+	}
+	
+	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
 }
 
 function displayIdeas(ideas) {

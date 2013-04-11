@@ -662,18 +662,23 @@ class ClusterSimilarHandler(BaseHandler):
            
         else:       
             similarityDict = self.createSimilarityDict(question)
-            ideaClusters = self.clusterBySimilarity(similarityDict)
-            # TODO: clusters not currently stored in database
-           
-            data["status"] = 1
-            data["clusters"] = ideaClusters
-            # TODO: need to return unclustered items also
+            if not similarityDict:
+                data["status"] = 0
+                data["msg"] = "Could not create clusters.  May need to compare more notes for similarity."
             
-            # Update clients
-            message = {
-                "op": "refresh"
-            }
-            send_message(client_id, question_id, message)        # Update other clients about this change
+            else:
+                ideaClusters = self.clusterBySimilarity(similarityDict)
+                # TODO: clusters not currently stored in database
+               
+                data["status"] = 1
+                data["clusters"] = ideaClusters
+                # TODO: need to return unclustered items also
+                
+                # Update clients
+                message = {
+                    "op": "refresh"
+                }
+                send_message(client_id, question_id, message)        # Update other clients about this change
             
         self.writeResponseAsJson(data)
   
@@ -682,7 +687,7 @@ class ClusterSimilarHandler(BaseHandler):
         # e.g., similarityDict[idea1_key][idea2_key] = <# users who said this pair of ideas was similar>
         # idea pairs that were never marked as similar are not contained in dictionary        
         similarityDict = collections.OrderedDict()                
-        results = SimilarIdea.all().filter("question =", question)              
+        results = SimilarIdea.all().filter("question =", question)           
         for similarIdea in results:
             idea1 = similarIdea.idea
             idea2 = similarIdea.similar
