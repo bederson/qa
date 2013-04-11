@@ -42,8 +42,8 @@ class Question(db.Model):
     phase = db.IntegerProperty(default=0)
     date = db.DateTimeProperty(auto_now=True)
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
-    numNotesToComparePerPerson = db.IntegerProperty(default=2)
-    numNotesForComparison = db.IntegerProperty(default=10)
+    numNotesToComparePerPerson = db.IntegerProperty(default=10)
+    numNotesForComparison = db.IntegerProperty(default=2)
     nicknameAuthentication = db.BooleanProperty(default=False)
 
     @staticmethod
