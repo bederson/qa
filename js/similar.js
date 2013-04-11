@@ -102,17 +102,23 @@ function updateUI() {
 		// next note area
 		var isLastNote = current_note == num_notes_to_compare;
 		var html = "This is note #" + current_note + " out of " + num_notes_to_compare + ".<br/>";
-		if (!isLastNote) {
-			html += "To skip this AND go to the next note, click on ";
-			html += "<input id='next_button' value='Next note' type='button'></input>";
-		} else {
-			html += "When you are done, click on "
-			html += "<input id='next_button' value='finished!' type='button'></input>";
-		}
+		//if (!isLastNote) {
+		//	html += "To skip this AND go to the next note, click on ";
+		//	html += "<input id='next_button' value='Next note' type='button'></input>";
+		//} else {
+		//	html += "When you are done, click on "
+		//	html += "<input id='next_button' value='finished!' type='button'></input>";
+		//}
 		$("#next_note").html(html);
 
-		$("#next_button").click(function() {
-			updateAssignment();
+		$("#skip_button, #next_button").click(function() {
+			if (current_note == num_notes_to_compare) {
+				current_note = 0;
+				updateUI();
+			}
+			else {
+				updateAssignment();
+			}
 		});
 		
 		$("#taskarea").show();
