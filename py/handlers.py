@@ -668,11 +668,11 @@ class ClusterSimilarHandler(BaseHandler):
                 data["msg"] = "Could not create clusters.  May need to compare more notes for similarity."
             
             else:
-                ideaClusters = self.clusterBySimilarity(similarityDict)
+                clusters = self.clusterBySimilarity(similarityDict)
                 # TODO: clusters not currently stored in database
                
                 data["status"] = 1
-                data["clusters"] = ideaClusters
+                data["clusters"] = clusters
                 # TODO: need to return unclustered items also
                 
                 # Update clients
@@ -713,46 +713,49 @@ class ClusterSimilarHandler(BaseHandler):
         return similarityDict
             
     def clusterBySimilarity(self, similarityDict):
-        import numpy
-        from lib.networkx import convert
-        from lib.networkx.classes import graph, digraph
-        from lib.networkx.algorithms.components import strongly_connected
-
-        # create two-dimensional array with similarity values                     
-        # TODO: check how clusters differ if actual count used 
-        # (i.e., # of users who said items were similar) vs. 0/1 flag
-        # FORMAT: [[0,1,0,1,0,0],[1,1,0,1,0,0],[0,1,0,1,0,0],[1,0,0,0,0,0],[0,0,1,0,1,1],[0,0,0,0,1,1]]
+        # create two-dimensional vectors with similarity values (e.g., # of users who said items were the same)
+        # cluster index appended to end of vector                    
         row = 0
         rowKeys = []
-        similarityArray = []
+        similarityVectors = []
         for idea1_key in similarityDict:
             rowKeys.append(idea1_key)
-            similarityArray.append([])
+            vector = []
             for idea2_key in similarityDict:
                 # if idea1 and idea2 are the same, value is 1
                 # if idea1 and idea2 were never marked as similar, value is 0
                 # otherwise, value is # of user who marked idea1 and idea2 as similiar
                 value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else (1 if idea1_key == idea2_key else 0)
-                flag = 1 if value > 0 else 0
-                similarityArray[row].append(flag)                    
+                vector.append(value)
+                
+            vector.append(row)
+            similarityVectors.append(tuple(vector))                    
             row += 1
 
-        # documentation for strong_connected_componented_subgraphs says it 
-        # works on a directed graph but it seems to work on our undirected graph too
-        similarityMatrix = numpy.array(similarityArray)
-        similarityGraph = convert.from_numpy_matrix(similarityMatrix, create_using=graph.Graph())
-
-        # create array of idea clusters to be passed to client
+        # TODO: num clusters should not be hard-coded
+        numClusters = 5
+        cl = KMeansClustering(similarityVectors)
+        clusters = cl.getclusters(numClusters)
+            
         ideaClusters = []
-        for cluster in strongly_connected.strongly_connected_component_subgraphs(similarityGraph):
-            #helpers.log("CLUSTER NODES: {0}".format(cluster.nodes()))
+        clusterNum = 0
+        for cluster in clusters:
             ideas = []
-            for node in cluster.nodes():
-                idea_key = rowKeys[node]
+            if type(cluster) is tuple:
+                # Cluster may only have a single tuple instead of a collection of them
+                index = cluster[-1:][0]
+                idea_key = rowKeys[index]
                 idea = similarityDict[idea_key]["idea"]
                 ideas.append(idea)
+            else:
+                for vector in cluster:
+                    index = vector[-1:][0]
+                    idea_key = rowKeys[index]
+                    idea = similarityDict[idea_key]["idea"]
+                    ideas.append(idea)
             ideaClusters.append(ideas)
-            
+            clusterNum += 1
+        
         return ideaClusters
     
 class IdeaAssignmentHandler(BaseHandler):
