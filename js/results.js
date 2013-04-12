@@ -48,15 +48,19 @@ $(document).ready(function() {
 		$("#cluster_controls").show();
 	}
 	
+	else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+		var label = "Create " + num_clusters_to_create + " clusters by similarity";
+		$("#cluster_button").val(label);
+		// TODO: change min to 1 when unclustering supported on server
+		$("#num_clusters_slider").slider({ min:2, max:10, value:num_clusters_to_create});
+		$("#cluster_controls").show();
+	}
+	
 	initChannel();
 	initEventHandlers();
 
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
-	}
-	
-	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		$("#cluster_by_similarity_button").show();
 	}
 	
 	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
@@ -74,58 +78,23 @@ function initEventHandlers() {
 	$("#num_clusters_slider").on("slide", function(event, ui) {
 		num_clusters_to_create = ui.value;
 		var label = "Create " + num_clusters_to_create + " clusters";
+		if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+			label += " by similarity"
+		}
 		$("#cluster_button").val(label);
 	});
 		
 	$("#cluster_button").click(function() {
-		var question_id = getURLParameter("question_id");
-		var data = {
-			"client_id": client_id,
-			"num_clusters": num_clusters_to_create,
-			"question_id": question_id
-		};
-		$.post("/cluster", data, function(result) {
-			if (result.status == 0) {
-				$("#msg").html(result.msg);
-				return;
-			}
-			window.location.reload();
-		}, "json");
+		if (phase == PHASE_NOTES) {
+			clusterIdeas();
+		}
+		else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+			clusterBySimilarity();
+		}
 	});
 
 	$("#cluster_by_similarity_button").click(function() {
-		$("#clusteredIdeas").hide();
-		$("#clustersLoading").show();
-		var question_id = getURLParameter("question_id");
-		var data = {
-			"client_id": client_id,
-			"question_id": question_id
-		};
-		$.ajax({
-			type: "POST",
-			url: "/clustersimilar",
-			data: data,
-			dataType: "json",
-			cache: false,
-			success: function(result) {
-				if (result.status == 0) {
-					$("#msg").html(result.msg);
-					$("#clustersLoading").hide();
-					$("#clusteredIdeas").show();
-					return;
-				}
-				else {
-					$("#clustersLoading").hide();
-					displayClusters(result.clusters);
-					displaySimilarIdeas();
-				}
-			},
-			error: function(XMLHttpRequest, textStatus, errorThrown) {
-				$("#msg").html("Error calling /clustersimilar");
-				$("#clustersLoading").hide();
-				$("#clusteredIdeas").show();
-			}
-		});
+		xx
 	});
 	
 	$("#admin_button").click(function() {
@@ -139,15 +108,67 @@ function initEventHandlers() {
 	});
 }
 
+function clusterIdeas() {
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"client_id": client_id,
+		"num_clusters": num_clusters_to_create,
+		"question_id": question_id
+	};
+	$.post("/cluster", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		window.location.reload();
+	}, "json");
+}
+
+function clusterBySimilarity() {
+	$("#clusteredIdeas").hide();
+	$("#clustersLoading").show();
+	var question_id = getURLParameter("question_id");
+	var data = {
+		"client_id": client_id,
+		"num_clusters": num_clusters_to_create,
+		"question_id": question_id
+	};
+	$.ajax({
+		type: "POST",
+		url: "/clustersimilar",
+		data: data,
+		dataType: "json",
+		cache: false,
+		success: function(result) {
+			if (result.status == 0) {
+				$("#msg").html(result.msg);
+				$("#clustersLoading").hide();
+				$("#clusteredIdeas").show();
+				return;
+			}
+			else {
+				$("#clustersLoading").hide();
+				displayClusters(result.clusters);
+				displaySimilarIdeas();
+			}
+		},
+		error: function(XMLHttpRequest, textStatus, errorThrown) {
+			$("#msg").html("Error calling /clustersimilar");
+			$("#clustersLoading").hide();
+			$("#clusteredIdeas").show();
+		}
+	});
+}
+
 function displayClusters(clusters) {
 	var html = "";
 	html += "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";
-	html += "<div class=\"warning\">";
-	html += "IN PROGRESS<br/>";
-	html += "Clusters not saved on server yet.<br/>";
-	html += "Need to click \"Cluster by similarity\" button every time page is loaded.<br/>";
-	html += "New ideas not displayed dynamically, and unclustered ideas not shown.";
-	html += "</div>";
+	//html += "<div class=\"warning\">";
+	//html += "IN PROGRESS<br/>";
+	//html += "Clusters not saved on server yet.<br/>";
+	//html += "Need to click \"Cluster by similarity\" button every time page is loaded.<br/>";
+	//html += "New ideas not displayed dynamically, and unclustered ideas not shown.";
+	//html += "</div>";
 	
 	for (var i in clusters) {
 		html += "<h2>Cluster #" + (parseInt(i)+1) + "</h2>";

@@ -649,6 +649,7 @@ class ClusterSimilarHandler(BaseHandler):
     def post(self):
         person = self.initUserContext()
         client_id = self.request.get("client_id")
+        num_clusters = int(self.request.get("num_clusters"))
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
         data = {}
@@ -668,7 +669,7 @@ class ClusterSimilarHandler(BaseHandler):
                 data["msg"] = "Could not create clusters.  May need to compare more notes for similarity."
             
             else:
-                clusters = self.clusterBySimilarity(similarityDict)
+                clusters = self.clusterBySimilarity(similarityDict, num_clusters)
                 # TODO: clusters not currently stored in database
                
                 data["status"] = 1
@@ -712,7 +713,7 @@ class ClusterSimilarHandler(BaseHandler):
         
         return similarityDict
             
-    def clusterBySimilarity(self, similarityDict):
+    def clusterBySimilarity(self, similarityDict, numClusters=5):
         # create two-dimensional vectors with similarity values (e.g., # of users who said items were the same)
         # cluster index appended to end of vector                    
         row = 0
@@ -722,18 +723,22 @@ class ClusterSimilarHandler(BaseHandler):
             rowKeys.append(idea1_key)
             vector = []
             for idea2_key in similarityDict:
-                # if idea1 and idea2 are the same, value is 1
+                # if idea1_key and idea2_key are equal, value is 1
                 # if idea1 and idea2 were never marked as similar, value is 0
                 # otherwise, value is # of user who marked idea1 and idea2 as similiar
-                value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else (1 if idea1_key == idea2_key else 0)
+                #value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else (1 if idea1_key == idea2_key else 0)
+                # for k-means clustering:
+                # all undefined values are 0, even if idea1_key and idea2_key are equal
+                value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else 0
+
                 vector.append(value)
                 
-            vector.append(row)
+            # FIX: Need better way to get idea index back from getclusters
+            offset = 100000
+            vector.append(row+offset)
             similarityVectors.append(tuple(vector))                    
             row += 1
 
-        # TODO: num clusters should not be hard-coded
-        numClusters = 5
         cl = KMeansClustering(similarityVectors)
         clusters = cl.getclusters(numClusters)
             
@@ -743,13 +748,13 @@ class ClusterSimilarHandler(BaseHandler):
             ideas = []
             if type(cluster) is tuple:
                 # Cluster may only have a single tuple instead of a collection of them
-                index = cluster[-1:][0]
+                index = cluster[-1:][0]-offset
                 idea_key = rowKeys[index]
                 idea = similarityDict[idea_key]["idea"]
                 ideas.append(idea)
             else:
                 for vector in cluster:
-                    index = vector[-1:][0]
+                    index = vector[-1:][0]-offset
                     idea_key = rowKeys[index]
                     idea = similarityDict[idea_key]["idea"]
                     ideas.append(idea)
