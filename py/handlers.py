@@ -734,8 +734,7 @@ class ClusterSimilarHandler(BaseHandler):
                 vector.append(value)
                 
             # FIX: Need better way to get idea index back from getclusters
-            offset = 100000
-            vector.append(row+offset)
+            vector.append(row)
             similarityVectors.append(tuple(vector))                    
             row += 1
 
@@ -748,13 +747,13 @@ class ClusterSimilarHandler(BaseHandler):
             ideas = []
             if type(cluster) is tuple:
                 # Cluster may only have a single tuple instead of a collection of them
-                index = cluster[-1:][0]-offset
+                index = cluster[-1:][0]
                 idea_key = rowKeys[index]
                 idea = similarityDict[idea_key]["idea"]
                 ideas.append(idea)
             else:
                 for vector in cluster:
-                    index = vector[-1:][0]-offset
+                    index = vector[-1:][0]
                     idea_key = rowKeys[index]
                     idea = similarityDict[idea_key]["idea"]
                     ideas.append(idea)
