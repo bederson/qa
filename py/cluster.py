@@ -14,6 +14,9 @@
 # along with this library; if not, write to the Free Software Foundation, Inc.,
 # 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #
+# MODIFICATION: Made changes to keep track of indices for K-means clustering
+# input data. Changes marked with ATR. 2013
+#
 
 from types import TupleType
 
@@ -681,13 +684,15 @@ available. You supplied %d items, and asked for %d clusters.""" %
                              # is the case
       while items_moved is True:
          items_moved = False
+         cluster_index = 0 # ATR
          for cluster in self.__clusters:
             for item in cluster:
-               res = self.assign_item(item, cluster)
+               res = self.assign_item(item, cluster, cluster_index) # ATR - added cluster_index param
                if items_moved is False: items_moved = res
-      return self.__clusters
+            cluster_index += 1 # ATR
+      return { "clusters": self.__clusters, "indices": self.__cluster_input_indices } # ATR - change to return dict instead of just self.__clusters
 
-   def assign_item(self, item, origin):
+   def assign_item(self, item, origin, origin_index): # ATR - added origin_index param
       """
       Assigns an item from a given cluster to the closest located cluster
 
@@ -696,17 +701,20 @@ available. You supplied %d items, and asked for %d clusters.""" %
          origin - the originating cluster
       """
       closest_cluster = origin
+      cluster_index = 0 # ATR
       for cluster in self.__clusters:
          if self.distance(item, centroid(cluster)) < self.distance(item, centroid(closest_cluster)):
             closest_cluster = cluster
+            closest_cluster_index = cluster_index # ATR
+         cluster_index += 1 # ATR
 
       if closest_cluster != origin:
-         self.move_item(item, origin, closest_cluster)
+         self.move_item(item, origin, closest_cluster, origin_index, closest_cluster_index) # ATR - added origin_index, closest_cluster_index params
          return True
       else:
          return False
 
-   def move_item(self, item, origin, destination):
+   def move_item(self, item, origin, destination, origin_index, destination_index): # ATR = added origin_index, destination_index params
       """
       Moves an item from one cluster to anoter cluster
 
@@ -716,7 +724,10 @@ available. You supplied %d items, and asked for %d clusters.""" %
          origin      - the originating cluster
          destination - the target cluster
       """
-      destination.append( origin.pop( origin.index(item) ) )
+      
+      origin_item_index = origin.index(item) # ATR
+      destination.append( origin.pop( origin_item_index ) ) # ATR - pulled out origin.index(item)
+      self.__cluster_input_indices[destination_index].append( self.__cluster_input_indices[origin_index].pop( origin_item_index) ) # ATR
 
    def initialiseClusters(self, input, clustercount):
       """
@@ -729,11 +740,15 @@ available. You supplied %d items, and asked for %d clusters.""" %
       """
       # initialise the clusters with empty lists
       self.__clusters = []
-      for x in xrange(clustercount): self.__clusters.append([])
+      self.__cluster_input_indices = [] # ATR
+      for x in xrange(clustercount): 
+          self.__clusters.append([])
+          self.__cluster_input_indices.append([]) # ATR
 
       # distribute the items into the clusters
       count = 0
       for item in input:
          self.__clusters[ count % clustercount ].append(item)
+         self.__cluster_input_indices[ count % clustercount ].append(count) # ATR
          count += 1
 

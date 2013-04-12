@@ -727,20 +727,30 @@ class ClusterSimilarHandler(BaseHandler):
                 # if idea1_key and idea2_key are equal, value is 1
                 # if idea1 and idea2 were never marked as similar, value is 0
                 # otherwise, value is # of user who marked idea1 and idea2 as similiar
-                #value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else (1 if idea1_key == idea2_key else 0)
-                # for k-means clustering:
-                # all undefined values are 0, even if idea1_key and idea2_key are equal
-                value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else 0
-
-                vector.append(value)
+                # TODO: for k-means clustering, what value should be used when idea1_key == idea2_key
+                value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else (1 if idea1_key == idea2_key else 0)
+                flag = 1 if value > 0 else 0
+                vector.append(flag)
                 
             # FIX: Need better way to get idea index back from getclusters
-            vector.append(row)
+            # vector.append(row)
             similarityVectors.append(tuple(vector))                    
             row += 1
 
+        helpers.log("===================")
+        for idea_key in similarityDict:
+            helpers.log("{0}".format(similarityDict[idea_key]["idea"]["text"]))
+        helpers.log("===================")
+        helpers.log(similarityVectors)
+        helpers.log("===================")
         cl = KMeansClustering(similarityVectors)
-        clusters = cl.getclusters(numClusters)
+        clusterData = cl.getclusters(numClusters)
+        clusters = clusterData["clusters"]
+        clusteredIdeaIndices = clusterData["indices"]
+        
+        helpers.log(clusters)
+        helpers.log("===================")
+        helpers.log(clusteredIdeaIndices)
             
         ideaClusters = []
         clusterNum = 0
@@ -748,16 +758,18 @@ class ClusterSimilarHandler(BaseHandler):
             ideas = []
             if type(cluster) is tuple:
                 # Cluster may only have a single tuple instead of a collection of them
-                index = cluster[-1:][0]
+                index = clusteredIdeaIndices[clusterNum][0]
                 idea_key = rowKeys[index]
                 idea = similarityDict[idea_key]["idea"]
                 ideas.append(idea)
             else:
+                j = 0
                 for vector in cluster:
-                    index = vector[-1:][0]
+                    index = clusteredIdeaIndices[clusterNum][j]
                     idea_key = rowKeys[index]
                     idea = similarityDict[idea_key]["idea"]
                     ideas.append(idea)
+                    j += 1
             ideaClusters.append(ideas)
             clusterNum += 1
         
@@ -971,7 +983,9 @@ def doCluster(k, question):
     
     vectors, texts, phrases, ids = computeBagsOfWords(question_id)
     cl = KMeansClustering(vectors)
-    clusters = cl.getclusters(k)
+    clusterData = cl.getclusters(k)
+    clusters = clusterData["clusters"]
+    clusteredIdeaIndices = clusterData["indices"]
 
     # Delete existing clusters from database
     Cluster.deleteAllClusters(question)
@@ -982,19 +996,21 @@ def doCluster(k, question):
         entry = []
         if type(cluster) is tuple:
             # Cluster may only have a single tuple instead of a collection of them
-            index = cluster[-1:][0]
+            index = clusteredIdeaIndices[clusterNum][0]
             text = texts[index]
             phrase = phrases[index]
             idea_id = ids[index]
             Idea.assignCluster(idea_id, clusterObj)
         else:
+            j = 0
             for vector in cluster:
-                index = vector[-1:][0]
+                index = clusteredIdeaIndices[clusterNum][j]
                 text = texts[index]
                 phrase = phrases[index]
                 idea_id = ids[index]
                 entry.append([text, phrase])
                 Idea.assignCluster(idea_id, clusterObj)
+                j += 1
         clusterNum += 1
 
     # Clean up any existing tags and cluster assignments since clusters have been reformed

@@ -5,6 +5,11 @@ Bugs
 * Need better random assignment algorithm - seems very clumpy
   Made an improvement, need to try it with a class
 * Can't submit idea when Chrome "disconnect.me" plugin installed
+* Channels raises onError sometimes (even when they are new):
+  > Channel ERROR:  utils.js:69
+  > Object {description: "", code: 400} utils.js:70
+  http://stackoverflow.com/questions/13962739/intermittent-error-code-400-description-on-client-connecting-to-channel
+  https://code.google.com/p/googleappengine/issues/detail?id=4940
   
 Features
 * Stem tags???
