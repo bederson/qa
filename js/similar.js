@@ -95,7 +95,7 @@ function updateUI() {
 		$("#selected_note").html(current_assignment.idea.text);		
 		var html = "";
 		for (var i=0; i<current_assignment.compare_to.length; i++) {
-			html += "<input type=\"radio\" name=\"compare_to\" value=\""+i+"\">" + current_assignment.compare_to[i].text + "<br/>";
+			html += "<div class=\"smallspaceafter\"><input type=\"radio\" name=\"compare_to\" value=\""+i+"\">" + current_assignment.compare_to[i].text + "</div>";
 		}
 		$("#compare_to_notes").html(html);
 	
@@ -145,7 +145,7 @@ function updateAssignment(similarTo) {
 		data["assignment"] = $.toJSON(current_assignment);
 	}
 	
-	$.getJSON("/similar_idea", data, function(results) {
+	$.post("/similar_idea", data, function(results) {
 		if (results.status == 0) {
 			$("#warning").html(results.msg);
 		}
@@ -155,7 +155,7 @@ function updateAssignment(similarTo) {
 			current_assignment = results.assignment;
 			updateUI();
 		}
-	});
+	}, "json");
 }
 
 function onResize() {

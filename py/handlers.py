@@ -50,6 +50,7 @@ def get_default_template_values(requestHandler, person, question):
     # user already logged in    
     if person:
         client_id, token = connect(person)
+        #helpers.log("*** NEW CHANNEL CREATED ***")
         url_linktext = 'Logout'
         url = users.create_logout_url("/logout") if person.user else "/logout"
          
@@ -771,7 +772,7 @@ class IdeaAssignmentHandler(BaseHandler):
         self.writeResponseAsJson({})
 
 class SimilarIdeaHandler(BaseHandler):
-    def get(self):
+    def post(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
