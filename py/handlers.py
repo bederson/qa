@@ -33,7 +33,7 @@ from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
-from cluster import KMeansClustering
+from cluster import KMeansClustering, ClusteringError
 
 STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
 PHASE_NOTES = 1
@@ -513,7 +513,7 @@ class NewQuestionHandler(BaseHandler):
 
 class EditQuestionHandler(BaseHandler):
     def post(self):
-        person = self.initUserContext()
+        person = self.initUserContext(force_check=True)
         client_id = self.request.get('client_id')
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
@@ -607,7 +607,7 @@ class NewIdeaTagHandler(BaseHandler):
 
 class DeleteHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        self.initUserContext(force_check=True)
         client_id = self.request.get('client_id')
         question_id = self.request.get("question_id")
         Question.delete(question_id)
@@ -634,16 +634,28 @@ class ClusterHandler(BaseHandler):
         elif not question:
             data["status"] = 0
             data["msg"] = "Invalid question code"
-           
+
+        elif num_clusters > Idea.all().filter("question = ", question).count():
+            data["status"] = 0
+            data["msg"] = "Not enough notes to create {0} clusters".format(num_clusters)
+                       
         else: 
-            data = doCluster(num_clusters, question)
-            if data["status"] == 1:
-                # Update clients
-                message = {
-                           "op": "refresh"
-                }
-                send_message(client_id, question_id, message)        # Update other clients about this change
-            
+            data["status"] = 1
+            if num_clusters == 1:
+                uncluster(question)
+            else:
+                try:
+                    doCluster(num_clusters, question)
+                    # Update clients
+                    message = {
+                        "op": "refresh"
+                    }
+                    send_message(client_id, question_id, message)        # Update other clients about this change
+                        
+                except ClusteringError:
+                    data["status"] = 0
+                    data["msg"] = "Could not create clusters"
+        
         self.writeResponseAsJson(data)
 
 class ClusterSimilarHandler(BaseHandler):
@@ -662,34 +674,95 @@ class ClusterSimilarHandler(BaseHandler):
         elif not question:
             data["status"] = 0
             data["msg"] = "Invalid question code"
-           
-        else:       
-            similarityDict = self.createSimilarityDict(question)
-            if not similarityDict:
-                data["status"] = 0
-                data["msg"] = "Could not create clusters.  May need to compare more notes for similarity."
-            
-            else:
-                clusters = self.clusterBySimilarity(similarityDict, num_clusters)
+          
+        elif num_clusters > SimilarIdea.all().filter("question = ", question).count():
+            data["status"] = 0
+            data["msg"] = "Not enough notes compared to create {0} clusters".format(num_clusters)
+             
+        else:
+            try:
+                clusters = self.doClusterBySimilarity(num_clusters, question)
                 # TODO: clusters not currently stored in database
-               
+                # TODO: need to return unclustered items also
+                # TODO: error checking
                 data["status"] = 1
                 data["clusters"] = clusters
-                # TODO: need to return unclustered items also
-                
+                    
                 # Update clients
                 message = {
                     "op": "refresh"
                 }
                 send_message(client_id, question_id, message)        # Update other clients about this change
-            
+                    
+            except ClusteringError, e:
+                data["status"] = 0
+                data["msg"] = "Could not create clusters"
+        
         self.writeResponseAsJson(data)
-  
+          
+    def doClusterBySimilarity(self, k, question):
+        ideaClusters = []
+        similarityDict = self.createSimilarityDict(question)
+        if similarityDict:
+            # create array of tuples containing similarity counts for each item pair 
+            # (e.g., # of users who said item1 and item2 were the same)
+            countVectors = []
+            rowKeys = []
+            for idea1_key in similarityDict:
+                rowCounts = []
+                for idea2_key in similarityDict:
+                    # if same idea, value is 1 (e.g., idea1_key == idea2_key)
+                    # if idea1 and idea2 were never marked as similar, value is 0
+                    # otherwise, value is # of users who marked idea pair as similar
+                    # TODO: for k-means clustering, what value should be used when idea1_key == idea2_key
+                    count = similarityDict[idea1_key]["counts"][idea2_key] if idea2_key in similarityDict[idea1_key]["counts"] else (1 if idea1_key == idea2_key else 0)
+                    #count = 1 if count > 0 else 0
+                    rowCounts.append(count)
+    
+                rowKeys.append(idea1_key)                
+                countVectors.append(tuple(rowCounts))                    
+    
+            # FOR DEBUGGING: print count vectors
+#             row = 0
+#             for idea_key in similarityDict:
+#                 idea = similarityDict[idea_key]["idea"]
+#                 helpers.log("row={0},{1}:\t\t{2}".format(row, idea["text"], countVectors[row]))
+#                 row += 1
+             
+            try:
+                cl = KMeansClustering(countVectors)
+                clusterData = cl.getclusters(k)
+                clusters = clusterData["clusters"]
+                clusteredIdeaIndices = clusterData["indices"]
+                clusterNum = 0
+                for cluster in clusters:
+                    ideas = []
+                    if type(cluster) is tuple:
+                        # Cluster may only have a single tuple instead of a collection of them
+                        index = clusteredIdeaIndices[clusterNum][0]
+                        idea_key = rowKeys[index]
+                        idea = similarityDict[idea_key]["idea"]
+                        ideas.append(idea)
+                    else:
+                        j = 0
+                        for vector in cluster:
+                            index = clusteredIdeaIndices[clusterNum][j]
+                            idea_key = rowKeys[index]
+                            idea = similarityDict[idea_key]["idea"]
+                            ideas.append(idea)
+                            j += 1
+                    ideaClusters.append(ideas)
+                    clusterNum += 1
+            except ClusteringError:
+                raise
+                
+        return ideaClusters
+    
     def createSimilarityDict(self, question):
         # create dictionary with similarity counts
         # e.g., similarityDict[idea1_key][idea2_key] = <# users who said this pair of ideas was similar>
         # idea pairs that were never marked as similar are not contained in dictionary        
-        similarityDict = collections.OrderedDict()                
+        similarityDict = {}               
         results = SimilarIdea.all().filter("question =", question)           
         for similarIdea in results:
             idea1 = similarIdea.idea
@@ -698,82 +771,21 @@ class ClusterSimilarHandler(BaseHandler):
             idea2_key = str(idea2.key().id())
                 
             if idea1_key not in similarityDict:
-                similarityDict[idea1_key] = {"idea": idea1.toDict()}
+                similarityDict[idea1_key] = { "idea": idea1.toDict(), "counts": {} }
                     
             if idea2_key not in similarityDict:
-                similarityDict[idea2_key] = {"idea": idea2.toDict()}
-      
-            if idea2_key not in similarityDict[idea1_key]:
-                similarityDict[idea1_key][idea2_key] = 0
+                similarityDict[idea2_key] = { "idea": idea2.toDict(), "counts": {} }
+
+            if idea1_key not in similarityDict[idea2_key]["counts"]:
+                similarityDict[idea2_key]["counts"][idea1_key] = 0
+                
+            if idea2_key not in similarityDict[idea1_key]["counts"]:
+                similarityDict[idea1_key]["counts"][idea2_key] = 0
                     
-            if idea1_key not in similarityDict[idea2_key]:
-                similarityDict[idea2_key][idea1_key] = 0
-                    
-            similarityDict[idea1_key][idea2_key] += 1
-            similarityDict[idea2_key][idea1_key] += 1
+            similarityDict[idea1_key]["counts"][idea2_key] += 1
+            similarityDict[idea2_key]["counts"][idea1_key] += 1
         
         return similarityDict
-            
-    def clusterBySimilarity(self, similarityDict, numClusters=5):
-        # create two-dimensional vectors with similarity values (e.g., # of users who said items were the same)
-        # cluster index appended to end of vector                    
-        row = 0
-        rowKeys = []
-        similarityVectors = []
-        for idea1_key in similarityDict:
-            rowKeys.append(idea1_key)
-            vector = []
-            for idea2_key in similarityDict:
-                # if idea1_key and idea2_key are equal, value is 1
-                # if idea1 and idea2 were never marked as similar, value is 0
-                # otherwise, value is # of user who marked idea1 and idea2 as similiar
-                # TODO: for k-means clustering, what value should be used when idea1_key == idea2_key
-                value = similarityDict[idea1_key][idea2_key] if idea2_key in similarityDict[idea1_key] else (1 if idea1_key == idea2_key else 0)
-                flag = 1 if value > 0 else 0
-                vector.append(flag)
-                
-            # FIX: Need better way to get idea index back from getclusters
-            # vector.append(row)
-            similarityVectors.append(tuple(vector))                    
-            row += 1
-
-        helpers.log("===================")
-        for idea_key in similarityDict:
-            helpers.log("{0}".format(similarityDict[idea_key]["idea"]["text"]))
-        helpers.log("===================")
-        helpers.log(similarityVectors)
-        helpers.log("===================")
-        cl = KMeansClustering(similarityVectors)
-        clusterData = cl.getclusters(numClusters)
-        clusters = clusterData["clusters"]
-        clusteredIdeaIndices = clusterData["indices"]
-        
-        helpers.log(clusters)
-        helpers.log("===================")
-        helpers.log(clusteredIdeaIndices)
-            
-        ideaClusters = []
-        clusterNum = 0
-        for cluster in clusters:
-            ideas = []
-            if type(cluster) is tuple:
-                # Cluster may only have a single tuple instead of a collection of them
-                index = clusteredIdeaIndices[clusterNum][0]
-                idea_key = rowKeys[index]
-                idea = similarityDict[idea_key]["idea"]
-                ideas.append(idea)
-            else:
-                j = 0
-                for vector in cluster:
-                    index = clusteredIdeaIndices[clusterNum][j]
-                    idea_key = rowKeys[index]
-                    idea = similarityDict[idea_key]["idea"]
-                    ideas.append(idea)
-                    j += 1
-            ideaClusters.append(ideas)
-            clusterNum += 1
-        
-        return ideaClusters
     
 class IdeaAssignmentHandler(BaseHandler):
     def get(self):
@@ -825,7 +837,7 @@ class SimilarIdeaHandler(BaseHandler):
         
 class PhaseHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        self.initUserContext(force_check=True)
         client_id = self.request.get('client_id')
         phase = int(self.request.get('phase'))
         question_id = self.request.get("question_id")
@@ -842,7 +854,7 @@ class PhaseHandler(BaseHandler):
 
 class NumNotesToTagPerPersonHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        self.initUserContext(force_check=True)
         client_id = self.request.get('client_id')
         num_notes_to_tag_per_person = int(self.request.get('num_notes_to_tag_per_person'))
         question_id = self.request.get("question_id")
@@ -857,7 +869,7 @@ class NumNotesToTagPerPersonHandler(BaseHandler):
 
 class CompareNotesOptionsHandler(BaseHandler):
     def post(self):
-        self.initUserContext()
+        self.initUserContext(force_check=True)
         client_id = self.request.get('client_id')
         num_notes_to_compare_per_person = int(self.request.get('num_notes_to_compare_per_person'))
         num_notes_for_comparison = int(self.request.get('num_notes_for_comparison'))
@@ -974,54 +986,54 @@ def getIdeasByCluster(cluster_id, questionIdStr):
 
 def doCluster(k, question):
     question_id = question.code if question else None
-    if k == 1:
-        uncluster(question)
-        return { "status" : 1,  "num_clusters" : 0 }
-
-    if k > Idea.all().filter("question = ", question).count():
-        return { "status" : 0,  "msg" : "Not enough notes to create {0} clusters".format(k) }
+    try:
+        vectors, texts, phrases, ids = computeBagsOfWords(question_id)
+        cl = KMeansClustering(vectors)
+        clusterData = cl.getclusters(k)
+        clusters = clusterData["clusters"]
+        clusteredIdeaIndices = clusterData["indices"]
     
-    vectors, texts, phrases, ids = computeBagsOfWords(question_id)
-    cl = KMeansClustering(vectors)
-    clusterData = cl.getclusters(k)
-    clusters = clusterData["clusters"]
-    clusteredIdeaIndices = clusterData["indices"]
-
-    # Delete existing clusters from database
-    Cluster.deleteAllClusters(question)
-
-    clusterNum = 0
-    for cluster in clusters:
-        clusterObj = Cluster.createCluster("Cluster #" + str(clusterNum + 1), clusterNum, question_id)
-        entry = []
-        if type(cluster) is tuple:
-            # Cluster may only have a single tuple instead of a collection of them
-            index = clusteredIdeaIndices[clusterNum][0]
-            text = texts[index]
-            phrase = phrases[index]
-            idea_id = ids[index]
-            Idea.assignCluster(idea_id, clusterObj)
-        else:
-            j = 0
-            for vector in cluster:
-                index = clusteredIdeaIndices[clusterNum][j]
+        # Delete existing clusters from database
+        Cluster.deleteAllClusters(question)
+    
+        clusterNum = 0
+        for cluster in clusters:
+            clusterObj = Cluster.createCluster("Cluster #" + str(clusterNum + 1), clusterNum, question_id)
+            entry = []
+            if type(cluster) is tuple:
+                # Cluster may only have a single tuple instead of a collection of them
+                index = clusteredIdeaIndices[clusterNum][0]
                 text = texts[index]
                 phrase = phrases[index]
                 idea_id = ids[index]
-                entry.append([text, phrase])
                 Idea.assignCluster(idea_id, clusterObj)
-                j += 1
-        clusterNum += 1
-
-    # Clean up any existing tags and cluster assignments since clusters have been reformed
-    ClusterTag.deleteAllTags(question)
-    ClusterAssignment.deleteAllClusterAssignments(question)
-    return { "status" : 1, "num_clusters" : clusterNum }
+            else:
+                j = 0
+                for vector in cluster:
+                    index = clusteredIdeaIndices[clusterNum][j]
+                    text = texts[index]
+                    phrase = phrases[index]
+                    idea_id = ids[index]
+                    entry.append([text, phrase])
+                    Idea.assignCluster(idea_id, clusterObj)
+                    j += 1
+            clusterNum += 1
+    
+        # Clean up any existing tags and cluster assignments since clusters have been reformed
+        ClusterTag.deleteAllTags(question)
+        ClusterAssignment.deleteAllClusterAssignments(question)
+    
+    except:
+        clusterNum = 0
+        raise
+        
+    return clusterNum
 
 def uncluster(question):
     if question:
         Cluster.deleteAllClusters(question)
         ClusterTag.deleteAllTags(question)
+        ClusterAssignment.deleteAllClusterAssignments(question)
 
 def computeBagsOfWords(question_id):
     # First define vector by extracting every word

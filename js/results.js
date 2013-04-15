@@ -127,6 +127,7 @@ function clusterIdeas() {
 function clusterBySimilarity() {
 	$("#clusteredIdeas").hide();
 	$("#clustersLoading").show();
+	$("#msg").html("");
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
@@ -245,6 +246,9 @@ function displayIdeasImpl(results) {
 		var clusterName = cluster.name;
 		var ideas = cluster.ideas;
 		tag_cluster_hists[cluster.id] = {};
+		if (i==0 && clusterName != "Unclustered") {
+			html += "<h2 class=\"spaceafter\">Clustered by Words</h2>";
+		}
 		html += "<h2>" + clusterName + "</h2>";
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";

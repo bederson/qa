@@ -669,7 +669,9 @@ class KMeansClustering:
 
       # return the data straight away if there is nothing to cluster
       if self.__data == [] or len(self.__data) == 1 or n == self.__initial_length:
-         return self.__data
+         #return self.__data 
+         raise ClusteringError("Unable to generate clusters. You supplied %d items, and asked for %d clusters." % 
+                (self.__initial_length, n) ) # ATR raise exception instead of input data
 
       # It makes no sense to ask for more clusters than data-items available
       if n > self.__initial_length:
