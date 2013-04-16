@@ -762,28 +762,32 @@ class ClusterSimilarHandler(BaseHandler):
         # create dictionary with similarity counts
         # e.g., similarityDict[idea1_key][idea2_key] = <# users who said this pair of ideas was similar>
         # idea pairs that were never marked as similar are not contained in dictionary        
-        similarityDict = {}               
+        similarityDict = {}
+        maxCounts = {}            
         results = SimilarIdea.all().filter("question =", question)           
-        for similarIdea in results:
-            idea1 = similarIdea.idea
-            idea2 = similarIdea.similar
-            idea1_key = str(idea1.key().id())
-            idea2_key = str(idea2.key().id())
+        for similarIdea in results:            
+            idea1 = { "idea" : similarIdea.idea, "key": str(similarIdea.idea.key().id()) }
+            idea2 = { "idea" : similarIdea.similar, "key": str(similarIdea.similar.key().id()) }
+            for (row,col) in [ (idea1,idea2), (idea2,idea1) ]:
+                row_key = row["key"]
+                col_key = col["key"]
+                if row_key not in similarityDict:
+                    similarityDict[row_key] = { "idea": row["idea"].toDict(), "counts": {} }
                 
-            if idea1_key not in similarityDict:
-                similarityDict[idea1_key] = { "idea": idea1.toDict(), "counts": {} }
-                    
-            if idea2_key not in similarityDict:
-                similarityDict[idea2_key] = { "idea": idea2.toDict(), "counts": {} }
-
-            if idea1_key not in similarityDict[idea2_key]["counts"]:
-                similarityDict[idea2_key]["counts"][idea1_key] = 0
+                if col_key not in similarityDict[row_key]["counts"]:
+                    similarityDict[row_key]["counts"][col_key] = 0
+                similarityDict[row_key]["counts"][col_key] += 1
                 
-            if idea2_key not in similarityDict[idea1_key]["counts"]:
-                similarityDict[idea1_key]["counts"][idea2_key] = 0
+                if col_key not in maxCounts:
+                    maxCounts[col_key] = 0
                     
-            similarityDict[idea1_key]["counts"][idea2_key] += 1
-            similarityDict[idea2_key]["counts"][idea1_key] += 1
+                if similarityDict[row_key]["counts"][col_key] > maxCounts[col_key]:
+                    maxCounts[col_key] = similarityDict[row_key]["counts"][col_key]
+        
+        # CHECK: what is the best value to use when row_key == col_key?
+        # use max column counts where row_key == col_key
+#         for idea_key in similarityDict:
+#             similarityDict[idea_key]["counts"][idea_key] = maxCounts[idea_key]
         
         return similarityDict
     
