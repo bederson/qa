@@ -17,12 +17,14 @@ Features
 * Auto-complete or show tags that others have already entered for that cluster or idea
   (to make it easier and faster for students to enter tags, and for there to be less diversity
    ... if that's what we want)
+* Allow admins to modify questions, in addition to question authors
 
 Testing
 * Questions require either user authentication (via google account) or nickname authentication 
   (nickname stored in session). Implemented but needs to be tested (esp. nickname authentication)
   
 Misc
+* Reduce page reloads to reduce unnecessary server calls and # of channels created
 * Need to make myself a gae admin so users.is_current_user_admin returns true
 * Need consistent terminology (e.g., submission/note/response/idea for responses to questions)
 * Datastore ids getting truncated when passed from server via json to client

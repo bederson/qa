@@ -16,6 +16,7 @@
 // 
 
 var OFFLINE = false;					// For offline debugging
+var INCLUDE_UNCLUSTERED = true;
 
 var numIdeas = 0;
 var MAX_CLOUD_HEIGHT = 800;
@@ -89,12 +90,9 @@ function initEventHandlers() {
 			clusterIdeas();
 		}
 		else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			clusterBySimilarity();
+			
+			clusterBySimilarity(INCLUDE_UNCLUSTERED);
 		}
-	});
-
-	$("#cluster_by_similarity_button").click(function() {
-		xx
 	});
 	
 	$("#admin_button").click(function() {
@@ -124,7 +122,7 @@ function clusterIdeas() {
 	}, "json");
 }
 
-function clusterBySimilarity() {
+function clusterBySimilarity(includeUnclustered) {
 	$("#clusteredIdeas").hide();
 	$("#clustersLoading").show();
 	$("#msg").html("");
@@ -132,6 +130,7 @@ function clusterBySimilarity() {
 	var data = {
 		"client_id": client_id,
 		"num_clusters": num_clusters_to_create,
+		"include_unclustered": includeUnclustered ? "1" : "0",
 		"question_id": question_id
 	};
 	$.ajax({
@@ -149,7 +148,7 @@ function clusterBySimilarity() {
 			}
 			else {
 				$("#clustersLoading").hide();
-				displayClusters(result.clusters);
+				displayClusters(result.clusters, result.unclustered);
 				displaySimilarIdeas();
 			}
 		},
@@ -161,70 +160,68 @@ function clusterBySimilarity() {
 	});
 }
 
-function displayClusters(clusters) {
-	var html = "";
-	html += "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";
-	//html += "<div class=\"warning\">";
-	//html += "IN PROGRESS<br/>";
-	//html += "Clusters not saved on server yet.<br/>";
-	//html += "Need to click \"Cluster by similarity\" button every time page is loaded.<br/>";
-	//html += "New ideas not displayed dynamically, and unclustered ideas not shown.";
-	//html += "</div>";
-	
+function displayClusters(clusters, unclusteredIdeas) {
+	var html = "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";	
 	for (var i in clusters) {
-		html += "<h2>Cluster #" + (parseInt(i)+1) + "</h2>";
-		html += "<table style='width: 100%'><tr>";
-		html += "<td style='width: 50%'>";
-		html += "<div class='ideas'>";
-		html += "<ul>"
-		for (var j in clusters[i]) {
-			var idea = clusters[i][j];
-			tag_idea_hists[idea.id] = {};
-			var tagsid = "tags" + idea.id;
-			similar_idea_hists[idea.id] = {};
-			var similarid = "similar" + idea.id;
-			html += "<li>" + idea.text;
-			html += "<br>" + "<span ";
-			var identityHidden = idea.author.user_identity != "" && idea.author.user_identity != idea.author.nickname;
-			if (identityHidden) {
-				html += "title='" + idea.author.user_identity + "' ";
-			}
-			html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + (identityHidden?"*":"") + "</span>";
-			html += "<span id='" + tagsid + "' class='tags'></span>";
-			html += "<span id='" + similarid + "' class='tags'></span>";
-			numIdeas += 1;
-		}
-		html += "</ul>"
-		html += "</div>";
-		html += "</td>";
-		if (!jQuery.browser.mobile && (phase != PHASE_TAG_BY_NOTE)) {
-			var divid = "vis" + (i+1);
-			var controlid = "control" + (i+1);
-			html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
-		}
-		html += "</tr></table>"
+		html += clusterToHtml(clusters[i], parseInt(i)+1);
 	}
+	
+	if (unclusteredIdeas.length > 0) {
+		html += clusterToHtml(unclusteredIdeas);
+	}
+	
 	$("#clusteredIdeas").html(html);
 	$("#clusteredIdeas").show();
 
-	// TODO: update when to display clouds when similarity clusters are saved 
-	// (i.e., not just available in PHASE_COMPARE_BY_SIMILARITY)	
 	if (!jQuery.browser.mobile) {
+		// TODO: show clusters for all phases if they already exist?
 		if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 			for (var i in clusters) {
-				var cluster = clusters[i];
-				var cloudid = "vis" + (i+1);
-				var height = $("#" + cloudid).parent().height();
-				if (height > MAX_CLOUD_HEIGHT) {
-					height = MAX_CLOUD_HEIGHT;
-				}
-				$("#" + cloudid).height(height);
-				displayCloud(cloudid, cluster);
+				displayCloud("vis" + (parseInt(i)+1), clusters[i]);
+			}
+			
+			if (unclusteredIdeas.length > 0) {
+				displayCloud("visunclustered", unclusteredIdeas);
 			}
 		}
 	}
 	
 	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
+}
+
+function clusterToHtml(ideas, clusterNum) {
+	var isCluster = isDefined(clusterNum)
+	var html = "<h2>" + (isCluster ? "Cluster #" + clusterNum : "Unclustered") + "</h2>";
+	html += "<table style='width: 100%'><tr>";
+	html += "<td style='width: 50%'>";
+	html += "<div class='ideas'>";
+	html += "<ul>"
+	for (var i in ideas) {
+		var idea = ideas[i];
+		tag_idea_hists[idea.id] = {};
+		var tagsid = "tags" + idea.id;
+		similar_idea_hists[idea.id] = {};
+		var similarid = "similar" + idea.id;
+		html += "<li>" + idea.text;
+		html += "<br>" + "<span ";
+		var identityHidden = idea.author.user_identity != "" && idea.author.user_identity != idea.author.nickname;
+		if (identityHidden) {
+			html += "title='" + idea.author.user_identity + "' ";
+		}
+		html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + (identityHidden?"*":"") + "</span>";
+		html += "<span id='" + tagsid + "' class='tags'></span>";
+		html += "<span id='" + similarid + "' class='tags'></span>";
+	}
+	html += "</ul>"
+	html += "</div>";
+	html += "</td>";
+	if (!jQuery.browser.mobile && (phase != PHASE_TAG_BY_NOTE)) {
+		var divid = "vis" + (isCluster ? clusterNum : "unclustered");
+		var controlid = "control" + (isCluster ? clusterNum : "unclustered");
+		html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
+	}
+	html += "</tr></table>";
+	return html;
 }
 
 function displayIdeas(ideas) {
@@ -288,14 +285,7 @@ function displayIdeasImpl(results) {
 		if ((phase == PHASE_DISABLED) || (phase == PHASE_NOTES)) {
 			for (var i in results) {
 				var cluster = results[i];
-				var ideas = cluster.ideas;
-				var cloudid = "vis" + cluster.id;
-				var height = $("#" + cloudid).parent().height();
-				if (height > MAX_CLOUD_HEIGHT) {
-					height = MAX_CLOUD_HEIGHT;
-				}
-				$("#" + cloudid).height(height);
-				displayCloud(cloudid, ideas);
+				displayCloud("vis" + cluster.id, cluster.ideas);
 			}
 		} else if (phase == PHASE_TAG_BY_CLUSTER) {
 			displayTagControls(results);
@@ -341,6 +331,12 @@ function updateNumIdeas() {
 //=================================================================================
 
 function displayCloud(cloudid, cluster) {
+	var height = $("#" + cloudid).parent().height();
+	if (height > MAX_CLOUD_HEIGHT) {
+		height = MAX_CLOUD_HEIGHT;
+	}
+	$("#" + cloudid).height(height);
+				
 	var weights = {};
 	for (var j in cluster) {
 		var words = cluster[j].words;

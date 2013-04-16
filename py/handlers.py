@@ -481,7 +481,7 @@ class NewQuestionHandler(BaseHandler):
         client_id = self.request.get('client_id')
         title = self.request.get('title')
         questionText = self.request.get('question')
-        nicknameAuthentication = self.request.get('nickname_authentication') == "1" if True else False
+        nicknameAuthentication = self.request.get('nickname_authentication', '0') == "1"
 
         data = {}        
         if not person:
@@ -519,8 +519,7 @@ class EditQuestionHandler(BaseHandler):
         question = Question.getQuestionById(question_id)
         title_text = self.request.get('title')
         question_text = self.request.get('question')
-
-        nicknameAuthentication = self.request.get('nickname_authentication') == "1" if True else False
+        nicknameAuthentication = self.request.get('nickname_authentication', '0') == "1"
         data = {}
         if not person or not person.user:
             data["status"] = 0
@@ -663,6 +662,7 @@ class ClusterSimilarHandler(BaseHandler):
         person = self.initUserContext()
         client_id = self.request.get("client_id")
         num_clusters = int(self.request.get("num_clusters"))
+        include_unclustered = self.request.get("include_unclustered", "0") == "1"
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
         data = {}
@@ -681,12 +681,13 @@ class ClusterSimilarHandler(BaseHandler):
              
         else:
             try:
-                clusters = self.doClusterBySimilarity(num_clusters, question)
+                clusterResults = self.doClusterBySimilarity(num_clusters, question, include_unclustered)
                 # TODO: clusters not currently stored in database
                 # TODO: need to return unclustered items also
                 # TODO: error checking
                 data["status"] = 1
-                data["clusters"] = clusters
+                data["clusters"] = clusterResults["clusters"]
+                data["unclustered"] = clusterResults["unclustered"]
                     
                 # Update clients
                 message = {
@@ -700,8 +701,9 @@ class ClusterSimilarHandler(BaseHandler):
         
         self.writeResponseAsJson(data)
           
-    def doClusterBySimilarity(self, k, question):
-        ideaClusters = []
+    def doClusterBySimilarity(self, k, question, includeUnclustered=False):
+        clusteredIdeas = []
+        
         similarityDict = self.createSimilarityDict(question)
         if similarityDict:
             # create array of tuples containing similarity counts for each item pair 
@@ -733,30 +735,36 @@ class ClusterSimilarHandler(BaseHandler):
                 cl = KMeansClustering(countVectors)
                 clusterData = cl.getclusters(k)
                 clusters = clusterData["clusters"]
-                clusteredIdeaIndices = clusterData["indices"]
+                ideaIndices = clusterData["indices"]
                 clusterNum = 0
                 for cluster in clusters:
                     ideas = []
-                    if type(cluster) is tuple:
-                        # Cluster may only have a single tuple instead of a collection of them
-                        index = clusteredIdeaIndices[clusterNum][0]
-                        idea_key = rowKeys[index]
+                    i = 0
+                    for vector in cluster:
+                        idea_index = ideaIndices[clusterNum][i]
+                        idea_key = rowKeys[idea_index]
                         idea = similarityDict[idea_key]["idea"]
                         ideas.append(idea)
-                    else:
-                        j = 0
-                        for vector in cluster:
-                            index = clusteredIdeaIndices[clusterNum][j]
-                            idea_key = rowKeys[index]
-                            idea = similarityDict[idea_key]["idea"]
-                            ideas.append(idea)
-                            j += 1
-                    ideaClusters.append(ideas)
+                        i += 1
+                    clusteredIdeas.append(ideas)
                     clusterNum += 1
             except ClusteringError:
                 raise
+           
+        unclusteredIdeas = []
+        if includeUnclustered:
+            compared = {}
+            for similarIdea in SimilarIdea.all().filter("question =", question):
+                for idea in [similarIdea.idea, similarIdea.similar]:
+                    idea_key = str(idea.key().id())
+                    compared[idea_key] = idea
+                        
+            for idea in Idea.all().filter("question =", question):
+                idea_key = str(idea.key().id())
+                if idea_key not in compared:
+                    unclusteredIdeas.append(idea.toDict())
                 
-        return ideaClusters
+        return { "clusters": clusteredIdeas, "unclustered": unclusteredIdeas }
     
     def createSimilarityDict(self, question):
         # create dictionary with similarity counts
@@ -788,7 +796,7 @@ class ClusterSimilarHandler(BaseHandler):
         # use max column counts where row_key == col_key
 #         for idea_key in similarityDict:
 #             similarityDict[idea_key]["counts"][idea_key] = maxCounts[idea_key]
-        
+                    
         return similarityDict
     
 class IdeaAssignmentHandler(BaseHandler):
