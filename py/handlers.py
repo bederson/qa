@@ -41,6 +41,9 @@ PHASE_TAG_BY_CLUSTER = 2
 PHASE_TAG_BY_NOTE = 3
 PHASE_COMPARE_BY_SIMILARITY = 4
 
+CLUSTER_BY_WORDS = "words"
+CLUSTER_BY_SIMILARITY = "similarity"
+
 def get_default_template_values(requestHandler, person, question):
     """Return a dictionary of template values used for login template"""        
     
@@ -624,7 +627,7 @@ class ClusterHandler(BaseHandler):
         num_clusters = int(self.request.get("num_clusters"))
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
-        cluster_by = self.request.get("cluster_by", "words")
+        cluster_by = self.request.get("cluster_by", CLUSTER_BY_WORDS)
         data = {}
         
         if not person:
@@ -648,7 +651,7 @@ class ClusterHandler(BaseHandler):
                 
             else:
                 try:
-                    if cluster_by == "similarity":
+                    if cluster_by == CLUSTER_BY_SIMILARITY:
                         # TODO: clusters not currently stored in database
                         include_unclustered = self.request.get("include_unclustered", "0") == "1"
                         clusterResults = doClusterBySimilarity(num_clusters, question, include_unclustered)
@@ -830,7 +833,7 @@ def getIdeas(questionIdStr):
         results.append(entry)
 
     for clusterObj in clusterObjs:
-        entry = {"name": clusterObj.text, "id": clusterObj.key().id()}
+        entry = {"name": clusterObj.text, "id": clusterObj.key().id(), "cluster_type": clusterObj.getClusterType() }
         ideaObjs = Idea.all().filter("cluster =", clusterObj)
         ideas = []
         for ideaObj in ideaObjs:
@@ -864,25 +867,24 @@ def uncluster(question):
 
 def doClusterByWords(k, question):
     clusteredIdeas = []
-    question_id = question.code if question else None
     try:
-        vectors, texts, phrases, ids = computeBagsOfWords(question_id)
+        vectors, texts, phrases, ids = computeBagsOfWords(question)
         cl = KMeansClustering(vectors)
         clusterData = cl.getclusters(k)
         clusters = clusterData["clusters"]
-        clusteredIdeaIndices = clusterData["indices"]
+        ideaIndices = clusterData["indices"]
     
-        # Delete existing clusters from database
+        # Delete existing clusters from database (including those created by other algorithms)
         Cluster.deleteAllClusters(question)
     
         clusterNum = 0
         for cluster in clusters:
-            clusterObj = Cluster.createCluster("Cluster #" + str(clusterNum + 1), clusterNum, question_id)
+            clusterObj = Cluster.createCluster("Cluster #" + str(clusterNum + 1), clusterNum, question, CLUSTER_BY_WORDS)
             entry = []
             ideas = []
             if type(cluster) is tuple:
                 # Cluster may only have a single tuple instead of a collection of them
-                index = clusteredIdeaIndices[clusterNum][0]
+                index = ideaIndices[clusterNum][0]
                 text = texts[index]
                 phrase = phrases[index]
                 idea_id = ids[index]
@@ -891,7 +893,7 @@ def doClusterByWords(k, question):
             else:
                 j = 0
                 for vector in cluster:
-                    index = clusteredIdeaIndices[clusterNum][j]
+                    index = ideaIndices[clusterNum][j]
                     text = texts[index]
                     phrase = phrases[index]
                     idea_id = ids[index]
@@ -910,17 +912,16 @@ def doClusterByWords(k, question):
         clusteredIdeas = []
         raise
         
-    return { "clusters": clusteredIdeas, "unclustered": [] }
+    return { "cluster_type": CLUSTER_BY_WORDS, "clusters": clusteredIdeas, "unclustered": [] }
 
-def computeBagsOfWords(question_id):
+def computeBagsOfWords(question):
     # First define vector by extracting every word
     all_words = set()
     phrases = []
     texts = []
     ids = []
-    questionObj = Question.getQuestionById(question_id)
-    if questionObj:
-        ideas = Idea.all().filter("question = ", questionObj).order('__key__')
+    if question:
+        ideas = Idea.all().filter("question = ", question).order('__key__')
         for ideaObj in ideas:
             text = ideaObj.text
             texts.append(text)
@@ -962,7 +963,7 @@ def doClusterBySimilarity(k, question, includeUnclustered=False):
         # create array of tuples containing similarity counts for each item pair 
         # (e.g., # of users who said item1 and item2 were the same)
         countVectors = []
-        rowKeys = []
+        rowIds = []
         for idea1_key in similarityDict:
             rowCounts = []
             for idea2_key in similarityDict:
@@ -974,7 +975,7 @@ def doClusterBySimilarity(k, question, includeUnclustered=False):
                 #count = 1 if count > 0 else 0
                 rowCounts.append(count)
 
-            rowKeys.append(idea1_key)                
+            rowIds.append(similarityDict[idea1_key]["idea"]["id"])                
             countVectors.append(tuple(rowCounts))                    
 
         # FOR DEBUGGING: print count vectors
@@ -989,35 +990,49 @@ def doClusterBySimilarity(k, question, includeUnclustered=False):
             clusterData = cl.getclusters(k)
             clusters = clusterData["clusters"]
             ideaIndices = clusterData["indices"]
+            
+            # Delete existing clusters from database (including those created by other algorithms)
+            Cluster.deleteAllClusters(question)
+        
             clusterNum = 0
             for cluster in clusters:
+                clusterObj = Cluster.createCluster("Cluster #" + str(clusterNum + 1), clusterNum, question, CLUSTER_BY_SIMILARITY)
                 ideas = []
                 i = 0
                 for vector in cluster:
                     idea_index = ideaIndices[clusterNum][i]
-                    idea_key = rowKeys[idea_index]
-                    idea = similarityDict[idea_key]["idea"]
-                    ideas.append(idea)
+                    idea_id = rowIds[idea_index]
+                    #idea = similarityDict[idea_key]["idea"]
+                    idea = Idea.assignCluster(idea_id, clusterObj)
+                    ideas.append(idea.toDict())
                     i += 1
                 clusteredIdeas.append(ideas)
                 clusterNum += 1
+                
+            # Clean up any existing tags and cluster assignments since clusters have been reformed
+            ClusterTag.deleteAllTags(question)
+            ClusterAssignment.deleteAllClusterAssignments(question)
+        
         except ClusteringError:
+            clusteredIdeas = []
             raise
        
+    # TODO: need more efficient way to get unclustered ideas
     unclusteredIdeas = []
-    if includeUnclustered:
-        compared = {}
-        for similarIdea in SimilarIdea.all().filter("question =", question):
-            for idea in [similarIdea.idea, similarIdea.similar]:
-                idea_key = str(idea.key().id())
-                compared[idea_key] = idea
-                    
-        for idea in Idea.all().filter("question =", question):
-            idea_key = str(idea.key().id())
-            if idea_key not in compared:
-                unclusteredIdeas.append(idea.toDict())
+    # FIX: Causing import _sqlite3 error when running via localhost
+#     if includeUnclustered:
+#         compared = {}
+#         for similarIdea in SimilarIdea.all().filter("question =", question):
+#             for idea in [similarIdea.idea, similarIdea.similar]:
+#                 idea_key = str(idea.key().id())
+#                 compared[idea_key] = idea
+#                     
+#         for idea in Idea.all().filter("question =", question):
+#             idea_key = str(idea.key().id())
+#             if idea_key not in compared:
+#                 unclusteredIdeas.append(idea.toDict())
             
-    return { "clusters": clusteredIdeas, "unclustered": unclusteredIdeas }
+    return { "cluster_type": CLUSTER_BY_SIMILARITY, "clusters": clusteredIdeas, "unclustered": unclusteredIdeas }
     
 def createSimilarityDict(question):
     # create dictionary with similarity counts

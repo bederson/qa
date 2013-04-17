@@ -17,6 +17,8 @@
 
 var OFFLINE = false;					// For offline debugging
 var INCLUDE_UNCLUSTERED = true;			// TODO: make question option?
+var CLUSTER_BY_WORDS = "words";
+var CLUSTER_BY_SIMILARITY = "similarity";
 
 var numIdeas = 0;
 var MAX_CLOUD_HEIGHT = 800;
@@ -77,7 +79,7 @@ $(document).ready(function() {
 function initEventHandlers() {
 	$("#num_clusters_slider").on("slide", function(event, ui) {
 		num_clusters_to_create = ui.value;
-		var label = "Create " + num_clusters_to_create + " clusters by " + (phase == PHASE_COMPARE_BY_SIMILARITY ? "similarity" : "words");
+		var label = "Create " + num_clusters_to_create + " clusters by " + (phase == PHASE_COMPARE_BY_SIMILARITY ? CLUSTER_BY_SIMILARITY : CLUSTER_BY_WORDS);
 		$("#cluster_button").val(label);
 	});
 		
@@ -108,7 +110,7 @@ function clusterIdeas() {
 		"client_id": client_id,
 		"num_clusters": num_clusters_to_create,
 		"question_id": question_id,
-		"cluster_by": "words"
+		"cluster_by": CLUSTER_BY_WORDS
 	};
 	$.ajax({
 		type: "POST",
@@ -145,7 +147,7 @@ function clusterBySimilarity(includeUnclustered) {
 		"client_id": client_id,
 		"num_clusters": num_clusters_to_create,
 		"question_id": question_id,
-		"cluster_by": "similarity",
+		"cluster_by": CLUSTER_BY_SIMILARITY,
 		"include_unclustered": includeUnclustered ? "1" : "0"
 	};
 	$.ajax({
@@ -229,8 +231,17 @@ function displayIdeas(ideas) {
 
 function displayIdeasImpl(results) {
 	numIdeas = 0;
-	// FIX: change title depending on which clustering algorithm displayed
-	var html = results.length > 1 ? "<h2 class=\"spaceafter\">" + "Clustered by Words" : "";	
+	var html = "";	
+	if (results.length>1) {
+		var cluster_type = isDefined(results[0].cluster_type) ? results[0].cluster_type : (isDefined(results[1].cluster_type) ? results[1].cluster_type : "")
+		if (cluster_type == CLUSTER_BY_WORDS) {
+			html += "<h2 class=\"spaceafter\">Clustered by Words</h2>";
+		}
+		else if (cluster_type == CLUSTER_BY_SIMILARITY) {
+			html += "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";
+		}
+	}
+		
 	for (var i in results) {
 		var cluster = results[i];
 		html += clusterToHtml(cluster);
@@ -239,12 +250,12 @@ function displayIdeasImpl(results) {
 	updateNumIdeas();
 	
 	if (!jQuery.browser.mobile) {
-		if ((phase == PHASE_DISABLED) || (phase == PHASE_NOTES)) {
-			for (var i in results) {
-				var cluster = results[i];
-				displayCloud("vis" + cluster.id, cluster.ideas);
-			}
-		} else if (phase == PHASE_TAG_BY_CLUSTER) {
+		for (var i in results) {
+			var cluster = results[i];
+			displayCloud("vis" + cluster.id, cluster.ideas);
+		}
+		
+		if (phase == PHASE_TAG_BY_CLUSTER) {
 			displayTagControls(results);
 			displayClusterTags();
 		} else if (phase == PHASE_TAG_BY_NOTE) {

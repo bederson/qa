@@ -273,15 +273,19 @@ class Cluster(db.Model):
     question = db.ReferenceProperty(Question)
     rand = db.FloatProperty()
     date = db.DateTimeProperty(auto_now=True)
+    clusterType = db.StringProperty()
 
+    def getClusterType(self):
+        return self.clusterType if self.clusterType else "words"
+    
     @staticmethod
-    def createCluster(text, index, questionIdStr):
-        questionObj = Question.getQuestionById(questionIdStr)
+    def createCluster(text, index, questionObj, clusterType):
         if questionObj:
             clusterObj = Cluster()
             clusterObj.text = text
             clusterObj.index = index
             clusterObj.question = questionObj
+            clusterObj.clusterType = clusterType
             if Cluster.all().filter("question =", questionObj).count() == 0:
                 clusterObj.rand = 1.0
             else:
