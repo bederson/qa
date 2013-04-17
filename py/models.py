@@ -387,6 +387,7 @@ class Idea(db.Model):
         if ideaObj:
             ideaObj.cluster = clusterObj
             ideaObj.put()
+        return ideaObj
 
     @staticmethod
     def deleteAllIdeas(questionIdStr):

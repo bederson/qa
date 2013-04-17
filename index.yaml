@@ -39,6 +39,17 @@ indexes:
 - kind: Idea
   properties:
   - name: question
+  - name: date
+
+- kind: Idea
+  properties:
+  - name: question
+  - name: date
+    direction: desc
+
+- kind: Idea
+  properties:
+  - name: question
   - name: index
 
 - kind: Idea
