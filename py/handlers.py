@@ -645,22 +645,22 @@ class ClusterHandler(BaseHandler):
         else: 
             if num_clusters == 1:
                 uncluster(question)
+                unclusteredIdeas = [ idea.toDict() for idea in Idea.all().filter("question = ", question).order("-date") ]
                 data["status"] = 1
-                data["clusters"] = []
-                data["unclustered"] = [ idea.toDict() for idea in Idea.all().filter("question = ", question).order("-date") ]
+                data["cluster_type"] = ""
+                data["clusters"] = [{ "name": "Unclustered", "ideas": unclusteredIdeas }]
                 
             else:
                 try:
                     if cluster_by == CLUSTER_BY_SIMILARITY:
-                        # TODO: clusters not currently stored in database
                         include_unclustered = self.request.get("include_unclustered", "0") == "1"
-                        clusterResults = doClusterBySimilarity(num_clusters, question, include_unclustered)
+                        clusters = doClusterBySimilarity(num_clusters, question, include_unclustered)
                     else:
-                        clusterResults = doClusterByWords(num_clusters, question)
+                        clusters = doClusterByWords(num_clusters, question)
 
                     data["status"] = 1
-                    data["clusters"] = clusterResults["clusters"]
-                    data["unclustered"] = clusterResults["unclustered"]
+                    data["cluster_type"] = cluster_by
+                    data["clusters"] = clusters
                 
                     # Update clients
                     message = {
@@ -816,31 +816,32 @@ def getIdea(ideaIdStr):
     return idea
 
 def getIdeas(questionIdStr):
-    results = []
+    clusters = []
+    clusterType = ""
     questionObj = Question.getQuestionById(questionIdStr)
     if not questionObj:
-        return results
+        return clusters
     clusterObjs = Cluster.all().filter("question = ", questionObj).order("text")
 
-    # Start with all the ideas that aren't in any cluster
-    ideaObjs = Idea.all().filter("question = ", questionObj).filter("cluster =", None)
-    if ideaObjs.count() > 0:
-        entry = {"name": "Unclustered", "id": -1}
-        ideas = []
-        for ideaObj in ideaObjs:
-            ideas.append(ideaObj.toDict())
-        entry["ideas"] = ideas
-        results.append(entry)
-
     for clusterObj in clusterObjs:
-        entry = {"name": clusterObj.text, "id": clusterObj.key().id(), "cluster_type": clusterObj.getClusterType() }
+        clusterType = clusterObj.getClusterType()
         ideaObjs = Idea.all().filter("cluster =", clusterObj)
         ideas = []
         for ideaObj in ideaObjs:
             ideas.append(ideaObj.toDict())
-        entry["ideas"] = ideas
-        results.append(entry)
-    return results
+        cluster = { "name": clusterObj.text, "ideas": ideas }
+        clusters.append(cluster)
+
+    # Any ideas that aren't in any cluster (ideas may not be clustered at all)
+    ideaObjs = Idea.all().filter("question = ", questionObj).filter("cluster =", None)
+    if ideaObjs.count() > 0:
+        ideas = []
+        for ideaObj in ideaObjs:
+            ideas.append(ideaObj.toDict())
+        cluster = { "name": "Unclustered", "ideas": ideas }
+        clusters.append(cluster)
+        
+    return { "cluster_type": clusterType, "clusters": clusters }
 
 def getIdeasByCluster(cluster_id, questionIdStr):
     questionObj = Question.getQuestionById(questionIdStr)
@@ -901,7 +902,7 @@ def doClusterByWords(k, question):
                     idea = Idea.assignCluster(idea_id, clusterObj)
                     ideas.append(idea.toDict())
                     j += 1
-            clusteredIdeas.append(ideas)
+            clusteredIdeas.append({ "name": clusterObj.text, "ideas": ideas })
             clusterNum += 1
     
         # Clean up any existing tags and cluster assignments since clusters have been reformed
@@ -912,7 +913,7 @@ def doClusterByWords(k, question):
         clusteredIdeas = []
         raise
         
-    return { "cluster_type": CLUSTER_BY_WORDS, "clusters": clusteredIdeas, "unclustered": [] }
+    return clusteredIdeas
 
 def computeBagsOfWords(question):
     # First define vector by extracting every word
@@ -1006,7 +1007,8 @@ def doClusterBySimilarity(k, question, includeUnclustered=False):
                     idea = Idea.assignCluster(idea_id, clusterObj)
                     ideas.append(idea.toDict())
                     i += 1
-                clusteredIdeas.append(ideas)
+                    
+                clusteredIdeas.append({ "name": clusterObj.text, "ideas": ideas })
                 clusterNum += 1
                 
             # Clean up any existing tags and cluster assignments since clusters have been reformed
@@ -1019,20 +1021,20 @@ def doClusterBySimilarity(k, question, includeUnclustered=False):
        
     # TODO: need more efficient way to get unclustered ideas
     unclusteredIdeas = []
-    # FIX: Causing import _sqlite3 error when running via localhost
-#     if includeUnclustered:
-#         compared = {}
-#         for similarIdea in SimilarIdea.all().filter("question =", question):
-#             for idea in [similarIdea.idea, similarIdea.similar]:
-#                 idea_key = str(idea.key().id())
-#                 compared[idea_key] = idea
-#                     
-#         for idea in Idea.all().filter("question =", question):
-#             idea_key = str(idea.key().id())
-#             if idea_key not in compared:
-#                 unclusteredIdeas.append(idea.toDict())
+    if includeUnclustered:
+        compared = {}
+        for idea_key in similarityDict:
+            compared[idea_key] = similarityDict[idea_key]["idea"]
+                     
+        for idea in Idea.all().filter("question =", question):
+            idea_key = str(idea.key().id())
+            if idea_key not in compared:
+                unclusteredIdeas.append(idea.toDict())
+
+        if len(unclusteredIdeas) > 0:
+            clusteredIdeas.append({ "name": "Unclustered", "ideas": unclusteredIdeas })            
             
-    return { "cluster_type": CLUSTER_BY_SIMILARITY, "clusters": clusteredIdeas, "unclustered": unclusteredIdeas }
+    return clusteredIdeas
     
 def createSimilarityDict(question):
     # create dictionary with similarity counts

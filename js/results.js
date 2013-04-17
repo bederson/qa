@@ -127,7 +127,7 @@ function clusterIdeas() {
 			}
 			else {
 				$("#clustersLoading").hide();
-				displayClusters("Clustered by Words", result.clusters, result.unclustered);
+				displayClusters(result);
 			}
 		},
 		error: function(XMLHttpRequest, textStatus, errorThrown) {
@@ -165,38 +165,35 @@ function clusterBySimilarity(includeUnclustered) {
 			}
 			else {
 				$("#clustersLoading").hide();
-				displayClusters("Clustered by Similarity", result.clusters, result.unclustered);
-				displaySimilarIdeas();
+				displayClusters(result);
 			}
 		},
 		error: function(XMLHttpRequest, textStatus, errorThrown) {
-			$("#msg").html("Error calling /clustersimilar");
+			$("#msg").html("Error calling /cluster");
 			$("#clustersLoading").hide();
 			$("#clusteredIdeas").show();
 		}
 	});
 }
 
-function displayClusters(title, ideaClusters, unclusteredIdeas) {
+function displayClusters(results) {
 	var html = "";
-	if (ideaClusters.length > 0) {
+	var clusters = results.clusters;	
+	if (clusters.length > 0) {
+		var title = "";
+		if (results.cluster_type == CLUSTER_BY_WORDS) {
+			title = "Clustered by Words";
+		}
+		else if (results.cluster_type == CLUSTER_BY_SIMILARITY) {
+			title = "Clustered by Similarity";
+		}
 		html += "<h2 class=\"spaceafter\">" + title + "</h2>";
 	}
 
 	numIdeas = 0;	
-	for (var i in ideaClusters) {
-		var cluster = {}
+	for (var i in clusters) {
+		var cluster = clusters[i];
 		cluster.id = parseInt(i)+1;
-		cluster.name = "Cluster #" + cluster.id;
-		cluster.ideas = ideaClusters[i];
-		html += clusterToHtml(cluster);
-	}
-	
-	if (unclusteredIdeas.length > 0) {
-		var cluster = {}
-		cluster.id = "unclustered";
-		cluster.name = "Unclustered";
-		cluster.ideas = unclusteredIdeas;
 		html += clusterToHtml(cluster);
 	}
 	
@@ -205,12 +202,13 @@ function displayClusters(title, ideaClusters, unclusteredIdeas) {
 	updateNumIdeas();
 	
 	if (!jQuery.browser.mobile) {
-		for (var i in ideaClusters) {
-			displayCloud("vis" + (parseInt(i)+1), ideaClusters[i]);
+		for (var i in clusters) {
+			var divid = "vis" + (parseInt(i)+1);
+			displayCloud(divid, clusters[i].ideas);
 		}
-			
-		if (unclusteredIdeas.length > 0) {
-			displayCloud("visunclustered", unclusteredIdeas);
+		
+		if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+			displaySimilarIdeas();
 		}
 	}
 	
@@ -232,31 +230,30 @@ function displayIdeas(ideas) {
 function displayIdeasImpl(results) {
 	numIdeas = 0;
 	var html = "";	
-	if (results.length>1) {
-		var cluster_type = isDefined(results[0].cluster_type) ? results[0].cluster_type : (isDefined(results[1].cluster_type) ? results[1].cluster_type : "")
-		if (cluster_type == CLUSTER_BY_WORDS) {
-			html += "<h2 class=\"spaceafter\">Clustered by Words</h2>";
-		}
-		else if (cluster_type == CLUSTER_BY_SIMILARITY) {
-			html += "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";
-		}
+	if (results.cluster_type == CLUSTER_BY_WORDS) {
+		html += "<h2 class=\"spaceafter\">Clustered by Words</h2>";
+	}
+	else if (results.cluster_type == CLUSTER_BY_SIMILARITY) {
+		html += "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";
 	}
 		
-	for (var i in results) {
-		var cluster = results[i];
+	var clusters = results.clusters;
+	for (var i in clusters) {
+		var cluster = clusters[i];
+		cluster.id = parseInt(i)+1;
 		html += clusterToHtml(cluster);
 	}
 	$("#clusteredIdeas").html(html);
 	updateNumIdeas();
 	
 	if (!jQuery.browser.mobile) {
-		for (var i in results) {
-			var cluster = results[i];
-			displayCloud("vis" + cluster.id, cluster.ideas);
+		for (var i in clusters) {
+			var cluster = clusters[i];
+			displayCloud("vis" + (parseInt(i)+1), cluster.ideas);
 		}
 		
 		if (phase == PHASE_TAG_BY_CLUSTER) {
-			displayTagControls(results);
+			displayTagControls(clusters);
 			displayClusterTags();
 		} else if (phase == PHASE_TAG_BY_NOTE) {
 			displayIdeaTags();
@@ -265,8 +262,7 @@ function displayIdeasImpl(results) {
 		}
 	}
 	
-	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
-	
+	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
 }
 
 function clusterToHtml(cluster) {
