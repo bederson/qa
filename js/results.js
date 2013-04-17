@@ -46,15 +46,9 @@ $(document).ready(function() {
 		$("#admin_buttons").show();
 	}
 	
-	if (phase == PHASE_NOTES) {
+	if (phase == PHASE_NOTES || phase == PHASE_COMPARE_BY_SIMILARITY) {
 		$("#num_clusters_slider").slider({ min:1, max:10, value:num_clusters_to_create});
-		$("#cluster_controls").show();
-	}
-	
-	else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		var label = "Create " + num_clusters_to_create + " clusters by similarity";
-		$("#cluster_button").val(label);
-		$("#num_clusters_slider").slider({ min:1, max:10, value:num_clusters_to_create});
+		updateClusterButtonLabel();
 		$("#cluster_controls").show();
 	}
 	
@@ -79,8 +73,7 @@ $(document).ready(function() {
 function initEventHandlers() {
 	$("#num_clusters_slider").on("slide", function(event, ui) {
 		num_clusters_to_create = ui.value;
-		var label = "Create " + num_clusters_to_create + " clusters by " + (phase == PHASE_COMPARE_BY_SIMILARITY ? CLUSTER_BY_SIMILARITY : CLUSTER_BY_WORDS);
-		$("#cluster_button").val(label);
+		updateClusterButtonLabel();
 	});
 		
 	$("#cluster_button").click(function() {
@@ -102,6 +95,18 @@ function initEventHandlers() {
 		var question_id = getURLParameter("question_id");
 		window.location.href="/tag?question_id=" + question_id;
 	});
+}
+
+function updateClusterButtonLabel() {
+	var label = "";
+	//if (num_clusters_to_create > 1) {
+		label = "Create " + num_clusters_to_create + " clusters by ";
+		label += phase == PHASE_COMPARE_BY_SIMILARITY ? CLUSTER_BY_SIMILARITY : CLUSTER_BY_WORDS;
+	//}
+	//else {
+	//	label = "Uncluster";
+	//}
+	$("#cluster_button").val(label);
 }
 
 function clusterIdeas() {
