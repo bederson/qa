@@ -59,13 +59,23 @@ function initEventHandlers() {
 	$(window).resize(function() {
 		onResize();
 	});
-	
+
+	$("#admin_button").click(function() {
+		window.location.href="/admin?question_id=" + question_id;
+	});
+		
 	$("#submit").click(function() {
 		saveComparison();
 	});
 
-	$("#admin_button").click(function() {
-		window.location.href="/admin?question_id=" + question_id;
+	$("#skip_button").click(function() {
+		if (current_note == num_notes_to_compare) {
+			current_note = 0;
+			updateUI();
+		}
+		else {
+			updateAssignment();
+		}
 	});
 }
 
@@ -102,24 +112,7 @@ function updateUI() {
 		// next note area
 		var isLastNote = current_note == num_notes_to_compare;
 		var html = "This is note #" + current_note + " out of " + num_notes_to_compare + ".<br/>";
-		//if (!isLastNote) {
-		//	html += "To skip this AND go to the next note, click on ";
-		//	html += "<input id='next_button' value='Next note' type='button'></input>";
-		//} else {
-		//	html += "When you are done, click on "
-		//	html += "<input id='next_button' value='finished!' type='button'></input>";
-		//}
 		$("#next_note").html(html);
-
-		$("#skip_button, #next_button").click(function() {
-			if (current_note == num_notes_to_compare) {
-				current_note = 0;
-				updateUI();
-			}
-			else {
-				updateAssignment();
-			}
-		});
 		
 		$("#taskarea").show();
 	}

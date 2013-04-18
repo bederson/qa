@@ -965,26 +965,27 @@ def doClusterBySimilarity(k, question, includeUnclustered=False):
         # (e.g., # of users who said item1 and item2 were the same)
         countVectors = []
         rowIds = []
-        for idea1_key in similarityDict:
+        sortedKeys = sorted(similarityDict.iterkeys())
+        for idea1_key in sortedKeys:
             rowCounts = []
-            for idea2_key in similarityDict:
+            for idea2_key in sortedKeys:
                 # if same idea, value is 1 (e.g., idea1_key == idea2_key)
                 # if idea1 and idea2 were never marked as similar, value is 0
                 # otherwise, value is # of users who marked idea pair as similar
                 # TODO: for k-means clustering, what value should be used when idea1_key == idea2_key
                 count = similarityDict[idea1_key]["counts"][idea2_key] if idea2_key in similarityDict[idea1_key]["counts"] else (1 if idea1_key == idea2_key else 0)
-                #count = 1 if count > 0 else 0
+                count = 1 if count > 0 else 0
                 rowCounts.append(count)
 
             rowIds.append(similarityDict[idea1_key]["idea"]["id"])                
             countVectors.append(tuple(rowCounts))                    
 
         # FOR DEBUGGING: print count vectors
-#             row = 0
-#             for idea_key in similarityDict:
-#                 idea = similarityDict[idea_key]["idea"]
-#                 helpers.log("row={0},{1}:\t\t{2}".format(row, idea["text"], countVectors[row]))
-#                 row += 1
+#         row = 0
+#         for idea_key in similarityDict:
+#             idea = similarityDict[idea_key]["idea"]
+#             helpers.log("row={0},{1}:\t\t{2}".format(row, idea["text"], countVectors[row]))
+#             row += 1
          
         try:
             cl = KMeansClustering(countVectors)
@@ -1038,7 +1039,6 @@ def doClusterBySimilarity(k, question, includeUnclustered=False):
     
 def createSimilarityDict(question):
     # create dictionary with similarity counts
-    # e.g., similarityDict[idea1_key][idea2_key] = <# users who said this pair of ideas was similar>
     # idea pairs that were never marked as similar are not contained in dictionary        
     similarityDict = {}
     maxCounts = {}            
