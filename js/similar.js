@@ -129,6 +129,9 @@ function saveComparison() {
 }
 
 function updateAssignment(similarTo) {
+	enableDisable($("#submit"), false);
+	enableDisable($("#skip_button"), false);
+	
 	var data = {
 		"question_id" : question_id,
 		"request_new" : current_note < num_notes_to_compare ? "1" : "0"
@@ -148,6 +151,8 @@ function updateAssignment(similarTo) {
 			current_assignment = results.assignment;
 			updateUI();
 		}
+		enableDisable($("#submit"), true);
+		enableDisable($("#skip_button"), true);
 	}, "json");
 }
 
