@@ -46,6 +46,11 @@ $(document).ready(function() {
 		$("#admin_buttons").show();
 	}
 	
+	if (phase == PHASE_NOTES) {
+		$("#note").show();
+		$("#idea_link").attr("href", "/idea?question_id=" + question_id);
+	}
+	
 	if (phase == PHASE_NOTES || phase == PHASE_COMPARE_BY_SIMILARITY) {
 		$("#num_clusters_slider").slider({ min:1, max:10, value:num_clusters_to_create});
 		updateClusterButtonLabel();
@@ -58,9 +63,7 @@ $(document).ready(function() {
 	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
 		$("#start_tagging").css("display", "inline");
 	}
-	
-	$("#idea_link").attr("href", "/idea?question_id=" + question_id);
-	
+		
 	if (OFFLINE) {
 		displayIdeas();
 	}
