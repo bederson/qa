@@ -348,7 +348,7 @@ function displayCloud(cloudid, cluster) {
 				
 	var weights = {};
 	for (var j in cluster) {
-		var words = cluster[j].words;
+		var words = cluster[j].text.split(" ");
 		for (var k in words) {
 			var word = words[k].trim().toLowerCase();
 			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");

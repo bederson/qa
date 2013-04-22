@@ -339,7 +339,6 @@ class Idea(db.Model):
             "author" : Person.toDict(self.author),
             "date" : self.date,
             "text" : self.text,
-            "words" : self.text.split(),
             "question_code" : self.question.code
         }
     

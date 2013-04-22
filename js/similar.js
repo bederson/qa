@@ -128,7 +128,7 @@ function saveComparison() {
 	updateAssignment(similarTo);
 }
 
-function updateAssignment(similarTo) {
+function updateAssignment(similarToIndex) {
 	enableDisable($("#submit"), false);
 	enableDisable($("#skip_button"), false);
 	
@@ -136,9 +136,10 @@ function updateAssignment(similarTo) {
 		"question_id" : question_id,
 		"request_new" : current_note < num_notes_to_compare ? "1" : "0"
 	}
-	if (isDefined(similarTo)) {
-		data["similar_to"] = similarTo;
-		data["assignment"] = $.toJSON(current_assignment);
+	
+	if (isDefined(similarToIndex)) {
+		data["idea"] = current_assignment.idea.id;
+		data["similar_idea"] = current_assignment.compare_to[similarToIndex].id;		
 	}
 	
 	$.post("/similar_idea", data, function(results) {
