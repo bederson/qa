@@ -105,7 +105,12 @@ function updateUI() {
 		$("#selected_note").html(current_assignment.idea.text);		
 		var html = "";
 		for (var i=0; i<current_assignment.compare_to.length; i++) {
-			html += "<div class=\"smallspaceafter\"><input type=\"radio\" name=\"compare_to\" value=\""+i+"\">" + current_assignment.compare_to[i].text + "</div>";
+			var radioBoxId = "compare_rb_"+i;
+			html += "<div class=\"spaceafter\">";
+			html += "<div style=\"float:left;\"><input type=\"radio\" id=\"" + radioBoxId + "\" name=\"compare_to\" value=\""+i+"\"></div>";
+			html += "<div style=\"float:left; margin-left:5px; width:93%\"><label for=\"" + radioBoxId + "\">" + current_assignment.compare_to[i].text + "</label></div>";
+			html += "<div style=\"clear:both\"></div>";
+			html += "</div>";
 		}
 		$("#compare_to_notes").html(html);
 	
