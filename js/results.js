@@ -84,7 +84,6 @@ function initEventHandlers() {
 			clusterIdeas();
 		}
 		else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			
 			clusterBySimilarity(INCLUDE_UNCLUSTERED);
 		}
 	});
@@ -265,9 +264,12 @@ function displayIdeasImpl(results) {
 			displayClusterTags();
 		} else if (phase == PHASE_TAG_BY_NOTE) {
 			displayIdeaTags();
-		} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			displaySimilarIdeas();
 		}
+		
+		// Uncomment to show similar ideas
+		//else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+		//	displaySimilarIdeas();
+		//}
 	}
 	
 	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
