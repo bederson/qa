@@ -40,6 +40,7 @@ PHASE_NOTES = 1
 PHASE_TAG_BY_CLUSTER = 2
 PHASE_TAG_BY_NOTE = 3
 PHASE_COMPARE_BY_SIMILARITY = 4
+PHASE_CASCADE = 5
 
 CLUSTER_BY_WORDS = "words"
 CLUSTER_BY_SIMILARITY = "similarity"
@@ -227,7 +228,25 @@ class SimilarPageHandler(BaseHandler):
         template_values["num_notes_for_comparison"] = numNotesForComparison
         path = os.path.join(os.path.dirname(__file__), '../html/similar.html')
         self.response.out.write(template.render(path, template_values))
-        
+     
+# Participant page that uses Cascade to create categories for ideas
+class CascadePageHandler(BaseHandler):
+    def get(self):
+        person = self.initUserContext()
+        question_id = self.request.get("question_id")
+        questionObj = Question.getQuestionById(question_id)
+        phase = Question.getPhase(questionObj)
+
+        isCascadePhase = phase == PHASE_CASCADE and questionObj
+        k = 5
+        m = 32
+                    
+        template_values = get_default_template_values(self, person, questionObj)
+        template_values["cascade_k"] = k
+        template_values["cascade_m"] = m
+        path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
+        self.response.out.write(template.render(path, template_values))
+                
 class ResultsPageHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
@@ -290,6 +309,8 @@ class AdminPageHandler(BaseHandler):
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
             template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson
             template_values["num_notes_for_comparison"] = questionObj.numNotesForComparison
+            template_values["cascade_k"] = questionObj.k
+            template_values["cascade_m"] = questionObj.m
             template_values["num_ideas"] = Idea.getNumIdeas(questionObj)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
@@ -761,13 +782,18 @@ class CompareNotesOptionsHandler(BaseHandler):
         questionObj = Question.getQuestionById(question_id)
         if questionObj:
             questionObj.setCompareNotesOptions(num_notes_to_compare_per_person, num_notes_for_comparison)
-            message = {
-                "op": "compare_phase_options",
-                "num_notes_to_compare_per_person": num_notes_to_compare_per_person,
-                "num_notes_for_comparison": num_notes_for_comparison
-            }
-            send_message(client_id, question_id, message)        # Update other clients about this change
-        
+
+class CascadeOptionsHandler(BaseHandler):
+    def post(self):
+        self.initUserContext(force_check=True)
+        client_id = self.request.get('client_id')
+        question_id = self.request.get("question_id")
+        questionObj = Question.getQuestionById(question_id)
+        k = int(self.request.get('cascade_k'))
+        m = int(self.request.get('cascade_m'))
+        if questionObj:
+            questionObj.setCascadeOptions(k, m)
+                    
 class MigrateHandler(BaseHandler):
     def get(self):
         self.initUserContext()
