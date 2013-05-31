@@ -45,8 +45,10 @@ class Question(db.Model):
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
     numNotesToComparePerPerson = db.IntegerProperty(default=10)
     numNotesForComparison = db.IntegerProperty(default=2)
+    step = db.IntegerProperty(default=1)
     k = db.IntegerProperty(default=5)
     m = db.IntegerProperty(default=32)
+    t = db.IntegerProperty(default=8)
     
     @staticmethod
     def getQuestionById(code):
@@ -126,9 +128,14 @@ class Question(db.Model):
     def getNumNotesComparedByUser(self, person):
         return SimilarIdeaAssignment.all().filter("author =", person).filter("question =", self).count()
     
-    def setCascadeOptions(self, k, m):
+    def setCascadeOptions(self, k, m, t):
         self.k = k
         self.m = m
+        self.t = t
+        self.put()
+        
+    def setCascadeStep(self, step):
+        self.step = step
         self.put()
         
     def getNumTagsByCluster(self):

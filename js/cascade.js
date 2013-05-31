@@ -40,9 +40,38 @@ $(document).ready(function() {
 		return;
 	}
 	
-	current_note = 1;
-	updateUI();
+	getTask();
 });
+
+function getTask() {
+	var data = {
+		"question_id" : question_id
+	}
+	
+	$.post("/cascade_step", data, function(results) {
+		if (results.status == 0) {
+			$("#warning").html(results.msg);
+		}
+		else {
+			$("#warning").html("");
+			//current_assignment = results.assignment;
+			updateUI(results);
+		}
+	}, "json");
+}
+
+function updateUI(results) {
+	// TODO: when step changed, need to notify other clients
+	if (cascade_step == 1) {
+		$("#title").html("Suggest Categories");
+		$("#help").html("Read the ideas below and suggest a category you think each one belongs to");
+		// TODO: need to return ideas
+		$("#task_area").html("Not implemented yet");
+	}
+	else {
+		$("#task_area").html("Not implemented yet");
+	}
+}
 
 function initEventHandlers() {
 	onResize();
@@ -53,9 +82,6 @@ function initEventHandlers() {
 	$("#admin_button").click(function() {
 		window.location.href="/admin?question_id=" + question_id;
 	});
-}
-
-function updateUI() {
 }
 
 function onResize() {
@@ -75,22 +101,10 @@ function onResize() {
 /////////////////////////
 // Channel support
 /////////////////////////
-function handleNew(data) {
-	// Ignore it
-}
-
-function handleRefresh(data) {
-	// Ignore it
-}
-
 function handlePhase(data) {
 	window.location.reload();
 }
 
-function handleTag(data) {
-	// Ignore it
-}
-
-function handleNickname(data) {
-	// Ignore it
+function handleStep(step) {
+	window.location.reload();
 }
