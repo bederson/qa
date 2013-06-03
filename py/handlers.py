@@ -28,22 +28,13 @@ import collections
 import webapp2
 import helpers
 from lib import gaesessions
+from constants import *
 from models import *
 from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
 from cluster import KMeansClustering, ClusteringError
-
-STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
-PHASE_NOTES = 1
-PHASE_TAG_BY_CLUSTER = 2
-PHASE_TAG_BY_NOTE = 3
-PHASE_COMPARE_BY_SIMILARITY = 4
-PHASE_CASCADE = 5
-
-CLUSTER_BY_WORDS = "words"
-CLUSTER_BY_SIMILARITY = "similarity"
 
 def get_default_template_values(requestHandler, person, question):
     """Return a dictionary of template values used for login template"""        
@@ -54,7 +45,6 @@ def get_default_template_values(requestHandler, person, question):
     # user already logged in    
     if person:
         client_id, token = connect(person)
-        #helpers.log("*** NEW CHANNEL CREATED ***")
         url_linktext = 'Logout'
         url = users.create_logout_url("/logout") if person.user else "/logout"
          
@@ -234,15 +224,8 @@ class CascadePageHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
-        questionObj = Question.getQuestionById(question_id)
-        phase = Question.getPhase(questionObj)
-
+        questionObj = Question.getQuestionById(question_id)         
         template_values = get_default_template_values(self, person, questionObj)
-        if questionObj:
-            template_values["cascade_step"] = questionObj.step
-            template_values["cascade_k"] = questionObj.k
-            template_values["cascade_m"] = questionObj.m
-            template_values["cascade_t"] = questionObj.t
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, template_values))
                 
@@ -308,9 +291,9 @@ class AdminPageHandler(BaseHandler):
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
             template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson
             template_values["num_notes_for_comparison"] = questionObj.numNotesForComparison
-            template_values["cascade_k"] = questionObj.k
-            template_values["cascade_m"] = questionObj.m
-            template_values["cascade_t"] = questionObj.t
+            template_values["cascade_k"] = questionObj.cascade.k
+            template_values["cascade_m"] = questionObj.cascade.m
+            template_values["cascade_t"] = questionObj.cascade.t
             template_values["num_ideas"] = Idea.getNumIdeas(questionObj)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
@@ -755,10 +738,16 @@ class CascadeStepHandler(BaseHandler):
             data["status"] = 0
             data["msg"] = "Invalid question code"
         
+        elif question.phase != PHASE_CASCADE:
+            data["status"] = 0
+            data["msg"] = "Not currently enabled"
+            
         else:         
+            assignments = CascadeSuggestCategoryAssignment.getCurrentAssignments(question, person)
             data["status"] = 1
-            data["assignment"] = {}
-    
+            data["assignments"] = [ assignment.toDict() for assignment in assignments ] if assignments else None
+            data["step"] = question.cascade.step 
+            
         self.writeResponseAsJson(data)
                 
 class PhaseHandler(BaseHandler):
@@ -814,7 +803,8 @@ class CascadeOptionsHandler(BaseHandler):
         m = int(self.request.get('cascade_m'))
         t = int(self.request.get('cascade_t'))
         if questionObj:
-            questionObj.setCascadeOptions(k, m, t)
+            questionObj.cascade.setOptions(k, m, t)
+            questionObj.put()
                     
 class MigrateHandler(BaseHandler):
     def get(self):

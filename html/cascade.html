@@ -24,12 +24,6 @@ limitations under the License.
 	<script>
 		var phase = parseInt("{{ phase }}");
 		var question_id = null;
-		var cascade_step = parseInt("{{ cascade_step }}");
-		var cascade_k = parseInt("{{ cascade_k }}");
-		var cascade_m = parseInt("{{ cascade_m }}");
-		var cascade_t = parseInt("{{ cascade_t }}");
-		// TODO: pass initial assignment (if any)
-		//var current_assignment = {{ assignment|safe }};
 	</script>
 {% endblock %}
 
@@ -41,7 +35,7 @@ limitations under the License.
 	</span>
 	{% endif %}
 	<div class="qcontainer">
-		<h1 id="title"></h1>
+		<h1 id="title">Cascade</h1>
 		<div id="help" class="help spaceafter"></div>
 		<div id="warning" class="warning smallspaceafter"></div>
 		<div id="task_area"></div>		

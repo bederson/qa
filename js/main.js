@@ -15,7 +15,7 @@
 // limitations under the License.
 //
 
-$(function() {
+$(function() {	
 	if (!logged_in) {
 		enableDisable($("#admin_button"), false);
 		$("#admin_help").show();

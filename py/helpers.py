@@ -16,8 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-ENABLE_DEBUG_LOGGING = True
+from constants import *
 
 def log(msg):
     import logging

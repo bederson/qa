@@ -54,10 +54,10 @@ limitations under the License.
 		</tr>
 		<tr>
 			<td>
-				<table id="phase_table" style="margin-left:25px; margin-top: 15px">
+				<table id="phase_table">
 					<tr valign="top">
-						<td width="200px">
-							<input id="p1button" type="button">
+						<td>
+							<input id="p1button" type="button" class="button">
 						</td>
 						<td>
 							Go to <a id="notes_link">add notes</a>
@@ -78,7 +78,7 @@ limitations under the License.
 						</td>
 						<td>
 							Go to <a id="tagbynote_link">add tags by note</a><br>
-							# notes to tag per person <input id="num_notes_to_tag_per_person" type="text" size="3"></input>
+							<input id="num_notes_to_tag_per_person" type="text" size="3"></input> # notes to tag per person
 						</td>
 					</tr>
 					<tr valign="top">
@@ -86,9 +86,9 @@ limitations under the License.
 							<input id="p4button" type="button">
 						</td>
 						<td>
-							Go to <a id="comparebysimilarity_link">compare ideas by similarity</a><br/>
-							# notes to compare per person <input id="num_notes_to_compare_per_person" type="text" size="3"></input><br/>
-							# notes to compare selected note to <input id="num_notes_for_comparison" type="text" size="3"></input>
+							Go to <a id="comparebysimilarity_link">compare notes by similarity</a><br/>
+							<input id="num_notes_to_compare_per_person" type="text" size="3"></input> # notes to compare per person <br/>
+							<input id="num_notes_for_comparison" type="text" size="3"></input> # notes to compare selected note to
 						</td>
 					</tr>
 					<tr valign="top">
@@ -97,15 +97,16 @@ limitations under the License.
 						</td>
 						<td>
 							Go to <a id="cascade_link">Cascade</a><br/>
-							k (redundancy factor) <input id="cascade_k" class="cascade_option" type="text" size="3"></input><br/>
-							m (# items in initial item set) <input id="cascade_m" class="cascade_option" type="text" size="3"></input><br/>
-							t (# items in groups in step 1) <input id="cascade_t" class="cascade_option" type="text" size="3"></input><br/>
+							<input id="cascade_k" class="cascade_option" type="text" size="3"></input> k (redundancy factor)<br/>
+							<input id="cascade_m" class="cascade_option" type="text" size="3"></input> m (# notes in initial set)<br/>
+							<input id="cascade_t" class="cascade_option" type="text" size="3"></input> t (# notes shown in create category task)
 						</td>
 					</tr>
 					<tr valign="top">
 						<td>
 						</td>
 						<td>
+							<br/>
 							=> <a id="results_link">See results</a>
 						</td>
 					</tr>
@@ -116,10 +117,10 @@ limitations under the License.
 
 	<br>
 	<h2>Create a new question:</h2><br>
-	<table width="100%">
+	<table id="question_table">
 		<tr>
-			<td width="100px">
-				Title:
+			<td>
+				Title
 			</td>
 			<td width="100%">
 				<input id="newq_title" type="text" name="title" size="60">
@@ -127,7 +128,7 @@ limitations under the License.
 		</tr>
 		<tr>
 			<td>
-				Question:
+				Question
 			</td>
 			<td>
 				<input id="newq_question" type="text" name="question" size="60">
@@ -135,9 +136,9 @@ limitations under the License.
 		</tr>
 		<tr>
 			<td valign="top">
-				Options:
+				Options
 			</td>
-			<td>
+			<td style="padding-bottom:8px">
 				<input id="newq_nickname_authentication" type="checkbox" name="nickname_authentication"> Nickname authentication<br>
 				<span class="note">Google authentication required by default</span>
 			</td>
