@@ -39,11 +39,6 @@ $(document).ready(function() {
 		$("#warning").html("Question code required");
 		return;
 	}
-		
-	if (phase == -1) {
-		$("#warning").html("Invalid question code");
-		return;
-	}
 	
 	if (phase != PHASE_COMPARE_BY_SIMILARITY) {
 		$("#warning").html("Not currently comparing notes by similarity");
