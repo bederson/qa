@@ -286,7 +286,7 @@ function deleteQuestionImpl(question_id) {
 function updateButtons() {
 	var enableTaggingByCluster = num_clusters > 0;
 	if (phase == 0) {
-		$("#p0button").val("Enable data entry");
+		$("#p0button").val("Enable question");
 		$("#p1button").val("Note entry disabled");
 		$("#p2button").val("Tagging by cluster disabled");
 		$("#p3button").val("Tagging by note disabled");
@@ -299,7 +299,7 @@ function updateButtons() {
 		$("#p5button").attr("disabled", "disabled");
 		$("#tagsbycluster_msg").html("");
 	} else {
-		$("#p0button").val("Disable data entry");
+		$("#p0button").val("Disable question");
 		$("#p1button").val("Enable adding of notes");
 		$("#p2button").val("Enable tagging by cluster");
 		$("#p3button").val("Enable tagging by note");

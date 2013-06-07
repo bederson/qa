@@ -20,19 +20,23 @@ var mytags = [];
 $(function() {
 	initChannel();
 	initEventHandlers();
-
-	onResize();
-	$(window).resize(function() {
-		onResize();
-	});
 	
-	if (!logged_in) {
-		disableInput("Please log in to submit a response");
+	if (!question_id) {
+		$("#warning").html("Question code required");
+		return;
+	}
+	
+	if (phase != PHASE_TAG_BY_CLUSTER && phase != PHASE_TAG_BY_NOTE) {
+		redirectToPhase(phase, question_id);
 		return;
 	}
 
+	if (!logged_in) {
+		disableInput("Please log in");
+		return;
+	}
+	
 	$("#tagbox").focus();
-	var question_id = getURLParameter("question_id");
 	if (phase == PHASE_TAG_BY_CLUSTER) {
 		enableInput();
 		updateDisplayForTagsPerCluster();
@@ -43,12 +47,15 @@ $(function() {
 			enableInput();
 			updateDisplayForTagsPerIdea();
 		}
-	} else {
-		disableInput("Not currently accepting new submissions");
 	}
 });
 
 function initEventHandlers() {
+	onResize();
+	$(window).resize(function() {
+		onResize();
+	});
+	
 	$("#submit").click(function() {
 		submitTag();
 	});
@@ -62,7 +69,6 @@ function initEventHandlers() {
 	});
 
 	$("#admin_button").click(function() {
-		var question_id = getURLParameter("question_id");
 		window.location.href="/admin?question_id=" + question_id;
 	});
 }
@@ -100,7 +106,6 @@ function submitTag() {
 	}
 	mytags.push(tag);
 
-	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
 		"tag": tag,
@@ -180,7 +185,6 @@ function updateDisplayForTagsPerCluster() {
 }
 
 function displayTagsPerCluster() {
-	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "myclustertags",
 		"question_id": question_id
@@ -194,7 +198,6 @@ function displayTagsPerCluster() {
 }
 
 function displayIdeasPerCluster() {
-	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "ideasbycluster", 
 		"cluster_id": cluster_id,
@@ -232,7 +235,6 @@ function updateDisplayForTagsPerIdea() {
 	$("#next_note").html(html);
 	
 	$("#next_button").click(function() {
-		var question_id = getURLParameter("question_id");
 		var data = {
 			"question_id": question_id
 		};
@@ -246,7 +248,6 @@ function updateDisplayForTagsPerIdea() {
 }
 
 function displayTagsPerIdea() {
-	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "myideatags",
 		"question_id": question_id,
@@ -267,7 +268,6 @@ function displayIdeasPerIdea() {
 			"idea_id": idea_id,
 		};
 		$.getJSON("/query", data, function(results) {
-			var question_id = getURLParameter("question_id");
 			data = {
 				"request": "question",
 				"question_id": question_id
@@ -285,7 +285,6 @@ function displayIdeasPerIdea() {
 }
 
 function tagsPerIdeaFinished() {
-	var question_id = getURLParameter("question_id");
 	var url = "/results?question_id=" + question_id;
 
 	var html = "<h1>Tagging complete</h1>";

@@ -82,7 +82,7 @@ enableDisable = function(obj, enable) {
 		obj.attr("disabled", "disabled");
 	}
 }
-
+	
 function phaseToString(phase) {
 	var str = "";
 	switch(phase) {
@@ -109,4 +109,26 @@ function phaseToString(phase) {
 			break;
 	}
 	return str;
+}
+
+function redirectToPhase(phase, question_id) {
+	switch(phase) {
+		case PHASE_DISABLED:
+		case PHASE_NOTES:
+			window.location.href="/idea?question_id=" + question_id;
+			break;
+		case PHASE_TAG_BY_CLUSTER:
+		case PHASE_TAG_BY_NOTE:
+			window.location.href="/tag?question_id=" + question_id;
+			break;
+		case PHASE_COMPARE_BY_SIMILARITY:
+			window.location.href="/similar?question_id=" + question_id;
+			break;
+		case PHASE_CASCADE:
+			window.location.href="/cascade?question_id=" + question_id;
+			break;
+		default:
+			alert("Unknown phase: "+phase);
+			break;
+	}
 }

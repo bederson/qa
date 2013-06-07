@@ -28,23 +28,22 @@
 $(document).ready(function() {
 	initChannel();
 	initEventHandlers();
-
-	if (!logged_in) {
-		$("#warning").html("Please log in to compare notes");
-		return;
-	}
 	
-	question_id = getURLParameter("question_id");
 	if (!question_id) {
 		$("#warning").html("Question code required");
 		return;
 	}
 	
 	if (phase != PHASE_COMPARE_BY_SIMILARITY) {
-		$("#warning").html("Not currently comparing notes by similarity");
+		redirectToPhase(phase, question_id);
 		return;
 	}
-	
+
+	if (!logged_in) {
+		$("#warning").html("Please log in");
+		return;
+	}
+		
 	current_note = 1;
 	updateUI();
 });

@@ -20,14 +20,15 @@ limitations under the License.
 
 {% block title %}Q &amp; A - Tag Entry{% endblock %}
 {% block scripts %}
-	<script type="text/javascript" src="js/tag.js"></script>
-	<script>
+	<script type="text/javascript">
 		var phase = parseInt("{{ phase }}");
+		var question_id = "{{ question_id }}";
 		var cluster_id = "{{ cluster_id }}";
 		var idea_id = "{{ idea_id }}";
 		var num_notes_to_tag = parseInt("{{ num_notes_to_tag }}");
 		var num_notes_tagged = parseInt("{{ num_notes_tagged }}");
 	</script>
+	<script type="text/javascript" src="js/tag.js"></script>
 {% endblock %}
 
 {% block content %}
