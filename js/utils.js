@@ -61,6 +61,8 @@ onMessage = function(message) {
 		handleRefresh(dataObj);
 	} else 	if (dataObj.op == "phase") {
 		handlePhase(dataObj);
+	} else if (dataObj.op == "step") {
+		handleStep(dataObj);
 	} else if (dataObj.op == "nickname") {
 		handleNickname(dataObj);
 	}

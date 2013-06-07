@@ -1083,6 +1083,8 @@ class CascadeJob(db.Model):
 
     @staticmethod
     def getJob(question, step, worker):  
+
+        newStep = False
                         
         # check if job already assigned
         job = CascadeJob.all().filter("question =", question).filter("step =", step).filter("worker =", worker).filter("status =", 0).get()
@@ -1102,7 +1104,6 @@ class CascadeJob(db.Model):
                 numJobsRemaining = CascadeJob.all().filter("question =", question).filter("step =", step).filter("status =", 0).count()
                 isStepComplete = numJobsRemaining == 0
                 if isStepComplete:
-                    helpers.log("Step {0} complete".format(step))
                     cascade = Cascade.getCascadeForQuestion(question)
                     cascade.step += 1
                     cascade.put()
@@ -1113,9 +1114,9 @@ class CascadeJob(db.Model):
                     cascade.init(question, step+1)
                     
                     job = CascadeJob.getJob(question, step+1, worker)
+                    newStep = True
         
-        helpers.log("job={0}".format(job.toDict() if job else None))
-        return job
+        return { "job": job, "new_step": newStep }
 
     def completed(self, data):
         self.task.completed(data)
