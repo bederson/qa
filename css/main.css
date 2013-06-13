@@ -7,23 +7,7 @@ body {
 
 input {
     font-family: Verdana, Helvetica, sans-serif;
-	font-size: 1em;
-	padding: 3px;
-	margin-bottom:3px;
-}
-
-input[type=button], input[type=submit] {
-	font-size: 0.9em;
-	background: rgb(246, 244, 240);
-	padding: 4px 5px 4px 5px;
-    border-radius: 5px;
-	-webkit-border-radius: 5px;
-    -moz-border-radius: 5px;
-    cursor: pointer;
-}
-
-input[type=button]:hover, input[type=submit]:hover {
-	background: white;
+	font-size: 1.1em;
 }
 
 h1 {
@@ -142,20 +126,6 @@ a.warning:hover {
 	padding: 5px;
 	background-color: #e9f3cc;
 	border-radius: 7px;
-}
-
-#phase_table {
-	margin-top: 10px;
-	margin-left: 20px;
-}
-
-#phase_table td {
-	padding-bottom: 10px;
-	padding-right: 8px;
-}
-
-#question_table td {
-	padding-right: 8px;
 }
 
 #questions li {

@@ -10,12 +10,6 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
-- kind: CascadeSuggestCategoryAssignment
-  properties:
-  - name: question
-  - name: worker
-  - name: category
-
 - kind: Cluster
   properties:
   - name: question

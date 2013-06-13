@@ -129,14 +129,14 @@ function displayModes() {
 	var question_id = getURLParameter("question_id");
 	if (isDefined(question_id)) {
 		var html = "";
-		html += "<strong>Question Code: " + question_id + "</strong><br/>";
-		html += "Title: " + title + "<br/>";
-		html += "Question: " + question + "<br/>";
+		html += "<b>Code: " + question_id + "</b><br>";
+		html += "Title: " + title + "<br>";
+		html += "Question: " + question + "<br>";
 		html += num_ideas + " notes, ";
 		html += num_tags_by_cluster + " tags on clusters, ";
-		html += num_tags_by_idea + " tags on notes, ";
-		html += num_similar_ideas + " similar notes<br/>";
-		html += "<br/>";
+		html += num_tags_by_idea + " tags on ideas, ";
+		html += num_similar_ideas + " similar ideas<br/>";
+		html += "<br>";
 		$("#question").html(html);
 		
 		$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);

@@ -27,61 +27,10 @@
 import helpers    
 import logging
 import random
-from constants import *
 from lib import gaesessions
 from google.appengine.ext import db
 from google.appengine.api import users
-
-# TODO: where should this go? 
-class Cascade:
-    def __init__(self):
-        self.step = 1
-        self.k = 5
-        self.m = 32
-        self.t = 8
-                
-    def __repr__(self):
-        return "step={1}, k={2}, m={3}, t={4}".format(
-            self.step, 
-            self.k, 
-            self.m, 
-            self.t)
-    
-    def setOptions(self, k, m, t):
-        self.k =k
-        self.m = m
-        self.t = t
-        
-    def setStep(self, step):
-        self.step = step
-
-    def initPhase(self, question):
-        # TODO: warn admin that any previous cascade data will be lost if re-initialized
-        db.delete(CascadeSuggestCategoryAssignment.all().filter("question = ", question))
-        Cascade.initSuggestCategoryAssignments(self, question)
-        
-    def initSuggestCategoryAssignments(self, question):        
-        numIdeas = 0
-        ideas = Idea.all().filter("question = ", question).order("rand")
-        for idea in ideas:
-            for i in range(self.k):
-                assignment = CascadeSuggestCategoryAssignment()
-                assignment.question = question
-                assignment.idea = idea
-                assignment.worker = None
-                assignment.category = None
-                assignment.put()
-            numIdeas += 1
-            
-        if numIdeas == 0:
-            helpers.log("WARNING: No ideas exist for question {0}".format(question.code))
-               
-    @staticmethod         
-    def delete(question):
-        # TODO: delete all existing cascade data and assignments for question
-        # TODO: call if any new notes added
-        db.delete(CascadeSuggestCategoryAssignment.all().filter("question =", question))
-              
+       
 ####################
 ##### QUESTION #####
 ####################
@@ -96,8 +45,11 @@ class Question(db.Model):
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
     numNotesToComparePerPerson = db.IntegerProperty(default=10)
     numNotesForComparison = db.IntegerProperty(default=2)
-    cascade = Cascade()
-        
+    step = db.IntegerProperty(default=1)
+    k = db.IntegerProperty(default=5)
+    m = db.IntegerProperty(default=32)
+    t = db.IntegerProperty(default=8)
+    
     @staticmethod
     def getQuestionById(code):
         # this function retrieves question by question code, not datastore id
@@ -141,7 +93,6 @@ class Question(db.Model):
             Idea.deleteAllIdeas(questionIdStr)
             db.delete(Person.all().filter("question =", questionObj))
             db.delete(questionObj)
-            questionObj.cascade.delete()
             
     @staticmethod
     def getPhase(questionObj):
@@ -151,8 +102,6 @@ class Question(db.Model):
     def setPhase(phase, questionObj):
         if questionObj:
             questionObj.phase = phase
-            if phase == PHASE_CASCADE:
-                questionObj.cascade.initPhase(questionObj)               
             questionObj.put()
 
     def getNumNotesToTagPerPerson(self):
@@ -178,7 +127,17 @@ class Question(db.Model):
 
     def getNumNotesComparedByUser(self, person):
         return SimilarIdeaAssignment.all().filter("author =", person).filter("question =", self).count()
-            
+    
+    def setCascadeOptions(self, k, m, t):
+        self.k = k
+        self.m = m
+        self.t = t
+        self.put()
+        
+    def setCascadeStep(self, step):
+        self.step = step
+        self.put()
+        
     def getNumTagsByCluster(self):
         return ClusterTag.all().filter("question =", self).count()
 
@@ -677,62 +636,6 @@ class SimilarIdeaAssignment(db.Model):
         if questionObj:
             db.delete(SimilarIdeaAssignment.all().filter("question =", questionObj))
 
-##################################
-##### CascadeStep1Assignment #####
-##################################
-                
-class CascadeSuggestCategoryAssignment(db.Model):
-    question = db.ReferenceProperty(Question)
-    idea = db.ReferenceProperty(Idea)
-    worker = db.ReferenceProperty(Person)
-    category = db.StringProperty()
-        
-    @staticmethod
-    def getCurrentAssignments(question, worker):   
-        assignments = None         
-        if question and worker:
-            assignments = [ assignment for assignment in CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker =", worker).filter("category =", None) ]
-            if not assignments:
-                assignments = CascadeSuggestCategoryAssignment.createNewAssignments(question, worker)
-        return assignments
-        
-    @staticmethod
-    def createNewAssignments(question, worker):
-        assignments = None
-        if question and worker:
-            # delete any worker assignments not completed
-            db.delete(CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker =", worker).filter("category =", None))
-            
-            # get up to t new worker assignments
-            # only assign ideas with <= k categories, not authored by worker, 
-            # and that the worker has not already created a category for
-            
-            # TODO: how to ensure not already assigned to another user: lock table somehow and wait until unlocked?
-            # use transactions
-            
-            assignments = []
-            availableAssignments = CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker = ", None)
-            workerCategoryIdeas = [assignment.idea for assignment in CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker = ", worker)]
-            for assignment in availableAssignments:
-                isIdeaAuthor = worker == assignment.idea.author
-                alreadyCreatedCategoryForIdea = assignment.idea in workerCategoryIdeas
-                if not isIdeaAuthor and not alreadyCreatedCategoryForIdea:
-                    assignment.worker = worker
-                    assignment.put()
-                    assignments.append(assignment)
-                    if len(assignments) == question.cascade.t:
-                        break
-                            
-        return assignments
-
-    def toDict(self):
-        return {
-            "question_code": self.question.code,
-            "idea": self.idea.toDict(),    
-            "worker": Person.toDict(self.worker),
-            "category": self.category
-        }
-        
 ######################
 ##### CLUSTERTAG #####
 ######################

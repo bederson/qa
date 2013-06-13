@@ -54,6 +54,7 @@ function getTask() {
 		}
 		else {
 			$("#warning").html("");
+			//current_assignment = results.assignment;
 			updateUI(results);
 		}
 	}, "json");
@@ -61,21 +62,11 @@ function getTask() {
 
 function updateUI(results) {
 	// TODO: when step changed, need to notify other clients
-	if (results.step == 1) {
-		$("#title").html("Create Categories");
-		$("#help").html("Read the notes below and suggest a category for each one. If you can not think of a good category, skip that note.");
-		var taskHtml = "";		
-		if (results.assignments) {
-			for (var i=0; i<results.assignments.length; i++) {
-				var assignment = results.assignments[i];
-				var idea = assignment.idea;
-				taskHtml += idea.text + "<br/>";
-			}
-		}
-		else {
-			taskHtml = "No assignments currently available. Please wait.";
-		}
-		$("#task_area").html(taskHtml);
+	if (cascade_step == 1) {
+		$("#title").html("Suggest Categories");
+		$("#help").html("Read the ideas below and suggest a category you think each one belongs to");
+		// TODO: need to return ideas
+		$("#task_area").html("Not implemented yet");
 	}
 	else {
 		$("#task_area").html("Not implemented yet");

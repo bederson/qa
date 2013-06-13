@@ -101,9 +101,6 @@ function phaseToString(phase) {
 		case PHASE_COMPARE_BY_SIMILARITY:
 			str = "Compare notes by similarity";
 			break;
-		case PHASE_CASCADE:
-			str = "Cascade enabled";
-			break;
 		default:
 			str = "Unknown phase";
 			break;
