@@ -119,7 +119,7 @@ class BaseHandler(webapp2.RequestHandler):
         if session.sid is None:
             session.start()
             
-        question_id = self.request.get("question_id")        
+        question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
         nickname = self.request.get("nickname")
                 
@@ -224,10 +224,8 @@ class CascadePageHandler(BaseHandler):
     def get(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
-        question = Question.getQuestionById(question_id)         
-        template_values = get_default_template_values(self, person, question)
-        cascade = Cascade.getCascadeForQuestion(question)
-        template_values["step"] = cascade.step
+        questionObj = Question.getQuestionById(question_id)         
+        template_values = get_default_template_values(self, person, questionObj)
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, template_values))
                 
@@ -290,13 +288,12 @@ class AdminPageHandler(BaseHandler):
 
         template_values = get_default_template_values(self, person, questionObj) 
         if questionObj:
-            cascade = Cascade.getCascadeForQuestion(questionObj)            
             template_values["num_notes_to_tag_per_person"] = questionObj.numNotesToTagPerPerson
             template_values["num_notes_to_compare_per_person"] = questionObj.numNotesToComparePerPerson
             template_values["num_notes_for_comparison"] = questionObj.numNotesForComparison
-            template_values["cascade_k"] = cascade.k
-            template_values["cascade_m"] = cascade.m
-            template_values["cascade_t"] = cascade.t
+            template_values["cascade_k"] = questionObj.cascade.k
+            template_values["cascade_m"] = questionObj.cascade.m
+            template_values["cascade_t"] = questionObj.cascade.t
             template_values["num_ideas"] = Idea.getNumIdeas(questionObj)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
@@ -361,8 +358,6 @@ def getPhaseUrl(question=None):
             url = "/tag?question_id="+question.code
         elif question.phase == PHASE_COMPARE_BY_SIMILARITY:
             url = "/similar?question_id="+question.code
-        elif question.phase == PHASE_CASCADE:
-            url = "/cascade?question_id="+question.code
     return url
 
 class LogoutHandler(BaseHandler):
@@ -728,7 +723,7 @@ class SimilarIdeaHandler(BaseHandler):
     
         self.writeResponseAsJson(data)
 
-class CascadeJobHandler(BaseHandler):
+class CascadeStepHandler(BaseHandler):
     def post(self):
         person = self.initUserContext()
         question_id = self.request.get("question_id")
@@ -747,30 +742,14 @@ class CascadeJobHandler(BaseHandler):
             data["status"] = 0
             data["msg"] = "Not currently enabled"
             
-        else:
-            jobId = long(self.request.get("assignment_id", "-1"))
-            if jobId != -1:
-                job = CascadeJob.get_by_id(jobId)
-                if job:
-                    data = {}
-                    if job.step == 1:
-                        num_categories = int(self.request.get("num_categories"))
-                        categories = [ self.request.get("category_"+str(i+1)) for i in range(num_categories) ]
-                        data = { "categories" : categories }
-                    
-                    job.completed(data)
-                else:
-                    helpers.log("WARNING: CascadeJob not found (id={0})".format(jobId))
-            
-            cascade = Cascade.getCascadeForQuestion(question)
-            job = CascadeJob.getJob(question, cascade.step, person)
-
+        else:         
+            assignments = CascadeSuggestCategoryAssignment.getCurrentAssignments(question, person)
             data["status"] = 1
-            data["step"] = job.step if job else cascade.step
-            data["assignment"] = job.toDict() if job else None
+            data["assignments"] = [ assignment.toDict() for assignment in assignments ] if assignments else None
+            data["step"] = question.cascade.step 
             
         self.writeResponseAsJson(data)
-                        
+                
 class PhaseHandler(BaseHandler):
     def post(self):
         self.initUserContext(force_check=True)
@@ -824,8 +803,8 @@ class CascadeOptionsHandler(BaseHandler):
         m = int(self.request.get('cascade_m'))
         t = int(self.request.get('cascade_t'))
         if questionObj:
-            cascade = Cascade.getCascadeForQuestion(questionObj)
-            cascade.setOptions(k, m, t)
+            questionObj.cascade.setOptions(k, m, t)
+            questionObj.put()
                     
 class MigrateHandler(BaseHandler):
     def get(self):

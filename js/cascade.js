@@ -40,15 +40,15 @@ $(document).ready(function() {
 		return;
 	}
 	
-	getJob();
+	getTask();
 });
 
-function getJob() {
+function getTask() {
 	var data = {
 		"question_id" : question_id
 	}
 	
-	$.post("/cascade_job", data, function(results) {
+	$.post("/cascade_step", data, function(results) {
 		if (results.status == 0) {
 			$("#warning").html(results.msg);
 		}
@@ -60,62 +60,26 @@ function getJob() {
 }
 
 function updateUI(results) {
+	// TODO: when step changed, need to notify other clients
 	if (results.step == 1) {
-		updateUIForStep1(results.assignment);
+		$("#title").html("Create Categories");
+		$("#help").html("Read the notes below and suggest a category for each one. If you can not think of a good category, skip that note.");
+		var taskHtml = "";		
+		if (results.assignments) {
+			for (var i=0; i<results.assignments.length; i++) {
+				var assignment = results.assignments[i];
+				var idea = assignment.idea;
+				taskHtml += idea.text + "<br/>";
+			}
+		}
+		else {
+			taskHtml = "No assignments currently available. Please wait.";
+		}
+		$("#task_area").html(taskHtml);
 	}
 	else {
 		$("#task_area").html("Not implemented yet");
 	}
-}
-
-// step 1: create categories
-function updateUIForStep1(assignment) {
-	step1Ideas = [];
-	$("#title").html("Create Categories");
-	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
-	if (assignment && assignment.task) {
-		var taskHtml = "";
-		for (var i=0; i<assignment.task.ideas.length; i++) {
-			var idea = assignment.task.ideas[i];
-			taskHtml += "<div class=\"largespaceafter\">";
-			taskHtml += idea.text + " ";
-			taskHtml += "<input id=\"category_"+(i+1)+"\" type=\"text\"/ value=\"\">";
-			taskHtml += "</div>\n";
-		}
-		taskHtml += "<input id=\"num_categories\" type=\"hidden\" value=\"" + assignment.task.ideas.length + "\">";
-		taskHtml += "<input id=\"submit_categories_btn\" type=\"button\" value=\"Submit Categories\">";
-		$("#task_area").html(taskHtml);
-		$("#submit_categories_btn").on("click", {assignment: assignment}, function(event) {
-			submitStep1(event.data.assignment);
-		});
-	}
-	else {
-		taskHtml = "All tasks for this step have been assigned.<br/>";
-		taskHtml += "Please wait for next step to begin.";
-		$("#task_area").html(taskHtml);
-	}
-}
-
-function submitStep1(assignment) {
-	var data = {
-		"question_id" : question_id,
-		"assignment_id" : assignment.id
-	}
-	
-	data["num_categories"] = parseInt($("#num_categories").val());
-	for (var i=0; i<data["num_categories"]; i++) {
-		data["category_"+(i+1)] = $("#category_"+(i+1)).val();	
-	}
-
-	$.post("/cascade_job", data, function(results) {
-		if (results.status == 0) {
-			$("#warning").html(results.msg);
-		}
-		else {
-			$("#warning").html("");
-			updateUI(results);
-		}
-	}, "json");
 }
 
 function initEventHandlers() {
@@ -140,7 +104,6 @@ function onResize() {
 			width = $(window).width() - padding;
 		}
 	}
-	$(".step").width(width);
 	$(".qcontainer").width(width);
 }
 

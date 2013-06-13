@@ -31,6 +31,56 @@ from constants import *
 from lib import gaesessions
 from google.appengine.ext import db
 from google.appengine.api import users
+
+# TODO: where should this go? 
+class Cascade:
+    def __init__(self):
+        self.step = 1
+        self.k = 5
+        self.m = 32
+        self.t = 8
+                
+    def __repr__(self):
+        return "step={1}, k={2}, m={3}, t={4}".format(
+            self.step, 
+            self.k, 
+            self.m, 
+            self.t)
+    
+    def setOptions(self, k, m, t):
+        self.k =k
+        self.m = m
+        self.t = t
+        
+    def setStep(self, step):
+        self.step = step
+
+    def initPhase(self, question):
+        # TODO: warn admin that any previous cascade data will be lost if re-initialized
+        db.delete(CascadeSuggestCategoryAssignment.all().filter("question = ", question))
+        Cascade.initSuggestCategoryAssignments(self, question)
+        
+    def initSuggestCategoryAssignments(self, question):        
+        numIdeas = 0
+        ideas = Idea.all().filter("question = ", question).order("rand")
+        for idea in ideas:
+            for i in range(self.k):
+                assignment = CascadeSuggestCategoryAssignment()
+                assignment.question = question
+                assignment.idea = idea
+                assignment.worker = None
+                assignment.category = None
+                assignment.put()
+            numIdeas += 1
+            
+        if numIdeas == 0:
+            helpers.log("WARNING: No ideas exist for question {0}".format(question.code))
+               
+    @staticmethod         
+    def delete(question):
+        # TODO: delete all existing cascade data and assignments for question
+        # TODO: call if any new notes added
+        db.delete(CascadeSuggestCategoryAssignment.all().filter("question =", question))
               
 ####################
 ##### QUESTION #####
@@ -46,6 +96,7 @@ class Question(db.Model):
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
     numNotesToComparePerPerson = db.IntegerProperty(default=10)
     numNotesForComparison = db.IntegerProperty(default=2)
+    cascade = Cascade()
         
     @staticmethod
     def getQuestionById(code):
@@ -66,7 +117,7 @@ class Question(db.Model):
                 q = Question.all().filter("code = ", code).get()
                 if not q:
                     codeNeeded = False
-
+        
             questionObj = Question()
             questionObj.title = title
             questionObj.question = question
@@ -83,27 +134,26 @@ class Question(db.Model):
         return self
        
     @staticmethod
-    def delete(questionId):
-        question = Question.getQuestionById(questionId)
-        if question:
-            Cluster.deleteAllClusters(question)
-            Idea.deleteAllIdeas(questionId)
-            db.delete(Person.all().filter("question =", question))
-            db.delete(question)
-            db.delete(Cascade.all().filter("question =", question))
-            Cascade.deleteJobs(question)
+    def delete(questionIdStr):
+        questionObj = Question.getQuestionById(questionIdStr)
+        if questionObj:
+            Cluster.deleteAllClusters(questionObj)
+            Idea.deleteAllIdeas(questionIdStr)
+            db.delete(Person.all().filter("question =", questionObj))
+            db.delete(questionObj)
+            questionObj.cascade.delete()
             
     @staticmethod
-    def getPhase(question):
-        return question.phase if question else None
+    def getPhase(questionObj):
+        return questionObj.phase if questionObj else None
 
     @staticmethod
-    def setPhase(phase, question):
-        if question:
-            question.phase = phase
+    def setPhase(phase, questionObj):
+        if questionObj:
+            questionObj.phase = phase
             if phase == PHASE_CASCADE:
-                Cascade.init(question)
-            question.put()
+                questionObj.cascade.initPhase(questionObj)               
+            questionObj.put()
 
     def getNumNotesToTagPerPerson(self):
         return self.numNotesToTagPerPerson
@@ -337,7 +387,7 @@ class Idea(db.Model):
     cluster = db.ReferenceProperty(Cluster)
     question = db.ReferenceProperty(Question)
     rand = db.FloatProperty()
-
+    
     def toDict(self):
         return {
             "id" : self.key().id(),
@@ -626,6 +676,62 @@ class SimilarIdeaAssignment(db.Model):
         questionObj = Question.getQuestionById(questionIdStr)
         if questionObj:
             db.delete(SimilarIdeaAssignment.all().filter("question =", questionObj))
+
+##################################
+##### CascadeStep1Assignment #####
+##################################
+                
+class CascadeSuggestCategoryAssignment(db.Model):
+    question = db.ReferenceProperty(Question)
+    idea = db.ReferenceProperty(Idea)
+    worker = db.ReferenceProperty(Person)
+    category = db.StringProperty()
+        
+    @staticmethod
+    def getCurrentAssignments(question, worker):   
+        assignments = None         
+        if question and worker:
+            assignments = [ assignment for assignment in CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker =", worker).filter("category =", None) ]
+            if not assignments:
+                assignments = CascadeSuggestCategoryAssignment.createNewAssignments(question, worker)
+        return assignments
+        
+    @staticmethod
+    def createNewAssignments(question, worker):
+        assignments = None
+        if question and worker:
+            # delete any worker assignments not completed
+            db.delete(CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker =", worker).filter("category =", None))
+            
+            # get up to t new worker assignments
+            # only assign ideas with <= k categories, not authored by worker, 
+            # and that the worker has not already created a category for
+            
+            # TODO: how to ensure not already assigned to another user: lock table somehow and wait until unlocked?
+            # use transactions
+            
+            assignments = []
+            availableAssignments = CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker = ", None)
+            workerCategoryIdeas = [assignment.idea for assignment in CascadeSuggestCategoryAssignment.all().filter("question =", question).filter("worker = ", worker)]
+            for assignment in availableAssignments:
+                isIdeaAuthor = worker == assignment.idea.author
+                alreadyCreatedCategoryForIdea = assignment.idea in workerCategoryIdeas
+                if not isIdeaAuthor and not alreadyCreatedCategoryForIdea:
+                    assignment.worker = worker
+                    assignment.put()
+                    assignments.append(assignment)
+                    if len(assignments) == question.cascade.t:
+                        break
+                            
+        return assignments
+
+    def toDict(self):
+        return {
+            "question_code": self.question.code,
+            "idea": self.idea.toDict(),    
+            "worker": Person.toDict(self.worker),
+            "category": self.category
+        }
         
 ######################
 ##### CLUSTERTAG #####
@@ -775,249 +881,3 @@ class SimilarIdea(db.Model):
         if questionObj:
             similarIdeas = SimilarIdea.all().filter("question =", questionObj)
             db.delete(similarIdeas)
-            
-###################
-##### CASCADE #####
-###################
-
-# BEHAVIOR: cascade jobs created when phase enabled
-# BEHAVIOR: when cascade params are changed, cascade jobs are re-created
-# BEHAVIOR: step 1 - displays up to t ideas at a time
-# BEHAVIOR: step 1 - does not remove any ideas authored by person, skipped or *seen before*
-# BEHAVIOR: step 1 - k jobs performed to create a category for an idea; should k categories be required for each idea? or ok to skip?
-# BEHAVIOR: step 1 - user currently allowed to do as many jobs per step as they can
-
-# TODO/BUG: datastore updates not always searchable in time for current user; how to fix?
-# TODO/BUG: how to ensure updates available to all users in time; model blocking? transactions?
-# TODO: warn admin that any previous cascade data will be lost when jobs re-created
-# TODO: need to add timestamps to record how long each step takes
-# TODO: when step changes, need to notify waiting users
-# TODO: step 1 - remove any ideas user has authored, skipped, or already created categories for
-# TODO: step 1 - need to release assignments after some period of inactivity
-# TODO: step 1 - need to better randomize ideas presented in jobs 
-# TODO: step 1 - should users be asked once more to create categories for any ideas with no categories
-
-###################
-
-class Cascade(db.Model):
-    question = db.ReferenceProperty(Question)
-    step = db.IntegerProperty(default=1)
-    k = db.IntegerProperty(default=5)
-    m = db.IntegerProperty(default=32)
-    t = db.IntegerProperty(default=8)
-
-    def setOptions(self, k, m, t):
-        optionsChanged = self.k != k or self.m != m or self.t != t
-        if optionsChanged:
-            self.k = k
-            self.m = m
-            self.t = t
-            self.put()
-            
-            # TODO/BUG CHECK: need to verify new parameters are being used when jobs re-created
-            Cascade.init(self.question)
-        
-    @staticmethod
-    def init(question, step=1):        
-
-        cascade = Cascade.getCascadeForQuestion(question)        
-        if step == 1:
-            Cascade.deleteJobs(question)
-            if cascade.step != 1:
-                cascade.step = 1
-                cascade.put()
-            cascade.createJobsForStep1()
-        
-        elif step == 2:
-            cascade.createJobsForStep2()
-            
-        elif step == 3:
-            # TODO
-            pass
-        
-        elif step == 4:
-            # TODO
-            pass
-        
-        elif step == 5:
-            # TODO
-            pass
-        
-    def createJobsForStep1(self):
-        task_group = []
-        idea_keys = Idea.all(keys_only=True).filter("question = ", self.question).order("rand")
-        for i in range(self.k):
-            for idea_key in idea_keys:
-                if len(task_group) == self.t:
-                    task = CascadeSuggestCategoryTask()
-                    task.idea_keys = task_group
-                    task.put()
-                    
-                    job = CascadeJob()
-                    job.question = self.question
-                    job.cascade = self
-                    job.step = 1
-                    job.task = task
-                    job.worker = None
-                    job.put()
-                    
-                    task_group = []
-                
-                task_group.append(idea_key)
-        
-        if len(task_group) > 0:
-            task = CascadeSuggestCategoryTask()
-            task.idea_keys = task_group
-            task.put()
-                    
-            job = CascadeJob()
-            job.question = self.question
-            job.cascade = self
-            job.step = 1
-            job.task = task
-            job.worker = None
-            job.put()
-                    
-            task_group = []
-            
-    # TODO: remove duplicates
-    def createJobsForStep2(self):
-        suggestedCategories = {}
-        step1 = CascadeJob.all().filter("question =", self.question).filter("step =", 1)
-        for job in step1:
-            i = 0
-            for idea in job.task.ideas:
-                ideaId = idea.key().id()
-                category = job.task.categories[i]
-                if category != "":
-                    if ideaId not in suggestedCategories:
-                        suggestedCategories[ideaId] = { "idea": idea, "categories": [] }
-                    suggestedCategories[ideaId]["categories"].append(category)
-                i += 1
-                
-        for i in range(self.k):
-            for ideaId in suggestedCategories:
-                helpers.log(repr(suggestedCategories[ideaId]))
-                task = CascadeSelectBestTask()
-                task.idea = suggestedCategories[ideaId]["idea"]
-                task.categories = suggestedCategories[ideaId]["categories"]
-                task.put()
-                    
-                job = CascadeJob()
-                job.question = self.question
-                job.cascade = self
-                job.step = 2
-                job.task = task
-                job.worker = None
-                job.put()
-                    
-    @staticmethod
-    def getCascadeForQuestion(question):
-        cascade = Cascade.all().filter("question =", question).get()            
-        if not cascade:
-            cascade = Cascade()
-            cascade.question = question
-            cascade.put()
-        return cascade
-                       
-    @staticmethod         
-    def deleteJobs(question):
-        db.delete(CascadeJob().all().filter("question =", question))
-        db.delete(CascadeSuggestCategoryTask().all().filter("question =", question))
-                 
-class CascadeTask(db.Model):    
-    def toDict(self):
-        return {}
-    
-class CascadeSuggestCategoryTask(CascadeTask):
-    idea_keys = db.ListProperty(db.Key)
-    categories = db.StringListProperty(default=[])
-    
-    @property
-    def ideas(self):
-        return db.get(self.idea_keys)
-    
-    def completed(self, data):
-        self.categories = data["categories"]
-        self.put()
-        
-    def toDict(self):            
-        return {
-            "ideas": [ idea.toDict() for idea in self.ideas],
-            "categories": self.categories
-        }
-        
-class CascadeSelectBestTask(CascadeTask):
-    idea = db.ReferenceProperty(Idea)
-    categories = db.StringListProperty(default=[])
-    bestCategory = db.StringProperty(default=None)
-    
-    def completed(self, data):
-        self.bestCategory = data["best_category"]
-        self.put()
-        
-    def toDict(self):            
-        return {
-            "idea": self.idea.toDict(),
-            "categories": self.categories,
-            "best_category": self.bestCategory
-        }
-        
-class CascadeJob(db.Model):
-    question = db.ReferenceProperty(Question)
-    cascade = db.ReferenceProperty(Cascade)
-    step = db.IntegerProperty() # step for this job, current step in progress stored in Cascade class
-    task = db.ReferenceProperty(CascadeTask)
-    worker = db.ReferenceProperty(Person)
-    status = db.IntegerProperty(default=0)
-
-    @staticmethod
-    def getJob(question, step, worker):             
-        # check if job already assigned
-        job = CascadeJob.all().filter("question =", question).filter("step =", step).filter("worker =", worker).filter("status =", 0).get()
-        
-        # if not, get new assignment
-        if not job:    
-            job = CascadeJob.all().filter("question =", question).filter("step =", step).filter("worker =", None).get()
-            if job:
-                job.worker = worker
-                jobKey = job.put()
-                
-                # TODO/HACK - need to guarantee datastore updated and searchable before next job requested
-                job = CascadeJob.get_by_id(jobKey.id()) 
-            
-            # check if all jobs completed for this step, and if so, advance to next step
-            if not job and step < 5:
-                numJobsRemaining = CascadeJob.all().filter("question =", question).filter("step =", step).filter("status =", 0).count()
-                if numJobsRemaining == 0:
-                    cascade = Cascade.getCascadeForQuestion(question)
-                    cascade.step += 1
-                    cascade.put()
-                    
-                    # TODO: check if jobs created and searchable before getJob called
-                    # TODO: need to notify waiting users that new jobs available
-                    # create jobs for this step
-                    cascade.init(question, step+1)
-                    
-                    job = CascadeJob.getJob(question, step+1, worker)
-        
-        return job
-
-    def completed(self, data):
-        self.task.completed(data)
-        self.status = 1
-        key = self.put()
-                    
-        # TODO/HACK - seems to increase odds of updated values being in datastore before CascadeJob.getJob called
-        # otherwise, job only changing every other time submit pressed (at least on localhost)
-        job = CascadeJob.get_by_id(key.id())
-        
-    def toDict(self):
-        return {
-            "id" : self.key().id(),
-            "question_code": self.question.code,
-            "step": self.step,
-            "task": self.task.toDict(),    
-            "worker": Person.toDict(self.worker),
-            "status": self.status
-        }

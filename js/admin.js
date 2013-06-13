@@ -86,7 +86,7 @@ function set_phase(new_phase) {
 	};
 	
 	$.post("/set_phase", data, function() {
-		phase = new_phase;
+		phase = new_phase
 		updateButtons();
 		$("#question_"+data.question_id+"_phase").html(phaseToString(new_phase));
 	});
