@@ -237,12 +237,13 @@ class CascadePageHandler(BaseHandler):
         questionObj = Question.getQuestionById(question_id)
         phase = Question.getPhase(questionObj)
 
+        isCascadePhase = phase == PHASE_CASCADE and questionObj
+        k = 5
+        m = 32
+                    
         template_values = get_default_template_values(self, person, questionObj)
-        if questionObj:
-            template_values["cascade_step"] = questionObj.step
-            template_values["cascade_k"] = questionObj.k
-            template_values["cascade_m"] = questionObj.m
-            template_values["cascade_t"] = questionObj.t
+        template_values["cascade_k"] = k
+        template_values["cascade_m"] = m
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, template_values))
                 
@@ -310,7 +311,6 @@ class AdminPageHandler(BaseHandler):
             template_values["num_notes_for_comparison"] = questionObj.numNotesForComparison
             template_values["cascade_k"] = questionObj.k
             template_values["cascade_m"] = questionObj.m
-            template_values["cascade_t"] = questionObj.t
             template_values["num_ideas"] = Idea.getNumIdeas(questionObj)
             template_values["num_tags_by_cluster"] = questionObj.getNumTagsByCluster()
             template_values["num_tags_by_idea"] = questionObj.getNumTagsByIdea()
@@ -739,28 +739,7 @@ class SimilarIdeaHandler(BaseHandler):
             data["assignment"] = new_assignment.toDict() if new_assignment else None
     
         self.writeResponseAsJson(data)
-
-class CascadeStepHandler(BaseHandler):
-    def post(self):
-        person = self.initUserContext()
-        question_id = self.request.get("question_id")
-        question = Question.getQuestionById(question_id)
-        data = {}              
         
-        if not person:
-            data["status"] = 0
-            data["msg"] = "Please log in"
-                 
-        elif not question:
-            data["status"] = 0
-            data["msg"] = "Invalid question code"
-        
-        else:         
-            data["status"] = 1
-            data["assignment"] = {}
-    
-        self.writeResponseAsJson(data)
-                
 class PhaseHandler(BaseHandler):
     def post(self):
         self.initUserContext(force_check=True)
@@ -812,9 +791,8 @@ class CascadeOptionsHandler(BaseHandler):
         questionObj = Question.getQuestionById(question_id)
         k = int(self.request.get('cascade_k'))
         m = int(self.request.get('cascade_m'))
-        t = int(self.request.get('cascade_t'))
         if questionObj:
-            questionObj.setCascadeOptions(k, m, t)
+            questionObj.setCascadeOptions(k, m)
                     
 class MigrateHandler(BaseHandler):
     def get(self):

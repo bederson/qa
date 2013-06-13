@@ -68,7 +68,7 @@ function initEventHandlers() {
 	});
 	
 	$(".cascade_option").blur(function() {
-		set_cascade_options($("#cascade_k").val(), $("#cascade_m").val(), $("#cascade_t").val());
+		set_cascade_options($("#cascade_k").val(), $("#cascade_m").val());
 	});
 }
 
@@ -113,14 +113,13 @@ function set_compare_notes_options(num_notes, num_comparison_notes) {
 	$.post("/set_compare_notes_options", data);
 }
 
-function set_cascade_options(k, m, t) {
+function set_cascade_options(k, m) {
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
 		"question_id": question_id,
 		"cascade_k": k,
-		"cascade_m": m,
-		"cascade_t": t
+		"cascade_m": m
 	};
 	$.post("/set_cascade_options", data);
 }
@@ -150,7 +149,6 @@ function displayModes() {
 		$("#num_notes_for_comparison").val(num_notes_for_comparison);
 		$("#cascade_k").val(cascade_k);
 		$("#cascade_m").val(cascade_m);
-		$("#cascade_t").val(cascade_t);
 	
 		$("#question_buttons").css("display", "table");
 		updateButtons();

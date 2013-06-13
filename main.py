@@ -48,7 +48,6 @@ app = webapp2.WSGIApplication([
 	('/cluster', ClusterHandler),
 	('/getideaassignment', IdeaAssignmentHandler),
     ('/similar_idea', SimilarIdeaHandler),
-	('/cascade_step', CascadeStepHandler),
 	('/set_phase', PhaseHandler),
 	('/set_num_notes_to_tag_per_person', NumNotesToTagPerPersonHandler),
     ('/set_compare_notes_options', CompareNotesOptionsHandler),
