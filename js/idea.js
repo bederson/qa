@@ -19,33 +19,32 @@ $(function() {
 	initChannel();
 	initEventHandlers();
 
-	if (!question_id) {
-		$("#warning").html("Question code required");
-		return;
-	}
-	
-	if (phase != PHASE_DISABLED && phase != PHASE_NOTES) {
-		redirectToPhase(phase, question_id);
+	onResize();
+	$(window).resize(function() {
+		onResize();
+	});
+
+	if (!logged_in) {
+		disableInput("Please log in to submit a response");
 		return;
 	}
 
-	if (!logged_in) {
-		disableInput("Please log in");
-		return;
-	}
-	
 	$("#answer").focus();
+	var question_id = getURLParameter("question_id");
+
 	$("#title").html(title);
 	$("#question").html(question);
-	if (phase == PHASE_NOTES) {
+	if (phase == 1) {
 		enableInput();
-	}
-	else {
+	} else {
 		disableInput("Not currently accepting new submissions");
 	}
-	//if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
-	//	$("#start_tagging").css("display", "inline");
-	//}
+	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
+		$("#start_tagging").css("display", "inline");
+	}
+	if (phase == PHASE_COMPARE_BY_SIMILARITY) {
+		window.location.href="/similar?question_id=" + question_id;
+	}
 
 	if (change_nickname_allowed) {
 		updateNicknameArea();
@@ -68,13 +67,9 @@ function disableInput(msg) {
 }
 
 function initEventHandlers() {
-	onResize();
-	$(window).resize(function() {
-		onResize();
-	});
-	
 	$("#submit").click(function() {
 		$("#submit").attr("disabled", "disabled");
+		var question_id = getURLParameter("question_id");
 		var idea = $("#answer").val();
 		var data = {
 			"client_id": client_id,
@@ -96,10 +91,12 @@ function initEventHandlers() {
 	});
 
 	$("#admin_button").click(function() {
+		var question_id = getURLParameter("question_id");
 		window.location.href="/admin?question_id=" + question_id;
 	});
 	
 	$("#tag_button").click(function() {
+		var question_id = getURLParameter("question_id");
 		window.location.href="/tag?question_id=" + question_id;
 	});
 }
@@ -156,6 +153,7 @@ function updateNicknameArea() {
 			});
 			
 			$("#change_nickname2").click(function() {
+				var question_id = getURLParameter("question_id");
 				var nickname = $("#nickname").val();
 				var data = {
 					"client_id": client_id,

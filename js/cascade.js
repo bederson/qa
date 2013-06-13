@@ -16,24 +16,19 @@
 //
 
 $(document).ready(function() {
-	initChannel();
-	initEventHandlers();
-		
-	if (!question_id) {
-		$("#warning").html("Question code required");
-		return;
-	}
-		
-	if (phase != PHASE_CASCADE) {
-		redirectToPhase(phase, question_id);
-		return;
-	}
-
 	if (!logged_in) {
 		$("#warning").html("Please log in");
 		return;
 	}
 	
+	question_id = getURLParameter("question_id");
+	if (!question_id) {
+		$("#warning").html("Question code required");
+		return;
+	}
+	
+	initChannel();
+	initEventHandlers(question_id);
 	getJob(question_id);
 });
 

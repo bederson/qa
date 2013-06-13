@@ -79,7 +79,6 @@ def get_default_template_values(requestHandler, person, question):
         template_values['admin'] = Person.isAdmin(requestHandler) or (googleUser and (not question or question.author == googleUser))
 
     if question:
-        template_values["question_id"] = question.code
         template_values["phase"] = question.phase
         template_values["title"] = question.title
         template_values["question"] = question.question
@@ -311,6 +310,8 @@ class LoginPageHandler(BaseHandler):
         question_id = self.request.get("question_id")
         questionObj = Question.getQuestionById(question_id)
         template_values = get_default_template_values(self, person, questionObj)
+        if questionObj:
+            template_values["question_id"] = questionObj.code
         path = os.path.join(os.path.dirname(__file__), '../html/login.html')
         self.response.out.write(template.render(path, template_values))
         
