@@ -233,7 +233,6 @@ function createQuestion() {
 				$("#newq_info").html(result.msg);
 				return;
 			}
-			alert("new question id = " + result.question_id);
 			window.location.href = "/admin?question_id=" + result.question_id
 			updateButtons();
 		}, "json");

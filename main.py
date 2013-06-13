@@ -17,21 +17,23 @@
 # limitations under the License.
 #
 
+import webapp2
 
 import os
 import sys
-import webapp2
-from py.handlers import *
-
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+
+from py.handlers import *
 
 app = webapp2.WSGIApplication([
 	('/', MainPageHandler),
-    ('/loginpage', LoginPageHandler),
-    ('/idea', IdeaPageHandler),
-    ('/cascade', CascadePageHandler),
-    ('/results', ResultsPageHandler),
     ('/admin', AdminPageHandler),
+    ('/idea', IdeaPageHandler),
+    ('/loginpage', LoginPageHandler),
+	('/results', ResultsPageHandler),
+	('/tag', TagPageHandler),
+    ('/similar', SimilarPageHandler),
+    ('/cascade', CascadePageHandler),
 
 	('/login', LoginHandler),
     ('/logout', LogoutHandler),
@@ -40,11 +42,20 @@ app = webapp2.WSGIApplication([
 	('/newquestion', NewQuestionHandler),
 	('/editquestion', EditQuestionHandler),
 	('/newidea', NewIdeaHandler),
+	('/newclustertag', NewClusterTagHandler),
+	('/newideatag', NewIdeaTagHandler),
 	('/delete', DeleteHandler),
+	('/cluster', ClusterHandler),
+	('/getideaassignment', IdeaAssignmentHandler),
+    ('/similar_idea', SimilarIdeaHandler),
 	('/cascade_job', CascadeJobHandler),
 	('/set_phase', PhaseHandler),
+	('/set_num_notes_to_tag_per_person', NumNotesToTagPerPersonHandler),
+    ('/set_compare_notes_options', CompareNotesOptionsHandler),
     ('/set_cascade_options', CascadeOptionsHandler),
 	
+	('/migrate', MigrateHandler),
+
 	('/_ah/channel/connected/', ConnectedHandler),
 	('/_ah/channel/disconnected/', DisconnectedHandler)
     ],
