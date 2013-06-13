@@ -226,6 +226,8 @@ class CascadePageHandler(BaseHandler):
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)         
         template_values = get_default_template_values(self, person, question)
+        cascade = Cascade.getCascadeForQuestion(question)
+        template_values["step"] = cascade.step
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, template_values))
                 
@@ -752,18 +754,13 @@ class CascadeJobHandler(BaseHandler):
                 if job:
                     data = {}
                     if job.step == 1:
-                        numCategories = int(self.request.get("num_categories"))
-                        categories = [ self.request.get("category_"+str(i+1)) for i in range(numCategories) ]
+                        num_categories = int(self.request.get("num_categories"))
+                        categories = [ self.request.get("category_"+str(i+1)) for i in range(num_categories) ]
                         data = { "categories" : categories }
-                    elif job.step == 2:
-                        bestCategoryIndexStr = self.request.get("best_category_index", "")
-                        data = { "best_category_index" : bestCategoryIndexStr if bestCategoryIndexStr.isdigit() else -1 }
-                    else:
-                        helpers.log("WARNING: Job not saved")
                     
                     job.completed(data)
                 else:
-                    helpers.log("WARNING: Job not found (id={0})".format(jobId))
+                    helpers.log("WARNING: CascadeJob not found (id={0})".format(jobId))
             
             cascade = Cascade.getCascadeForQuestion(question)
             job = CascadeJob.getJob(question, cascade.step, person)

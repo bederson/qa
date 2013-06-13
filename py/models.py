@@ -792,21 +792,12 @@ class SimilarIdea(db.Model):
 # TODO: warn admin that any previous cascade data will be lost when jobs re-created
 # TODO: need to add timestamps to record how long each step takes
 # TODO: when step changes, need to notify waiting users
-# TODO: ask users to suggest category during idea creation
-# TODO: would it be better to create task and then keep track of k responses (instead of repeating task)
 # TODO: step 1 - remove any ideas user has authored, skipped, or already created categories for
 # TODO: step 1 - need to release assignments after some period of inactivity
 # TODO: step 1 - need to better randomize ideas presented in jobs 
 # TODO: step 1 - should users be asked once more to create categories for any ideas with no categories
-# TODO: step 2 - what if only one category suggested - still vote?
-# TODO: step 2 - categories that only differ by case should be shown together
-# TODO: step 2 - user should only vote once per idea
-# TODO: step 2 - how should voting threshold be determined (based on k?)
 
 ###################
-
-NONE_OF_THE_ABOVE = "None of the above"
-DEFAULT_VOTING_THRESHOLD = 2
 
 class Cascade(db.Model):
     question = db.ReferenceProperty(Question)
@@ -828,7 +819,7 @@ class Cascade(db.Model):
         
     @staticmethod
     def init(question, step=1):        
-        helpers.log("CascadeJob.init: step={0}".format(step))
+
         cascade = Cascade.getCascadeForQuestion(question)        
         if step == 1:
             Cascade.deleteJobs(question)
@@ -841,8 +832,9 @@ class Cascade(db.Model):
             cascade.createJobsForStep2()
             
         elif step == 3:
-            cascade.createJobsForStep3()
-
+            # TODO
+            pass
+        
         elif step == 4:
             # TODO
             pass
@@ -858,7 +850,6 @@ class Cascade(db.Model):
             for idea_key in idea_keys:
                 if len(task_group) == self.t:
                     task = CascadeSuggestCategoryTask()
-                    task.question = self.question
                     task.idea_keys = task_group
                     task.put()
                     
@@ -876,7 +867,6 @@ class Cascade(db.Model):
         
         if len(task_group) > 0:
             task = CascadeSuggestCategoryTask()
-            task.question = self.question
             task.idea_keys = task_group
             task.put()
                     
@@ -887,7 +877,10 @@ class Cascade(db.Model):
             job.task = task
             job.worker = None
             job.put()
-                                
+                    
+            task_group = []
+            
+    # TODO: remove duplicates
     def createJobsForStep2(self):
         suggestedCategories = {}
         step1 = CascadeJob.all().filter("question =", self.question).filter("step =", 1)
@@ -895,23 +888,19 @@ class Cascade(db.Model):
             i = 0
             for idea in job.task.ideas:
                 ideaId = idea.key().id()
-                category = job.task.categories[i].strip()
+                category = job.task.categories[i]
                 if category != "":
                     if ideaId not in suggestedCategories:
                         suggestedCategories[ideaId] = { "idea": idea, "categories": [] }
-                        
-                    if category not in suggestedCategories[ideaId]["categories"]:
-                        suggestedCategories[ideaId]["categories"].append(category)
+                    suggestedCategories[ideaId]["categories"].append(category)
                 i += 1
                 
-        # TODO: improve by saving only 1 version of task in datastore, but save result in job?
         for i in range(self.k):
             for ideaId in suggestedCategories:
+                helpers.log(repr(suggestedCategories[ideaId]))
                 task = CascadeSelectBestTask()
-                task.question = self.question
                 task.idea = suggestedCategories[ideaId]["idea"]
                 task.categories = suggestedCategories[ideaId]["categories"]
-                if i==0: task.categories.append(NONE_OF_THE_ABOVE)
                 task.put()
                     
                 job = CascadeJob()
@@ -921,76 +910,7 @@ class Cascade(db.Model):
                 job.task = task
                 job.worker = None
                 job.put()
-      
-    def createJobsForStep3(self):
-        helpers.log("createJobsForStep3")
-        groupedVotes = {}
-        step2 = CascadeJob.all().filter("question =", self.question).filter("step =", 2)
-        for job in step2:
-            idea = job.task.idea
-            ideaId = idea.key().id()
-            category = job.task.categories[job.task.bestCategoryIndex] if job.task.bestCategoryIndex is not None else None
-            if category:
-                if ideaId not in groupedVotes:                    
-                    groupedVotes[ideaId] = { "idea": idea, "votes": {} }
-                     
-                if category not in groupedVotes[ideaId]["votes"]:
-                    groupedVotes[ideaId]["votes"][category] = 0
-                groupedVotes[ideaId]["votes"][category] += 1
-         
-        # TODO: how should the voting threshold be calculated; k=5 and voting threshold=2 by default
-        votingThreshold = DEFAULT_VOTING_THRESHOLD if self.k > 3 else 1
-
-        bestCategories = []
-        for ideaId in groupedVotes:
-            for category in groupedVotes[ideaId]["votes"]:
-                numVotesForCategory = groupedVotes[ideaId]["votes"][category]
-                if numVotesForCategory >= votingThreshold:
-                    if category not in bestCategories:
-                        bestCategories.append(category)
-
-        # TODO: currently using t for group size; should be separate variable?
-        task_group = { "idea_keys": [], "categories": [] }
-        idea_keys = Idea.all(keys_only=True).filter("question = ", self.question).order("rand")
-        for i in range(self.k):
-            for idea_key in idea_keys:
-                for category in bestCategories:
-                    if len(task_group["idea_keys"]) == self.t:
-                        task = CascadeCategoryFitTask()
-                        task.question = self.question
-                        task.idea_keys = task_group["idea_keys"]
-                        task.categories = task_group["categories"]
-                        task.put()
-                        
-                        job = CascadeJob()
-                        job.question = self.question
-                        job.cascade = self
-                        job.step = 3
-                        job.task = task
-                        job.worker = None
-                        job.put()
-                        
-                        task_group = { "idea_keys": [], "categories": [] }
-
-                    task_group["idea_keys"].append(idea_key)
-                    task_group["categories"].append(category)
-    
-        # TODO: move to function?
-        if len(task_group["idea_keys"]) > 0:
-            task = CascadeSuggestCategoryTask()
-            task.question = self.question
-            task.idea_keys = task_group["idea_keys"]
-            task.categories = task_group["categories"]
-            task.put()
                     
-            job = CascadeJob()
-            job.question = self.question
-            job.cascade = self
-            job.step = 3
-            job.task = task
-            job.worker = None
-            job.put()
-                                                    
     @staticmethod
     def getCascadeForQuestion(question):
         cascade = Cascade.all().filter("question =", question).get()            
@@ -1004,17 +924,10 @@ class Cascade(db.Model):
     def deleteJobs(question):
         db.delete(CascadeJob().all().filter("question =", question))
         db.delete(CascadeSuggestCategoryTask().all().filter("question =", question))
-        db.delete(CascadeSelectBestTask().all().filter("question = ", question))
-        db.delete(CascadeCategoryFitTask().all().filter("question = ", question))
-        helpers.log("WARNING: Remember to delete cascade jobs for steps 3b-5")
                  
-class CascadeTask(db.Model): 
-    question = db.ReferenceProperty(Question)
-   
+class CascadeTask(db.Model):    
     def toDict(self):
-        return {
-            "question_id" : self.question.code
-        }
+        return {}
     
 class CascadeSuggestCategoryTask(CascadeTask):
     idea_keys = db.ListProperty(db.Key)
@@ -1028,51 +941,28 @@ class CascadeSuggestCategoryTask(CascadeTask):
         self.categories = data["categories"]
         self.put()
         
-    def toDict(self): 
-        dict = CascadeTask.toDict(self)
-        dict["ideas"] = [ idea.toDict() for idea in self.ideas ]
-        dict["categories"] = self.categories
-        return dict
+    def toDict(self):            
+        return {
+            "ideas": [ idea.toDict() for idea in self.ideas],
+            "categories": self.categories
+        }
         
 class CascadeSelectBestTask(CascadeTask):
     idea = db.ReferenceProperty(Idea)
     categories = db.StringListProperty(default=[])
-    bestCategoryIndex = db.IntegerProperty(default=None)
+    bestCategory = db.StringProperty(default=None)
     
     def completed(self, data):
-        bestCategoryIndex = int(data["best_category_index"])
-        if bestCategoryIndex != -1 and self.categories[bestCategoryIndex] != NONE_OF_THE_ABOVE:
-            self.bestCategoryIndex = bestCategoryIndex
-            self.put()
-        
-    def toDict(self): 
-        dict = CascadeTask.toDict(self)
-        dict["idea"] = self.idea.toDict()
-        dict["categories"] = self.categories
-        dict["best_category_index"] = self.bestCategoryIndex
-        return dict
-
-# TODO: improve by separating out class that just contains single idea, category, and fit vote; same for CascadeSuggestCategoryTask
-class CascadeCategoryFitTask(CascadeTask):
-    idea_keys = db.ListProperty(db.Key)
-    categories = db.StringListProperty(default=[])
-    categoryFits = db.ListProperty(bool)
-    
-    @property
-    def ideas(self):
-        return db.get(self.idea_keys)
-    
-    def completed(self, data):
-        self.categoryFits = data["category_fits"]
+        self.bestCategory = data["best_category"]
         self.put()
         
-    def toDict(self): 
-        dict = CascadeTask.toDict(self)
-        dict["ideas"] = [ idea.toDict() for idea in self.ideas ]
-        dict["categories"] = self.categories
-        dict["category_fits"] = self.categoryFits
-        return dict
-            
+    def toDict(self):            
+        return {
+            "idea": self.idea.toDict(),
+            "categories": self.categories,
+            "best_category": self.bestCategory
+        }
+        
 class CascadeJob(db.Model):
     question = db.ReferenceProperty(Question)
     cascade = db.ReferenceProperty(Cascade)
@@ -1082,13 +972,12 @@ class CascadeJob(db.Model):
     status = db.IntegerProperty(default=0)
 
     @staticmethod
-    def getJob(question, step, worker):  
-                        
+    def getJob(question, step, worker):             
         # check if job already assigned
         job = CascadeJob.all().filter("question =", question).filter("step =", step).filter("worker =", worker).filter("status =", 0).get()
-
+        
         # if not, get new assignment
-        if not job:  
+        if not job:    
             job = CascadeJob.all().filter("question =", question).filter("step =", step).filter("worker =", None).get()
             if job:
                 job.worker = worker
@@ -1100,13 +989,11 @@ class CascadeJob(db.Model):
             # check if all jobs completed for this step, and if so, advance to next step
             if not job and step < 5:
                 numJobsRemaining = CascadeJob.all().filter("question =", question).filter("step =", step).filter("status =", 0).count()
-                isStepComplete = numJobsRemaining == 0
-                if isStepComplete:
-                    helpers.log("Step {0} complete".format(step))
+                if numJobsRemaining == 0:
                     cascade = Cascade.getCascadeForQuestion(question)
                     cascade.step += 1
                     cascade.put()
-                                            
+                    
                     # TODO: check if jobs created and searchable before getJob called
                     # TODO: need to notify waiting users that new jobs available
                     # create jobs for this step
@@ -1114,7 +1001,6 @@ class CascadeJob(db.Model):
                     
                     job = CascadeJob.getJob(question, step+1, worker)
         
-        helpers.log("job={0}".format(job.toDict() if job else None))
         return job
 
     def completed(self, data):

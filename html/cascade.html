@@ -21,6 +21,11 @@ limitations under the License.
 {% block title %}Q &amp; A - Cascade{% endblock %}
 {% block scripts %}
 	<script type="text/javascript" src="js/cascade.js"></script>
+	<script>
+		var phase = parseInt("{{ phase }}");
+		var question_id = null;
+		var step = parseInt("{{ step }}");
+	</script>
 {% endblock %}
 
 {% block content %}
@@ -30,7 +35,7 @@ limitations under the License.
 		<input id="admin_button" type="button" value="Admin">
 	</span>
 	{% endif %}
-	<div id="step" class="center step note" style="text-align: right;"></div>
+	<div class="center step note" style="text-align: right;">Step {{ step }} of 5</div>
 	<div class="qcontainer">
 		<h1 id="title">Cascade</h1>
 		<div id="help" class="help spaceafter"></div>

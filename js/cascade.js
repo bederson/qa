@@ -16,6 +16,9 @@
 //
 
 $(document).ready(function() {
+	initChannel();
+	initEventHandlers();
+
 	if (!logged_in) {
 		$("#warning").html("Please log in");
 		return;
@@ -26,77 +29,25 @@ $(document).ready(function() {
 		$("#warning").html("Question code required");
 		return;
 	}
+		
+	if (phase == -1) {
+		$("#warning").html("Invalid question code");
+		return;
+	}
 	
-	initChannel();
-	initEventHandlers(question_id);
-	getJob(question_id);
+	if (phase != PHASE_CASCADE) {
+		$("#warning").html("Not currently using Cascade");
+		return;
+	}
+	
+	getJob();
 });
 
-function getJob(question_id) {	
-	$.post("/cascade_job", { "question_id": question_id }, function(results) {
-		updateUI(results);
-	}, "json");
-}
-
-function updateUI(results) {
-	$("#step").html("Step " + results.step + " of 5");
-	if (results.step == 1) {
-		updateUIForStep1(results);
-	}
-	else if (results.step == 2) {
-		updateUIForStep2(results);
-	}
-	else {
-		$("#task_area").html("Not implemented yet");
-	}
-}
-
-// step 1: create categories
-function updateUIForStep1(results) {
-	step1Ideas = [];
-	$("#title").html("Create Categories");
-	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
-	if (results.status == 1) {
-		var assignment = results.assignment
-		var ideas = assignment.task.ideas
-		if (assignment && assignment.task) {
-			var taskHtml = "";
-			for (var i=0; i<ideas.length; i++) {
-				var idea = ideas[i];
-				taskHtml += "<div class=\"largespaceafter\">";
-				taskHtml += idea.text + " ";
-				taskHtml += "<input id=\"category_"+(i+1)+"\" type=\"text\"/ value=\"\">";
-				taskHtml += "</div>\n";
-			}
-			taskHtml += "<input id=\"num_categories\" type=\"hidden\" value=\"" + ideas.length + "\">";
-			taskHtml += "<input id=\"submit_categories_btn\" type=\"button\" value=\"Submit Categories\">";
-			$("#task_area").html(taskHtml);
-			$("#submit_categories_btn").on("click", { assignment: assignment }, function(event) {
-				submitStep1(event.data.assignment);
-			});
-		}
-		else {
-			taskHtml = "All tasks for this step have been assigned.<br/>";
-			taskHtml += "Please wait for next step to begin.";
-			$("#task_area").html(taskHtml);
-		}
-	}
-	else {
-		$("#warning").html(results.msg);
-	}
-}
-
-function submitStep1(assignment) {
+function getJob() {
 	var data = {
-		"question_id" : question_id,
-		"assignment_id" : assignment.id,
-		"num_categories" : parseInt($("#num_categories").val())
+		"question_id" : question_id
 	}
 	
-	for (var i=0; i<data["num_categories"]; i++) {
-		data["category_"+(i+1)] = $("#category_"+(i+1)).val();	
-	}
-
 	$.post("/cascade_job", data, function(results) {
 		if (results.status == 0) {
 			$("#warning").html(results.msg);
@@ -108,56 +59,54 @@ function submitStep1(assignment) {
 	}, "json");
 }
 
-// step 2: select best category
-function updateUIForStep2(results) {
-	step1Ideas = [];
-	$("#title").html("Select Best Category");
-	$("#help").html("Vote for the category that you think best fits the note.");
-	if (results.status == 1) {
-		var assignment = results.assignment
-		if (assignment && assignment.task) {
-			var taskHtml = "";
-			taskHtml += "<div class=\"largespaceafter\">";
-			taskHtml += "<div class=\"spaceafter\">" + assignment.task.idea.text + "</div>";
-			for (var i=0; i<assignment.task.categories.length; i++) {
-				var radioBoxId = "category_rb_"+i;
-				taskHtml += "<div class=\"spaceafter\">";
-				taskHtml += "<div style=\"float:left;\"><input type=\"radio\" id=\"" + radioBoxId + "\" name=\"suggested_category\" value=\""+i+"\"></div>";
-				taskHtml += "<div style=\"float:left; margin-left:5px; width:93%\"><label for=\"" + radioBoxId + "\">" + assignment.task.categories[i] + "</label></div>";
-				taskHtml += "<div style=\"clear:both\"></div>";
-				taskHtml += "</div>";
-			}
-			taskHtml += "</div>\n";
-			taskHtml += "<input id=\"submit_vote_btn\" type=\"button\" value=\"Submit Vote\">";
-			$("#task_area").html(taskHtml);
-			$("#submit_vote_btn").on("click", { assignment: assignment }, function(event) {
-				submitStep2(event.data.assignment);
-			});
-		}
-		else {
-			taskHtml = "All tasks for this step have been assigned.<br/>";
-			taskHtml += "Please wait for next step to begin.";
-			$("#task_area").html(taskHtml);
-		}
+function updateUI(results) {
+	if (results.step == 1) {
+		updateUIForStep1(results.assignment);
 	}
 	else {
-		$("#warning").html(results.msg);
+		$("#task_area").html("Not implemented yet");
 	}
 }
 
-function submitStep2(assignment) {
-	var bestCategoryIndex = $("input:radio[name=suggested_category]:checked").val();
-	if (!bestCategoryIndex) {
-		$("#warning").html("Please select an item");
-		return;
+// step 1: create categories
+function updateUIForStep1(assignment) {
+	step1Ideas = [];
+	$("#title").html("Create Categories");
+	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
+	if (assignment && assignment.task) {
+		var taskHtml = "";
+		for (var i=0; i<assignment.task.ideas.length; i++) {
+			var idea = assignment.task.ideas[i];
+			taskHtml += "<div class=\"largespaceafter\">";
+			taskHtml += idea.text + " ";
+			taskHtml += "<input id=\"category_"+(i+1)+"\" type=\"text\"/ value=\"\">";
+			taskHtml += "</div>\n";
+		}
+		taskHtml += "<input id=\"num_categories\" type=\"hidden\" value=\"" + assignment.task.ideas.length + "\">";
+		taskHtml += "<input id=\"submit_categories_btn\" type=\"button\" value=\"Submit Categories\">";
+		$("#task_area").html(taskHtml);
+		$("#submit_categories_btn").on("click", {assignment: assignment}, function(event) {
+			submitStep1(event.data.assignment);
+		});
 	}
-	
+	else {
+		taskHtml = "All tasks for this step have been assigned.<br/>";
+		taskHtml += "Please wait for next step to begin.";
+		$("#task_area").html(taskHtml);
+	}
+}
+
+function submitStep1(assignment) {
 	var data = {
 		"question_id" : question_id,
-		"assignment_id" : assignment.id,
-		"best_category_index" : bestCategoryIndex
+		"assignment_id" : assignment.id
 	}
 	
+	data["num_categories"] = parseInt($("#num_categories").val());
+	for (var i=0; i<data["num_categories"]; i++) {
+		data["category_"+(i+1)] = $("#category_"+(i+1)).val();	
+	}
+
 	$.post("/cascade_job", data, function(results) {
 		if (results.status == 0) {
 			$("#warning").html(results.msg);
