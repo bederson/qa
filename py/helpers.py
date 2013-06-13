@@ -16,12 +16,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from constants import *
+import constants
 
 def log(msg):
     import logging
-    if ENABLE_DEBUG_LOGGING:
+    if constants.ENABLE_DEBUG_LOGGING:
         logging.getLogger().info(msg)
+
+def isRunningLocally():
+    import os
+    return not os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine')
 
 def to_json(data):        
     import json

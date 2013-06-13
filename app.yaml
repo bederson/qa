@@ -1,5 +1,5 @@
-application: qa-umd
-version: 3
+application: qa-umd-test
+version: 4
 runtime: python27
 api_version: 1
 threadsafe: yes
@@ -24,9 +24,6 @@ handlers:
 libraries:
 - name: webapp2
   version: "2.5.2"
-  
-- name: numpy
-  version: "1.6.1"
 
 inbound_services:
 - channel_presence
