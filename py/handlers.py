@@ -728,7 +728,6 @@ class SimilarIdeaHandler(BaseHandler):
 class CascadeJobHandler(BaseHandler):
     def post(self):
         person = self.initUserContext()
-        client_id = self.request.get('client_id')
         question_id = self.request.get("question_id")
         question = Question.getQuestionById(question_id)
         data = {}              
@@ -766,17 +765,7 @@ class CascadeJobHandler(BaseHandler):
                     helpers.log("WARNING: Job not found (id={0})".format(jobId))
             
             cascade = Cascade.getCascadeForQuestion(question)
-            jobData = CascadeJob.getJob(question, cascade.step, person)
-            job = jobData["job"]
-            isNewStep = jobData["new_step"]
-            
-            # Notify clients if new step
-            if isNewStep:
-                message = {
-                    "op": "step",
-                    "step": job.step
-                }
-                send_message(client_id, question.code, message)
+            job = CascadeJob.getJob(question, cascade.step, person)
 
             data["status"] = 1
             data["step"] = job.step if job else cascade.step

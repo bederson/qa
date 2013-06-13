@@ -38,11 +38,7 @@ $(document).ready(function() {
 });
 
 function getJob(question_id) {	
-	var data = {
-		"client_id": client_id,
-		"question_id": question_id
-	};
-	$.post("/cascade_job", data, function(results) {
+	$.post("/cascade_job", { "question_id": question_id }, function(results) {
 		updateUI(results);
 	}, "json");
 }
@@ -66,9 +62,9 @@ function updateUIForStep1(results) {
 	$("#title").html("Create Categories");
 	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
 	if (results.status == 1) {
-		var assignment = results.assignment;
+		var assignment = results.assignment
+		var ideas = assignment.task.ideas
 		if (assignment && assignment.task) {
-			var ideas = assignment.task.ideas;
 			var taskHtml = "";
 			for (var i=0; i<ideas.length; i++) {
 				var idea = ideas[i];
@@ -97,7 +93,6 @@ function updateUIForStep1(results) {
 
 function submitStep1(assignment) {
 	var data = {
-		"client_id" : client_id,
 		"question_id" : question_id,
 		"assignment_id" : assignment.id,
 		"num_categories" : parseInt($("#num_categories").val())
@@ -163,7 +158,6 @@ function submitStep2(assignment) {
 	}
 	
 	var data = {
-		"client_id" : client_id,
 		"question_id" : question_id,
 		"assignment_id" : assignment.id,
 		"best_category_index" : bestCategoryIndex
