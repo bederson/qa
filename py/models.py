@@ -40,14 +40,12 @@ class Question(db.Model):
     author = db.UserProperty(auto_current_user_add=True)
     code = db.StringProperty()
     phase = db.IntegerProperty(default=0)
-    nicknameAuthentication = db.BooleanProperty(default=False)
     date = db.DateTimeProperty(auto_now=True)
     numNotesToTagPerPerson = db.IntegerProperty(default=5)
     numNotesToComparePerPerson = db.IntegerProperty(default=10)
     numNotesForComparison = db.IntegerProperty(default=2)
-    k = db.IntegerProperty(default=5)
-    m = db.IntegerProperty(default=32)
-    
+    nicknameAuthentication = db.BooleanProperty(default=False)
+
     @staticmethod
     def getQuestionById(code):
         # this function retrieves question by question code, not datastore id
@@ -126,11 +124,6 @@ class Question(db.Model):
     def getNumNotesComparedByUser(self, person):
         return SimilarIdeaAssignment.all().filter("author =", person).filter("question =", self).count()
     
-    def setCascadeOptions(self, k, m):
-        self.k = k
-        self.m = m
-        self.put()
-        
     def getNumTagsByCluster(self):
         return ClusterTag.all().filter("question =", self).count()
 

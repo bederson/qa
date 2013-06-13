@@ -33,7 +33,6 @@ app = webapp2.WSGIApplication([
 	('/results', ResultsPageHandler),
 	('/tag', TagPageHandler),
     ('/similar', SimilarPageHandler),
-    ('/cascade', CascadePageHandler),
 
 	('/login', LoginHandler),
     ('/logout', LogoutHandler),
@@ -51,7 +50,6 @@ app = webapp2.WSGIApplication([
 	('/set_phase', PhaseHandler),
 	('/set_num_notes_to_tag_per_person', NumNotesToTagPerPersonHandler),
     ('/set_compare_notes_options', CompareNotesOptionsHandler),
-    ('/set_cascade_options', CascadeOptionsHandler),
 	
 	('/migrate', MigrateHandler),
 

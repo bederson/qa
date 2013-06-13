@@ -31,8 +31,6 @@ limitations under the License.
 		var num_notes_to_tag_per_person = parseInt("{{ num_notes_to_tag_per_person }}");
 		var num_notes_to_compare_per_person = parseInt("{{ num_notes_to_compare_per_person }}");
 		var num_notes_for_comparison = parseInt("{{ num_notes_for_comparison }}");
-		var cascade_k = parseInt("{{ cascade_k }}");
-		var cascade_m = parseInt("{{ cascade_m }}");
 		var num_tags_by_cluster = parseInt("{{ num_tags_by_cluster }}");
 		var num_tags_by_idea = parseInt("{{ num_tags_by_idea }}");
 		var num_similar_ideas = parseInt("{{ num_similar_ideas }}");
@@ -92,19 +90,8 @@ limitations under the License.
 					</tr>
 					<tr valign="top">
 						<td>
-							<input id="p5button" type="button">
 						</td>
 						<td>
-							Go to <a id="cascade_link">Cascade</a><br/>
-							k (redundancy factor) <input id="cascade_k" class="cascade_option" type="text" size="3"></input><br/>
-							m (# items in initial item set) <input id="cascade_m" class="cascade_option" type="text" size="3"></input>
-						</td>
-					</tr>
-					<tr valign="top">
-						<td>
-						</td>
-						<td>
-							<br/>
 							=> <a id="results_link">See results</a>
 						</td>
 					</tr>

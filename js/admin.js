@@ -51,9 +51,6 @@ function initEventHandlers() {
 	$("#p4button").click(function() {
 		set_phase(4);
 	});
-	$("#p5button").click(function() {
-		set_phase(5);
-	});
 	$("#newq_button").click(function() {
 		createQuestion();
 	});
@@ -65,10 +62,6 @@ function initEventHandlers() {
 	});
 	$("#num_notes_for_comparison").blur(function() {
 		set_compare_notes_options($("#num_notes_to_compare_per_person").val(), $("#num_notes_for_comparison").val());
-	});
-	
-	$(".cascade_option").blur(function() {
-		set_cascade_options($("#cascade_k").val(), $("#cascade_m").val());
 	});
 }
 
@@ -113,17 +106,6 @@ function set_compare_notes_options(num_notes, num_comparison_notes) {
 	$.post("/set_compare_notes_options", data);
 }
 
-function set_cascade_options(k, m) {
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"client_id": client_id,
-		"question_id": question_id,
-		"cascade_k": k,
-		"cascade_m": m
-	};
-	$.post("/set_cascade_options", data);
-}
-
 function displayModes() {
 	var question_id = getURLParameter("question_id");
 	if (isDefined(question_id)) {
@@ -141,14 +123,11 @@ function displayModes() {
 		$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
 		$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
 		$("#comparebysimilarity_link").attr("href", "/similar?question_id=" + question_id);
-		$("#cascade_link").attr("href", "/cascade?question_id=" + question_id);
 		$("#notes_link").attr("href", "/idea?question_id=" + question_id);
 		$("#results_link").attr("href", "/results?question_id=" + question_id);
 		$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
 		$("#num_notes_to_compare_per_person").val(num_notes_to_compare_per_person);
 		$("#num_notes_for_comparison").val(num_notes_for_comparison);
-		$("#cascade_k").val(cascade_k);
-		$("#cascade_m").val(cascade_m);
 	
 		$("#question_buttons").css("display", "table");
 		updateButtons();
@@ -289,12 +268,10 @@ function updateButtons() {
 		$("#p2button").val("Tagging by cluster disabled");
 		$("#p3button").val("Tagging by note disabled");
 		$("#p4button").val("Comparing by similarity disabled");
-		$("#p5button").val("Cascade disabled");
 		$("#p1button").attr("disabled", "disabled");
 		$("#p2button").attr("disabled", "disabled");
 		$("#p3button").attr("disabled", "disabled");
 		$("#p4button").attr("disabled", "disabled");
-		$("#p5button").attr("disabled", "disabled");
 		$("#tagsbycluster_msg").html("");
 	} else {
 		$("#p0button").val("Disable data entry");
@@ -302,12 +279,10 @@ function updateButtons() {
 		$("#p2button").val("Enable tagging by cluster");
 		$("#p3button").val("Enable tagging by note");
 		$("#p4button").val("Enable comparing by similarity");
-		$("#p5button").val("Enable Cascade");
 		$("#p1button").removeAttr("disabled");
 		$("#p2button").removeAttr("disabled");
 		$("#p3button").removeAttr("disabled");
 		$("#p4button").removeAttr("disabled");
-		$("#p5button").removeAttr("disabled");
 		
 		if (!enableTaggingByCluster) {
 			var question_id = getURLParameter("question_id");
@@ -326,9 +301,6 @@ function updateButtons() {
 		} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
 			$("#p4button").val("Comparing by similarity enabled");
 			$("#p4button").attr("disabled", "disabled");
-		} else if (phase == PHASE_CASCADE) {
-			$("#p5button").val("Cascade enabled");
-			$("#p5button").attr("disabled", "disabled");
 		}
 	}
 }
