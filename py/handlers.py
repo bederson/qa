@@ -96,9 +96,11 @@ def connect(person):
 
 def sendMessage(dbConnection, fromClientId, questionId, message):
     """Send message to all listeners (except self) to this topic"""
-    if questionId:
-        sql = "select * from user_clients where question_id=%s"
+    # TODO: fromClientId not being passed currently
+    if fromClientId and questionId:
+        sql = "select * from question_clients where question_id=%s"
         rows = dbConnection.cursor.execute(sql, (questionId))
+        helpers("SEND MESSAGE: rows={0}".format(rows))
         for row in rows:
             toClientId = row["client_id"]
             if toClientId != fromClientId:
@@ -132,9 +134,7 @@ class BaseHandler(webapp2.RequestHandler):
         questionId = self.request.get("question_id")        
         question = Question.getById(self.dbConnection, questionId)
         nickname = self.request.get("nickname")
-        
-        helpers.log("initUserContext: questionId={0}, nickname={1}".format(questionId, nickname))
-                
+                        
         # if question allows nickname authentication
         # check if nickname stored in session, if not provided
         if question and question.nicknameAuthentication and not nickname:
@@ -148,7 +148,6 @@ class BaseHandler(webapp2.RequestHandler):
         
         person = Person.getPerson(self.dbConnection, question, nickname)
         user = users.get_current_user()
-        helpers.log("initUserContext: person={0}, user={1}".format(person, user))
                             
         # if no person found
         # create person if create is true, OR,
@@ -156,8 +155,6 @@ class BaseHandler(webapp2.RequestHandler):
         if not person and (create or (question and not question.nicknameAuthentication and user)): 
             person = Person()
             person.create(self.dbConnection, question, nickname)
-            helpers.log("SAVE PERSON TO CLASS OR RETURN IN FUNCTION")
-            helpers.log("initUserContext: create person: person={0}, user={1}".format(person, user))
 
         return person        
 
@@ -181,16 +178,18 @@ class MainPageHandler(BaseHandler):
         self.dbDisconnect()
 
 class IdeaPageHandler(BaseHandler):
-    def get(self):        
+    def get(self):       
+        self.dbConnect() 
         person = self.initUserContext()
-        question_id = self.request.get("question_id")
-        questionObj = Question.getQuestionById(question_id)
-        template_values = get_default_template_values(self, person, questionObj)
-        if questionObj:
-            template_values["change_nickname_allowed"] = json.dumps(not questionObj.nicknameAuthentication)
+        questionId = self.request.get("question_id")
+        question = Question.getById(self.dbConnection, questionId)
+        template_values = get_default_template_values(self, person, question)
+        if question:
+            template_values["change_nickname_allowed"] = json.dumps(not question.nicknameAuthentication)
 
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, template_values))
+        self.dbDisconnect()
      
 # Participant page that uses Cascade to create categories for ideas
 # TODO: check if ideas exist for question; if not, do not enable cascade
@@ -259,7 +258,7 @@ class AdminPageHandler(BaseHandler):
             session['msg'] = "Invalid question code"
         
         # check if question owned by logged in user
-        elif questionObj and not Person.isAdmin(self) and questionObj.author != users.get_current_user():
+        elif questionObj and (not questionObj.isAuthor(person) and not Person.isAdmin()):
             questionObj = None
             session['msg'] = "You do not have permission to edit this question"
 
@@ -298,7 +297,6 @@ class LoginHandler(BaseHandler):
         page = self.request.get("page")
         questionId = self.request.get("question_id")
         question = Question.getById(self.dbConnection, questionId)
-        helpers.log("LoginHandler: question={0}".format(question))
 
         # if question allows nickname authentication
         # store nickname in session if ok
@@ -321,9 +319,7 @@ class LoginHandler(BaseHandler):
                 session[questionId] = { "nickname": nickname }
 
         person = self.initUserContext(create=True)
-        helpers.log("LoginHandler: person={0}".format(person))
         url = str(page) if page else getPhaseUrl(person.question)
-        helpers.log("LoginHandler: url={0}".format(url))
         
         self.dbDisconnect()
         self.redirect(url)
@@ -374,7 +370,7 @@ class NicknameHandler(BaseHandler):
         elif any((c in specialChars) for c in nickname):
             data["msg"] = "Nickname can not contain " + "".join(specialChars)
             
-        elif Person.nicknameAlreadyExists(questionId, nickname):
+        elif Person.doesNicknameExist(self.dbConnection, questionId, nickname):
             data["msg"] = "Nickname already exists (" + nickname + ")"
             
         else:
@@ -452,22 +448,19 @@ class NewQuestionHandler(BaseHandler):
                 data["msg"] = "Error saving question"
                 
             else:
-                helpers.log("NEW QUESTION = {0}".format(question.id))
                 data = {"status": 1, "question_id": question.id }
-                
-                # Update clients
-                message = { "op": "newquestion" }
-                sendMessage(self.dbConnection, clientId, question.id, message)        # Update other clients about this change
+                sendMessage(self.dbConnection, clientId, question.id, { "op" : "newquestion" })
 
         self.writeResponseAsJson(data)
         self.dbDisconnect()
 
 class EditQuestionHandler(BaseHandler):
     def post(self):
+        self.dbConnect();
         person = self.initUserContext(force_check=True)
         clientId = self.request.get('client_id')
         questionId = self.request.get("question_id")
-        question = Question.getQuestionById(questionId)
+        question = Question.getById(self.dbConnection, questionId)
         title_text = self.request.get('title')
         question_text = self.request.get('question')
         nicknameAuthentication = self.request.get('nickname_authentication', '0') == "1"
@@ -503,21 +496,23 @@ class EditQuestionHandler(BaseHandler):
                 
 class NewIdeaHandler(BaseHandler):
     def post(self):
-        pass
-#         person = self.initUserContext()
-#         client_id = self.request.get('client_id')
-#         idea = self.request.get('idea')
-#         question_id = self.request.get("question_id")
-#         if len(idea) >= 1:            # Don't limit idea length until there is a way to give feedback about short ideas
-#             ideaObj = Idea.createIdea(idea, question_id, person)
-# 
-#             # Update clients
-#             message = {
-#                 "op": "newidea",
-#                 "text": idea,
-#                 "author": Person.toDict(ideaObj.author)
-#             }
-#             send_message(client_id, question, message)        # Update other clients about this change
+        self.dbConnect()
+        person = self.initUserContext()
+        clientId = self.request.get('client_id')
+        idea = self.request.get('idea')
+        questionId = self.request.get("question_id")
+        if len(idea) >= 1:
+            ideaObj = Idea.createIdea(idea, questionId, person)
+ 
+            # Update clients
+            message = {
+                "op": "newidea",
+                "text": idea,
+                "author": Person.toDict(ideaObj.author)
+            }
+            sendMessage(self.dbConnection, clientId, questionId, message)
+            
+        self.dbDisconnect()
             
 class DeleteHandler(BaseHandler):
     def post(self):
@@ -606,14 +601,9 @@ class PhaseHandler(BaseHandler):
         phase = int(self.request.get('phase'))
      
         if question:
-            phase = Question.setPhase(phase, question)
-    
-            # Update clients
-            message = {
-                "op": "phase",
-                "phase": phase
-            }
-            sendMessage(self.dbConnection, clientId, questionId, message)        # Update other clients about this change
+            question.setPhase(self.dbConnection, phase)
+            sendMessage(self.dbConnection, clientId, questionId, { "op" : "phase", "phase" : phase})
+            
         self.dbDisconnect()
 
 class CascadeOptionsHandler(BaseHandler):

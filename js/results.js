@@ -59,10 +59,6 @@ $(document).ready(function() {
 	
 	initChannel();
 	initEventHandlers();
-
-	if ((phase == PHASE_TAG_BY_CLUSTER) || (phase == PHASE_TAG_BY_NOTE)) {
-		$("#start_tagging").css("display", "inline");
-	}
 		
 	if (OFFLINE) {
 		displayIdeas();
@@ -258,18 +254,6 @@ function displayIdeasImpl(results) {
 			var cluster = clusters[i];
 			displayCloud("vis" + (parseInt(i)+1), cluster.ideas);
 		}
-		
-		if (phase == PHASE_TAG_BY_CLUSTER) {
-			displayTagControls(clusters);
-			displayClusterTags();
-		} else if (phase == PHASE_TAG_BY_NOTE) {
-			displayIdeaTags();
-		}
-		
-		// Uncomment to show similar ideas
-		//else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		//	displaySimilarIdeas();
-		//}
 	}
 	
 	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
@@ -685,13 +669,6 @@ function handlePhase(data) {
 }
 
 function handleTag(data) {
-	if (phase == PHASE_TAG_BY_CLUSTER) {
-		displayClusterTags();
-	} else if (phase == PHASE_TAG_BY_NOTE) {
-		displayIdeaTags();
-	} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-		displaySimilarIdeas();
-	}
 }
 
 function handleNickname(data) {

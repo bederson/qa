@@ -3,9 +3,6 @@
 /////////////////////////
 var PHASE_DISABLED = 0
 var PHASE_NOTES = 1
-var PHASE_TAG_BY_CLUSTER = 2
-var PHASE_TAG_BY_NOTE = 3
-var PHASE_COMPARE_BY_SIMILARITY = 4
 var PHASE_CASCADE = 5
 
 function getURLParameter(name) {
@@ -94,15 +91,6 @@ function phaseToString(phase) {
 		case PHASE_NOTES:
 			str = "Note entry";
 			break;
-		case PHASE_TAG_BY_CLUSTER:
-			str = "Tagging by cluster";
-			break;
-		case PHASE_TAG_BY_NOTE:
-			str = "Tagging by note";
-			break;
-		case PHASE_COMPARE_BY_SIMILARITY:
-			str = "Compare notes by similarity";
-			break;
 		case PHASE_CASCADE:
 			str = "Cascade enabled";
 			break;
@@ -118,13 +106,6 @@ function redirectToPhase(phase, question_id) {
 		case PHASE_DISABLED:
 		case PHASE_NOTES:
 			window.location.href="/idea?question_id=" + question_id;
-			break;
-		case PHASE_TAG_BY_CLUSTER:
-		case PHASE_TAG_BY_NOTE:
-			window.location.href="/tag?question_id=" + question_id;
-			break;
-		case PHASE_COMPARE_BY_SIMILARITY:
-			window.location.href="/similar?question_id=" + question_id;
 			break;
 		case PHASE_CASCADE:
 			window.location.href="/cascade?question_id=" + question_id;

@@ -27,7 +27,6 @@
 import constants
 import helpers
 import random
-from lib import gaesessions
 from google.appengine.api import rdbms
 from google.appengine.api import users
 
@@ -40,12 +39,12 @@ class DatabaseConnection():
             self.disconnect()
             
         if helpers.isRunningLocally():
-            # only import if running locally since not available when running on GAE
+            # only import MySQLdb when running locally since not available on GAE
             import MySQLdb
-            self.conn = MySQLdb.connect("localhost", "qatest", "qatest", constants.DATABASE_NAME)
+            self.conn = MySQLdb.connect("localhost", constants.LOCAL_DB_USER, constants.LOCAL_DB_PWD, constants.DATABASE_NAME)
             self.cursor = self.conn.cursor(MySQLdb.cursors.DictCursor)
         else:
-            # connects as MySQL root
+            # BEHAVIOR: connects as MySQL root
             # TODO: need to understand if/why non-root MySQL users should be used
             self.conn = rdbms.connect(constants.CLOUDSQL_INSTANCE, constants.DATABASE_NAME)
             self.cursor = self.conn.cursor(use_dict_cursor=True)
@@ -64,56 +63,108 @@ class Question():
     title = None
     questionText = None
     nicknameAuthentication = False
+    userId = None
     phase = 0
       
+    @property
+    def code(self):
+        return self.id
+    
+    @ property
+    def question(self):
+        return self.questionText
+    
     @staticmethod
-    def create(dbConnection, person, title, questionText, nicknameAuthentication=False):
-        if person:
-            # TODO: should let database create unique code; multiple users could create same code but unlikely
-            questionIdNeeded = True
-            while questionIdNeeded:
+    def create(dbConnection, author, title, questionText, nicknameAuthentication=False):
+        if author:
+            # create unique 5 digit id
+            # TODO: need better way to create question id
+            idCreated = False
+            while not idCreated:
                 questionId = str(random.randint(10000, 99999))
                 question = Question.getById(dbConnection, questionId)
                 if not question:
-                    questionIdNeeded = False
-
-            # TODO: Friday: user_id should be users.id from db
-            sql = "insert into questions (id, title, question, user_id, nickname_authentication) values (%s, %s, %s, %s, %s)"
-            dbConnection.cursor.execute(sql, (questionId, title, questionText, person.id, nicknameAuthentication))
-            dbConnection.conn.commit()
+                    idCreated = True
+            
+            # TODO: should question author be added to question_users table?
             
             question = Question()
-            question.id = questionId
-            question.title = title
-            question.questionText = questionText
-            question.nicknameAuthentication = nicknameAuthentication
+            properties = {
+                "id" : questionId,
+                "title" : title,
+                "questionText" : questionText,
+                "nicknameAuthentication" : nicknameAuthentication,
+                "userId" : author.id
+            }
+            question.update(dbConnection, properties, create=True)
             return question
-                
-    def update(self, dbConnection):
-        # TODO: need to implement
-        pass
+    
+    # TODO: modify Person to only update values given
+    def update(self, dbConnection=None, properties={}, create=False):
+        updateProperties = []
+        updateValues = ()
+        if "id" in properties:
+            self.id = properties["id"]
+        if "title" in properties:
+            self.title = properties["title"]
+            updateProperties.append("title=%s")
+            updateValues += (self.title,)
+        if "questionText" in properties:
+            self.questionText = properties["questionText"]
+            updateProperties.append("question=%s")
+            updateValues += (self.questionText,)
+        if "nicknameAuthentication" in properties:
+            self.nicknameAuthentication = properties["nicknameAuthentication"]
+            updateProperties.append("nickname_authentication=%s")
+            updateValues += (self.nicknameAuthentication,)
+        if "userId" in properties:
+            self.userId = properties["userId"]
+            updateProperties.append("user_id=%s")
+            updateValues += (self.userId,)
+        if "phase" in properties:
+            self.phase = properties["phase"]
+            updateProperties.append("phase=%s")
+            updateValues += (self.phase,)
+
+        if dbConnection:
+            if create:
+                sql = "insert into questions (id, title, question, nickname_authentication, user_id) values (%s, %s, %s, %s, %s)"
+                dbConnection.cursor.execute(sql, (self.id, self.title, self.questionText, self.nicknameAuthentication, self.userId))
+                dbConnection.conn.commit()
+            
+            else:
+                sql = "update questions set {0} where id=%s".format(",".join(updateProperties))
+                dbConnection.cursor.execute(sql, updateValues + (self.id,));
+                dbConnection.conn.commit()
         
     def delete(self, dbConnection):
-        dbConnection.cursor.execute("delete from questions where id={0}".format(self.code))
-        dbConnection.cursor.execute("delete from ideas where question_id={0}".format(self.code))
-        # TODO: delete information from other tables
-        # TODO: return empty Question object?
+        # TODO: update to delete all question data from db tables
+        dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from question_users where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from question_clients where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from ideas where question_id={0}".format(self.id))
         dbConnection.conn.commit()
         
         self.id = None
         self.title = None
         self.questionText = None
         self.nicknameAuthentication = False
+        self.userId = None
+        self.phase = 0
         return self
-                  
+    
+    def setPhase(self, dbConnection, phase):
+        self.update(dbConnection, { "phase" : phase })
+        
+    def isAuthor(self, person):
+        return person and (self.userId == person.id)
+                
     @staticmethod
     def getById(dbConnection, questionId):
-        # TODO: need to close db connection and cursor
-        # TODO: timestamp will be server time not local user time
         sql = "select * from questions where id=%s"
         dbConnection.cursor.execute(sql, (questionId))
         row = dbConnection.cursor.fetchone()
-        return Question.getFromDBRow(row)
+        return Question.getFromDBRow(row) if row else None
 
     @staticmethod
     def getByUser(dbConnection, user=users.get_current_user()):
@@ -126,7 +177,7 @@ class Question():
                 question = Question.getFromDBRow(row)
                 questions.append(question)
         return questions
-    
+     
     @staticmethod
     def getFromDBRow(row):
         question = None
@@ -136,15 +187,17 @@ class Question():
             question.title = row["title"]
             question.questionText = row["question"]
             question.nicknameAuthentication = row["nickname_authentication"]
+            question.userId = row["user_id"]
             question.phase = row["phase"]
         return question
-            
+                
     def toDict(self):
         return {
             "id": self.id,
             "title": self.title,
             "question": self.questionText,
             "nickname_authentication": self.nicknameAuthentication,
+            "user_id": self.userId,
             "phase": self.phase
         } 
 
@@ -156,40 +209,60 @@ class Person():
     @staticmethod
     def create(dbConnection, nickname=None, questionId=None):
         user = users.get_current_user()
-        if user:
-            authenticatedUserId = user.user_id()
-            if not nickname:
-                nickname = Person.cleanNickname(user)
+        authenticatedUserId = user.user_id() if user else None
 
-        # TODO: should authenticatedUserId be stored as string or number?
-        sql = "insert into users (authenticated_user_id, nickname) values(%s, %s)"
-        dbConnection.cursor.execute(sql, (authenticatedUserId, nickname))
-        personId = dbConnection.cursor.lastrowid 
+        # Person must be either an authenticated google user
+        # or with a nickname (if the question allows)
+        if not authenticatedUserId and not nickname:
+            return None
         
-        if questionId:
-            Person.addToQuestion(dbConnection, personId, questionId, False)
-        dbConnection.conn.commit()
-        
+        # BEHAVIOR: authenticated_user_id is stored as string in database
+        # Should it be saved as long instead?        
         person = Person()
-        person.id = personId
-        person.authenticatedUserId = authenticatedUserId
-        person.nickname = nickname
+        properties = {
+            "id" : dbConnection.cursor.lastrowid,
+            "authenticatedUserId" : authenticatedUserId,
+            "nickname" : nickname,
+            "questionId" : questionId
+        }
+        person.update(dbConnection, properties, create=True)
         return person
+    
+    def update(self, dbConnection=None, properties={}, create=False):    
+        if "id" in properties:
+            self.id = properties["id"]
+        if "authenticatedUserId" in properties:
+            self.authenticatedUserId = properties["authenticated_user_id"]
+        if "nickname" in properties:
+            self.nickname = properties["nickname"]
+
+        if dbConnection:
+            if create:
+                sql = "insert into users (authenticated_user_id, nickname) values (%s, %s)"
+                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.nickname))
+                self.id = dbConnection.cursor.lastrowid
+                if "questionId" in properties and properties["questionId"]:
+                    self.addToQuestion(dbConnection, properties["questionId"], False)
+                dbConnection.conn.commit()
+            
+            else:
+                sql = "update users set authenticated_user_id=%s, nickname=%s where id=%s"
+                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.nickname, self.id))
+                dbConnection.conn.commit()
           
-    @staticmethod
-    def addToQuestion(dbConnection, personId, questionId, commit=True):
-        sql = "insert into user_questions (user_id, question_id) values(%s, %s)"
-        dbConnection.cursor.execute(sql, (personId, questionId))
+    def addToQuestion(self, dbConnection, questionId, commit=True):
+        sql = "insert into question_users(question_id, user_id) values(%s, %s)"
+        dbConnection.cursor.execute(sql, (questionId, self.id))
         if commit:
             dbConnection.cursor.commit()
            
     @staticmethod
     def getPerson(dbConnection, questionId=None, nickname=None):
-        # TODO: added client ids, etc. to Person class?
+        # TODO: add client ids
         person = None
         user = users.get_current_user()
         if questionId and nickname:
-            sql = "select * from users, user_questions where users.id=user_questions.user_id and question_id=%s and nickname=%s"
+            sql = "select * from users, question_users where users.id=question_users.user_id and question_id=%s and nickname=%s"
             dbConnection.cursor.execute(sql, (questionId, nickname))
             row = dbConnection.cursor.fetchone()
             person = Person.getFromDBRow(row)
@@ -201,45 +274,55 @@ class Person():
         return person
     
     @staticmethod
+    def getById(dbConnection, userId):
+        sql = "select * from users where id=%s"
+        dbConnection.cursor.execute(sql, (userId))
+        row = dbConnection.cursor.fetchone()
+        return Person.getFromDBRow(row) if row else None
+    
+    @staticmethod
     def getFromDBRow(row):
         person = None
         if row:
-            helpers.log("PERSON: {0}".format(row))
             person = Person()
             person.id = row["id"]
             person.authenticatedUserId = row["authenticated_user_id"]
             person.nickname = row["nickname"]
         return person
-            
+                
     @staticmethod
-    def getPersonFromClientId(client_id):
-        # TODO: implement!
+    def getPersonFromClientId(clientId):
+        # TODO: make sure client is uses Person.id *not* authenticated google id
+        person = None
+        tokens = clientId.split("_")
+        if len(tokens) > 1:
+            personId = tokens[1]
+            person = Person.getById(long(personId))
+        return person
+        
+    def addClientId(self, clientId):   
+        # TODO: need to implement
+        return 0 
+#         if clientId is not None and clientId not in self.clientIds:
+#             self.clientIds.append(clientId)
+#             self.put()
+#         return len(self.clientIds)
+     
+    def removeClientId(self, clientId):
+        # TODO: need to implement
+        return 0
+#         if clientId is not None and clientId in self.clientIds:
+#             self.clientIds.remove(clientId)  
+#             self.put()
+#         return len(self.clientIds)
+    
+    def setNickname(self, nickname=None):
+        # TODO: need to implement
         pass
-#         person = None
-#         tokens = client_id.split("_")
-#         if len(tokens) > 1:
-#             person_id = tokens[1]
-#             person = Person.get_by_id(long(person_id))
-#         return person
-#     
-#         def setNickname(self, nickname=None):
 #         # reset nickname to authenticated user if no nickname provided
 #         self.nickname = nickname if nickname else (Person.cleanNickname(self.user) if self.user else None)
 #         self.put()
-        
-    # TODO: need to store client ids in database     
-    def addClientId(self, client_id):    
-        if client_id is not None and client_id not in self.client_ids:
-            self.client_ids.append(client_id)
-            self.put()
-        return len(self.client_ids)
-     
-    def removeClientId(self, client_id):
-        if client_id is not None and client_id in self.client_ids:
-            self.client_ids.remove(client_id)  
-            self.put()
-        return len(self.client_ids)
-                                        
+                                 
     @staticmethod
     def cleanNickname(user):
         if user:
@@ -252,17 +335,17 @@ class Person():
             return "none"
      
     @staticmethod
-    def nicknameAlreadyExists(dbCursor, questionId, nickname):
-        question = Question.getQuestionById(questionId)
-        person = Person.all().filter("question =", question).filter("nickname =", nickname).get()
-        return person is not None
-         
+    def doesNicknameExist(dbConnection, questionId, nickname):
+        sql = "select * from users where question_id=%s and nickname=%s"
+        dbConnection.cursor.execute(sql, (questionId, nickname))
+        row = dbConnection.cursor.fetchone()
+        return row is not None
+    
     @staticmethod
-    def isAdmin(requestHandler):
+    def isAdmin():
         return users.is_current_user_admin()
-     
+    
     def toDict(self):
-        # TODO: user_identity field no longer passed
         return {
             "id": self.id,
             "nickname": self.nickname
@@ -270,30 +353,37 @@ class Person():
      
     @staticmethod
     def equals(person1, person2):        
-        usersMatch = person1.user == person2.user
-        nicknamesMatch = person1.nickname == person2.nickname
-        questionsMatch = (person1.question == None and person2.question == None) or (person1.question.code == person2.question.code)        
-        return usersMatch and nicknamesMatch and questionsMatch     
+        usersMatch = person1.id == person2.id    
  
-# ################
-# ##### IDEA #####
-# ################
-# class Idea(db.Model):
-#     author = db.ReferenceProperty(Person)
-#     date = db.DateTimeProperty(auto_now=True)
-#     text = db.StringProperty()
-#     cluster = db.ReferenceProperty(Cluster)
-#     question = db.ReferenceProperty(Question)
-#     rand = db.FloatProperty()
-# 
-#     def toDict(self):
-#         return {
-#             "id" : self.key().id(),
-#             "author" : Person.toDict(self.author),
-#             "date" : self.date,
-#             "text" : self.text,
-#             "question_code" : self.question.code
-#         }
+class Idea():
+    id = None
+    questionId = None
+    userId = None
+    ideaText = None
+ 
+    @staticmethod
+    def create(dbConnection, questionId, userId, ideaText):
+        # TODO: Monday
+        pass
+#         if len(ideaText) > 500:
+#             ideaText = ideaText[:500]
+#         ideaText = ideaText.replace("\n", "")
+#
+#         # NEED TO ADD TO DB
+#         idea = Idea()
+#         idea.id = xx
+#         idea.questionId = questionId
+#         idea.userId = userId
+#         idea.ideaText = ideaText
+#         return idea
+
+    def toDict(self):
+        return {
+            "id" : self.id,
+            "question_id" : self.questionId,
+            "user_id" : self.userId,
+            "idea" : self.ideaText
+        }
 #     
 #     @staticmethod
 #     def getNumIdeas(question):
@@ -755,7 +845,6 @@ class Person():
 #                                         
 #                     newStep = True
 #         
-#         helpers.log("JOB ID = {0}".format(jobId))
 #         return { "job": CascadeJob.get_by_id(jobId) if jobId else None, "new_step": newStep }
 # 
 # #         newStep = False

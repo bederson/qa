@@ -28,16 +28,9 @@ limitations under the License.
 		var title = "{{ title }}";
 		var question = "{{ question }}";
 		var num_ideas = "{{ num_ideas }}";
-		var num_notes_to_tag_per_person = parseInt("{{ num_notes_to_tag_per_person }}");
-		var num_notes_to_compare_per_person = parseInt("{{ num_notes_to_compare_per_person }}");
-		var num_notes_for_comparison = parseInt("{{ num_notes_for_comparison }}");
 		var cascade_k = parseInt("{{ cascade_k }}");
 		var cascade_m = parseInt("{{ cascade_m }}");
 		var cascade_t = parseInt("{{ cascade_t }}");
-		var num_tags_by_cluster = parseInt("{{ num_tags_by_cluster }}");
-		var num_tags_by_idea = parseInt("{{ num_tags_by_idea }}");
-		var num_similar_ideas = parseInt("{{ num_similar_ideas }}");
-		var num_clusters = parseInt("{{ num_clusters }}");
 	</script>
 {% endblock %}
 
@@ -61,34 +54,6 @@ limitations under the License.
 						</td>
 						<td>
 							Go to <a id="notes_link">add notes</a>
-						</td>
-					</tr>
-					<tr valign="top">
-						<td>
-							<input id="p2button" type="button">
-						</td>
-						<td>
-							Go to <a id="tagbycluster_link">add tags by cluster</a>
-							<span id="tagsbycluster_msg" class="warning small"></span>
-						</td>
-					</tr>
-					<tr valign="top">
-						<td>
-							<input id="p3button" type="button">
-						</td>
-						<td>
-							Go to <a id="tagbynote_link">add tags by note</a><br>
-							<input id="num_notes_to_tag_per_person" type="text" size="3"></input> # notes to tag per person
-						</td>
-					</tr>
-					<tr valign="top">
-						<td>
-							<input id="p4button" type="button">
-						</td>
-						<td>
-							Go to <a id="comparebysimilarity_link">compare notes by similarity</a><br/>
-							<input id="num_notes_to_compare_per_person" type="text" size="3"></input> # notes to compare per person <br/>
-							<input id="num_notes_for_comparison" type="text" size="3"></input> # notes to compare selected note to
 						</td>
 					</tr>
 					<tr valign="top">

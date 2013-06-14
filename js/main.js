@@ -68,12 +68,6 @@ function getPhaseUrl(question) {
 		if (question.phase <= PHASE_NOTES) {
 			url = "/idea?question_id="+question.question_id;
 		}
-		else if (question.phase == PHASE_TAG_BY_CLUSTER || question.phase == PHASE_TAG_BY_NOTE) {
-			url = "/tag?question_id="+question.question_id;
-		}
-		else if (question.phase == PHASE_COMPARE_BY_SIMILARITY) {
-			url = "/similar?question_id="+question.question_id;
-		}
 		else if (question.phase == PHASE_CASCADE) {
 			url = "/cascade?question_id="+question.question_id;
 		}

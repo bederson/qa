@@ -33,51 +33,27 @@ $(document).ready(function() {
 
 function initEventHandlers() {
 	$("#p0button").click(function() {
-		if (phase == 0) {
-			set_phase(1);
+		if (phase == PHASE_DISABLED) {
+			set_phase(PHASE_NOTES);
 		} else {
-			set_phase(0);
+			set_phase(PHASE_DISABLED);
 		}
 	});
 	$("#p1button").click(function() {
-		set_phase(1);
-	});
-	$("#p2button").click(function() {
-		set_phase(2);
-	});
-	$("#p3button").click(function() {
-		set_phase(3);
-	});
-	$("#p4button").click(function() {
-		set_phase(4);
+		set_phase(PHASE_NOTES);
 	});
 	$("#p5button").click(function() {
-		set_phase(5);
+		set_phase(PHASE_CASCADE);
 	});
 	$("#newq_button").click(function() {
 		createQuestion();
 	});
-	$("#num_notes_to_tag_per_person").blur(function() {
-		set_num_notes_to_tag_per_person($("#num_notes_to_tag_per_person").val());
-	});
-	$("#num_notes_to_compare_per_person").blur(function() {
-		set_compare_notes_options($("#num_notes_to_compare_per_person").val(), $("#num_notes_for_comparison").val());
-	});
-	$("#num_notes_for_comparison").blur(function() {
-		set_compare_notes_options($("#num_notes_to_compare_per_person").val(), $("#num_notes_for_comparison").val());
-	});
-	
 	$(".cascade_option").blur(function() {
 		set_cascade_options($("#cascade_k").val(), $("#cascade_m").val(), $("#cascade_t").val());
 	});
 }
 
 function set_phase(new_phase) {	
-	if (new_phase == PHASE_TAG_BY_CLUSTER && num_clusters==0) {
-		alert('Clusters must be created before tagging by cluster can be enabled. Go to the Results page to create clusters.');
-		return;
-	}
-	
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"client_id": client_id,
@@ -90,27 +66,6 @@ function set_phase(new_phase) {
 		updateButtons();
 		$("#question_"+data.question_id+"_phase").html(phaseToString(new_phase));
 	});
-}
-
-function set_num_notes_to_tag_per_person(num_notes) {
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"client_id": client_id,
-		"num_notes_to_tag_per_person": num_notes,
-		"question_id": question_id
-	};
-	$.post("/set_num_notes_to_tag_per_person", data);
-}
-
-function set_compare_notes_options(num_notes, num_comparison_notes) {
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"client_id": client_id,
-		"num_notes_to_compare_per_person": num_notes,
-		"num_notes_for_comparison": num_comparison_notes,
-		"question_id": question_id
-	};
-	$.post("/set_compare_notes_options", data);
 }
 
 function set_cascade_options(k, m, t) {
@@ -132,26 +87,16 @@ function displayModes() {
 		html += "<strong>Question Code: " + question_id + "</strong><br/>";
 		html += "Title: " + title + "<br/>";
 		html += "Question: " + question + "<br/>";
-		html += num_ideas + " notes, ";
-		html += num_tags_by_cluster + " tags on clusters, ";
-		html += num_tags_by_idea + " tags on notes, ";
-		html += num_similar_ideas + " similar notes<br/>";
-		html += "<br/>";
+		html += num_ideas + " notes" + "<br/>";
 		$("#question").html(html);
 		
-		$("#tagbycluster_link").attr("href", "/tag?question_id=" + question_id);
-		$("#tagbynote_link").attr("href", "/tag?question_id=" + question_id);
-		$("#comparebysimilarity_link").attr("href", "/similar?question_id=" + question_id);
-		$("#cascade_link").attr("href", "/cascade?question_id=" + question_id);
 		$("#notes_link").attr("href", "/idea?question_id=" + question_id);
-		$("#results_link").attr("href", "/results?question_id=" + question_id);
-		$("#num_notes_to_tag_per_person").val(num_notes_to_tag_per_person);
-		$("#num_notes_to_compare_per_person").val(num_notes_to_compare_per_person);
-		$("#num_notes_for_comparison").val(num_notes_for_comparison);
+		$("#cascade_link").attr("href", "/cascade?question_id=" + question_id);
 		$("#cascade_k").val(cascade_k);
 		$("#cascade_m").val(cascade_m);
 		$("#cascade_t").val(cascade_t);
-	
+		$("#results_link").attr("href", "/results?question_id=" + question_id);
+
 		$("#question_buttons").css("display", "table");
 		updateButtons();
 	}
@@ -177,7 +122,6 @@ function displayQuestionsImpl(results) {
 		}
 		html += "</ul>";
 		$("#questions").html(html);
-
 		for (var i in questions) {
 			updateQuestionListItem(questions[i]);
 		}
@@ -185,9 +129,9 @@ function displayQuestionsImpl(results) {
 }
 
 function updateQuestionListItem(question) {
-	var html = "<a href='/admin?question_id=" + question.question_id + "'>" + question.title + "</a> <span class='note'>#"+question.question_id+"</span>";
-	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.question_id + ")'>[edit]</a>";
-	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.question_id + ")'>[delete]</a>";
+	var html = "<a href='/admin?question_id=" + question.id + "'>" + question.title + "</a> <span class='note'>#"+question.id+"</span>";
+	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.id + ")'>[edit]</a>";
+	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a>";
 	html += "<br>";
 	html += question.question;
 	if (question.nickname_authentication) {
@@ -233,7 +177,6 @@ function createQuestion() {
 				$("#newq_info").html(result.msg);
 				return;
 			}
-			alert("new question id = " + result.question_id);
 			window.location.href = "/admin?question_id=" + result.question_id
 			updateButtons();
 		}, "json");
@@ -285,50 +228,22 @@ function deleteQuestionImpl(question_id) {
 }
 
 function updateButtons() {
-	var enableTaggingByCluster = num_clusters > 0;
-	if (phase == 0) {
+	if (phase == PHASE_DISABLED) {
 		$("#p0button").val("Enable question");
 		$("#p1button").val("Note entry disabled");
-		$("#p2button").val("Tagging by cluster disabled");
-		$("#p3button").val("Tagging by note disabled");
-		$("#p4button").val("Comparing by similarity disabled");
 		$("#p5button").val("Cascade disabled");
 		$("#p1button").attr("disabled", "disabled");
-		$("#p2button").attr("disabled", "disabled");
-		$("#p3button").attr("disabled", "disabled");
-		$("#p4button").attr("disabled", "disabled");
 		$("#p5button").attr("disabled", "disabled");
-		$("#tagsbycluster_msg").html("");
 	} else {
 		$("#p0button").val("Disable question");
 		$("#p1button").val("Enable adding of notes");
-		$("#p2button").val("Enable tagging by cluster");
-		$("#p3button").val("Enable tagging by note");
-		$("#p4button").val("Enable comparing by similarity");
 		$("#p5button").val("Enable Cascade");
 		$("#p1button").removeAttr("disabled");
-		$("#p2button").removeAttr("disabled");
-		$("#p3button").removeAttr("disabled");
-		$("#p4button").removeAttr("disabled");
 		$("#p5button").removeAttr("disabled");
 		
-		if (!enableTaggingByCluster) {
-			var question_id = getURLParameter("question_id");
-			$("#tagsbycluster_msg").html('Must <a class="warning" href="/results?question_id='+question_id+'">create clusters</a> first');
-		}
-		
-		if (phase == 1) {
+		if (phase == PHASE_NOTES) {
 			$("#p1button").val("Note entry enabled");
 			$("#p1button").attr("disabled", "disabled");
-		} else if (phase == PHASE_TAG_BY_CLUSTER) {
-			$("#p2button").val("Tagging by cluster enabled");
-			$("#p2button").attr("disabled", "disabled");
-		} else if (phase == PHASE_TAG_BY_NOTE) {
-			$("#p3button").val("Tagging by note enabled");
-			$("#p3button").attr("disabled", "disabled");
-		} else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			$("#p4button").val("Comparing by similarity enabled");
-			$("#p4button").attr("disabled", "disabled");
 		} else if (phase == PHASE_CASCADE) {
 			$("#p5button").val("Cascade enabled");
 			$("#p5button").attr("disabled", "disabled");
