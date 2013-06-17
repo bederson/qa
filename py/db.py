@@ -239,12 +239,14 @@ class Question():
 class Person():               
     id = None
     authenticatedUserId = None
+    authenticatedNickname = None
     nickname = None
           
     @staticmethod
     def create(dbConnection, nickname=None, questionId=None):
         user = users.get_current_user()
         authenticatedUserId = user.user_id() if user else None
+        authenticatedNickname = user.nickname() if user else None
 
         # Person must be either an authenticated google user
         # or with a nickname (if the question allows)
@@ -257,6 +259,7 @@ class Person():
         properties = {
             "id" : dbConnection.cursor.lastrowid,
             "authenticatedUserId" : authenticatedUserId,
+            "authenticatedNickname" : authenticatedNickname,
             "nickname" : nickname,
             "questionId" : questionId
         }
@@ -267,22 +270,25 @@ class Person():
         if "id" in properties:
             self.id = properties["id"]
         if "authenticatedUserId" in properties:
-            self.authenticatedUserId = properties["authenticated_user_id"]
+            self.authenticatedUserId = properties["authenticatedUserId"]
+        if "authenticatedNickname" in properties:
+            self.authenticatedNickname = properties["authenticatedNickname"]
         if "nickname" in properties:
             self.nickname = properties["nickname"]
 
         if dbConnection:
             if create:
-                sql = "insert into users (authenticated_user_id, nickname) values (%s, %s)"
-                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.nickname))
+                sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname) values (%s, %s, %s)"
+                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.authenticatedNickname, self.nickname))
                 self.id = dbConnection.cursor.lastrowid
                 if "questionId" in properties and properties["questionId"]:
                     self.addToQuestion(dbConnection, properties["questionId"], False)
                 dbConnection.conn.commit()
             
             else:
-                sql = "update users set authenticated_user_id=%s, nickname=%s where id=%s"
-                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.nickname, self.id))
+                # TODO: fix to update only changed properties?  should authenticated_nickname always be updated
+                sql = "update users set authenticated_user_id=%s, authenticated_nickname, nickname=%s where id=%s"
+                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.authenticatedNickname, self.nickname, self.id))
                 dbConnection.conn.commit()
           
     def addToQuestion(self, dbConnection, questionId, commit=True):
@@ -322,6 +328,7 @@ class Person():
             person = Person()
             person.id = row["id"]
             person.authenticatedUserId = row["authenticated_user_id"]
+            person.authenticatedNickname = row["authenticated_nickname"]
             person.nickname = row["nickname"]
         return person
                 
@@ -379,7 +386,7 @@ class Person():
     @staticmethod
     def isAdmin():
         return users.is_current_user_admin()
-    
+        
     def toDict(self):
         return {
             "id": self.id,
@@ -389,6 +396,9 @@ class Person():
     @staticmethod
     def equals(person1, person2):        
         usersMatch = person1.id == person2.id    
+
+# TODO: do ideas, users, etc. need to be created w/in transactions to ensure
+# same id not used when new database item created?
  
 class Idea():
     id = None
@@ -451,13 +461,14 @@ class Idea():
     @staticmethod
     def getByQuestion(dbConnection, questionId, asDict=False):
         ideas = []
-        sql = "select * from question_ideas where question_id=%s"
+        sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_id=%s"
         dbConnection.cursor.execute(sql, (questionId))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             idea = Idea.getFromDBRow(row)
             if asDict:
                 idea = idea.toDict()
+                idea["author"] = row["nickname"] if row["nickname"] else "??"
             ideas.append(idea)
         return ideas
     
@@ -470,14 +481,14 @@ class Idea():
     
     @staticmethod
     def getFromDBRow(row):
-        person = None
+        idea = None
         if row:
             idea = Idea()
             idea.id = row["id"]
             idea.questionId = row["question_id"]
             idea.userId = row["user_id"]
             idea.ideaText = row["idea"]
-        return person
+        return idea
                 
     def toDict(self):
         return {

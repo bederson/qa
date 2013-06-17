@@ -20,26 +20,25 @@ $(function() {
 		enableDisable($("#admin_button"), false);
 		$("#admin_help").show();
 	}
-	initEventHandlers();
-	$("#code_box").focus();
-});
-
-function initEventHandlers() {
+	
 	$("#code_box").on("keydown", function(evt) {
 		if (evt.keyCode == 13) {		// Return key
-			submit();
+			loginToQuestion();
 		}
 	});
+	
 	$("#go_button").click(function() {
-		submit();
+		loginToQuestion();
 	});
 
 	$("#admin_button").click(function() {
-		window.location.href="/admin";
+		redirectToAdminPage();
 	});
-}
+	
+	$("#code_box").focus();
+});
 
-function submit() {
+function loginToQuestion() {
 	$("#msg").html("");
 	var question_id = $("#code_box").val();	
 	if (question_id.length==0) {
@@ -48,32 +47,18 @@ function submit() {
 		return;
 	}
 	
-	// TODO: need better way to login to question?
 	var data = {
 		"request": "question",
 		"question_id": question_id
 	};
 	$.getJSON("/query", data, function(results) {
-		if (results.title == "") {
+		if (isDefined(results.msg)) {
 			showInfoMessage(results.msg);
 			$("#code_box").focus();
-		} else {
-			window.location.href=getPhaseUrl(results);
+			return;
 		}
+		redirectToPhase(results.phase, results.id);
 	});	
-}
-
-function getPhaseUrl(question) {
-	var url = "/";
-	if (isDefined(question)) {
-		if (question.phase <= PHASE_NOTES) {
-			url = "/idea?question_id="+question.question_id;
-		}
-		else if (question.phase == PHASE_CASCADE) {
-			url = "/cascade?question_id="+question.question_id;
-		}
-	}
-	return url;
 }
 
 function showInfoMessage(msg) {

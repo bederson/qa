@@ -73,6 +73,11 @@ function initEventHandlers() {
 	$("#submit").click(function() {
 		$("#submit").attr("disabled", "disabled");
 		var idea = $("#answer").val();
+		
+		if (idea.length == "") {
+			return;
+		}
+		
 		var data = {
 			"client_id": client_id,
 			"idea": idea,
@@ -86,18 +91,15 @@ function initEventHandlers() {
 			$("#answer").focus();
 			updateRemainingChars();
 		});
+		
 	});
 
 	$("#answer").keyup(function() {
 		updateRemainingChars();
 	});
 
-	$("#admin_button").click(function() {
-		window.location.href="/admin?question_id=" + question_id;
-	});
-	
-	$("#tag_button").click(function() {
-		window.location.href="/tag?question_id=" + question_id;
+	$("#admin_button").click(function() {	
+		redirectToAdminPage(question_id);
 	});
 }
 

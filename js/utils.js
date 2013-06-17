@@ -101,17 +101,37 @@ function phaseToString(phase) {
 	return str;
 }
 
-function redirectToPhase(phase, question_id) {
-	switch(phase) {
-		case PHASE_DISABLED:
-		case PHASE_NOTES:
-			window.location.href="/idea?question_id=" + question_id;
-			break;
-		case PHASE_CASCADE:
-			window.location.href="/cascade?question_id=" + question_id;
-			break;
-		default:
-			alert("Unknown phase: "+phase);
-			break;
+function getPhaseUrl(question_id) {
+    url = "/";
+    if (isDefined(question_id)) {
+	    switch(phase) {
+			case PHASE_DISABLED:
+			case PHASE_NOTES:
+				url = "/idea?question_id=" + question_id;
+				break;
+			case PHASE_CASCADE:
+				url = "/cascade?question_id=" + question_id;
+				break;
+			default:
+				alert("Unknown phase: "+phase);
+				break;
+		}
 	}
+    return url;
+}
+    
+function redirectToPhase(phase, question_id) {
+	window.location.href = getPhaseUrl(question_id, phase);
+}
+
+function getAdminPageUrl(question_id) {
+	var url = "/admin";
+	if (isDefined(question_id)) {
+		url += "?question_id=" + question_id;
+	}
+	return url;
+}
+
+function redirectToAdminPage(question_id) {
+	window.location.href = getAdminPageUrl(question_id);
 }

@@ -28,8 +28,6 @@ limitations under the License.
 	<script type="text/javascript" src="js/results.js"></script>
 	<script>
 		var phase = parseInt("{{ phase }}");
-		var title = "{{ title }}";
-		var question = "{{ question }}";
 	</script>
 {% endblock %}
 
@@ -43,16 +41,12 @@ limitations under the License.
 	</div>
 	{% endif %}
 	<div style="clear:both"></div>
-	<p>
-		<div id="start_tagging" style="display: none;">
-			<input id="tag_button" type="button" value="Start tagging" style="font-size: 2.0em">
-		</div>
-	<p>
+	<div id="pagecontent" style="display:none">
 	<hr>
-	<div id="ideaOverview"></div>
-	<ul>
-	<div id="unclusteredIdeas"></div>
-	</ul>
-	<div id="clustersLoading" style="display:none">Clusters loading ...</div>
-	<div id="clusteredIdeas"></div>
+	<div class="spaceafter">
+		<h1>Code: <span id="question_code">{{ question_id }}</span> <span id="num_ideas"></span></h1>
+		Question: <span id="question_text">{{ question }}</span>
+	</div>
+	<div id="ideas"></div>
+	</div>
 {% endblock %}

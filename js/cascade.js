@@ -15,10 +15,17 @@
 // limitations under the License.
 //
 
+// TODO: #msg vs #warning; order of checks
+
 $(document).ready(function() {
 	initChannel();
 	initEventHandlers();
-		
+
+	if (!logged_in) {
+		$("#warning").html("Please log in");
+		return;
+	}
+			
 	if (!question_id) {
 		$("#warning").html("Question code required");
 		return;
@@ -29,11 +36,6 @@ $(document).ready(function() {
 		return;
 	}
 
-	if (!logged_in) {
-		$("#warning").html("Please log in");
-		return;
-	}
-	
 	getJob(question_id);
 });
 
@@ -187,7 +189,7 @@ function initEventHandlers() {
 	});
 
 	$("#admin_button").click(function() {
-		window.location.href="/admin?question_id=" + question_id;
+		redirectToAdminPage(question_id);
 	});
 }
 

@@ -93,8 +93,8 @@ function displayModes() {
 		// get question stats
 		displayQuestionStats(question_id);
 		
-		$("#notes_link").attr("href", "/idea?question_id=" + question_id);
-		$("#cascade_link").attr("href", "/cascade?question_id=" + question_id);
+		$("#notes_link").attr("href", getPhaseUrl(question_id, PHASE_NOTES));
+		$("#cascade_link").attr("href", getPhaseUrl(question_id, PHASE_CASCADE));
 		$("#cascade_k").val(cascade_k);
 		$("#cascade_m").val(cascade_m);
 		$("#cascade_t").val(cascade_t);
@@ -132,14 +132,13 @@ function displayQuestionStats(question_id) {
 		"question_id": question_id
 	}
 	$.getJSON("/query", data, function(results) {
-		alert(results+','+results["num_ideas"]);
 		var html = results["num_ideas"] + " notes";
 		$("#stats").html(html);
 	});	
 }
 
 function updateQuestionListItem(question) {
-	var html = "<a href='/admin?question_id=" + question.id + "'>" + question.title + "</a> <span class='note'>#"+question.id+"</span>";
+	var html = "<a href='" + getAdminPageUrl(question.id) + "'>" + question.title + "</a> <span class='note'>#"+question.id+"</span>";
 	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.id + ")'>[edit]</a>";
 	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a>";
 	html += "<br>";
@@ -187,8 +186,7 @@ function createQuestion() {
 				$("#newq_info").html(result.msg);
 				return;
 			}
-			window.location.href = "/admin?question_id=" + result.question_id
-			updateButtons();
+			redirectToAdminPage(result.question_id);
 		}, "json");
 	}
 }
@@ -203,7 +201,7 @@ function editQuestion(question_id) {
 	$.getJSON("/query", data, function(results) {
 		$("#newq_title").val(results.title);
 		$("#newq_question").val(results.question);
-		$("#newq_nickname_authentication").attr("checked", results.nickname_authentication);
+		$("#newq_nickname_authentication").prop("checked", results.nickname_authentication==1);
 		$("#newq_button").val("Update question");
 		$("#newq_button").data("question_id", question_id);
 	});
@@ -234,7 +232,7 @@ function deleteQuestionImpl(question_id) {
 		"question_id": question_id
 	};
 	$.post("/delete", data, function(result) {
-		window.location.href="/admin";
+		redirectToAdminPage();
 	});
 }
 

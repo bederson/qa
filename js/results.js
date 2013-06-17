@@ -15,24 +15,15 @@
 // limitations under the License.
 // 
 
+var SHOW_TAGCLOUDS = true;
+var MAX_CLOUD_HEIGHT = 800;
 var OFFLINE = false;					// For offline debugging
-var INCLUDE_UNCLUSTERED = true;			// TODO: make question option?
-var CLUSTER_BY_WORDS = "words";
-var CLUSTER_BY_SIMILARITY = "similarity";
 
 var numIdeas = 0;
-var MAX_CLOUD_HEIGHT = 800;
-var maxChartRows = 10;
-var tag_cluster_hists = {};
-var tag_idea_hists = {}
-var similar_idea_hists = {}
-var show_tags_in_charts = {};
-var num_clusters_to_create = 6;
-    
+   
 $(document).ready(function() {
-	
 	if (!logged_in) {
-		$("#msg").html("Please log in to view results");
+		$("#msg").html("Please log in");
 		return;
 	}
 
@@ -41,24 +32,19 @@ $(document).ready(function() {
 		$("#msg").html("Question code required");
 		return;
 	}
+
+	initChannel();
 		
+	$("#pagecontent").show();
+	
 	if (!jQuery.browser.mobile) {
 		$("#admin_buttons").show();
 	}
-	
+		
 	if (phase == PHASE_NOTES) {
 		$("#note").show();
-		$("#idea_link").attr("href", "/idea?question_id=" + question_id);
+		$("#idea_link").attr("href", getPhaseUrl(question_id, PHASE_NOTES));
 	}
-	
-	if (phase == PHASE_NOTES || phase == PHASE_COMPARE_BY_SIMILARITY) {
-		$("#num_clusters_slider").slider({ min:1, max:10, value:num_clusters_to_create});
-		updateClusterButtonLabel();
-		$("#cluster_controls").show();
-	}
-	
-	initChannel();
-	initEventHandlers();
 		
 	if (OFFLINE) {
 		displayIdeas();
@@ -67,276 +53,115 @@ $(document).ready(function() {
 		// http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
 		google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': displayIdeas });
 	}
-});
-
-function initEventHandlers() {
-	$("#num_clusters_slider").on("slide", function(event, ui) {
-		num_clusters_to_create = ui.value;
-		updateClusterButtonLabel();
-	});
-		
-	$("#cluster_button").click(function() {
-		if (phase == PHASE_NOTES) {
-			clusterIdeas();
-		}
-		else if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			clusterBySimilarity(INCLUDE_UNCLUSTERED);
-		}
-	});
 	
 	$("#admin_button").click(function() {
 		var question_id = getURLParameter("question_id");
-		window.location.href="/admin?question_id=" + question_id;
+		redirectToAdminPage(question_id);
 	});
-	
-	$("#tag_button").click(function() {
-		var question_id = getURLParameter("question_id");
-		window.location.href="/tag?question_id=" + question_id;
-	});
-}
-
-function updateClusterButtonLabel() {
-	var label = "";
-	//if (num_clusters_to_create > 1) {
-		label = "Create " + num_clusters_to_create + " clusters by ";
-		label += phase == PHASE_COMPARE_BY_SIMILARITY ? CLUSTER_BY_SIMILARITY : CLUSTER_BY_WORDS;
-	//}
-	//else {
-	//	label = "Uncluster";
-	//}
-	$("#cluster_button").val(label);
-}
-
-function clusterIdeas() {
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"client_id": client_id,
-		"num_clusters": num_clusters_to_create,
-		"question_id": question_id,
-		"cluster_by": CLUSTER_BY_WORDS
-	};
-	$.ajax({
-		type: "POST",
-		url: "/cluster",
-		data: data,
-		dataType: "json",
-		cache: false,
-		success: function(result) {
-			if (result.status == 0) {
-				$("#msg").html(result.msg);
-				$("#clustersLoading").hide();
-				$("#clusteredIdeas").show();
-				return;
-			}
-			else {
-				$("#clustersLoading").hide();
-				displayClusters(result);
-			}
-		},
-		error: function(XMLHttpRequest, textStatus, errorThrown) {
-			$("#msg").html("Error calling /cluster");
-			$("#clustersLoading").hide();
-			$("#clusteredIdeas").show();
-		}
-	});
-}
-
-function clusterBySimilarity(includeUnclustered) {
-	$("#clusteredIdeas").hide();
-	$("#clustersLoading").show();
-	$("#msg").html("");
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"client_id": client_id,
-		"num_clusters": num_clusters_to_create,
-		"question_id": question_id,
-		"cluster_by": CLUSTER_BY_SIMILARITY,
-		"include_unclustered": includeUnclustered ? "1" : "0"
-	};
-	$.ajax({
-		type: "POST",
-		url: "/cluster",
-		data: data,
-		dataType: "json",
-		cache: false,
-		success: function(result) {
-			if (result.status == 0) {
-				$("#msg").html(result.msg);
-				$("#clustersLoading").hide();
-				$("#clusteredIdeas").show();
-				return;
-			}
-			else {
-				$("#clustersLoading").hide();
-				displayClusters(result);
-			}
-		},
-		error: function(XMLHttpRequest, textStatus, errorThrown) {
-			$("#msg").html("Error calling /cluster");
-			$("#clustersLoading").hide();
-			$("#clusteredIdeas").show();
-		}
-	});
-}
-
-function displayClusters(results) {
-	var html = "";
-	var clusters = results.clusters;	
-	if (clusters.length > 0) {
-		var title = "";
-		if (results.cluster_type == CLUSTER_BY_WORDS) {
-			title = "Clustered by Words";
-		}
-		else if (results.cluster_type == CLUSTER_BY_SIMILARITY) {
-			title = "Clustered by Similarity";
-		}
-		html += "<h2 class=\"spaceafter\">" + title + "</h2>";
-	}
-
-	numIdeas = 0;	
-	for (var i in clusters) {
-		var cluster = clusters[i];
-		cluster.id = parseInt(i)+1;
-		html += clusterToHtml(cluster);
-	}
-	
-	$("#clusteredIdeas").html(html);
-	$("#clusteredIdeas").show();
-	updateNumIdeas();
-	
-	if (!jQuery.browser.mobile) {
-		for (var i in clusters) {
-			var divid = "vis" + (parseInt(i)+1);
-			displayCloud(divid, clusters[i].ideas);
-		}
-		
-		if (phase == PHASE_COMPARE_BY_SIMILARITY) {
-			displaySimilarIdeas();
-		}
-	}
-	
-	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
-}
+});
 
 function displayIdeas(ideas) {
-	var html = "Ideas loading ..."; 
-	$("#clusteredIdeas").html(html);
+	var html = "Notes loading ..."; 
+	$("#ideas").html(html);
 
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "ideas",
 		"question_id": question_id
 	};
-	$.getJSON("/query", data, displayIdeasImpl);
-}
-
-function displayIdeasImpl(results) {
-	numIdeas = 0;
-	var html = "";	
-	if (results.cluster_type == CLUSTER_BY_WORDS) {
-		html += "<h2 class=\"spaceafter\">Clustered by Words</h2>";
-	}
-	else if (results.cluster_type == CLUSTER_BY_SIMILARITY) {
-		html += "<h2 class=\"spaceafter\">Clustered by Similarity</h2>";
-	}
+	$.getJSON("/query", data, function(results) {
+		// TODO: only supports one group of ideas currently
+		var groupNumber = 1;
+		var html = ideasToHtml(results.ideas, groupNumber);
+		$("#ideas").html(html);
+		numIdeas = results.ideas.length;
+		updateNumIdeas();
 		
-	var clusters = results.clusters;
-	for (var i in clusters) {
-		var cluster = clusters[i];
-		cluster.id = parseInt(i)+1;
-		html += clusterToHtml(cluster);
-	}
-	$("#clusteredIdeas").html(html);
-	updateNumIdeas();
-	
-	if (!jQuery.browser.mobile) {
-		for (var i in clusters) {
-			var cluster = clusters[i];
-			displayCloud("vis" + (parseInt(i)+1), cluster.ideas);
+		// BEHAVIOR: tag cloud only displayed when notes no longer being added
+		if (SHOW_TAGCLOUDS && phase != PHASE_NOTES && !jQuery.browser.mobile) {
+			displayCloud("cloud" + groupNumber, results.ideas);
 		}
-	}
-	
-	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
+		
+		$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
+	});
 }
 
-function clusterToHtml(cluster) {
-	var html = "<h2>" + cluster.name + "</h2>";
-	html += "<table style='width: 100%'><tr>";
+function ideasToHtml(ideas, groupNumber) {
+	alert("hidden idea authors not handled yet");
+	// TODO: for testing only
+	var identityHidden = true;
+	
+	var html = "<table style='width: 100%'><tr>";
 	html += "<td style='width: 50%'>";
 	html += "<div class='ideas'>";
 	html += "<ul>";
-	for (var i in cluster.ideas) {
-		var idea = cluster.ideas[i];
-		tag_idea_hists[idea.id] = {};
-		var tagsid = "tags" + idea.id;
-		similar_idea_hists[idea.id] = {};
-		var similarid = "similar" + idea.id;
-		html += "<li>" + idea.text;
-		html += "<br>" + "<span ";
-		var identityHidden = idea.author.user_identity != "" && idea.author.user_identity != idea.author.nickname;
+	for (var i in ideas) {
+		var idea = ideas[i];
+		// TODO: for testing only
+		idea.userIdentity = "Jane Doe";
+		html += "<li>";
+		html += idea.idea + "<br/>";
+		html += "<span class='author'";
+		//var identityHidden = idea.author.user_identity != "" && idea.author.user_identity != idea.author;
 		if (identityHidden) {
-			html += "title='" + idea.author.user_identity + "' ";
+			html += "title='" + idea.userIdentity + "' ";
 		}
-		html += "class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + (identityHidden?"*":"") + "</span>";
-		html += "<span id='" + tagsid + "' class='tags'></span>";
-		html += "<span id='" + similarid + "' class='tags'></span>";
+		html += ">&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + (identityHidden?"*":"") + "</span>";
 		html += "</li>";
-		numIdeas += 1;
 	}
 	html += "</ul>"
 	html += "</div>";
 	html += "</td>";
+	
 	if (!jQuery.browser.mobile) {
-		var divid = "vis" + cluster.id;
-		var controlid = "control" + cluster.id;
+		if (!isDefined(groupNumber)) groupNumber = 1;
+		var divid = "cloud" + groupNumber;
+		var controlid = "control" + groupNumber;
 		html += "<td style='width: 50%' valign='top'><div id='" + divid + "'></div><div id='" + controlid + "'</div></td>";
 	}
 	html += "</tr></table>";
 	return html;
 }
 
-function createIdea(idea) {
-	var html = "<li>" + idea.text;
-	html += "<br>" + "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + "</span><br>";
+function addIdea(idea) {
+	// TODO: fix when user identity stuff fixed
+	var html = "<li>" + idea.idea + "<br/>";
+	html += "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + "</span><br>";
 	html += "</li>";
-	$("#unclusteredIdeas").prepend(html);
+	$("#ideas").prepend(html);
 	numIdeas += 1;
 	updateNumIdeas();
 }
 
 function updateNumIdeas() {
-	var question_id = getURLParameter("question_id");
-	var label = "note";
-	var overviewStr = "<h1>Code: " + question_id + " (";
+	var html = "(";
 	if (numIdeas == 0) {
-		overviewStr += "No " + label + "s yet";
+		html += "No notes yet";
 	} else if (numIdeas == 1) {
-		overviewStr += "1 " + label;
+		html += "1 " + label;
 	} else {
-		overviewStr += numIdeas + " " + label + "s";
+		html += numIdeas + " notes";
 	}
-	overviewStr += ")</h1>";
-	$("#ideaOverview").html(overviewStr);
-
-	$("#ideaOverview").append("Question: " + question);
+	html += ")";
+	$("#num_ideas").html(html);
 }
 
 //=================================================================================
 // Cloud Display
 //=================================================================================
 
-function displayCloud(cloudid, cluster) {
-	var height = $("#" + cloudid).parent().height();
+function displayCloud(divId, ideas) {
+	var height = $("#" + divId).parent().height();
 	if (height > MAX_CLOUD_HEIGHT) {
 		height = MAX_CLOUD_HEIGHT;
 	}
-	$("#" + cloudid).height(height);
+	$("#" + divId).height(height);
 				
 	var weights = {};
-	for (var j in cluster) {
-		var words = cluster[j].text.split(" ");
-		for (var k in words) {
-			var word = words[k].trim().toLowerCase();
+	for (var i in ideas) {
+		var words = ideas[i].idea.split(" ");
+		for (var j in words) {
+			var word = words[j].trim().toLowerCase();
 			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
 			if (!isStopWord(word)) {
 				if (word.length > 2) {
@@ -350,268 +175,15 @@ function displayCloud(cloudid, cluster) {
 		}
 	}
 
-	var word_list = [];
 	var i = 0;
+	var wordList = [];
 	for (var word in weights) {
-		var item = {text: word, weight: weights[word]};
-		word_list[i] = item;
+		var item = { text: word, weight: weights[word] };
+		wordList[i] = item;
 		i += 1;
 	}
 
-	$("#" + cloudid).jQCloud(word_list);
-}
-
-//=================================================================================
-// Idea Tags Display
-//=================================================================================
-function displayIdeaTags() {
-	// Initialize tag counts
-	for (tag in tag_idea_hists) {
-		tag_idea_hists[tag] = {};
-	}
-	
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"request": "ideatags",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(results) {
-		processIdeaTags(results);
-		drawIdeaTags();
-	});	
-}
-
-function processIdeaTags(data) {
-	var tags = data.tags;
-	// Process tags to fill data structures
-	for (var i in tags) {
-		var tag = tags[i].tag;
-		var idea_id = tags[i].idea_id;
-		createIdeaTag(tag, idea_id);
-	}
-}
-
-function createIdeaTag(tag, idea_id) {
-	if (tag in tag_idea_hists[idea_id]) {
-		tag_idea_hists[idea_id][tag] += 1;
-	} else {
-		tag_idea_hists[idea_id][tag] = 1
-	}
-}
-
-function drawIdeaTags() {
-	for (var i in tag_idea_hists) {
-		var chartid = "tags" + i;
-		var hist = tag_idea_hists[i];
-
-		// Create the data table.
-		var rows = [];
-		var max = 0;
-		for (item in hist) {
-			rows.push([item, hist[item]]);
-		}
-		rows.sort(function(a, b) {
-			return(b[1] - a[1]);
-		});
-
-		if (rows.length > 0) {
-			var html = "<br>&nbsp;&nbsp;&nbsp;&nbsp;Tags: ";
-			for (j in rows) {
-				if (j > 0) {
-					html += ", ";
-				}
-				var row = rows[j];
-				html += row[0] + " (" + row[1] + ")";
-			}
-			$("#" + chartid).html(html);
-		}
-	}
-}
-
-//=================================================================================
-// Similar Ideas Display
-//=================================================================================
-function displaySimilarIdeas() {
-	// Initialize counts
-	for (idea_id in similar_idea_hists) {
-		similar_idea_hists[idea_id] = {};
-	}
-		
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"request": "similarideas",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(results) {
-		var similar_ideas = results.ideas;
-		processSimilarIdeas(similar_ideas);
-		drawSimilarIdeas();
-	});	
-}
-
-function processSimilarIdeas(similar_ideas) {	
-	for (var i in similar_ideas) {
-		var idea = similar_ideas[i].idea;
-		var similar_to = similar_ideas[i].similar;
-		createSimilarIdea(similar_to.text, idea.id);
-	}
-}
-
-function createSimilarIdea(similar, idea_id) {
-	if (similar in similar_idea_hists[idea_id]) {
-		similar_idea_hists[idea_id][similar] += 1;
-	} else {
-		similar_idea_hists[idea_id][similar] = 1
-	}
-}
-
-function drawSimilarIdeas() {
-	for (var idea_id in similar_idea_hists) {
-		// Create the data table.
-		var rows = [];
-		var max = 0;
-		var hist = similar_idea_hists[idea_id];
-		for (item in hist) {
-			rows.push([item, hist[item]]);
-		}
-		rows.sort(function(a, b) {
-			return(b[1] - a[1]);
-		});
-
-		if (rows.length > 0) {
-			var html = "<br/>&nbsp;&nbsp;&nbsp;&nbsp;Similar: ";
-			for (j in rows) {
-				if (j > 0) {
-					html += ", ";
-				}
-				var row = rows[j];
-				html += row[0] + " (" + row[1] + ")";
-			}
-			$("#similar" + idea_id).html(html);
-		}
-	}
-}
-
-//=================================================================================
-// Cluster Tag Chart Display
-//=================================================================================
-function displayClusterTags() {
-	// Initialize tag counts
-	for (tag in tag_cluster_hists) {
-		tag_cluster_hists[tag] = {};
-	}
-	
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"request": "clustertags",
-		"question_id": question_id
-	};
-	$.getJSON("/query", data, function(results) {
-		processClusterTags(results);
-		drawCharts();
-	});
-}
-
-function processClusterTags(data) {
-	var tags = data.tags;
-	// Process tags to fill data structures
-	for (var i in tags) {
-		var tag = tags[i].tag;
-		var cluster = tags[i].cluster;
-		createClusterTag(tag, cluster);
-	}
-}
-
-function createClusterTag(tag, cluster) {
-	if (tag in tag_cluster_hists[cluster]) {
-		tag_cluster_hists[cluster][tag] += 1;
-	} else {
-		tag_cluster_hists[cluster][tag] = 1
-	}
-}
-
-function displayTagControls(clusters) {
-	for (var i in clusters) {
-		var id = clusters[i].id;
-		show_tags_in_charts[id] = false;
-		var controlid = "control" + id;
-		var showTagID = "showtag" + id;
-		var html = "<div style='margin-left:200px;'><input id='" + showTagID + "' type='button' value='Show tags'></div>";
-		$("#" + controlid).append(html);
-		$("#" + showTagID).data("cluster", id);
-		$("#" + showTagID).click(function(data) {
-			var clusterNum = $(this).data("cluster");
-			show_tags_in_charts[clusterNum] = true;
-			drawCharts();
-		});
-	}
-}
-
-// Callback that creates and populates a data table,
-// instantiates the chart, passes in the data and
-// draws it.
-function drawCharts() {
-	for (var i in tag_cluster_hists) {
-		var chartid = "vis" + i;
-		var hist = tag_cluster_hists[i];
-
-		// Create the data table.
-		var rows = [];
-		var max = 0;
-		for (item in hist) {
-			if (hist[item] > max) max = hist[item];
-			var tag_to_display = "";
-			if (show_tags_in_charts[i]) {
-				tag_to_display = item;
-			}
-			var row = [tag_to_display, hist[item]];
-			rows.push(row);
-		}
-		rows.sort(function(a, b) {
-			return(b[1] - a[1]);
-		});
-
-		if (rows.length > 0) {
-			if (OFFLINE) {
-				var html = "<ul>";
-				for (var j in rows) {
-					var row = rows[j];
-					html += "<li>" + row[0] + " (" + row[1] + ")";
-				}
-				html += "</ul>";
-				$("#" + chartid).html(html);
-			} else {
-				var data = new google.visualization.DataTable();
-				data.addColumn('string', 'Tag');
-				data.addColumn('number', 'Tags');
-				data.addRows(rows.splice(0, maxChartRows));
-				// Set chart options
-				var options = {
-					'title': 'Tag distribution',
-					'width': 600,
-					'height': 300,
-					'backgroundColor': $("body").css("background-color"),
-					'fontSize': 20,
-					'chartArea': {
-						'left': 190,
-						'right': 20,
-					},
-					'hAxis': {
-						'minValue': 0,
-						'format': "##",
-						'gridlines': {'count': (max + 1)},
-					},
-					'legend': {
-						'position': 'none'
-					}
-				};
-
-				// Instantiate and draw our chart, passing in some options.
-				var chart = new google.visualization.BarChart(document.getElementById(chartid));
-				chart.draw(data, options);
-			}
-		}
-	}
+	$("#" + divId).jQCloud(wordList);
 }
 
 //=================================================================================
@@ -657,7 +229,7 @@ function getWordStem(word) {
 // Channel support
 /////////////////////////
 function handleNew(idea) {
-	createIdea(idea);
+	addIdea(idea);
 }
 
 function handleRefresh(data) {
