@@ -65,6 +65,9 @@ class Question():
     nicknameAuthentication = False
     userId = None
     phase = 0
+    cascadeK = 5
+    cascadeM = 32
+    cascadeT = 8
       
     @property
     def code(self):
@@ -100,6 +103,7 @@ class Question():
             return question
     
     # TODO: modify Person to only update values given
+    # TODO: is there way to make updateProperties, updateValues, etc. 1 line function?
     def update(self, dbConnection=None, properties={}, create=False):
         updateProperties = []
         updateValues = ()
@@ -125,6 +129,18 @@ class Question():
             self.phase = properties["phase"]
             updateProperties.append("phase=%s")
             updateValues += (self.phase,)
+        if "cascadeK" in properties:
+            self.cascadeK = properties["cascadeK"]
+            updateProperties.append("cascade_K=%s")
+            updateValues += (self.cascadeK,)
+        if "cascadeM" in properties:
+            self.cascadeM = properties["cascadeM"]
+            updateProperties.append("cascade_m=%s")
+            updateValues += (self.cascadeM,)
+        if "cascadeT" in properties:
+            self.cascadeT = properties["cascadeT"]
+            updateProperties.append("cascade_t=%s")
+            updateValues += (self.cascadeT,)
 
         if dbConnection:
             if create:
@@ -142,7 +158,7 @@ class Question():
         dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_users where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_clients where question_id={0}".format(self.id))
-        dbConnection.cursor.execute("delete from ideas where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
         dbConnection.conn.commit()
         
         self.id = None
@@ -166,15 +182,20 @@ class Question():
         row = dbConnection.cursor.fetchone()
         return Question.getFromDBRow(row) if row else None
 
-    @staticmethod
-    def getByUser(dbConnection, user=users.get_current_user()):
+    @staticmethod                
+    def getByUser(dbConnection, asDict=False):
         questions = []
+        # BEHAVIOR: only authenticated users can create questions so return
+        # questions created by current user
+        user = users.get_current_user()
         if user:
             sql = "select * from questions,users where questions.user_id=users.id and authenticated_user_id=%s"
             dbConnection.cursor.execute(sql, (user.user_id()))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 question = Question.getFromDBRow(row)
+                if asDict:
+                    question = question.toDict()
                 questions.append(question)
         return questions
      
@@ -189,8 +210,18 @@ class Question():
             question.nicknameAuthentication = row["nickname_authentication"]
             question.userId = row["user_id"]
             question.phase = row["phase"]
+            question.cascadeK = row["cascade_k"]
+            question.cascadeM = row["cascade_m"]
+            question.cascadeT = row["cascade_t"]
         return question
-                
+    
+    @staticmethod
+    def getStats(dbConnection, questionId):
+        stats = {
+            "num_ideas" : Idea.getCountForQuestion(dbConnection, questionId)
+        }
+        return stats
+               
     def toDict(self):
         return {
             "id": self.id,
@@ -198,9 +229,13 @@ class Question():
             "question": self.questionText,
             "nickname_authentication": self.nicknameAuthentication,
             "user_id": self.userId,
-            "phase": self.phase
+            "phase": self.phase,
+            "cascade_k": self.cascadeK,
+            "cascade_m": self.cascadeM,
+            "cascade_t": self.cascadeT
         } 
 
+# TODO: must associate question_id with nickname only authenticated users
 class Person():               
     id = None
     authenticatedUserId = None
@@ -360,23 +395,90 @@ class Idea():
     questionId = None
     userId = None
     ideaText = None
- 
+        
     @staticmethod
     def create(dbConnection, questionId, userId, ideaText):
-        # TODO: Monday
-        pass
-#         if len(ideaText) > 500:
-#             ideaText = ideaText[:500]
-#         ideaText = ideaText.replace("\n", "")
-#
-#         # NEED TO ADD TO DB
-#         idea = Idea()
-#         idea.id = xx
-#         idea.questionId = questionId
-#         idea.userId = userId
-#         idea.ideaText = ideaText
-#         return idea
+        idea = Idea()
+        properties = {
+            "questionId" : questionId,
+            "userId" : userId,
+            "ideaText" : ideaText
+        }
+        idea.update(dbConnection, properties, create=True)
+        return idea
+    
+    def update(self, dbConnection=None, properties={}, create=False):    
+        if "id" in properties:
+            self.id = properties["id"]
+        if "questionId" in properties:
+            self.questionId = properties["questionId"]
+        if "userId" in properties:
+            self.userId = properties["userId"]
+        if "ideaText" in properties:
+            self.ideaText = properties["ideaText"]
 
+        if dbConnection:
+            if create:
+                sql = "insert into question_ideas (question_id, user_id, idea) values (%s, %s, %s)"
+                dbConnection.cursor.execute(sql, (self.questionId, self.userId, self.ideaText))
+                self.id = dbConnection.cursor.lastrowid
+                dbConnection.conn.commit()
+            else:
+                sql = "update question_ideas set idea=%s where id=%s"
+                dbConnection.cursor.execute(sql, (self.idea, self.id))
+                dbConnection.conn.commit()
+    
+    @staticmethod
+    def getById(dbConnection, ideaId):
+        sql = "select * from question_ideas where id=%s"
+        dbConnection.cursor.execute(sql, (ideaId))
+        row = dbConnection.cursor.fetchone()
+        return Idea.getFromDBRow(row) if row else None
+    
+    @staticmethod
+    def getByUser(dbConnection, userId, asDict=False):
+        ideas = []
+        sql = "select * from question_ideas where user_id=%s"
+        dbConnection.cursor.execute(sql, (userId))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            idea = Idea.getFromDBRow(row)
+            if asDict:
+                idea = idea.toDict()
+            ideas.append(idea)
+        return ideas
+    
+    @staticmethod
+    def getByQuestion(dbConnection, questionId, asDict=False):
+        ideas = []
+        sql = "select * from question_ideas where question_id=%s"
+        dbConnection.cursor.execute(sql, (questionId))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            idea = Idea.getFromDBRow(row)
+            if asDict:
+                idea = idea.toDict()
+            ideas.append(idea)
+        return ideas
+    
+    @staticmethod
+    def getCountForQuestion(dbConnection, questionId):
+        sql = "select count(*) as ct from question_ideas where question_id=%s"
+        dbConnection.cursor.execute(sql, (questionId))
+        row = dbConnection.cursor.fetchone()
+        return row["ct"] if row else 0
+    
+    @staticmethod
+    def getFromDBRow(row):
+        person = None
+        if row:
+            idea = Idea()
+            idea.id = row["id"]
+            idea.questionId = row["question_id"]
+            idea.userId = row["user_id"]
+            idea.ideaText = row["idea"]
+        return person
+                
     def toDict(self):
         return {
             "id" : self.id,

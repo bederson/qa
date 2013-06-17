@@ -20,7 +20,6 @@ import constants
 import helpers
 import json
 import os
-import random
 import string
 import webapp2
 from google.appengine.api import users
@@ -230,46 +229,45 @@ class AdminPageHandler(BaseHandler):
     def get(self):
         self.dbConnect()
         person = self.initUserContext(force_check=True)
-        questionObj = None
+        question = None
         
         # check if new_question_id stored in session
         # newly created questions may not be searchable immediately
         # but they should be retrievable with a key
         # would not be required if js did not immediately reload page
         # with question_id as url param (which forces new question search)
+        
+        # FIX: needed anymore?
         session = gaesessions.get_current_session()
-        question_id = session.pop("new_question_key") if session.has_key("new_question_key") else None                
-        if question_id:
-            questionObj = Question.getById(question_id)
+        questionId = session.pop("new_question_key") if session.has_key("new_question_key") else None                
+        if questionId:
+            question = Question.getById(questionId)
             
-        question_id = self.request.get("question_id")
-        if question_id and not questionObj:
-            questionObj = Question.getById(self.dbConnection, question_id)
+        questionId = self.request.get("question_id")
+        if questionId and not question:
+            question = Question.getById(self.dbConnection, questionId)
         
         session = gaesessions.get_current_session()
         
         # check if user logged in
         if not person or not person.authenticatedUserId:
-            questionObj = None
+            question = None
             session['msg'] = "Please login"
             
         # check if valid question code
-        elif question_id and not questionObj:
+        elif questionId and not question:
             session['msg'] = "Invalid question code"
         
         # check if question owned by logged in user
-        elif questionObj and (not questionObj.isAuthor(person) and not Person.isAdmin()):
-            questionObj = None
+        elif question and (not question.isAuthor(person) and not Person.isAdmin()):
+            question = None
             session['msg'] = "You do not have permission to edit this question"
 
-        template_values = get_default_template_values(self, person, questionObj) 
-        # TODO: FIX!!
-#         if questionObj:
-#             cascade = Cascade.getCascadeForQuestion(questionObj)            
-#             template_values["cascade_k"] = cascade.k
-#             template_values["cascade_m"] = cascade.m
-#             template_values["cascade_t"] = cascade.t
-#             template_values["num_ideas"] = Idea.getNumIdeas(questionObj)
+        template_values = get_default_template_values(self, person, question) 
+        if question:
+            template_values["cascade_k"] = question.cascadeK
+            template_values["cascade_m"] = question.cascadeM
+            template_values["cascade_t"] = question.cascadeT
 
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, template_values))
@@ -390,35 +388,46 @@ class NicknameHandler(BaseHandler):
 class QueryHandler(BaseHandler):
     def get(self):
         self.dbConnect()
-        person = self.initUserContext()
+        user = self.initUserContext()
         request = self.request.get("request")
         questionId = self.request.get("question_id")
-        question = Question.getById(self.dbConnection, questionId)
-
         data = {}
-        if request == "ideas":
-            data = getIdeas(questionId)
-        elif request == "idea":
-            idea_id = self.request.get("idea_id")
-            data = getIdea(idea_id)
-        elif request == "phase":
-            data = {"phase": Question.getPhase(question)}
-        elif request == "question":
+        
+        # questions created by user
+        if request == "questions":
+            questions = Question.getByUser(self.dbConnection, asDict=True)
+            data = { "questions": questions }
+            
+        # details about specific question
+        elif request == "question" and questionId:       
+            question = Question.getById(self.dbConnection, questionId)
             if question:
                 data = question.toDict()
+                
             else:
-                data = {
-                    "title": "", 
-                    "question": "",
-                    "nicknameAuthentication": False,
-                    "msg": "Invalid code - it should be 5 digits"
-                }
-        elif request == "questions":
-            userQuestions = []
-            for userQuestion in Question.getByUser(self.dbConnection):
-                userQuestions.append(userQuestion.toDict())
-            data = {"questions": userQuestions}
-
+                question = Question()
+                data = question.toDict()
+                data["msg"] = "Invalid code - it should be 5 digits"
+        
+        # stats for specific question (# ideas, etc.)
+        elif request == "stats" and questionId:
+            data = Question.getStats(self.dbConnection, questionId)
+                  
+        # ideas for question
+        elif request == "ideas" and questionId:
+            ideas = Idea.getByQuestion(questionId, asDict=True)
+            data = { "ideas": ideas }
+            
+        elif request == "idea":
+            ideaId = self.request.get("idea_id")
+            idea = Idea.getById(self.dbConnection, ideaId)
+            if idea:
+                data = idea.toDict()
+            else:
+                idea = Idea()
+                data = idea.toDict()
+                data["msg"] = "Idea not found"
+        
         self.writeResponseAsJson(data)
         self.dbDisconnect()
 
@@ -520,13 +529,10 @@ class DeleteHandler(BaseHandler):
         self.initUserContext(force_check=True)
         clientId = self.request.get('client_id')
         questionId = self.request.get("question_id")
-        Question.delete(questionId)
-
-        # Update clients
-        message = {
-            "op": "delete"
-        }
-        sendMessage(self.dbConnection, clientId, questionId, message)        # Update other clients about this change
+        question = Question.getById(self.dbConnection, questionId)
+        if question:
+            question.delete(self.dbConnection)
+            sendMessage(self.dbConnection, clientId, questionId, { "op": "delete" })
         self.dbDisconnect()
         
 class CascadeJobHandler(BaseHandler):
@@ -640,33 +646,6 @@ class DisconnectedHandler(webapp2.RequestHandler):
 #####################
 # Text Support
 #####################
-
-def getIdea(ideaIdStr):
-    # TODO: FIX!!
-    return None
-#     ideaObj = Idea.getIdeaById(ideaIdStr)
-#     if ideaObj:
-#         idea = {
-#             "idea": ideaObj.text,
-#             "author": Person.toDict(ideaObj.author)
-#         }
-#     else:
-#         idea = {}
-#     return idea
-
-def getIdeas(questionIdStr):
-    # TODO: FIX!!
-    return None
-#     questionObj = Question.getQuestionById(questionIdStr)
-# 
-#     # Any ideas that aren't in any cluster (ideas may not be clustered at all)
-#     ideaObjs = Idea.all().filter("question = ", questionObj).filter("cluster =", None)
-#     if ideaObjs.count() > 0:
-#         ideas = []
-#         for ideaObj in ideaObjs:
-#             ideas.append(ideaObj.toDict())
-#         
-#     return ideas
 
 def computeBagsOfWords(question):
     # TODO: FIX!!

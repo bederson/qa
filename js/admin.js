@@ -87,8 +87,11 @@ function displayModes() {
 		html += "<strong>Question Code: " + question_id + "</strong><br/>";
 		html += "Title: " + title + "<br/>";
 		html += "Question: " + question + "<br/>";
-		html += num_ideas + " notes" + "<br/>";
+		html += "<div id=\"stats\">&nbsp;</div><br/>";
 		$("#question").html(html);
+		
+		// get question stats
+		displayQuestionStats(question_id);
 		
 		$("#notes_link").attr("href", "/idea?question_id=" + question_id);
 		$("#cascade_link").attr("href", "/cascade?question_id=" + question_id);
@@ -103,29 +106,36 @@ function displayModes() {
 }
 
 function displayQuestions() {
-	data = {
-		"request": "questions"
-	};
-	$.getJSON("/query", data, function(results) {
-		displayQuestionsImpl(results)
+	$.getJSON("/query", { "request": "questions" }, function(results) {
+		if (results.questions.length == 0) {
+			$("#questions_heading").css("display", "none");
+		} else {
+			var html = "<ul>";
+			for (var i in results.questions) {
+				var question = results.questions[i];
+				html += '<li id="question_'+question.id+'"></li>';
+			}
+			html += "</ul>";
+			$("#questions").html(html);
+			
+			for (var i in results.questions) {
+				var question = results.questions[i];
+				updateQuestionListItem(question);
+			}
+		}
 	});	
 }
 
-function displayQuestionsImpl(results) {
-	var questions = results.questions;
-	if (questions.length == 0) {
-		$("#questions_heading").css("display", "none");
-	} else {
-		var html = "<ul>";
-		for (var i in questions) {
-			html += '<li id="question_'+questions[i].question_id+'"></li>';
-		}
-		html += "</ul>";
-		$("#questions").html(html);
-		for (var i in questions) {
-			updateQuestionListItem(questions[i]);
-		}
+function displayQuestionStats(question_id) {
+	data = {
+		"request": "stats",
+		"question_id": question_id
 	}
+	$.getJSON("/query", data, function(results) {
+		alert(results+','+results["num_ideas"]);
+		var html = results["num_ideas"] + " notes";
+		$("#stats").html(html);
+	});	
 }
 
 function updateQuestionListItem(question) {
@@ -137,8 +147,8 @@ function updateQuestionListItem(question) {
 	if (question.nickname_authentication) {
 		html += '<br/><span class="note"><em>Nickname authentication</em></span>';
 	}
-	html += '<br/><em><span id="question_'+question.question_id+'_phase" class="note">'+phaseToString(question.phase)+'</em></span>';
-	$("#question_"+question.question_id).html(html);
+	html += '<br/><em><span id="question_'+question.id+'_phase" class="note">'+phaseToString(question.phase)+'</em></span>';
+	$("#question_"+question.id).html(html);
 }
 
 function createQuestion() {
@@ -184,6 +194,7 @@ function createQuestion() {
 }
 
 function editQuestion(question_id) {
+	// TODO: load question info from memory, no need to go back to db
 	$("#newq_info").html("");
 	data = {
 		"request": "question",
@@ -206,7 +217,7 @@ function deleteQuestion(question_id) {
 		height: 240,
 		modal: true,
 		buttons: {
-			"Delete all items": function() {
+			"Delete all data": function() {
 				deleteQuestionImpl(question_id);
 				$(this).dialog( "close" );
 			},

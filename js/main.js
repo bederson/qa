@@ -48,6 +48,7 @@ function submit() {
 		return;
 	}
 	
+	// TODO: need better way to login to question?
 	var data = {
 		"request": "question",
 		"question_id": question_id
