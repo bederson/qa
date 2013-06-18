@@ -23,22 +23,15 @@ limitations under the License.
 	<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css" />
 	<script src="http://code.jquery.com/ui/1.10.0/jquery-ui.js"></script>
 	<script type="text/javascript" src="js/admin.js"></script>
-	<script>
-		var phase = parseInt("{{ phase }}");
-		var title = "{{ title }}";
-		var question = "{{ question }}";
-		var cascade_k = parseInt("{{ cascade_k }}");
-		var cascade_m = parseInt("{{ cascade_m }}");
-		var cascade_t = parseInt("{{ cascade_t }}");
-	</script>
 {% endblock %}
 
 {% block content %}
 	<h1>Administration Interface</h1>
 	<div id="msg" class="warning spaceafter">{{ msg }}</div>
-	<div id="admin_area" style="display:none">
+	<div id="page_content" style="display:none">
+	<div id="selected_question" style="display:none">
 	<div id="question"></div>
-	<table id="question_buttons" style="display:none">
+	<table>
 		<tr valign="top">
 			<td colspan="2">
 				<input id="p0button" type="button">
@@ -78,7 +71,8 @@ limitations under the License.
 			</td>
 		</tr>
 	</table>
-
+	</div>
+	
 	<br>
 	<h2>Create a new question:</h2><br>
 	<table id="question_table">
@@ -111,15 +105,15 @@ limitations under the License.
 			<td>
 			</td>
 			<td>
-				<input id="newq_button" type="submit" value="Create new question">
+				<input id="newq_button" type="submit" value="Create new question" style="margin-bottom:10px">
 				<div id="newq_info" class="warning"></div>
 			</td>
 		</tr>
 	</table>
 
 	<br>
-	<h2 id="questions_heading">Your existing questions:</h2>
-	<div id="questions"></div>
+	<h2>Your existing questions:</h2>
+	<div id="question_list"><p>Loading ...</p></div>
 	<div id="delete_confirm" title="Delete Confirmation" style="display:none">
 		<p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>All data associated with this question will be permanently deleted and cannot be recovered. Are you sure?</p>
 	</div>

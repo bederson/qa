@@ -83,7 +83,7 @@ function initEventHandlers() {
 			"idea": idea,
 			"question_id": question_id
 		};
-		$.post("/newidea", data, function() {
+		$.post("/new_idea", data, function() {
 			$("#submit").removeAttr("disabled");
 			$("#thankyou").css("display", "inline");
 			$("#results_link").attr("href", "/results?question_id=" + question_id);

@@ -15,196 +15,268 @@
 // limitations under the License.
 // 
 
+var questions = [];
+var selected_question_id = null;
+
 $(document).ready(function() {
-	if (!logged_in) {
-		$("#msg").html("Please log in with a Google account to create/edit your own questions");
+	if ($("#msg").html()) {
 		return;
 	}
-
-	question_id = getURLParameter("question_id");
-	if (!question_id || question!="") {	
-		initEventHandlers();
-		updateButtons();
-		displayModes();
-		displayQuestions();	
-		$("#admin_area").show();
-	}
+	
+	$("#page_content").show();	
+	loadQuestions();
+	
+	$("#newq_button").click(function() {
+		createEditQuestion();
+	});
+		
+	$("#p0button").click(function() {
+		var question = getSelectedQuestion();
+		setPhase(question.phase == PHASE_DISABLED ? PHASE_NOTES : PHASE_DISABLED);
+	});
+	
+	$("#p1button").click(function() {
+		setPhase(PHASE_NOTES);
+	});
+	
+	$("#p5button").click(function() {
+		setPhase(PHASE_CASCADE);
+	});
+		
+	$(".cascade_option").blur(function() {
+		setCascadeOptions();
+	});
 });
 
-function initEventHandlers() {
-	$("#p0button").click(function() {
-		if (phase == PHASE_DISABLED) {
-			set_phase(PHASE_NOTES);
-		} else {
-			set_phase(PHASE_DISABLED);
-		}
-	});
-	$("#p1button").click(function() {
-		set_phase(PHASE_NOTES);
-	});
-	$("#p5button").click(function() {
-		set_phase(PHASE_CASCADE);
-	});
-	$("#newq_button").click(function() {
-		createQuestion();
-	});
-	$(".cascade_option").blur(function() {
-		set_cascade_options($("#cascade_k").val(), $("#cascade_m").val(), $("#cascade_t").val());
-	});
-}
-
-function set_phase(new_phase) {	
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"client_id": client_id,
-		"phase": new_phase,
-		"question_id": question_id
-	};
-	
-	$.post("/set_phase", data, function() {
-		phase = new_phase;
-		updateButtons();
-		$("#question_"+data.question_id+"_phase").html(phaseToString(new_phase));
-	});
-}
-
-function set_cascade_options(k, m, t) {
-	var question_id = getURLParameter("question_id");
-	var data = {
-		"client_id": client_id,
-		"question_id": question_id,
-		"cascade_k": k,
-		"cascade_m": m,
-		"cascade_t": t
-	};
-	$.post("/set_cascade_options", data);
-}
-
-function displayModes() {
-	var question_id = getURLParameter("question_id");
-	if (isDefined(question_id)) {
-		var html = "";
-		html += "<strong>Question Code: " + question_id + "</strong><br/>";
-		html += "Title: " + title + "<br/>";
-		html += "Question: " + question + "<br/>";
-		html += "<div id=\"stats\">&nbsp;</div><br/>";
-		$("#question").html(html);
-		
-		// get question stats
-		displayQuestionStats(question_id);
-		
-		$("#notes_link").attr("href", getPhaseUrl(question_id, PHASE_NOTES));
-		$("#cascade_link").attr("href", getPhaseUrl(question_id, PHASE_CASCADE));
-		$("#cascade_k").val(cascade_k);
-		$("#cascade_m").val(cascade_m);
-		$("#cascade_t").val(cascade_t);
-		$("#results_link").attr("href", "/results?question_id=" + question_id);
-
-		$("#question_buttons").css("display", "table");
-		updateButtons();
-	}
-}
-
-function displayQuestions() {
+function loadQuestions() {
 	$.getJSON("/query", { "request": "questions" }, function(results) {
-		if (results.questions.length == 0) {
-			$("#questions_heading").css("display", "none");
-		} else {
-			var html = "<ul>";
-			for (var i in results.questions) {
-				var question = results.questions[i];
-				html += '<li id="question_'+question.id+'"></li>';
-			}
-			html += "</ul>";
-			$("#questions").html(html);
-			
-			for (var i in results.questions) {
-				var question = results.questions[i];
-				updateQuestionListItem(question);
-			}
+		questions = results.questions;
+		displayQuestionsList();
+		var question_id = getURLParameter("question_id");
+		if (question_id) {
+			selectQuestion(question_id);
 		}
 	});	
 }
 
-function displayQuestionStats(question_id) {
-	data = {
-		"request": "stats",
-		"question_id": question_id
+function displayQuestionsList() {
+	var html = "";
+	if (questions.length == 0) {
+		html = "<p>None</p>";
 	}
-	$.getJSON("/query", data, function(results) {
-		var html = results["num_ideas"] + " notes";
-		$("#stats").html(html);
-	});	
+	else {
+		html += "<ul>";
+		for (var i in questions) {
+			html += '<li id="question_'+questions[i].id+'" style=\"margin-bottom:10px\">';
+			html += getQuestionItemHtml(questions[i]);
+			html += '</li>';
+		}
+		html += "</ul>";
+	}
+	$("#question_list").html(html);
 }
 
-function updateQuestionListItem(question) {
-	var html = "<a href='" + getAdminPageUrl(question.id) + "'>" + question.title + "</a> <span class='note'>#"+question.id+"</span>";
-	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=edit_question href='javascript:editQuestion(" + question.id + ")'>[edit]</a>";
-	html += "&nbsp;&nbsp;&nbsp;&nbsp;<a id=delete_question href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a>";
-	html += "<br>";
-	html += question.question;
-	if (question.nickname_authentication) {
-		html += '<br/><span class="note"><em>Nickname authentication</em></span>';
-	}
-	html += '<br/><em><span id="question_'+question.id+'_phase" class="note">'+phaseToString(question.phase)+'</em></span>';
+function displayQuestionItem(question) {
+	var html = getQuestionItemHtml(question);
 	$("#question_"+question.id).html(html);
 }
 
-function createQuestion() {
-	var title = $("#newq_title").val();
-	var question = $("#newq_question").val();
-	
-	if (!title || !question) {
-		$("#newq_info").html("Title and question required");
+function getQuestionItemHtml(question) {
+	var html = "<a href='javascript:selectQuestion(" + question.id + ")'>" + question.title + "</a> ";
+	html += "<span class='note'>#"+question.id+"</span>&nbsp;&nbsp;&nbsp;&nbsp;";
+	html += "<a href='javascript:editQuestionForm(" + question.id + ")'>[edit]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
+	html += "<a href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a><br/>";
+	html += question.question + "<br/>";
+	if (question.nickname_authentication) {
+		html += '<span class="note"><em>Nickname authentication</em></span><br/>';
 	}
-	else if (isDefined($("#newq_button").data("question_id"))) {
-		// Edit question
-		var data = {
-			"client_id": client_id,
-			"title": title,
-			"question": question,
-			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0",
-			"question_id": $("#newq_button").data("question_id")
-		};
-		$.post("/editquestion", data, function(result) {
-			if (result.status == 0) {
-				$("#newq_info").html(result.msg);
-				return;
+	html += '<em><span class="note">'+phaseToString(question.phase)+'</em></span>';
+	return html;
+}
+
+function selectQuestion(question_id) {
+	selected_question_id = question_id;
+	displaySelectedQuestion();
+}
+
+function displaySelectedQuestion() {
+	var question = getSelectedQuestion();
+	if (!question) {
+		$("#selected_question").hide();
+		return;
+	}
+		
+	var html = "<strong>Question Code: " + question.id + "</strong><br/>";
+	html += "Title: " + question.title + "<br/>";
+	html += "Question: " + question.question + "<br/>";
+	html += "<div id=\"stats\">&nbsp;</div><br/>";
+	$("#question").html(html);
+		
+	// get question stats
+	updateQuestionStats();
+		
+	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
+	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
+	$("#cascade_k").val(question.cascade_k);
+	$("#cascade_m").val(question.cascade_m);
+	$("#cascade_t").val(question.cascade_t);
+	$("#results_link").attr("href", "/results?question_id=" + question.id);
+	
+	if (question.phase == PHASE_DISABLED) {
+		$("#p0button").val("Enable question");
+		$("#p1button").val("Note entry disabled");
+		$("#p5button").val("Cascade disabled");
+	} 
+	else {
+		$("#p0button").val("Disable question");
+		$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
+		$("#p5button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
+	}
+	
+	enableDisable($("#p1button"), question.phase != PHASE_DISABLED && question.phase != PHASE_NOTES);
+	enableDisable($("#p5button"), question.phase != PHASE_DISABLED && question.phase != PHASE_CASCADE)
+
+	$("#selected_question").show();
+}
+
+function updateQuestionStats() {
+// BEHAVIOR: currently stats are only retrieved for each question once per page load
+	var question = getSelectedQuestion();
+	if (!question) {
+		return;
+	}
+	
+	if (isDefined(question.num_ideas)) {
+		displayQuestionStats(question.num_ideas);
+	}
+	else {
+		data = {
+			"request": "stats",
+			"question_id": question.id
+		}
+		$.getJSON("/query", data, function(results) {
+			var question = getQuestion(results.question_id);
+			if (question) {
+				question.num_ideas = results["num_ideas"];
+				if (isSelectedQuestion(question.id)) {
+					displayQuestionStats(question.num_ideas);
+				}
 			}
-			updateQuestionListItem(result.question);
-		}, "json");
-	} else {
-		// Create new question
-		var data = {
-			"client_id": client_id,
-			"title": title,
-			"question": question,
-			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
-		};
-		$.post("/newquestion", data, function(result) {
-			if (result.status == 0) {
-				$("#newq_info").html(result.msg);
-				return;
-			}
-			redirectToAdminPage(result.question_id);
-		}, "json");
+		});
 	}
 }
 
-function editQuestion(question_id) {
-	// TODO: load question info from memory, no need to go back to db
-	$("#newq_info").html("");
-	data = {
-		"request": "question",
-		"question_id": question_id
+function displayQuestionStats(numIdeas) {
+	var html = numIdeas + " notes";
+	$("#stats").html(html);
+}
+
+function setPhase(phase) {
+	var question = getSelectedQuestion();
+	if (!question) {
+		alert("Phase not changed. Question not found.");
+		return;
 	}
-	$.getJSON("/query", data, function(results) {
-		$("#newq_title").val(results.title);
-		$("#newq_question").val(results.question);
-		$("#newq_nickname_authentication").prop("checked", results.nickname_authentication==1);
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id,
+		"phase": phase
+	};
+	$.post("/set_phase", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		updateQuestion(result.question.id, result.question);				
+	}, "json");
+}
+
+function setCascadeOptions() {
+	var question = getSelectedQuestion();
+	if (!question) {
+		alert("Cascade options not change. Question not found");
+		return;
+	}	
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id,
+		"cascade_k": $("#cascade_k").val(),
+		"cascade_m": $("#cascade_m").val(),
+		"cascade_t": $("#cascade_t").val()
+	};
+	$.post("/set_cascade_options", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		updateQuestion(result.question.id, result.question);
+	}, "json");
+}
+
+function createEditQuestion() {
+	var title = $("#newq_title").val();
+	var questionText = $("#newq_question").val();
+	
+	if (!title || !questionText) {
+		$("#newq_info").html("Title and question required");
+	}
+	
+	else {
+		var data = {
+			"client_id": client_id,
+			"title": title,
+			"question": questionText,
+			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
+		};
+			
+		// edit existing question
+		if (isDefined($("#newq_button").data("question_id"))) {
+			data["question_id"] = $("#newq_button").data("question_id");
+			$.post("/edit_question", data, function(result) {
+				if (result.status == 0) {
+					$("#newq_info").html(result.msg);
+					return;
+				}
+				updateQuestion(result.question.id, result.question);
+				createQuestionForm();
+			}, "json");
+		}
+		
+		// create new question
+		else {
+			$.post("/new_question", data, function(result) {
+				if (result.status == 0) {
+					$("#newq_info").html(result.msg);
+					return;
+				}
+				questions.push(result.question);
+				displayQuestionsList();
+				selectQuestion(result.question.id, true);	
+				createQuestionForm();			
+			}, "json");
+		}
+	}
+}
+
+function createQuestionForm() {
+	$("#newq_info").html("");
+	$("#newq_title").val("");
+	$("#newq_question").val("");
+	$("#newq_nickname_authentication").prop("checked", false);
+	$("#newq_button").val("Create new question");
+	$("#newq_button").removeData("question_id");
+}
+
+function editQuestionForm(question_id) {
+	var question = getQuestion(question_id);
+	if (question) {
+		$("#newq_info").html("");
+		$("#newq_title").val(question.title);
+		$("#newq_question").val(question.question);
+		$("#newq_nickname_authentication").prop("checked", question.nickname_authentication);
 		$("#newq_button").val("Update question");
-		$("#newq_button").data("question_id", question_id);
-	});
+		$("#newq_button").data("question_id", question.id);
+	}
 }
 
 function deleteQuestion(question_id) {
@@ -216,7 +288,21 @@ function deleteQuestion(question_id) {
 		modal: true,
 		buttons: {
 			"Delete all data": function() {
-				deleteQuestionImpl(question_id);
+				var data = {
+					"client_id": client_id,
+					"question_id": question_id
+				};
+				$.post("/delete_question", data, function(result) {
+					var deletedIndex = getQuestionIndex(question_id);
+					if (deletedIndex != -1) {
+						questions.splice(deletedIndex, 1);
+						displayQuestionsList();
+						if (isSelectedQuestion(question_id)) {
+							selectQuestion(null);
+						}
+						createQuestionForm();
+					}
+				}, "json");
 				$(this).dialog( "close" );
 			},
 			Cancel: function() {
@@ -226,36 +312,40 @@ function deleteQuestion(question_id) {
 	});
 }
 
-function deleteQuestionImpl(question_id) {
-	var data = {
-		"client_id": client_id,
-		"question_id": question_id
-	};
-	$.post("/delete", data, function(result) {
-		redirectToAdminPage();
-	});
+function getQuestion(question_id) {
+	var question = null;
+	var index = getQuestionIndex(question_id);
+	return index != -1 ? questions[index] : null;
 }
 
-function updateButtons() {
-	if (phase == PHASE_DISABLED) {
-		$("#p0button").val("Enable question");
-		$("#p1button").val("Note entry disabled");
-		$("#p5button").val("Cascade disabled");
-		$("#p1button").attr("disabled", "disabled");
-		$("#p5button").attr("disabled", "disabled");
-	} else {
-		$("#p0button").val("Disable question");
-		$("#p1button").val("Enable adding of notes");
-		$("#p5button").val("Enable Cascade");
-		$("#p1button").removeAttr("disabled");
-		$("#p5button").removeAttr("disabled");
-		
-		if (phase == PHASE_NOTES) {
-			$("#p1button").val("Note entry enabled");
-			$("#p1button").attr("disabled", "disabled");
-		} else if (phase == PHASE_CASCADE) {
-			$("#p5button").val("Cascade enabled");
-			$("#p5button").attr("disabled", "disabled");
+function getSelectedQuestion() {
+	return selected_question_id ? getQuestion(selected_question_id) : null;
+}
+
+function isSelectedQuestion(question_id) {
+	return selected_question_id && selected_question_id == question_id;
+}
+
+function updateQuestion(question_id, data) {
+	var index = getQuestionIndex(question_id);
+	if (index != -1) {
+		questions[index] = data;
+		if (isSelectedQuestion(question_id)) {
+			displaySelectedQuestion();
+		}
+		displayQuestionItem(questions[index])		
+	}
+}
+
+function getQuestionIndex(question_id) {
+	var index = -1;
+	if (question_id) {
+		for (var i in questions) {
+			if (questions[i].id == question_id) {
+				index = i;
+				break;
+			}
 		}
 	}
+	return index;	
 }

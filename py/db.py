@@ -218,6 +218,7 @@ class Question():
     @staticmethod
     def getStats(dbConnection, questionId):
         stats = {
+            "question_id" : questionId,
             "num_ideas" : Idea.getCountForQuestion(dbConnection, questionId)
         }
         return stats
@@ -260,7 +261,7 @@ class Person():
             "id" : dbConnection.cursor.lastrowid,
             "authenticatedUserId" : authenticatedUserId,
             "authenticatedNickname" : authenticatedNickname,
-            "nickname" : nickname,
+            "nickname" : nickname if nickname else (Person.cleanNickname(user) if user else None),
             "questionId" : questionId
         }
         person.update(dbConnection, properties, create=True)
@@ -459,7 +460,7 @@ class Idea():
         return ideas
     
     @staticmethod
-    def getByQuestion(dbConnection, questionId, asDict=False):
+    def getByQuestion(dbConnection, questionId, admin=False, asDict=False):
         ideas = []
         sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_id=%s"
         dbConnection.cursor.execute(sql, (questionId))
@@ -468,7 +469,9 @@ class Idea():
             idea = Idea.getFromDBRow(row)
             if asDict:
                 idea = idea.toDict()
-                idea["author"] = row["nickname"] if row["nickname"] else "??"
+                idea["author"] = row["nickname"] if row["nickname"] else "Anonymous"
+                if admin and row["authenticated_nickname"]:
+                    idea["author_identity"] = row["authenticated_nickname"]
             ideas.append(idea)
         return ideas
     

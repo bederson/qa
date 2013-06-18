@@ -26,9 +26,6 @@ limitations under the License.
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 	<script type="text/javascript" src="js/jqcloud.js"></script>
 	<script type="text/javascript" src="js/results.js"></script>
-	<script>
-		var phase = parseInt("{{ phase }}");
-	</script>
 {% endblock %}
 
 {% block content %}
@@ -41,12 +38,12 @@ limitations under the License.
 	</div>
 	{% endif %}
 	<div style="clear:both"></div>
-	<div id="pagecontent" style="display:none">
+	<div id="page_content" style="display:none">
 	<hr>
 	<div class="spaceafter">
 		<h1>Code: <span id="question_code">{{ question_id }}</span> <span id="num_ideas"></span></h1>
 		Question: <span id="question_text">{{ question }}</span>
 	</div>
-	<div id="ideas"></div>
+	<div id="ideas">Loading ...</div>
 	</div>
 {% endblock %}

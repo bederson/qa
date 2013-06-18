@@ -73,7 +73,7 @@ onError = function(error) {
 onClose = function() {
 }
 
-enableDisable = function(obj, enable) {
+function enableDisable(obj, enable) {
 	if (enable) {
 		obj.removeAttr("disabled");
 	}
@@ -101,7 +101,7 @@ function phaseToString(phase) {
 	return str;
 }
 
-function getPhaseUrl(question_id) {
+function getPhaseUrl(question_id, phase) {
     url = "/";
     if (isDefined(question_id)) {
 	    switch(phase) {
