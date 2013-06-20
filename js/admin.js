@@ -147,7 +147,7 @@ function updateQuestionStats() {
 	}
 	
 	if (isDefined(question.num_ideas)) {
-		displayQuestionStats(question.num_ideas);
+		displayQuestionStats(question);
 	}
 	else {
 		data = {
@@ -158,16 +158,19 @@ function updateQuestionStats() {
 			var question = getQuestion(results.question_id);
 			if (question) {
 				question.num_ideas = results["num_ideas"];
+				question.num_users = results["num_users"];
 				if (isSelectedQuestion(question.id)) {
-					displayQuestionStats(question.num_ideas);
+					displayQuestionStats(question);
 				}
 			}
 		});
 	}
 }
 
-function displayQuestionStats(numIdeas) {
-	var html = numIdeas + " notes";
+function displayQuestionStats(question) {
+	var numIdeas = question.num_ideas;
+	var numUsers = question.num_users;
+	var html = numIdeas + " notes, "+ numUsers + " users";
 	$("#stats").html(html);
 }
 

@@ -10,8 +10,6 @@ Bugs
   > Object {description: "", code: 400} utils.js:70
   http://stackoverflow.com/questions/13962739/intermittent-error-code-400-description-on-client-connecting-to-channel
   https://code.google.com/p/googleappengine/issues/detail?id=4940
-* Clusters ordered alphabetically by cluster name when returned from datastore:
-  > Cluster #1, Cluster #10, Cluster #2, ... (ok when first created)
   
 Features
 * Stem tags???
@@ -28,11 +26,6 @@ Testing
 Misc
 * Reduce page reloads to reduce unnecessary server calls and # of channels created
 * Need consistent terminology (e.g., submission/note/response/idea for responses to questions)
-* Datastore ids getting truncated when passed from server via json to client
-  Current solution to run dev_server with --auto_id_policy=sequential (since smaller datastore ids used)
-  Better solution would be to pass ids as strings instead of numbers
-  May not be issue in public server (have not tested)
-  http://stackoverflow.com/questions/15536229/app-engine-version-1-7-6-old-dev-appserver-py-model-key-id-not-returning-the
 
 Engineering
 * Better downloading support

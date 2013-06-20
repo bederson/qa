@@ -57,6 +57,7 @@ class Question():
     questionText = None
     nicknameAuthentication = False
     userId = None
+    authenticatedUserId = None # not stored in database
     phase = 0
     cascadeK = 5
     cascadeM = 32
@@ -66,10 +67,10 @@ class Question():
     def code(self):
         return self.id
     
-    @ property
+    @property
     def question(self):
         return self.questionText
-    
+     
     @staticmethod
     def create(dbConnection, author, title, questionText, nicknameAuthentication=False):
         if author:
@@ -90,7 +91,8 @@ class Question():
                 "title" : title,
                 "questionText" : questionText,
                 "nicknameAuthentication" : nicknameAuthentication,
-                "userId" : author.id
+                "userId" : author.id,
+                "authenticatedUserId" : author.authenticatedUserId
             }
             question.update(dbConnection, properties, create=True)
             return question
@@ -152,16 +154,17 @@ class Question():
         dbConnection.cursor.execute("delete from question_clients where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
         dbConnection.conn.commit()
-        
         self = Question()
         return self
         
-    def isAuthor(self, person):
-        return person and (self.userId == person.id)
+    def isAuthor(self):
+        # BEHAVIOR: question author must be authenticated user
+        user = users.get_current_user()
+        return user and self.authenticatedUserId and user.user_id()==self.authenticatedUserId
                 
     @staticmethod
     def getById(dbConnection, questionId):
-        sql = "select * from questions where id=%s"
+        sql = "select * from questions,users where questions.user_id=users.id and questions.id=%s"
         dbConnection.cursor.execute(sql, (questionId))
         row = dbConnection.cursor.fetchone()
         return Question.getFromDBRow(row) if row else None
@@ -183,14 +186,17 @@ class Question():
      
     @staticmethod
     def getFromDBRow(row):
+    # TODO/COMMENT: row must include authenticated_user_id from users table
         question = None
         if row:
             question = Question()
+            # TODO/FIX: how to protect against multiple columns with same name
             question.id = row["id"]
             question.title = row["title"]
             question.questionText = row["question"]
             question.nicknameAuthentication = row["nickname_authentication"]
             question.userId = row["user_id"]
+            question.authenticatedUserId = row["authenticated_user_id"]
             question.phase = row["phase"]
             question.cascadeK = row["cascade_k"]
             question.cascadeM = row["cascade_m"]
@@ -201,7 +207,9 @@ class Question():
     def getStats(dbConnection, questionId):
         stats = {
             "question_id" : questionId,
-            "num_ideas" : Idea.getCountForQuestion(dbConnection, questionId)
+            "num_ideas" : Idea.getCountForQuestion(dbConnection, questionId),
+            # TODO/FIX: may not include question author in count (not sure)
+            "num_users" : Person.getCountForQuestion(dbConnection, questionId)
         }
         return stats
                
@@ -223,10 +231,9 @@ class Person():
     authenticatedUserId = None
     authenticatedNickname = None
     nickname = None
-    clientIds = {}
           
     @staticmethod
-    def create(dbConnection, nickname=None, questionId=None):
+    def create(dbConnection, question=None, nickname=None):
         user = users.get_current_user()
         authenticatedUserId = user.user_id() if user else None
         authenticatedNickname = user.nickname() if user else None
@@ -244,7 +251,7 @@ class Person():
             "authenticatedUserId" : authenticatedUserId,
             "authenticatedNickname" : authenticatedNickname,
             "nickname" : nickname if nickname else (Person.cleanNickname(user.nickname()) if user else None),
-            "questionId" : questionId
+            "questionId" : question.id if question else None
         }
         person.update(dbConnection, properties, create=True)
         return person
@@ -283,53 +290,60 @@ class Person():
             dbConnection.cursor.commit()
     
     def addClientId(self, dbConnection, questionId, clientId, commit=True):   
-        if clientId is not None and clientId not in self.clientIds:
-            if questionId not in self.clientIds:
-                self.clientIds[questionId] = []
-            self.clientIds[questionId].append(clientId)
-            sql = "insert into question_clients (question_id, user_id, client_id) values(%s, %s, %s)"
-            dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
-            if commit:
-                dbConnection.conn.commit()
-        return len(self.clientIds)
+        sql = "insert into question_clients (question_id, user_id, client_id) values(%s, %s, %s)"
+        dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
+        if commit:
+            dbConnection.conn.commit()
      
     # TODO: remember to remove all client ids when user logs out
+    # TODO: is user_id and client_id enough or even just client_id?
     def removeClientId(self, dbConnection, questionId, clientId, commit=True):
-        if questionId in self.clientIds and clientId in self.clientIds[questionId]:
-            self.clientIds[questionId].remove(clientId)  
-            sql = "delete from question_clients where question_id=%s and user_id=%s and client_id=%s"
-            dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
-            if commit:
-                dbConnection.conn.commit()
-        return len(self.clientIds)
-           
+        sql = "delete from question_clients where question_id=%s and user_id=%s and client_id=%s"
+        dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
+        
+        # TODO: if no more client ids, should logout (remove record from question_users)
+        
+        if commit:
+            dbConnection.conn.commit()
+      
+    # TODO: record login/logout of users
+    # TODO: record phase step completion times
+    # TODO/COMMENT: logout this user from *all* activity
+    @staticmethod
+    def logout(dbConnection, personId):
+        if personId:
+            sql = "delete from question_users where user_id=%s"
+            dbConnection.cursor.execute(sql, (personId))
+            sql = "delete from question_clients where user_id=%s"
+            dbConnection.cursor.execute(sql, (personId))
+            dbConnection.conn.commit()
+            
     @staticmethod
     def getPerson(dbConnection, question=None, nickname=None):
-        # TODO: add client ids
         person = None
         user = users.get_current_user()
-        
-        # if authenticated user logged in but no question provided, check for user
-        if user and not question:
-            sql = "select * from users where authenticated_user_id=%s"
-            dbConnection.cursor.execute(sql, (user.user_id()))
-            row = dbConnection.cursor.fetchone()
-            person = Person.getFromDBRow(row)
-            
-        # if question allows nickname authentication and nickname provided, check for user
-        elif question and question.nicknameAuthentication and nickname:
+
+        # check for user if nickname given and question allows nickname authentication
+        if question and not question.isAuthor() and question.nicknameAuthentication and nickname:
             sql = "select * from users, question_users where users.id=question_users.user_id and question_id=%s and nickname=%s"
             dbConnection.cursor.execute(sql, (question.id, nickname))
             row = dbConnection.cursor.fetchone()
             person = Person.getFromDBRow(row)
             
-        # if question requires authentication and user logged in, check for user
-        elif question and not question.nicknameAuthentication and user:
+        # if authenticated user logged in, check for user if
+        # no question provided or question requires user authentication
+        
+        # TODO: rename table from question_clients to user_clients?
+        # TODO/FIX: only check client counts for nicknames?
+        # TODO/FIX: destroy channels after some specified period?
+        # TODO: question_users *and* question_clients both needed?  how to only use one!
+        
+        if user:
             sql = "select * from users where authenticated_user_id=%s"
             dbConnection.cursor.execute(sql, (user.user_id()))
             row = dbConnection.cursor.fetchone()
             person = Person.getFromDBRow(row)
-            
+                        
         return person
     
     @staticmethod
@@ -370,6 +384,13 @@ class Person():
     @staticmethod
     def isAdmin():
         return users.is_current_user_admin()
+    
+    @staticmethod
+    def getCountForQuestion(dbConnection, questionId):
+        sql = "select count(*) as ct from question_users where question_id=%s"
+        dbConnection.cursor.execute(sql, (questionId))
+        row = dbConnection.cursor.fetchone()
+        return row["ct"] if row else 0
         
     def toDict(self):
         return {
@@ -443,10 +464,10 @@ class Idea():
             ideas.append(idea)
         return ideas
     
-    # TODO: person vs. user
+    # TODO: person vs. user (variable name)
     
     @staticmethod
-    def getByQuestion(dbConnection, question, person=None, asDict=False):
+    def getByQuestion(dbConnection, question, asDict=False):
         ideas = []
         sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_id=%s"
         dbConnection.cursor.execute(sql, (question.id))
@@ -459,7 +480,7 @@ class Idea():
                 author.authenticatedUserId = row["authenticated_user_id"]
                 author.authenticatedNickname = row["authenticated_nickname"]
                 author.nickname = row["nickname"]
-                idea = idea.toDict(author=author, admin=Person.isAdmin() or (question and question.isAuthor(person)))
+                idea = idea.toDict(author=author, admin=Person.isAdmin() or (question and question.isAuthor()))
             ideas.append(idea)
         return ideas
     
