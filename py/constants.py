@@ -8,4 +8,6 @@ LOCAL_DB_PWD = "qatest"
 PHASE_NOTES = 1
 PHASE_CASCADE = 2
 
+EMPTY_CLIENT_TOKEN = "00000"
+
 STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]

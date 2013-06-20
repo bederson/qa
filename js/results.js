@@ -71,23 +71,11 @@ function loadQuestion() {
 function displayIdeas() {	
 	var html = "<table style='width: 100%'><tr>";
 	html += "<td style='width: 50%'>";
-	html += "<div class='ideas'>";
-	html += "<ul>";
+	html += "<ul id=\"idea_list\">";
 	for (var i in ideas) {
-		var idea = ideas[i];
-		html += "<li>";
-		html += idea.idea + "<br/>";
-		html += "<span class='author'";
-		var realIdentity = isDefined(idea.author_identity) ? idea.author_identity : "";
-		var isIdentityHidden = realIdentity != "" && realIdentity != idea.author;
-		if (isIdentityHidden) {
-			html += "title='" + realIdentity + "' ";
-		}
-		html += ">&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + (isIdentityHidden?"*":"") + "</span>";
-		html += "</li>";
+		html += ideaAsHtml(ideas[i]);
 	}
 	html += "</ul>"
-	html += "</div>";
 	html += "</td>";
 	
 	if (!jQuery.browser.mobile) {
@@ -107,21 +95,31 @@ function displayIdeas() {
 
 function addIdea(idea) {
 	ideas.push(idea);
-	// TODO: fix when user identity stuff fixed
-	var html = "<li>" + idea.idea + "<br/>";
-	html += "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author.nickname + "</span><br>";
-	html += "</li>";
-	$("#ideas").prepend(html);
+	var html = ideaAsHtml(idea);
+	$("#idea_list").prepend(html);
 	updateNumIdeas();
 }
 
+function ideaAsHtml(idea) {
+	var html = "<li>";
+	html += idea.idea + "<br/>";
+	html += "<span class='author'";
+	var realIdentity = isDefined(idea.author_identity) ? idea.author_identity : "";
+	var isIdentityHidden = realIdentity != "" && realIdentity != idea.author;
+	if (isIdentityHidden) {
+		html += "title='" + realIdentity + "' ";
+	}
+	html += ">&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + (isIdentityHidden?"*":"") + "</span>";
+	html += "</li>";
+	return html;	
+}
 function updateNumIdeas() {
 	var numIdeas = ideas.length;
 	var html = "(";
 	if (numIdeas == 0) {
 		html += "No notes yet";
 	} else if (numIdeas == 1) {
-		html += "1 " + label;
+		html += "1 note";
 	} else {
 		html += numIdeas + " notes";
 	}
@@ -212,8 +210,8 @@ function getWordStem(word) {
 /////////////////////////
 // Channel support
 /////////////////////////
-function handleNew(idea) {
-	addIdea(idea);
+function handleNew(data) {
+	addIdea(data.idea);
 }
 
 function handleRefresh(data) {

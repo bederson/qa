@@ -45,7 +45,7 @@ app = webapp2.WSGIApplication([
 	('/set_phase', PhaseHandler),
     ('/set_cascade_options', CascadeOptionsHandler),
 	
-	('/_ah/channel/connected/', ConnectedHandler),
-	('/_ah/channel/disconnected/', DisconnectedHandler)
+	('/_ah/channel/connected/', ChannelConnectedHandler),
+	('/_ah/channel/disconnected/', ChannelDisconnectedHandler)
     ],
     debug=True)

@@ -17,13 +17,6 @@
 # limitations under the License.
 #
 
-# Functions that query the datastore may not include a newly put() object
-# if called immediately after the object is created (ok if updated).  
-# Use an object's key id if you need to retrieve an object immediately after 
-# stored. This behavior was noticed when Question.getQuestionById(code) was 
-# called immediately after a new question was created.  Same behavior
-# noticed when Person created for the first time.
-
 import constants
 import helpers
 import random
@@ -102,9 +95,9 @@ class Question():
             question.update(dbConnection, properties, create=True)
             return question
     
-    # TODO: modify Person to only update values given
-    # TODO: is there way to make updateProperties, updateValues, etc. 1 line function?
-    def update(self, dbConnection=None, properties={}, create=False):
+    # TODO: improve code by looping through all available properties
+    # unfortunately vars() returns {} when object is newly constructed
+    def update(self, dbConnection=None, properties={}, create=False):            
         updateProperties = []
         updateValues = ()
         if "id" in properties:
@@ -131,7 +124,7 @@ class Question():
             updateValues += (self.phase,)
         if "cascadeK" in properties:
             self.cascadeK = properties["cascadeK"]
-            updateProperties.append("cascade_K=%s")
+            updateProperties.append("cascade_k=%s")
             updateValues += (self.cascadeK,)
         if "cascadeM" in properties:
             self.cascadeM = properties["cascadeM"]
@@ -152,25 +145,16 @@ class Question():
                 sql = "update questions set {0} where id=%s".format(",".join(updateProperties))
                 dbConnection.cursor.execute(sql, updateValues + (self.id,));
                 dbConnection.conn.commit()
-        
+           
     def delete(self, dbConnection):
-        # TODO: update to delete all question data from db tables
         dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_users where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_clients where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
         dbConnection.conn.commit()
         
-        self.id = None
-        self.title = None
-        self.questionText = None
-        self.nicknameAuthentication = False
-        self.userId = None
-        self.phase = 0
+        self = Question()
         return self
-    
-    def setPhase(self, dbConnection, phase):
-        self.update(dbConnection, { "phase" : phase })
         
     def isAuthor(self, person):
         return person and (self.userId == person.id)
@@ -185,8 +169,6 @@ class Question():
     @staticmethod                
     def getByUser(dbConnection, asDict=False):
         questions = []
-        # BEHAVIOR: only authenticated users can create questions so return
-        # questions created by current user
         user = users.get_current_user()
         if user:
             sql = "select * from questions,users where questions.user_id=users.id and authenticated_user_id=%s"
@@ -236,12 +218,12 @@ class Question():
             "cascade_t": self.cascadeT
         } 
 
-# TODO: must associate question_id with nickname only authenticated users
 class Person():               
     id = None
     authenticatedUserId = None
     authenticatedNickname = None
     nickname = None
+    clientIds = {}
           
     @staticmethod
     def create(dbConnection, nickname=None, questionId=None):
@@ -261,7 +243,7 @@ class Person():
             "id" : dbConnection.cursor.lastrowid,
             "authenticatedUserId" : authenticatedUserId,
             "authenticatedNickname" : authenticatedNickname,
-            "nickname" : nickname if nickname else (Person.cleanNickname(user) if user else None),
+            "nickname" : nickname if nickname else (Person.cleanNickname(user.nickname()) if user else None),
             "questionId" : questionId
         }
         person.update(dbConnection, properties, create=True)
@@ -287,40 +269,78 @@ class Person():
                 dbConnection.conn.commit()
             
             else:
-                # TODO: fix to update only changed properties?  should authenticated_nickname always be updated
-                sql = "update users set authenticated_user_id=%s, authenticated_nickname, nickname=%s where id=%s"
-                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.authenticatedNickname, self.nickname, self.id))
+                # BEHAVIOR: assume only nickname can be modified after creation
+                # TODO: consider updating authenticated_user_id when user logs in since it can change?
+                sql = "update users set nickname=%s where id=%s"
+                dbConnection.cursor.execute(sql, (self.nickname, self.id))
                 dbConnection.conn.commit()
           
+    # TODO: when are users added to question_users
     def addToQuestion(self, dbConnection, questionId, commit=True):
         sql = "insert into question_users(question_id, user_id) values(%s, %s)"
         dbConnection.cursor.execute(sql, (questionId, self.id))
         if commit:
             dbConnection.cursor.commit()
+    
+    def addClientId(self, dbConnection, questionId, clientId, commit=True):   
+        if clientId is not None and clientId not in self.clientIds:
+            if questionId not in self.clientIds:
+                self.clientIds[questionId] = []
+            self.clientIds[questionId].append(clientId)
+            sql = "insert into question_clients (question_id, user_id, client_id) values(%s, %s, %s)"
+            dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
+            if commit:
+                dbConnection.conn.commit()
+        return len(self.clientIds)
+     
+    # TODO: remember to remove all client ids when user logs out
+    def removeClientId(self, dbConnection, questionId, clientId, commit=True):
+        if questionId in self.clientIds and clientId in self.clientIds[questionId]:
+            self.clientIds[questionId].remove(clientId)  
+            sql = "delete from question_clients where question_id=%s and user_id=%s and client_id=%s"
+            dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
+            if commit:
+                dbConnection.conn.commit()
+        return len(self.clientIds)
            
     @staticmethod
-    def getPerson(dbConnection, questionId=None, nickname=None):
+    def getPerson(dbConnection, question=None, nickname=None):
         # TODO: add client ids
         person = None
         user = users.get_current_user()
-        if questionId and nickname:
-            sql = "select * from users, question_users where users.id=question_users.user_id and question_id=%s and nickname=%s"
-            dbConnection.cursor.execute(sql, (questionId, nickname))
-            row = dbConnection.cursor.fetchone()
-            person = Person.getFromDBRow(row)
-        elif user:
+        
+        # if authenticated user logged in but no question provided, check for user
+        if user and not question:
             sql = "select * from users where authenticated_user_id=%s"
             dbConnection.cursor.execute(sql, (user.user_id()))
             row = dbConnection.cursor.fetchone()
             person = Person.getFromDBRow(row)
+            
+        # if question allows nickname authentication and nickname provided, check for user
+        elif question and question.nicknameAuthentication and nickname:
+            sql = "select * from users, question_users where users.id=question_users.user_id and question_id=%s and nickname=%s"
+            dbConnection.cursor.execute(sql, (question.id, nickname))
+            row = dbConnection.cursor.fetchone()
+            person = Person.getFromDBRow(row)
+            
+        # if question requires authentication and user logged in, check for user
+        elif question and not question.nicknameAuthentication and user:
+            sql = "select * from users where authenticated_user_id=%s"
+            dbConnection.cursor.execute(sql, (user.user_id()))
+            row = dbConnection.cursor.fetchone()
+            person = Person.getFromDBRow(row)
+            
         return person
     
     @staticmethod
     def getById(dbConnection, userId):
-        sql = "select * from users where id=%s"
-        dbConnection.cursor.execute(sql, (userId))
-        row = dbConnection.cursor.fetchone()
-        return Person.getFromDBRow(row) if row else None
+        person = None
+        if userId:
+            sql = "select * from users where id=%s"
+            dbConnection.cursor.execute(sql, (userId))
+            row = dbConnection.cursor.fetchone()
+            person = Person.getFromDBRow(row) if row else None
+        return person
     
     @staticmethod
     def getFromDBRow(row):
@@ -332,54 +352,17 @@ class Person():
             person.authenticatedNickname = row["authenticated_nickname"]
             person.nickname = row["nickname"]
         return person
-                
+                                                                 
     @staticmethod
-    def getPersonFromClientId(clientId):
-        # TODO: make sure client is uses Person.id *not* authenticated google id
-        person = None
-        tokens = clientId.split("_")
-        if len(tokens) > 1:
-            personId = tokens[1]
-            person = Person.getById(long(personId))
-        return person
-        
-    def addClientId(self, clientId):   
-        # TODO: need to implement
-        return 0 
-#         if clientId is not None and clientId not in self.clientIds:
-#             self.clientIds.append(clientId)
-#             self.put()
-#         return len(self.clientIds)
-     
-    def removeClientId(self, clientId):
-        # TODO: need to implement
-        return 0
-#         if clientId is not None and clientId in self.clientIds:
-#             self.clientIds.remove(clientId)  
-#             self.put()
-#         return len(self.clientIds)
-    
-    def setNickname(self, nickname=None):
-        # TODO: need to implement
-        pass
-#         # reset nickname to authenticated user if no nickname provided
-#         self.nickname = nickname if nickname else (Person.cleanNickname(self.user) if self.user else None)
-#         self.put()
-                                 
-    @staticmethod
-    def cleanNickname(user):
-        if user:
-            nickname = user.nickname()
-            if nickname.count("@") == 0:
-                return nickname
-            else:
-                return nickname[:nickname.index("@")]
-        else:
-            return "none"
+    def cleanNickname(nickname=None):
+        cleanedNickname = nickname
+        if nickname:
+            cleanedNickname = nickname[:nickname.index("@")] if nickname.count("@") > 0 else nickname
+        return cleanedNickname
      
     @staticmethod
     def doesNicknameExist(dbConnection, questionId, nickname):
-        sql = "select * from users where question_id=%s and nickname=%s"
+        sql = "select * from question_users,users where question_users.user_id=users.id and question_id=%s and nickname=%s"
         dbConnection.cursor.execute(sql, (questionId, nickname))
         row = dbConnection.cursor.fetchone()
         return row is not None
@@ -435,6 +418,7 @@ class Idea():
                 self.id = dbConnection.cursor.lastrowid
                 dbConnection.conn.commit()
             else:
+                # BEHAVIOR: assume only idea text can be modified after created
                 sql = "update question_ideas set idea=%s where id=%s"
                 dbConnection.cursor.execute(sql, (self.idea, self.id))
                 dbConnection.conn.commit()
@@ -459,19 +443,23 @@ class Idea():
             ideas.append(idea)
         return ideas
     
+    # TODO: person vs. user
+    
     @staticmethod
-    def getByQuestion(dbConnection, questionId, admin=False, asDict=False):
+    def getByQuestion(dbConnection, question, person=None, asDict=False):
         ideas = []
         sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_id=%s"
-        dbConnection.cursor.execute(sql, (questionId))
+        dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             idea = Idea.getFromDBRow(row)
             if asDict:
-                idea = idea.toDict()
-                idea["author"] = row["nickname"] if row["nickname"] else "Anonymous"
-                if admin and row["authenticated_nickname"]:
-                    idea["author_identity"] = row["authenticated_nickname"]
+                author = Person()
+                author.id = row["user_id"]
+                author.authenticatedUserId = row["authenticated_user_id"]
+                author.authenticatedNickname = row["authenticated_nickname"]
+                author.nickname = row["nickname"]
+                idea = idea.toDict(author=author, admin=Person.isAdmin() or (question and question.isAuthor(person)))
             ideas.append(idea)
         return ideas
     
@@ -492,14 +480,24 @@ class Idea():
             idea.userId = row["user_id"]
             idea.ideaText = row["idea"]
         return idea
-                
-    def toDict(self):
-        return {
+              
+    # TODO: make sure client_ids being deleted when user logs out or window closed
+      
+    # TODO: Thursday new ideas showing on non-teacher result page can see real user identity!!
+    def toDict(self, author=None, admin=False):
+        dict = {
             "id" : self.id,
             "question_id" : self.questionId,
             "user_id" : self.userId,
             "idea" : self.ideaText
         }
+        
+        if author:
+            dict["author"] = author.nickname if author.nickname else "Anonymous"
+            if admin and author.authenticatedNickname and Person.cleanNickname(author.authenticatedNickname) != author.nickname:
+                dict["author_identity"] = author.authenticatedNickname
+                            
+        return dict
 #     
 #     @staticmethod
 #     def getNumIdeas(question):
@@ -581,7 +579,6 @@ class Idea():
 # # BEHAVIOR: step 1 - k jobs performed to create a category for an idea; should k categories be required for each idea? or ok to skip?
 # # BEHAVIOR: step 2 - user can choose best category or select none of the above
 # 
-# # TODO/BUG: datastore updates not always searchable in time for current user; how to fix?
 # # TODO/BUG: how to ensure updates available to all users in time; model blocking? transactions?
 # # TODO: warn admin that any previous cascade data will be lost when jobs re-created
 # # TODO: need to add timestamps to record how long each step takes

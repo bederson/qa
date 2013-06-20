@@ -161,14 +161,13 @@ function updateNicknameArea() {
 					"question_id": question_id,
 					"nickname": nickname
 				};
-				$.post("/nickname", data, function(event) {
-					if (event.msg != "") {
-						$("#nickname_msg").html(event.msg);
+				$.post("/nickname", data, function(result) {
+					if (result.status == 0) {
+						$("#nickname_msg").html(result.msg);
+						return;
 					}
-					else {
-						user_nickname = event.nickname;
-						updateNicknameArea();
-					}
+					user_nickname = result.user.nickname;
+					updateNicknameArea();
 				}, "json");
 			});
 		});
