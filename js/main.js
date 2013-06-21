@@ -52,14 +52,16 @@ function loginToQuestion() {
 		"request": "question",
 		"question_id": question_id
 	};
-	$.getJSON("/query", data, function(results) {
-		if (isDefined(results.msg)) {
+	$.post("/question_login", data, function(results) {
+		if (results.status == 0) {
 			showInfoMessage(results.msg);
-			$("#code_box").focus();
+			$("code_box").focus();
 			return;
 		}
-		redirectToPhase(results.phase, results.id);
-	});	
+		
+		window.location.href = results.url;
+		
+	}, "json");	
 }
 
 function showInfoMessage(msg) {

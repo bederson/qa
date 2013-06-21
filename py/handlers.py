@@ -65,6 +65,7 @@ class BaseHandler(webapp2.RequestHandler):
     def initUserContext(self, admin=False):
         nickname = self.request.get("nickname")
         question = self.question
+        helpers.log("NICKNAME={0}".format(nickname))
                     
         # if question allows nickname authentication
         # check if nickname stored in session, if not provided
@@ -77,11 +78,15 @@ class BaseHandler(webapp2.RequestHandler):
         if admin:
             question = None
             nickname = None
+            helpers.log("SET NICKNAME TO NONE")
+
         
         person = Person.getPerson(self.dbConnection, question, nickname)
+        helpers.log("INIT USER CONTEXT: person={0}, nickname={1}".format(person.id if person else None, nickname))
                             
         # if no person found, create user (if user logged in or nickname provided)
         if not person:
+            helpers.log("CREATING PERSON: {0}, {1}".format(question.id if question else None, nickname))
             person = Person.create(self.dbConnection, question=question, nickname=nickname)
 
         return person        
@@ -105,7 +110,7 @@ class BaseHandler(webapp2.RequestHandler):
             # no one logged in, and nickname authentication allowed
             if nicknameAuthenticationAllowed:
                 urlLink = "Login w/ Nickname"
-                url = "/loginpage" + ("?question_id=" + str(self.question.id) if self.question else "")
+                url = "/nickname_login" + ("?question_id=" + str(self.question.id) if self.question else "")
                 
             # no one logged in, and user authentication required
             else:
@@ -204,7 +209,7 @@ class MainPageHandler(BaseHandler):
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
 
-class LoginPageHandler(BaseHandler):
+class NicknameLoginPageHandler(BaseHandler):
     # TODO/COMMENT: for nickname login
     def get(self):
         self.init()
@@ -268,44 +273,89 @@ class AdminPageHandler(BaseHandler):
 # Action Handlers
 #####################
 
-# TODO: redirect to login page if code entered on mainpage when not logged in
-# TODO/Comment: Nickname login
+class QuestionLoginHandler(BaseHandler):
+    def post(self):
+        self.init()
+        ok = self.checkRequirements(questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+            
+        else:
+            if not self.person:
+                if self.question.nicknameAuthentication:
+                    url = "/nickname_login?question_id=" + str(self.question.id)
+                
+                else:
+                    url = users.create_login_url(getPhaseUrl(self.question))
+            
+            else:
+                # TODO: add to Person class
+                if not self.person.isLoggedIn:
+                    sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null where id=%s"
+                    self.dbConnection.cursor.execute(sql, (self.person.id))
+                    self.dbConnection.conn.commit()
+                    self.person.isLoggedIn = True 
+                url = getPhaseUrl(self.question)
+            
+            data = { "status" : 1, "question" : self.question.toDict(), "url" : url }
+        
+        self.writeResponseAsJson(data)
+        self.destroy()
+        
 class LoginHandler(BaseHandler):
-    def get(self):
+    def post(self):
+        self.login()
+    
+    def login(self, json=True):
         self.init(initUser=False)
         nickname = self.request.get("nickname")
         page = self.request.get("page")
+        helpers.log("LOGINHANDLER: nickname={0}".format(nickname))
 
+        data = { "status" : 1 }
         # if question allows nickname authentication
         # store nickname in session if ok
         if self.question:
             person = Person.getPerson(self.dbConnection, self.question, nickname)
-            if person:
-                sql = "select count(*) as ct from question_clients where question_id=%s and user_id=%s"
-                self.dbConnection.cursor.execute(sql, (self.question.id, person.id))
-                row = self.dbConnection.cursor.fetchone()
-                clientCount = row["ct"]
-                if clientCount > 0:
-                    if self.question.nicknameAuthentication:
-                        self.redirectWithMsg("Someone is already logged in as " + nickname, "/loginpage?question_id="+str(self.question.id))
-                    else:
-                        self.redirectWithMsg(str(person.user) + " is already logged in", dst="/")
-                    return
+            if person and person.isLoggedIn:
+                if self.question.nicknameAuthentication:
+                    helpers.log("MARK1")
+                    # TODO: need to destroy stuff before redirecting
+                    data = { "status" : 0, "msg" : "error1" }
+                    #self.redirectWithMsg("Someone is already logged in as " + nickname, "/nickname_login?question_id="+str(self.question.id)+"&timestamp="+randint(0,9))
+                else:
+                    helpers.log("MARK2");
+                    data = { "status" : 0, "msg" : "error2" }
+                    #self.redirectWithMsg(str(person.user) + " is already logged in", dst="/")
+                #return
                 
-            if self.question.nicknameAuthentication and nickname:
+            if data["status"] == 1 and self.question.nicknameAuthentication and nickname:
                 specialChars = set('$\'"*,')
                 if any((c in specialChars) for c in nickname):
-                    self.redirectWithMsg("Nickname can not contain " + "".join(specialChars), "/loginpage?question_id="+str(self.question.id))
-                    return
+                    data = { "status" : 0, "msg" : "error3" }
+                    #self.redirectWithMsg("Nickname can not contain " + "".join(specialChars), "/nickname_login?question_id="+str(self.question.id))
+                    #return
                 
                 # TOOD: check what else is stored in session
-                self.session[self.question.id] = { "nickname": nickname }
+                else:
+                    self.session[self.question.id] = { "nickname": nickname }
 
-        self.person = self.initUserContext()
-        url = str(page) if page else getPhaseUrl(self.question)
-        
+        if data["status"] == 1:
+            self.person = self.initUserContext()
+            data["url"] = str(page) if page else (getPhaseUrl(self.question) if self.question else "/")
+
+        if json:
+            self.writeResponseAsJson(data)       
         self.destroy()
-        self.redirect(url)
+        
+        if not json:
+            self.redirectWithMsg(data["msg"] if "msg" in data else "", data["url"] if data["status"] == 1 else "/")
+        
+    # TODO/COMMENT: Google authentication needs GET
+    def get(self):
+        # TODO: redirect if json False
+        self.login(json=False)
+        
 
 def getPhaseUrl(question=None):
     url = "/"
@@ -324,6 +374,8 @@ class LogoutHandler(BaseHandler):
         # TODO/Comment: pass person id (user_id) via logout url when 
         # logging out via google since person not longer set - but not sure why
         personId = self.request.get("user", None)
+        # TODO: need to pass question id!!
+        # TODO: should this be done in client disconnect instead??
         Person.logout(self.dbConnection, self.person.id if self.person else personId)
             
         session = gaesessions.get_current_session()
@@ -333,7 +385,7 @@ class LogoutHandler(BaseHandler):
             session.regenerate_id()
         self.redirect("/")
 
-# TODO/FIX: created new question but nickname from previous question used; should nicknames be stored with question_users vs users
+# TODO: should separate user row be created for teachers when they "use" the question they created?
 # TODO: allowed nickname to be deleted (if not required for authentication)
 # TODO/FIX: add some ideas with user with nickname (not teacher) and refresh list; loses knowledge about true identity
 
@@ -377,25 +429,20 @@ class NicknameHandler(BaseHandler):
                            
 class QueryHandler(BaseHandler):
     def get(self):
-        self.init()
-        request = self.request.get("request")
+        request = self.request.get("request", None)
+        if not request:
+            return
+        
+        # TODO: admin is really instructor
+        isAdminRequest = request in ("questions", "stats")
+        self.init(admin=isAdminRequest)
         data = {}
         
         # questions created by user
         if request == "questions":
             questions = Question.getByUser(self.dbConnection, asDict=True)
             data = { "questions": questions }
-            
-        # details about specific question
-        elif request == "question":       
-            if self.question:
-                data = self.question.toDict()
-                
-            else:
-                question = Question()
-                data = question.toDict()
-                data["msg"] = "Invalid code - it should be 5 digits"
-        
+                    
         # stats for specific question (# ideas, etc.)
         elif request == "stats" and self.question:
             data = Question.getStats(self.dbConnection, self.question.id)
@@ -495,7 +542,8 @@ class DeleteQuestionHandler(BaseHandler):
         self.destroy()
   
 # TODO: make sure clientIds are getting deleted when necessary
-          
+# TODO: memcache clientIds to speed things up?
+        
 class NewIdeaHandler(BaseHandler):
     # TODO: author vs user vs person
     # TODO: idea.toDict should include name of author
@@ -504,9 +552,7 @@ class NewIdeaHandler(BaseHandler):
         ok = self.checkRequirements(userRequired=True, questionRequired=True)
         if ok:
             clientId = self.request.get('client_id')
-            ideaText = self.request.get('idea')
-                
-            # TODO: check whether or not question id exists or not?
+            ideaText = self.request.get('idea')                
             if ideaText and ideaText != "":
                 idea = Idea.create(self.dbConnection, self.question.id, self.person.id, ideaText)  
                 msg = { "op": "newidea", "idea": idea.toDict(author=self.person, admin=False) }
@@ -640,7 +686,7 @@ class ChannelConnectedHandler(BaseHandler):
         questionId, personId, isQuestionAuthor = getInfoFromClientId(clientId)
         person = Person.getById(self.dbConnection, personId)
         if person:
-            person.addClientId(self.dbConnection, questionId, clientId)    
+            person.addClientId(self.dbConnection, clientId)    
             
 class ChannelDisconnectedHandler(BaseHandler):
     # Notified when clients disconnect
@@ -650,7 +696,7 @@ class ChannelDisconnectedHandler(BaseHandler):
         questionId, personId, isQuestionAuthor = getInfoFromClientId(clientId)
         person = Person.getById(self.dbConnection, personId)
         if person:
-            person.removeClientId(self.dbConnection, questionId, clientId)
+            person.removeClientId(self.dbConnection, clientId)
             # TODO: logout if no clientIds left
 
 def createChannel(question, person):
@@ -676,7 +722,7 @@ def getInfoFromClientId(clientId):
 def sendMessage(dbConnection, fromClientId, questionId, message, adminMessage=None):
     """Send message to all listeners (except self) to this topic"""
     if fromClientId and questionId:
-        sql = "select * from question_clients where question_id=%s"
+        sql = "select * from users,user_clients where users.id=user_clients.user_id and question_id=%s"
         dbConnection.cursor.execute(sql, (questionId))
         rows = dbConnection.cursor.fetchall()
         for row in rows:

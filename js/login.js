@@ -45,6 +45,12 @@ function submit() {
 	}
 	
 	else {
-		window.location.href = "/login?question_id="+question_id+"&nickname="+nickname;
+		var data = {
+			"question_id" : question_id,
+			"nickname" : nickname
+		};
+		$.post("/login", data, function(results) {
+			alert("login: status="+results.status);
+		}, "json");
 	}
 }

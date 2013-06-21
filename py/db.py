@@ -82,9 +82,7 @@ class Question():
                 question = Question.getById(dbConnection, questionId)
                 if not question:
                     idCreated = True
-            
-            # TODO: should question author be added to question_users table?
-            
+                        
             question = Question()
             properties = {
                 "id" : questionId,
@@ -150,9 +148,8 @@ class Question():
            
     def delete(self, dbConnection):
         dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
-        dbConnection.cursor.execute("delete from question_users where question_id={0}".format(self.id))
-        dbConnection.cursor.execute("delete from question_clients where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete user_clients from users,user_clients where users.id=user_clients.user_id and question_id={0}".format(self.id))
         dbConnection.conn.commit()
         self = Question()
         return self
@@ -231,6 +228,8 @@ class Person():
     authenticatedUserId = None
     authenticatedNickname = None
     nickname = None
+    questionId = None
+    isLoggedIn = False
           
     @staticmethod
     def create(dbConnection, question=None, nickname=None):
@@ -265,15 +264,17 @@ class Person():
             self.authenticatedNickname = properties["authenticatedNickname"]
         if "nickname" in properties:
             self.nickname = properties["nickname"]
+        if "questionId" in properties:
+            self.questionId = properties["questionId"]
 
         if dbConnection:
             if create:
-                sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname) values (%s, %s, %s)"
-                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.authenticatedNickname, self.nickname))
+                # TODO: remember to changed timestamps when login/logout
+                sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id, latest_login_timestamp, latest_logout_timestamp) values (%s, %s, %s, %s, now(), null)"
+                dbConnection.cursor.execute(sql, (self.authenticatedUserId, self.authenticatedNickname, self.nickname, self.questionId))
                 self.id = dbConnection.cursor.lastrowid
-                if "questionId" in properties and properties["questionId"]:
-                    self.addToQuestion(dbConnection, properties["questionId"], False)
                 dbConnection.conn.commit()
+                self.isLoggedIn=True
             
             else:
                 # BEHAVIOR: assume only nickname can be modified after creation
@@ -281,27 +282,20 @@ class Person():
                 sql = "update users set nickname=%s where id=%s"
                 dbConnection.cursor.execute(sql, (self.nickname, self.id))
                 dbConnection.conn.commit()
-          
-    # TODO: when are users added to question_users
-    def addToQuestion(self, dbConnection, questionId, commit=True):
-        sql = "insert into question_users(question_id, user_id) values(%s, %s)"
-        dbConnection.cursor.execute(sql, (questionId, self.id))
-        if commit:
-            dbConnection.cursor.commit()
     
-    def addClientId(self, dbConnection, questionId, clientId, commit=True):   
-        sql = "insert into question_clients (question_id, user_id, client_id) values(%s, %s, %s)"
-        dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
+    def addClientId(self, dbConnection, clientId, commit=True):   
+        sql = "insert into user_clients (user_id, client_id) values(%s, %s)"
+        dbConnection.cursor.execute(sql, (self.id, clientId))
         if commit:
             dbConnection.conn.commit()
      
     # TODO: remember to remove all client ids when user logs out
     # TODO: is user_id and client_id enough or even just client_id?
-    def removeClientId(self, dbConnection, questionId, clientId, commit=True):
-        sql = "delete from question_clients where question_id=%s and user_id=%s and client_id=%s"
-        dbConnection.cursor.execute(sql, (questionId, self.id, clientId))
+    def removeClientId(self, dbConnection, clientId, commit=True):
+        sql = "delete from user_clients where user_id=%s and client_id=%s"
+        dbConnection.cursor.execute(sql, (self.id, clientId))
         
-        # TODO: if no more client ids, should logout (remove record from question_users)
+        # TODO: if no more client ids, should logout
         
         if commit:
             dbConnection.conn.commit()
@@ -311,10 +305,10 @@ class Person():
     # TODO/COMMENT: logout this user from *all* activity
     @staticmethod
     def logout(dbConnection, personId):
-        if personId:
-            sql = "delete from question_users where user_id=%s"
+        if personId:                
+            sql = "update users set latest_logout_timestamp=now() where id=%s"
             dbConnection.cursor.execute(sql, (personId))
-            sql = "delete from question_clients where user_id=%s"
+            sql = "delete from user_clients where user_id=%s"
             dbConnection.cursor.execute(sql, (personId))
             dbConnection.conn.commit()
             
@@ -325,25 +319,30 @@ class Person():
 
         # check for user if nickname given and question allows nickname authentication
         if question and not question.isAuthor() and question.nicknameAuthentication and nickname:
-            sql = "select * from users, question_users where users.id=question_users.user_id and question_id=%s and nickname=%s"
+            sql = "select * from users where question_id=%s and nickname=%s"
             dbConnection.cursor.execute(sql, (question.id, nickname))
             row = dbConnection.cursor.fetchone()
             person = Person.getFromDBRow(row)
             
+        # TODO: remember to update latest_login_timestamp and latest_logout_timestamp
+        
         # if authenticated user logged in, check for user if
         # no question provided or question requires user authentication
         
-        # TODO: rename table from question_clients to user_clients?
         # TODO/FIX: only check client counts for nicknames?
         # TODO/FIX: destroy channels after some specified period?
-        # TODO: question_users *and* question_clients both needed?  how to only use one!
         
         if user:
-            sql = "select * from users where authenticated_user_id=%s"
-            dbConnection.cursor.execute(sql, (user.user_id()))
+            if question:
+                sql = "select * from users where authenticated_user_id=%s and question_id=%s"
+                dbConnection.cursor.execute(sql, (user.user_id(), question.id))
+            # TODO/COMMENT: teacher
+            else:
+                sql = "select * from users where authenticated_user_id=%s"
+                dbConnection.cursor.execute(sql, (user.user_id()))
             row = dbConnection.cursor.fetchone()
             person = Person.getFromDBRow(row)
-                        
+                                
         return person
     
     @staticmethod
@@ -365,6 +364,7 @@ class Person():
             person.authenticatedUserId = row["authenticated_user_id"]
             person.authenticatedNickname = row["authenticated_nickname"]
             person.nickname = row["nickname"]
+            person.isLoggedIn = row["latest_logout_timestamp"] is None
         return person
                                                                  
     @staticmethod
@@ -376,7 +376,7 @@ class Person():
      
     @staticmethod
     def doesNicknameExist(dbConnection, questionId, nickname):
-        sql = "select * from question_users,users where question_users.user_id=users.id and question_id=%s and nickname=%s"
+        sql = "select * from users where question_id=%s and nickname=%s"
         dbConnection.cursor.execute(sql, (questionId, nickname))
         row = dbConnection.cursor.fetchone()
         return row is not None
@@ -385,9 +385,11 @@ class Person():
     def isAdmin():
         return users.is_current_user_admin()
     
+    # TODO: create database indexes
+    
     @staticmethod
     def getCountForQuestion(dbConnection, questionId):
-        sql = "select count(*) as ct from question_users where question_id=%s"
+        sql = "select count(*) as ct from users where question_id=%s and latest_login_timestamp is not null and latest_logout_timestamp is null"
         dbConnection.cursor.execute(sql, (questionId))
         row = dbConnection.cursor.fetchone()
         return row["ct"] if row else 0
@@ -465,11 +467,12 @@ class Idea():
         return ideas
     
     # TODO: person vs. user (variable name)
+    # TODO: could merge users and user_clients if only 1 client allowed per user/question pair
     
     @staticmethod
     def getByQuestion(dbConnection, question, asDict=False):
         ideas = []
-        sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_id=%s"
+        sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s"
         dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
