@@ -205,7 +205,7 @@ function onResize() {
 		}
 	}
 	$(".step").width(width);
-	$(".qcontainer").width(width);
+	$(".white_box").width(width);
 }
 
 /////////////////////////

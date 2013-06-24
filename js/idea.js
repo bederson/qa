@@ -85,7 +85,7 @@ function initEventHandlers() {
 		};
 		$.post("/new_idea", data, function() {
 			$("#submit").removeAttr("disabled");
-			$("#thankyou").css("display", "inline");
+			$("#thankyou").show();
 			$("#results_link").attr("href", "/results?question_id=" + question_id);
 			$("#answer").val("");
 			$("#answer").focus();
@@ -127,7 +127,7 @@ function onResize() {
 		}
 	}
 
-	$(".qcontainer").width(width);
+	$(".white_box").width(width);
 	$("#answer").width(width - 6);
 }
 

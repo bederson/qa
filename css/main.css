@@ -5,6 +5,132 @@ body {
 	font-size: 1.1em;
 }
 
+/* TEXT DISPLAY */
+
+h1 {
+	margin-top: -5px;
+	font-size: 1.5em;
+}
+
+h2 {
+	font-size: 1.2em;
+	margin-bottom: -5px;
+}
+
+.author {
+	color: #888;
+	font-size: 0.8em;
+}
+
+.header {
+	font-weight: bold;
+	font-size: 1.2em;
+}
+
+.help, .note {
+	color: #888;
+	font-size: 0.8em;
+}
+
+.small {
+	font-size: 0.8em;
+}
+
+.tags {
+	color: #048;
+	font-size: 0.8em;
+}
+
+.warning {
+	color: #f55;
+	font-weight: bold;
+}
+
+/* links */
+
+a, a:visited {
+	color: #000000;
+}
+
+a:hover {
+	color: #595454;
+}
+
+a.warning, a.warning:visited {
+	color: #f55;
+}
+
+a.warning:hover {
+	color: #595454;
+}
+
+/* QA ELEMENTS */
+
+#admin_buttons {
+	float: right;
+}
+
+#answer {
+	height: 60px;
+}
+
+.foo tr {
+	padding-bottom: 20px;
+}
+
+/* background boxes */
+
+.white_box {
+	margin-left: auto;
+	margin-right: auto;
+	padding: 10px;
+	background-color: white;
+	border-style: solid;
+	border-width: 1px;
+	border-color: #ccc;
+}
+
+.green_highlight {
+	padding: 5px;
+	background-color: #e9f3cc;
+	border-radius: 7px;
+}
+
+/* spacing */
+
+.largespaceafter, .largespacebelow {
+	margin-bottom: 20px;
+}
+
+.smallspaceafter {
+	margin-bottom: 5px;
+}
+
+.spaceafter, .spacebelow {
+	margin-bottom: 10px;
+}
+
+.padright, .padright td {
+	padding-right: 8px;
+}
+
+.padbottom, .padbottom td {
+	padding-bottom: 20px;
+}
+
+/* layout */
+
+.center {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.right {
+	float: right;
+}
+
+/* controls */
+
 input {
     font-family: Verdana, Helvetica, sans-serif;
 	font-size: 1em;
@@ -24,151 +150,6 @@ input[type=button], input[type=submit] {
 
 input[type=button]:hover, input[type=submit]:hover {
 	background: white;
-}
-
-h1 {
-	margin-top: -5px;
-	font-size: 1.5em;
-}
-
-h2 {
-	font-size: 1.2em;
-	margin-bottom: -5px;
-}
-
-.author {
-	color: #888;
-	font-size: 0.8em;
-}
-
-.center {
-	margin-left: auto;
-	margin-right: auto;
-}
-
-.header {
-	font-weight: bold;
-	font-size: 1.2em;
-}
-
-.help, .note {
-	color: #888;
-	font-size: 0.8em;
-}
-
-.largespaceafter {
-	margin-bottom: 20px;
-}
-
-.qcontainer {
-	margin-left: auto;
-	margin-right: auto;
-	padding: 10px;
-	background-color: white;
-	border-style: solid;
-	border-width: 1px;
-	border-color: #ccc;
-}
-
-.small {
-	font-size: 0.8em;
-}
-
-.smallspaceafter {
-	margin-bottom: 5px;
-}
-
-.spaceabove {
-	margin-top: 10px;
-}
-
-.spaceafter, .spacebelow {
-	margin-bottom: 10px;
-}
-
-.largespaceafter, .largespacebelow {
-	margin-bottom: 20px;
-}
-
-.tags {
-	color: #048;
-	font-size: 0.8em;
-}
-
-.warning {
-	color: #f55;
-	font-weight: bold;
-}
-
-a, a:visited {
-	color: #000000;
-}
-
-a:hover {
-	color: #595454;
-}
-
-a.warning, a.warning:visited {
-	color: #f55;
-}
-
-a.warning:hover {
-	color: #595454;
-}
-
-#admin_buttons {
-	float: right;
-}
-
-#answer {
-	height: 60px;
-}
-
-#charlimit {
-	color: #888;
-	float: right;
-	font-size: 0.7em;
-}
-
-#clusteredIdeas li, #unclusteredIdeas li {
-	margin-bottom: 10px;
-}
-
-#nodups {
-	display: none;
-}
-
-#notags, #mytags {
-	padding-left: 20px;
-	background-color: #eee;
-}
-
-#note {
-	padding: 5px;
-	background-color: #e9f3cc;
-	border-radius: 7px;
-}
-
-#phase_table {
-	margin-top: 10px;
-	margin-left: 20px;
-}
-
-#phase_table td {
-	padding-bottom: 10px;
-	padding-right: 8px;
-}
-
-#question_table td {
-	padding-right: 8px;
-}
-
-#questions li {
-	margin-bottom: 10px;
-}
-
-#thankyou {
-	display: none;
 }
 
 .ui-slider-horizontal {

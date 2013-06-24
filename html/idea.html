@@ -42,26 +42,25 @@ limitations under the License.
 	</div>
 	<div style="clear:both; margin-bottom:25px"></div>
 
-	<div class="qcontainer">
+	<div class="white_box">
 		<h1 id="title"></h1>
 		<div id="question"></div>
-
 		<div class="help">
 			Only put a single thing here. If you have other things to say, submit multiple times.
 		</div>
 		<br>
 		<textarea id="answer"></textarea><br>
-		<div id="charlimit">250 chars max</div>		
+		<div id="charlimit" class="note right">250 chars max</div>		
 		<input id="submit" type="submit" value="Submit">
-		<div id="thankyou">
-			<br><br>
-			<hr>
+		<div id="thankyou" style="display:none">
+			<br/><br/>
+			<hr/>
 			Thank you. Please enter as many submissions as you'd like.<br>
 			Or, look at <a id="results_link">other people's submissions</a> as they come in.
 		</div>
 	</div>
 	
 	<br>
-	<div id="nickname_area" class="qcontainer" style="display:none"></div>
+	<div id="nickname_area" class="white_box" style="display:none"></div>
 	
 {% endblock %}

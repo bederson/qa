@@ -223,6 +223,9 @@ class Question():
             "cascade_t": self.cascadeT
         } 
 
+# TODO: create cronjob to clean up any users who have been logged in for a long time
+# TODO: test on gae-test; remember to import database structure
+
 class Person():               
     id = None
     authenticatedUserId = None
@@ -291,26 +294,34 @@ class Person():
      
     # TODO: remember to remove all client ids when user logs out
     # TODO: is user_id and client_id enough or even just client_id?
-    def removeClientId(self, dbConnection, clientId, commit=True):
+    def removeClientId(self, dbConnection, clientId, returnNumClients=False, commit=True):
         sql = "delete from user_clients where user_id=%s and client_id=%s"
         dbConnection.cursor.execute(sql, (self.id, clientId))
         
-        # TODO: if no more client ids, should logout
+        numClients = 0
+        if returnNumClients:
+            sql = "select count(*) as ct from user_clients where user_id=%s"
+            dbConnection.cursor.execute(sql, (self.id))
+            row = dbConnection.cursor.fetchone()
+            numClients = row["ct"] if row else 0
         
         if commit:
             dbConnection.conn.commit()
+            
+        return numClients
       
     # TODO: record login/logout of users
     # TODO: record phase step completion times
     # TODO/COMMENT: logout this user from *all* activity
     @staticmethod
-    def logout(dbConnection, personId):
+    def logout(dbConnection, personId, commit=True):
         if personId:                
             sql = "update users set latest_logout_timestamp=now() where id=%s"
             dbConnection.cursor.execute(sql, (personId))
             sql = "delete from user_clients where user_id=%s"
             dbConnection.cursor.execute(sql, (personId))
-            dbConnection.conn.commit()
+            if commit:
+                dbConnection.conn.commit()
             
     @staticmethod
     def getPerson(dbConnection, question=None, nickname=None):
@@ -342,7 +353,7 @@ class Person():
                 dbConnection.cursor.execute(sql, (user.user_id()))
             row = dbConnection.cursor.fetchone()
             person = Person.getFromDBRow(row)
-                                
+            
         return person
     
     @staticmethod
@@ -472,19 +483,22 @@ class Idea():
     @staticmethod
     def getByQuestion(dbConnection, question, asDict=False):
         ideas = []
-        sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s"
-        dbConnection.cursor.execute(sql, (question.id))
-        rows = dbConnection.cursor.fetchall()
-        for row in rows:
-            idea = Idea.getFromDBRow(row)
-            if asDict:
-                author = Person()
-                author.id = row["user_id"]
-                author.authenticatedUserId = row["authenticated_user_id"]
-                author.authenticatedNickname = row["authenticated_nickname"]
-                author.nickname = row["nickname"]
-                idea = idea.toDict(author=author, admin=Person.isAdmin() or (question and question.isAuthor()))
-            ideas.append(idea)
+        if question:
+            sql = "select * from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s"
+            dbConnection.cursor.execute(sql, (question.id))
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                idea = Idea.getFromDBRow(row)
+                if asDict:
+                    # include author info with idea
+                    # if nickname authentication allowed, do not send authenticated info
+                    author = Person()
+                    author.id = row["user_id"]
+                    author.authenticatedUserId = row["authenticated_user_id"] if not question.nicknameAuthentication else None
+                    author.authenticatedNickname = row["authenticated_nickname"] if not question.nicknameAuthentication else None
+                    author.nickname = row["nickname"]
+                    idea = idea.toDict(author=author, admin=Person.isAdmin() or question.isAuthor())
+                ideas.append(idea)
         return ideas
     
     @staticmethod

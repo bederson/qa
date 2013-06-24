@@ -50,7 +50,12 @@ function submit() {
 			"nickname" : nickname
 		};
 		$.post("/login", data, function(results) {
-			alert("login: status="+results.status);
+			if (results.status == 0) {
+				$("#msg").html(results.msg);
+				return;
+			}
+			
+			window.location.href = results.url;
 		}, "json");
 	}
 }

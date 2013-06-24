@@ -54,7 +54,7 @@ function loadQuestion() {
 		ideas = results.ideas;
 		
 		if (question.phase == PHASE_NOTES) {
-			$("#note").show();
+			$("#idea_link_area").show();
 			$("#idea_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
 		}
 		

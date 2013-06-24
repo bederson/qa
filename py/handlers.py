@@ -48,6 +48,10 @@ class BaseHandler(webapp2.RequestHandler):
         if self.dbConnection:
             self.dbConnection.disconnect()
             
+        # Google recommends that a new connection be created to service each HTTP request, 
+        # and re-used for the duration of that request (since the time to create a new connection is 
+        # similar to that required to test the liveness of an existing connection).
+        # https://developers.google.com/cloud-sql/faq#connections
         self.dbConnection = DatabaseConnection()
         self.dbConnection.connect()
             
@@ -65,7 +69,6 @@ class BaseHandler(webapp2.RequestHandler):
     def initUserContext(self, admin=False):
         nickname = self.request.get("nickname")
         question = self.question
-        helpers.log("NICKNAME={0}".format(nickname))
                     
         # if question allows nickname authentication
         # check if nickname stored in session, if not provided
@@ -78,20 +81,22 @@ class BaseHandler(webapp2.RequestHandler):
         if admin:
             question = None
             nickname = None
-            helpers.log("SET NICKNAME TO NONE")
-
         
         person = Person.getPerson(self.dbConnection, question, nickname)
-        helpers.log("INIT USER CONTEXT: person={0}, nickname={1}".format(person.id if person else None, nickname))
-                            
-        # if no person found, create user (if user logged in or nickname provided)
-        if not person:
-            helpers.log("CREATING PERSON: {0}, {1}".format(question.id if question else None, nickname))
-            person = Person.create(self.dbConnection, question=question, nickname=nickname)
-
+        
+        # TODO/COMMENT
+        if person and not person.isLoggedIn:
+            # TODO: add to Person class; used elsewhere
+            sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null where id=%s"
+            self.dbConnection.cursor.execute(sql, (person.id))
+            self.dbConnection.conn.commit()
+            person.isLoggedIn = True 
+            
+        helpers.log("INIT USER CONTEXT: person={0}, nickname={1}, logged in? {2}".format(person.id if person else None, nickname, person.isLoggedIn if person else False))
+        
         return person        
 
-    def getDefaultTemplateValues(self, userRequired=True):
+    def getDefaultTemplateValues(self):
         """Return a dictionary of default template values"""                
         # if user logged in, add channel
         # TODO: currently a channel is created every time a user loads a page
@@ -163,14 +168,14 @@ class BaseHandler(webapp2.RequestHandler):
             
     def checkIfUserLoggedIn(self):
         ok = True
-        if not self.person:
+        if not self.person or not self.person.isLoggedIn:
             self.session['msg'] = "Please login"
             ok = False
         return ok
     
     def checkIfAuthenticatedUserLoggedIn(self):
         ok = True
-        if not self.person or not self.person.authenticatedUserId:
+        if not self.person or not self.person.authenticatedUserId or not self.person.isLoggedIn:
             self.session['msg'] = "Please login"
             ok = False
         return ok
@@ -204,7 +209,7 @@ class BaseHandler(webapp2.RequestHandler):
 class MainPageHandler(BaseHandler):
     def get(self):
         self.init()      
-        templateValues = self.getDefaultTemplateValues(userRequired=False)
+        templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/main.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -213,7 +218,7 @@ class NicknameLoginPageHandler(BaseHandler):
     # TODO/COMMENT: for nickname login
     def get(self):
         self.init()
-        templateValues = self.getDefaultTemplateValues(userRequired=False)        
+        templateValues = self.getDefaultTemplateValues()        
         path = os.path.join(os.path.dirname(__file__), '../html/login.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -222,11 +227,8 @@ class IdeaPageHandler(BaseHandler):
     def get(self): 
         self.init()      
         self.checkRequirements(userRequired=True, questionRequired=True)
-
-        templateValues = self.getDefaultTemplateValues(userRequired=True)  
-        if self.question:
-            templateValues["change_nickname_allowed"] = json.dumps(not self.question.nicknameAuthentication)
-            
+        templateValues = self.getDefaultTemplateValues()  
+        templateValues["change_nickname_allowed"] = json.dumps(self.person.authenticatedUserId is not None)    
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -238,7 +240,7 @@ class CascadePageHandler(BaseHandler):
     def get(self):
         self.init() 
         self.checkRequirements(userRequired=True, questionRequired=True)
-        templateValues = self.getDefaultTemplateValues(userRequired=True)  
+        templateValues = self.getDefaultTemplateValues()  
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -247,7 +249,7 @@ class ResultsPageHandler(BaseHandler):
     def get(self):
         self.init()    
         self.checkRequirements(userRequired=True, questionRequired=True)
-        templateValues = self.getDefaultTemplateValues(userRequired=True)  
+        templateValues = self.getDefaultTemplateValues()  
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -264,7 +266,7 @@ class AdminPageHandler(BaseHandler):
                 self.question = None
                 self.session['msg'] = "You do not have permission to edit this question"
             
-        templateValues = self.getDefaultTemplateValues(userRequired=True)
+        templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -273,6 +275,7 @@ class AdminPageHandler(BaseHandler):
 # Action Handlers
 #####################
 
+# TODO/COMMENT: QuestionLoginHandler vs LoginHandler?
 class QuestionLoginHandler(BaseHandler):
     def post(self):
         self.init()
@@ -302,6 +305,7 @@ class QuestionLoginHandler(BaseHandler):
         self.writeResponseAsJson(data)
         self.destroy()
         
+# TODO: behavior comment authen can login to nickname questions
 class LoginHandler(BaseHandler):
     def post(self):
         self.login()
@@ -309,43 +313,47 @@ class LoginHandler(BaseHandler):
     def login(self, json=True):
         self.init(initUser=False)
         nickname = self.request.get("nickname")
-        page = self.request.get("page")
-        helpers.log("LOGINHANDLER: nickname={0}".format(nickname))
-
+        page = self.request.get("page")        
         data = { "status" : 1 }
-        # if question allows nickname authentication
-        # store nickname in session if ok
+
+        self.person = Person.getPerson(self.dbConnection, self.question, nickname)  
+            
         if self.question:
-            person = Person.getPerson(self.dbConnection, self.question, nickname)
-            if person and person.isLoggedIn:
+
+            # check if someone is already logged in with same credentials
+            if self.person and self.person.isLoggedIn:
                 if self.question.nicknameAuthentication:
-                    helpers.log("MARK1")
-                    # TODO: need to destroy stuff before redirecting
-                    data = { "status" : 0, "msg" : "error1" }
-                    #self.redirectWithMsg("Someone is already logged in as " + nickname, "/nickname_login?question_id="+str(self.question.id)+"&timestamp="+randint(0,9))
+                    data = { "status" : 0, "msg" : "Someone is already logged in as {0}".format(nickname) }
                 else:
-                    helpers.log("MARK2");
-                    data = { "status" : 0, "msg" : "error2" }
-                    #self.redirectWithMsg(str(person.user) + " is already logged in", dst="/")
-                #return
+                    data = { "status" : 0, "msg" : "{0} is already logged in".format(self.person.authenticatedNickname) }
                 
-            if data["status"] == 1 and self.question.nicknameAuthentication and nickname:
+            # otherwise, check nickname if nickname authentication allowed
+            # and store nickname in session if ok
+            elif self.question.nicknameAuthentication and nickname:
                 specialChars = set('$\'"*,')
                 if any((c in specialChars) for c in nickname):
-                    data = { "status" : 0, "msg" : "error3" }
-                    #self.redirectWithMsg("Nickname can not contain " + "".join(specialChars), "/nickname_login?question_id="+str(self.question.id))
-                    #return
-                
-                # TOOD: check what else is stored in session
+                    data = { "status" : 0, "msg" : "Nickname can not contain {0}".format("".join(specialChars)) }                
                 else:
                     self.session[self.question.id] = { "nickname": nickname }
 
+
         if data["status"] == 1:
-            self.person = self.initUserContext()
+
+            if not self.person:
+                self.person = Person.create(self.dbConnection, question=self.question, nickname=nickname)
+            else:
+                # TODO: add to Person class
+                # used somewhere else too
+                sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null where id=%s"
+                self.dbConnection.cursor.execute(sql, (self.person.id))
+                self.dbConnection.conn.commit()
+                self.person.isLoggedIn = True
+                
             data["url"] = str(page) if page else (getPhaseUrl(self.question) if self.question else "/")
 
         if json:
             self.writeResponseAsJson(data)       
+        
         self.destroy()
         
         if not json:
@@ -554,9 +562,15 @@ class NewIdeaHandler(BaseHandler):
             clientId = self.request.get('client_id')
             ideaText = self.request.get('idea')                
             if ideaText and ideaText != "":
-                idea = Idea.create(self.dbConnection, self.question.id, self.person.id, ideaText)  
-                msg = { "op": "newidea", "idea": idea.toDict(author=self.person, admin=False) }
-                adminMsg = { "op": "newidea", "idea": idea.toDict(author=self.person, admin=True) }
+                idea = Idea.create(self.dbConnection, self.question.id, self.person.id, ideaText)
+                # TODO/FIX: also used somewhere else; make function?
+                author = Person()
+                author.id = self.person.id
+                author.authenticatedUserId = self.person.authenticatedUserId if not self.question.nicknameAuthentication else None
+                author.authenticatedNickname = self.authenticatedNickname if not self.question.nicknameAuthentication else None
+                author.nickname = self.person.nickname
+                msg = { "op": "newidea", "idea": idea.toDict(author=author, admin=False) }
+                adminMsg = { "op": "newidea", "idea": idea.toDict(author=author, admin=True) }
                 sendMessage(self.dbConnection, clientId, self.question.id, msg, adminMsg)
             
         self.destroy()
@@ -677,7 +691,6 @@ class CascadeOptionsHandler(BaseHandler):
 # Channel support
 #####################
           
-# TODO: is there a way to store db connections as opposed to making a new one for every get/post
 class ChannelConnectedHandler(BaseHandler):
     # Notified when clients connect
     def post(self):
@@ -696,8 +709,10 @@ class ChannelDisconnectedHandler(BaseHandler):
         questionId, personId, isQuestionAuthor = getInfoFromClientId(clientId)
         person = Person.getById(self.dbConnection, personId)
         if person:
-            person.removeClientId(self.dbConnection, clientId)
-            # TODO: logout if no clientIds left
+            numClients = person.removeClientId(self.dbConnection, clientId, returnNumClients=True, commit=False)
+            if numClients == 0:
+                Person.logout(self.dbConnection, person.id, commit=False)
+            self.dbConnection.conn.commit()
 
 def createChannel(question, person):
     clientId = str(random.randint(1000000000000, 10000000000000))
