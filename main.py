@@ -37,14 +37,14 @@ app = webapp2.WSGIApplication([
 	('/question_login', QuestionLoginHandler),
     ('/logout', LogoutHandler),
     ('/nickname', NicknameHandler),
-	('/query', QueryHandler),
 	('/new_question', NewQuestionHandler),
 	('/edit_question', EditQuestionHandler),
     ('/delete_question', DeleteQuestionHandler),
-	('/new_idea', NewIdeaHandler),
-	('/cascade_job', CascadeJobHandler),
-	('/set_phase', PhaseHandler),
+    ('/set_phase', PhaseHandler),
     ('/set_cascade_options', CascadeOptionsHandler),
+	('/cascade_job', CascadeJobHandler),
+    ('/new_idea', NewIdeaHandler),
+    ('/query', QueryHandler),
 	
 	('/_ah/channel/connected/', ChannelConnectedHandler),
 	('/_ah/channel/disconnected/', ChannelDisconnectedHandler)

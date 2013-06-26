@@ -1,5 +1,25 @@
 TODO
 
+TODO: update todos!!
+
+*** NEW ***
+* need to understand if ok to use MySQL root user when deployed
+* need better way to create question id
+* create cronjob to clean up any users who have been logged in for a long time
+* test on gae-test; remember to import database structure
+* when testing, watch that client_ids getting destroyed correctly
+* make sure login/logout timestamps being updated at correct times
+* record phase step completion times
+* authenticated_user_id will always stay the same but authenticated_nickname can change; should it be checked/modified when user logs in
+# TODO: create database indexes
+# TODO: do ideas, users, etc. need to be created w/in transactions to ensure same id not used when new database item created?
+# TODO/FIX: destroy channels after some specified period?
+# TODO: could merge users and user_clients if only 1 client allowed per user/question pair
+# TODO: person vs. user (variable name)
+# TODO: what can be memcached to speed things up?
+# TODO: create Google Cloud SQL database user to use instead of root
+
+
 Bugs
 * Users occasionally get the same idea assigned to them multiple times - why???
 * Need better random assignment algorithm - seems very clumpy

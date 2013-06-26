@@ -6,6 +6,9 @@ var PHASE_DISABLED = 0;
 var PHASE_NOTES = 1;
 var PHASE_CASCADE = 5;
 
+var MAX_CHARS = 250;
+
+
 /**
  * jQuery.browser.mobile (http://detectmobilebrowser.com/)
  * jQuery.browser.mobile will be true if the browser is a mobile device

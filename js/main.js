@@ -39,7 +39,6 @@ $(function() {
 });
 
 function loginToQuestion() {
-// TODO FRIDAY: redirect user to login form if not already logged in 
 	$("#msg").html("");
 	var question_id = $("#code_box").val();	
 	if (question_id.length==0) {

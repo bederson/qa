@@ -29,19 +29,18 @@ limitations under the License.
 	{% block scripts %}{% endblock %}
   </head>
   <body>
-	<!-- HEADER -->
-	<table class="header" width="100%">
-		<tr>
-			<td width="45%"><a href="/">Q &amp; A</a></td>
-			<td align="middle" width="10%"></td>
-			<td align="right" width="45%"></td>
-		</tr>
-	</table>
-	<br/>
+	<div class="header"><a href="/">Q &amp; A</a></div>
 	<h1>Login with Nickname</h1>
 	<div id="msg" class="warning spaceafter">{{ msg }}</div>
-	{{ title }} <span class="note">#{{ question_id }}</span><br/>
-	{{ question }}<br/>
-	Nickname: <input id="nickname" type="text" size="10" value=""> <input id="login_button" type="button" value="Login"><br/>
+	<table class="padright">
+	<tr>
+	<td>Question:</td>
+	<td>{{ title }} <span class="note">#{{ question_id }}</td>
+	</tr>
+	<tr>
+	<td>Nickname:</td>
+	<td><input id="nickname" type="text" size="12" value=""> <input id="login_button" type="button" value="Login"></td>
+	</tr>
+	</table>
   </body>
 </html>

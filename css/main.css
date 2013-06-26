@@ -25,6 +25,7 @@ h2 {
 .header {
 	font-weight: bold;
 	font-size: 1.2em;
+	margin-bottom: 25px;
 }
 
 .help, .note {
@@ -74,10 +75,6 @@ a.warning:hover {
 	height: 60px;
 }
 
-.foo tr {
-	padding-bottom: 20px;
-}
-
 /* background boxes */
 
 .white_box {
@@ -110,12 +107,16 @@ a.warning:hover {
 	margin-bottom: 10px;
 }
 
+.indentleft {
+	margin-left: 30px;
+}
+
 .padright, .padright td {
 	padding-right: 8px;
 }
 
 .padbottom, .padbottom td {
-	padding-bottom: 20px;
+	padding-bottom: 10px;
 }
 
 /* layout */
@@ -129,7 +130,7 @@ a.warning:hover {
 	float: right;
 }
 
-/* controls */
+/* widgets */
 
 input {
     font-family: Verdana, Helvetica, sans-serif;
@@ -159,4 +160,8 @@ input[type=button]:hover, input[type=submit]:hover {
 .ui-slider .ui-slider-handle {
 	width: 1em !important;
 	height: 1em !important;
+}
+
+.dialog {
+	font-size: 0.9em;
 }

@@ -43,17 +43,16 @@ limitations under the License.
   </head>
   <body>
 	<!-- HEADER -->
-	<table class="header" width="100%">
-		<tr>
-			<td width="45%"><a href="/">Q &amp; A</a></td>
-			<td align="middle" width="10%"></td>
-			<td align="right" width="45%">
-			    <span id="user_login"></span>
-				<a href="{{ url }}">{{ url_linktext }}</a>
-			</td>
-		</tr>
-	</table>
-	<br>
+	<div class="header">
+		<div style="float:left; width:45%">
+			<a href="/">Q &amp; A</a>
+		</div>
+		<div style="float:right; width:45%; text-align:right">
+			<span id="user_login"></span>
+			<a href="{{ url }}">{{ url_linktext }}</a>
+		</div>
+	<div style="clear:both"></div>
+	</div>
 	{% block content %}{% endblock %}
   </body>
 </html>

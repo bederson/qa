@@ -27,17 +27,27 @@ def isRunningLocally():
     import os
     return not os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine')
 
-def to_json(data):        
+def toJson(data):        
     import json
-    return json.dumps(data, default=_json_handler)
+    return json.dumps(data, default=_jsonHandler)
 
-def from_json(data):
+def fromJson(data):
     import json
     return json.loads(data)
   
-def _json_handler(o):
+def _jsonHandler(o):
     from datetime import datetime
     if isinstance(o, datetime):
         return o.strftime("%B %d, %Y %H:%M:%S")
     else:
         raise TypeError(repr(o))
+    
+def cleanWord(word):
+    word = word.lower()
+    word = word.strip("`~!@#$%^&*()-_=+|;:',<.>/?")
+    if isStopWord(word):
+        word = ""
+    return word
+    
+def isStopWord(word):
+    return (word in constants.STOP_WORDS)

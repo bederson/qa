@@ -31,12 +31,8 @@ limitations under the License.
 	<div id="page_content" style="display:none">
 	<div id="selected_question" style="display:none">
 	<div id="question"></div>
-	<table class="padright padbottom">
-		<tr valign="top">
-			<td colspan="2">
-				<input id="p0button" type="button">
-			</td>
-		</tr>
+	<input id="p0button" type="button" class="spaceafter">
+	<table class="indentleft padright padbottom">
 		<tr>
 			<td>
 				<table class="padright padbottom">
@@ -53,10 +49,10 @@ limitations under the License.
 							<input id="p5button" type="button">
 						</td>
 						<td>
-							Go to <a id="cascade_link">Cascade</a><br/>
-							<input id="cascade_k" class="cascade_option" type="text" size="3"></input> k (redundancy factor)<br/>
-							<input id="cascade_m" class="cascade_option" type="text" size="3"></input> m (# notes in initial set)<br/>
-							<input id="cascade_t" class="cascade_option" type="text" size="3"></input> t (# notes shown in create category task)
+							<div class="spaceafter">Go to <a id="cascade_link">Cascade</a></div>
+							<input id="cascade_k" class="cascade_option smallspaceafter" type="text" size="3"></input> k (redundancy factor)<br/>
+							<input id="cascade_m" class="cascade_option smallspaceafter" type="text" size="3"></input> m (# notes in initial set)<br/>
+							<input id="cascade_t" class="cascade_option smallspaceafter" type="text" size="3"></input> t (# notes shown in create category task)
 						</td>
 					</tr>
 					<tr valign="top">
@@ -73,9 +69,8 @@ limitations under the License.
 	</table>
 	</div>
 	
-	<br>
-	<h2>Create a new question:</h2><br>
-	<table class="padright">
+	<h2 class="spaceafter">Create a new question:</h2>
+	<table class="padright largespaceafter">
 		<tr>
 			<td>
 				Title
@@ -111,11 +106,13 @@ limitations under the License.
 		</tr>
 	</table>
 
-	<br>
 	<h2>Your existing questions:</h2>
 	<div id="question_list"><p>Loading ...</p></div>
-	<div id="delete_confirm" title="Delete Confirmation" style="display:none">
-		<p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>All data associated with this question will be permanently deleted and cannot be recovered. Are you sure?</p>
+	
+	<div id="delete_confirm" title="Delete Confirmation" class="dialog" style="display:none">
+	<p><span class="ui-icon ui-icon-alert" style="float:left; margin: 0 7px 0 0;"></span>
+	All data associated with this question will be permanently deleted and cannot be recovered. Are you sure?</p>
 	</div>
+	
 	</div>
 {% endblock %}

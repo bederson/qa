@@ -306,10 +306,10 @@ function deleteQuestion(question_id) {
 						createQuestionForm();
 					}
 				}, "json");
-				$(this).dialog( "close" );
+				$(this).dialog("close");
 			},
 			Cancel: function() {
-				$(this).dialog( "close" );
+				$(this).dialog("close");
 			}
 		}
 	});
