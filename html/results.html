@@ -29,21 +29,15 @@ limitations under the License.
 {% endblock %}
 
 {% block content %}
+	<h1>Results</h1>
 	<div id="msg" class="warning spaceafter">{{ msg }}</div>
-	<p>
-	<div id="idea_link_area" class="green_highlight" style="float:left; display:none">Submit <a id="idea_link">another note</a></div>
-	{% if admin %}
-	<div id="admin_buttons">
-		<input id="admin_button" type="button" value="Admin">
-	</div>
-	{% endif %}
-	<div style="clear:both"></div>
 	<div id="page_content" style="display:none">
 	<hr>
 	<div class="spaceafter">
-		<h1>Results</h1>
-		<div class="smallspaceafter">Question: <span id="question_text">{{ question }}</span> <span id="question_code" class="note">#{{ question_id }}</span></div>
+		<div class="spaceafter">Question: <span id="question_text">{{ question }}</span> <span id="question_code" class="note">#{{ question_id }}</span><br/>
 		<span id="num_ideas"></span>
+		</div>
+		<div id="idea_link_area" class="green_highlight" style="float:left; display:none">Submit <a id="idea_link">another note</a></div>
 	</div>
 	<div id="ideas">Loading ...</div>
 	</div>

@@ -27,13 +27,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
 app = webapp2.WSGIApplication([
 	('/', MainPageHandler),
-    ('/nickname_login', NicknameLoginPageHandler),
+    ('/nickname_page', NicknameLoginPageHandler),
     ('/idea', IdeaPageHandler),
     ('/cascade', CascadePageHandler),
     ('/results', ResultsPageHandler),
     ('/admin', AdminPageHandler),
 
-	('/login', LoginHandler),
+    ('/login', LoginHandler),
+	('/nickname_login', NicknameLoginHandler),
 	('/question_login', QuestionLoginHandler),
     ('/logout', LogoutHandler),
     ('/nickname', NicknameHandler),

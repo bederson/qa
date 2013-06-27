@@ -49,7 +49,7 @@ function submit() {
 			"question_id" : question_id,
 			"nickname" : nickname
 		};
-		$.post("/login", data, function(results) {
+		$.post("/nickname_login", data, function(results) {
 			if (results.status == 0) {
 				$("#msg").html(results.msg);
 				return;

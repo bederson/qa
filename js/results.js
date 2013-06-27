@@ -27,7 +27,6 @@ $(document).ready(function() {
 		return;
 	}
 
-	// TODO: when should channel be created
 	initChannel();
 		
 	$("#page_content").show();
@@ -226,6 +225,6 @@ function handleTag(data) {
 }
 
 function handleNickname(data) {
-	// TODO: would be better to only refresh changed data
+	// TODO: would be better to only update data that has changed changed
 	window.location.reload();
 }

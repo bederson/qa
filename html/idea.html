@@ -31,18 +31,8 @@ limitations under the License.
 {% endblock %}
 
 {% block content %}
-	{% if admin %}
-	<span id="admin_buttons">
-		<input id="admin_button" type="button" value="Admin">
-	</span>
-	{% endif %}
-
-	<div id="start_tagging" style="display: none;">
-		<input id="tag_button" type="button" value="Start tagging" style="font-size: 2.0em">
-	</div>
-	<div style="clear:both; margin-bottom:25px"></div>
-
-	<div class="white_box">
+	<div id="msg" class="warning spaceafter">{{ msg }}</div>
+	<div class="white_box largespaceabove">
 		<h1 id="title"></h1>
 		<div id="question"></div>
 		<div class="help">

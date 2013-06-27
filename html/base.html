@@ -42,7 +42,6 @@ limitations under the License.
 	{% block scripts %}{% endblock %}
   </head>
   <body>
-	<!-- HEADER -->
 	<div class="header">
 		<div style="float:left; width:45%">
 			<a href="/">Q &amp; A</a>
@@ -53,6 +52,12 @@ limitations under the License.
 		</div>
 	<div style="clear:both"></div>
 	</div>
+	{% if admin %}
+	<div id="admin_buttons">
+		<input id="admin_button" type="button" value="Admin">
+	</div>
+	<div style="clear:both"></div>	
+	{% endif %}	
 	{% block content %}{% endblock %}
   </body>
 </html>

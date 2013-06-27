@@ -1,56 +1,44 @@
 TODO
 
-TODO: update todos!!
+GAE Deployment
+* download and install gsutil to make importing data easier:
+  https://developers.google.com/cloud-sql/docs/import_export#migrate
+* create empty sql file containing database structure and import to Google Cloud SQL database
+* create Google Cloud SQL database user to use instead of root
 
-*** NEW ***
-* need to understand if ok to use MySQL root user when deployed
-* need better way to create question id
-* create cronjob to clean up any users who have been logged in for a long time
-* test on gae-test; remember to import database structure
-* when testing, watch that client_ids getting destroyed correctly
-* make sure login/logout timestamps being updated at correct times
-* record phase step completion times
-* authenticated_user_id will always stay the same but authenticated_nickname can change; should it be checked/modified when user logs in
-# TODO: create database indexes
-# TODO: do ideas, users, etc. need to be created w/in transactions to ensure same id not used when new database item created?
-# TODO/FIX: destroy channels after some specified period?
-# TODO: could merge users and user_clients if only 1 client allowed per user/question pair
-# TODO: person vs. user (variable name)
-# TODO: what can be memcached to speed things up?
-# TODO: create Google Cloud SQL database user to use instead of root
-
-
-Bugs
-* Users occasionally get the same idea assigned to them multiple times - why???
-* Need better random assignment algorithm - seems very clumpy
-  Made an improvement, need to try it with a class
-* Can't submit idea when Chrome "disconnect.me" plugin installed
-* Channels raises onError sometimes (even when they are new):
-  > Channel ERROR:  utils.js:69
-  > Object {description: "", code: 400} utils.js:70
-  http://stackoverflow.com/questions/13962739/intermittent-error-code-400-description-on-client-connecting-to-channel
-  https://code.google.com/p/googleappengine/issues/detail?id=4940
-  
 Features
-* Stem tags???
-* Allow students to edit their tags
-* Auto-complete or show tags that others have already entered for that cluster or idea
-  (to make it easier and faster for students to enter tags, and for there to be less diversity
-   ... if that's what we want)
+* Record cascade step completion times
+* Use stemming when comparing tags for equality
 * Allow admins to modify questions, in addition to question authors
+* Support download question activity data
+* Create cronjob to clean up any users who have been logged in for a long time
+* Allow admins to logout students
+* Handle active users when question disabled or deleted (logout?)
 
-Testing
-* Questions require either user authentication (via google account) or nickname authentication 
-  (nickname stored in session). Implemented but needs to be tested (esp. nickname authentication)
-  
-Misc
+Misc Improvements
 * Reduce page reloads to reduce unnecessary server calls and # of channels created
-* Need consistent terminology (e.g., submission/note/response/idea for responses to questions)
+* Need better way to create unique question id
+* Need consistent terminology (e.g., submission/note/response/idea, person/user/author)
+* Create database indexes
+* Destroy channels after some specified period (or does that happen automatically?)
+* Consider what can be stored in datastore and/or memcache to improve performance
+* authenticated_user_id will always stay the same but authenticated_nickname can change.
+  Check and update if needed when user logs in
+* Does anything need to be created w/in transactions to ensure same id not used when new database item created?  
+  Or does InnoDB handle this ...
+* Reduce character limit for ideas to encourage only one idea per submission
 
-Engineering
-* Better downloading support
+Known Bugs
+* Can't submit idea when Chrome "disconnect.me" plugin installed
+  
+Testing
 * Build test harness
   (look at the Firefox extension Selenium: seleniumhq.org)
+
+Design Issues
+* General tension between student individual focus and how much they see of collective activity
+
+****** OLD ******
 
 New approaches
 * Cluster based on tags
@@ -62,11 +50,18 @@ New approaches
 * Regular polls
 * "Tag" with a fixed vocabulary - which would turn into a collective grading exercise. If participants could get back
   their originally contributed ideas, then it would turn into a kind of peer grading platform
-
-Design issues
-* General tension between student individual focus and how much they see of collective activity
-* Should complete user name (which is email) be displayed on mouse over in instructor view?
-
+  
+Bugs
+* Users occasionally get the same idea assigned to them multiple times - why???
+* Need better random assignment algorithm - seems very clumpy
+  Made an improvement, need to try it with a class
+* Can't submit idea when Chrome "disconnect.me" plugin installed
+* Channels raises onError sometimes (even when they are new):
+  > Channel ERROR:  utils.js:69
+  > Object {description: "", code: 400} utils.js:70
+  http://stackoverflow.com/questions/13962739/intermittent-error-code-400-description-on-client-connecting-to-channel
+  https://code.google.com/p/googleappengine/issues/detail?id=4940
+    
 Clustering
 * Look at MALLET - http://mallet.cs.umass.edu/topics.php
 * Read Jordan's paper

@@ -71,7 +71,6 @@ class DBObject(object):
     def update(self, dbConnection=None, table=None, properties={}):
     # update the values of the specified properties in both memory and the database
     # assumes that property names and database field names are the same
-
         id = None
         updateProperties = []
         updateValues = ()
@@ -89,7 +88,6 @@ class DBObject(object):
 
         if dbConnection and table and len(updateProperties) > 0 and id:
             sql = "update {0} set {1} where id=%s".format(table, ",".join(updateProperties))
-            helpers.log(sql)
             dbConnection.cursor.execute(sql, updateValues + (id,));
             dbConnection.conn.commit()
              
@@ -252,16 +250,24 @@ class Person(DBObject):
             dbConnection.conn.commit()
             self.is_logged_in = True 
             
-    @staticmethod
-    def logout(dbConnection, personId, commit=True):
-        if personId:                
-            sql = "update users set latest_logout_timestamp=now() where id=%s"
-            dbConnection.cursor.execute(sql, (personId))
-            sql = "delete from user_clients where user_id=%s"
-            dbConnection.cursor.execute(sql, (personId))
+    def logout(self, dbConnection, commit=True):
+        if self.is_logged_in:
+            # if a Google authenticated user is logging out, modify all records associated with this user
+            if self.authenticated_user_id:
+                sql = "update users set latest_logout_timestamp=now() where authenticated_user_id=%s"
+                dbConnection.cursor.execute(sql, (self.authenticated_user_id))
+                sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
+                dbConnection.cursor.execute(sql, (self.authenticated_user_id))
+            # otherwise, logout this specific user instance
+            else:
+                sql = "update users set latest_logout_timestamp=now() where id=%s"
+                dbConnection.cursor.execute(sql, (self.id))
+                sql = "delete from user_clients where user_id=%s"
+                dbConnection.cursor.execute(sql, (self.id))
             if commit:
                 dbConnection.conn.commit()
-    
+            self.is_logged_in = False
+        
     def addClient(self, dbConnection, clientId, commit=True):   
         sql = "insert into user_clients (user_id, client_id) values(%s, %s)"
         dbConnection.cursor.execute(sql, (self.id, clientId))
@@ -303,7 +309,7 @@ class Person(DBObject):
             sqlValues = (user.user_id())
             if question:
                 sql += "and question_id=%s"
-                # TODO: compile error when trying to add item to sqlValues; must have syntax wrong 
+                # TODO: compile error when trying to add item to sqlValues; must have syntax wrong
                 sqlValues = (user.user_id(), question.id)
             
             dbConnection.cursor.execute(sql, sqlValues)
@@ -431,6 +437,7 @@ class Idea(DBObject):
         
         if author:
             dict["author"] = author.nickname if author.nickname else "Anonymous"
+            # only pass authenticated nickname to admin users
             if admin and author.authenticated_nickname and Person.cleanNickname(author.authenticated_nickname) != author.nickname:
                 dict["author_identity"] = author.authenticated_nickname
                             
