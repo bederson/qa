@@ -33,7 +33,7 @@ def toJson(data):
 
 def fromJson(data):
     import json
-    return json.loads(data)
+    return json.loads(data) if data else None
   
 def _jsonHandler(o):
     from datetime import datetime

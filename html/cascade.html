@@ -22,12 +22,19 @@ limitations under the License.
 {% block scripts %}
 	<script type="text/javascript" src="js/cascade.js"></script>
 	<script>
-		var phase = parseInt("{{ phase }}");
 		var question_id = "{{ question_id }}";
+		var phase = parseInt("{{ phase }}");
+		var step = parseInt("{{ step }}");
 	</script>
 {% endblock %}
 
 {% block content %}
+	{% if admin %}
+	<div id="admin_buttons">
+		<input id="admin_button" type="button" value="Admin">
+	</div>
+	<div style="clear:both"></div>	
+	{% endif %}	
 	<div id="msg" class="warning spaceafter">{{ msg }}</div>
 	<div id="step" class="center step note" style="text-align: right;"></div>
 	<div class="white_box">

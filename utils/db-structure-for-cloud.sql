@@ -7,11 +7,13 @@ create table questions (
   nickname_authentication tinyint default 0,
   user_id int,
   phase int default 0,
-  last_update timestamp not null default current_timestamp on update current_timestamp,
+  cascade_step int default 0,  *****NEW*****
   cascade_k int default 5,
   cascade_m int default 32,
   cascade_t int default 8,
-  primary key(id)
+  last_update timestamp not null default current_timestamp on update current_timestamp,
+  primary key(id),
+  key user_index (user_id)  *****NEW*****
 ) engine=InnoDB default charset=utf8;
 
 drop table if exists question_ideas;

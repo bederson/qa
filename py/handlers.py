@@ -520,82 +520,50 @@ class PhaseHandler(BaseHandler):
         except ValueError:
             phase = None
             
-        ok = self.checkRequirements(self, authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
           
-        elif not phase:
+        elif phase == None:
             data = { "status" : 0, "msg" : "Invalid phase requested" }   
             
         else:
-            self.question.update(self.dbConnection, { "phase" : phase, "id" : self.question.id })               
+            self.question.setPhase(self.dbConnection, phase)
             data = { "status" : 1, "question" : self.question.toDict() }
-            sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "phase", "phase" : phase })
+            sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "phase", "phase" : phase, "cascade_step" : self.question.cascade_step })
 
         self.writeResponseAsJson(data)            
         self.destroy()
                             
 class CascadeJobHandler(BaseHandler):
     def post(self):
-        # TODO: Implement
-        pass
-#         person = self.initUserContext()
-#         client_id = self.request.get('client_id')
-#         question_id = self.request.get("question_id")
-#         question = Question.getQuestionById(question_id)
-#         data = {}              
-#         
-#         if not person:
-#             data["status"] = 0
-#             data["msg"] = "Please log in"
-#                  
-#         elif not question:
-#             data["status"] = 0
-#             data["msg"] = "Invalid question code"
-#         
-#         elif question.phase != constants.PHASE_CASCADE:
-#             data["status"] = 0
-#             data["msg"] = "Not currently enabled"
-#             
-#         else:
-#             jobId = long(self.request.get("assignment_id", "-1"))
-#             if jobId != -1:
-#                 job = CascadeJob.get_by_id(jobId)
-#                 if job:
-#                     data = {}
-#                     if job.step == 1:
-#                         numCategories = int(self.request.get("num_categories"))
-#                         categories = [ self.request.get("category_"+str(i+1)) for i in range(numCategories) ]
-#                         data = { "categories" : categories }
-#                     elif job.step == 2:
-#                         bestCategoryIndexStr = self.request.get("best_category_index", "")
-#                         data = { "best_category_index" : bestCategoryIndexStr if bestCategoryIndexStr.isdigit() else -1 }
-#                     else:
-#                         helpers.log("WARNING: Job not saved")
-#                     
-#                     job.completed(data)
-#                 else:
-#                     helpers.log("WARNING: Job not found (id={0})".format(jobId))
-#             
-#             cascade = Cascade.getCascadeForQuestion(question)
-#             helpers.log("question={0}, cascade step={1}, person={2}".format(question.id, cascade.step, person))
-#             jobData = CascadeJob.getJob(question, cascade.step, person)
-#             job = jobData["job"]
-#             isNewStep = jobData["new_step"]
-#             
-#             # Notify clients if new step
+        self.init()
+        clientId = self.request.get("client_id")
+
+        ok = self.checkRequirements(userRequired=True, questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+        
+        elif self.question.phase != constants.PHASE_CASCADE:
+            data = { "status" : 0, "msg" : "Cascade not enabled currently" }
+             
+        else:
+            # save job (if any)
+            job = helpers.fromJson(self.request.get("job", None))
+            if job:
+                step = int(self.request.get("step", "0"))
+                complete = self.question.saveCascadeJob(self.dbConnection, step, job)
+                      
+            job, step = self.question.getCascadeJob(self.dbConnection, self.person)
+            data = { "status" : 1, "step" : step, "job": [task.toDict() for task in job] if job else [] }
+            
+            # TODO/FIX!! complete indicates if step completed, new job will be from different step
+            # Notify clients if new step
 #             if isNewStep:
-#                 message = {
-#                     "op": "step",
-#                     "step": job.step
-#                 }
-#                 send_message(client_id, question, message)
-# 
-#             data["status"] = 1
-#             data["step"] = job.step if job else cascade.step
-#             data["assignment"] = job.toDict() if job else None
-#             
-#         self.writeResponseAsJson(data)
+#                 sendMessage(self.dbConnection, clientId, self.question, { "op": "step", "step": job.step })
+              
+        self.writeResponseAsJson(data)
+        self.destroy()
 
 class CascadeOptionsHandler(BaseHandler):
     def post(self):
@@ -672,7 +640,7 @@ def sendMessage(dbConnection, fromClientId, questionId, message, adminMessage=No
     if fromClientId and questionId:
         # TODO: would it be better to store client ids in the HRD or memcache
         # as opposed to performing a db query
-        sql = "select * from users,user_clients where users.id=user_clients.user_id and question_id=%s"
+        sql = "select client_id from users,user_clients where users.id=user_clients.user_id and question_id=%s"
         dbConnection.cursor.execute(sql, (questionId))
         rows = dbConnection.cursor.fetchall()
         for row in rows:

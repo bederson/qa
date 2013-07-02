@@ -27,6 +27,7 @@ Misc Improvements
 * Does anything need to be created w/in transactions to ensure same id not used when new database item created?  
   Or does InnoDB handle this ...
 * Reduce character limit for ideas to encourage only one idea per submission
+* Do not allow Cascade to be enabled until notes created
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
@@ -37,6 +38,11 @@ Testing
 
 Design Issues
 * General tension between student individual focus and how much they see of collective activity
+
+Google Cloud SQL
+* Google Cloud SQL uses MySQL 5.5 (using 5.6 for local testing)
+* google_app_engine_sdk_path/google_sql.py
+* https://developers.google.com/appengine/training/cloud-sql/deploy_the_app
 
 ****** OLD ******
 

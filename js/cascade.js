@@ -15,21 +15,13 @@
 // limitations under the License.
 //
 
-// TODO: #msg vs #warning; order of checks
-
 $(document).ready(function() {
+	if ($("#msg").html()) {
+		return;
+	}
+	
 	initChannel();
 	initEventHandlers();
-
-	if (!logged_in) {
-		$("#warning").html("Please log in");
-		return;
-	}
-			
-	if (!question_id) {
-		$("#warning").html("Question code required");
-		return;
-	}
 		
 	if (phase != PHASE_CASCADE) {
 		redirectToPhase(phase, question_id);
@@ -62,32 +54,30 @@ function updateUI(results) {
 	}
 }
 
-// step 1: create categories
+// step 1: suggest categories
 function updateUIForStep1(results) {
 	step1Ideas = [];
-	$("#title").html("Create Categories");
+	$("#title").html("Suggest Categories");
 	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
 	if (results.status == 1) {
-		var assignment = results.assignment;
-		if (assignment && assignment.task) {
-			var ideas = assignment.task.ideas;
+		var tasks = results.job;
+		if (tasks.length > 0) {
 			var taskHtml = "";
-			for (var i=0; i<ideas.length; i++) {
-				var idea = ideas[i];
+			for (var i=0; i<tasks.length; i++) {
+				var task = tasks[i];
 				taskHtml += "<div class=\"largespaceafter\">";
-				taskHtml += idea.text + " ";
-				taskHtml += "<input id=\"category_"+(i+1)+"\" type=\"text\"/ value=\"\">";
+				taskHtml += task.idea + " ";
+				taskHtml += "<input class=\"suggested_category\" id=\"category_"+task.id+"\" type=\"text\"/ value=\"\">";
 				taskHtml += "</div>\n";
 			}
-			taskHtml += "<input id=\"num_categories\" type=\"hidden\" value=\"" + ideas.length + "\">";
 			taskHtml += "<input id=\"submit_categories_btn\" type=\"button\" value=\"Submit Categories\">";
 			$("#task_area").html(taskHtml);
-			$("#submit_categories_btn").on("click", { assignment: assignment }, function(event) {
-				submitStep1(event.data.assignment);
+			$("#submit_categories_btn").click(function(event) {
+				submitStep1();
 			});
 		}
 		else {
-			taskHtml = "All tasks for this step have been assigned.<br/>";
+			taskHtml = "You have completed all tasks for this step.<br/>";
 			taskHtml += "Please wait for next step to begin.";
 			$("#task_area").html(taskHtml);
 		}
@@ -97,18 +87,22 @@ function updateUIForStep1(results) {
 	}
 }
 
-function submitStep1(assignment) {
+function submitStep1() {
+	var job = [];
+	$(".suggested_category").each(function() {
+		var textbox = $(this);
+		var textbox_id = textbox.attr("id");
+		var task_id = textbox_id.replace("category_","");
+		job.push({ id: task_id, suggested_category: textbox.val() });	
+	});
+		
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id,
-		"assignment_id" : assignment.id,
-		"num_categories" : parseInt($("#num_categories").val())
+		"step" : 1,
+		"job" : $.toJSON(job)
 	}
 	
-	for (var i=0; i<data["num_categories"]; i++) {
-		data["category_"+(i+1)] = $("#category_"+(i+1)).val();	
-	}
-
 	$.post("/cascade_job", data, function(results) {
 		if (results.status == 0) {
 			$("#warning").html(results.msg);
@@ -122,32 +116,33 @@ function submitStep1(assignment) {
 
 // step 2: select best category
 function updateUIForStep2(results) {
-	step1Ideas = [];
 	$("#title").html("Select Best Category");
 	$("#help").html("Vote for the category that you think best fits the note.");
 	if (results.status == 1) {
-		var assignment = results.assignment
-		if (assignment && assignment.task) {
+		var tasks = results.job;
+		if (tasks.length == 1) {
+			var task = tasks[0];
 			var taskHtml = "";
 			taskHtml += "<div class=\"largespaceafter\">";
-			taskHtml += "<div class=\"spaceafter\">" + assignment.task.idea.text + "</div>";
-			for (var i=0; i<assignment.task.categories.length; i++) {
+			taskHtml += "<div class=\"spaceafter\">" + task.idea + "</div>";
+			alert(task.suggested_categories);
+			for (var i=0; i<task.suggested_categories.length; i++) {
 				var radioBoxId = "category_rb_"+i;
 				taskHtml += "<div class=\"spaceafter\">";
 				taskHtml += "<div style=\"float:left;\"><input type=\"radio\" id=\"" + radioBoxId + "\" name=\"suggested_category\" value=\""+i+"\"></div>";
-				taskHtml += "<div style=\"float:left; margin-left:5px; width:93%\"><label for=\"" + radioBoxId + "\">" + assignment.task.categories[i] + "</label></div>";
+				taskHtml += "<div style=\"float:left; margin-left:5px; width:93%\"><label for=\"" + radioBoxId + "\">" + task.categories[i] + "</label></div>";
 				taskHtml += "<div style=\"clear:both\"></div>";
 				taskHtml += "</div>";
 			}
 			taskHtml += "</div>\n";
 			taskHtml += "<input id=\"submit_vote_btn\" type=\"button\" value=\"Submit Vote\">";
 			$("#task_area").html(taskHtml);
-			$("#submit_vote_btn").on("click", { assignment: assignment }, function(event) {
-				submitStep2(event.data.assignment);
+			$("#submit_vote_btn").click(function(event) {
+				submitStep2();
 			});
 		}
 		else {
-			taskHtml = "All tasks for this step have been assigned.<br/>";
+			taskHtml = "You have completed all task for this step.<br/>";
 			taskHtml += "Please wait for next step to begin.";
 			$("#task_area").html(taskHtml);
 		}
@@ -157,7 +152,7 @@ function updateUIForStep2(results) {
 	}
 }
 
-function submitStep2(assignment) {
+function submitStep2() {
 	var bestCategoryIndex = $("input:radio[name=suggested_category]:checked").val();
 	if (!bestCategoryIndex) {
 		$("#warning").html("Please select an item");
@@ -215,6 +210,7 @@ function handlePhase(data) {
 	window.location.reload();
 }
 
-function handleStep(step) {
+function handleStep(data) {
+	alert("cascade step changed!");
 	window.location.reload();
 }
