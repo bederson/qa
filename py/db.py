@@ -24,8 +24,10 @@ from google.appengine.api import rdbms
 from google.appengine.api import users
 
 class DatabaseConnection():
-    conn = None
-    cursor = None
+    def __init__(self):
+        self.conn = None
+        self.cursor = None
+        
     def connect(self):
         # check if already connected
         if self.conn:
@@ -81,7 +83,7 @@ class DBObject(object):
         return table, field
     
     @classmethod
-    def createFromData(cls, data=None):
+    def createFromData(cls, data):
     # creates an object from the given data
         obj = None
         if data:
@@ -130,19 +132,21 @@ class DBObject(object):
         return objDict
            
 class Question(DBObject):
-    id = None
-    title = None
-    question = None
-    nickname_authentication = False
-    user_id = None
-    authenticated_user_id = None # stored in users table
-    phase = 0
-    cascade_step = 0
-    cascade_k = 5
-    cascade_m = 32
-    cascade_t = 8
     table = "questions"
     fields = { "id", "title", "question", "nickname_authentication", "user_id", "phase", "cascade_step", "cascade_k", "cascade_m", "cascade_t" }    
+        
+    def __init__(self):
+        self.id = None
+        self.title = None
+        self.question = None
+        self.nickname_authentication = False
+        self.user_id = None
+        self.authenticated_user_id = None # stored in users table
+        self.phase = 0
+        self.cascade_step = 0
+        self.cascade_k = 5
+        self.cascade_m = 32
+        self.cascade_t = 8
         
     @staticmethod
     def create(dbConnection, author, title, questionText, nicknameAuthentication=False):
@@ -162,15 +166,14 @@ class Question(DBObject):
         question.nickname_authentication = nicknameAuthentication
         question.user_id = author.id
             
-        if dbConnection:
-            sql = "insert into questions (id, title, question, nickname_authentication, user_id) values (%s, %s, %s, %s, %s)"
-            dbConnection.cursor.execute(sql, (question.id, question.title, question.question, question.nickname_authentication, question.user_id))
-            dbConnection.conn.commit()
+        sql = "insert into questions (id, title, question, nickname_authentication, user_id) values (%s, %s, %s, %s, %s)"
+        dbConnection.cursor.execute(sql, (question.id, question.title, question.question, question.nickname_authentication, question.user_id))
+        dbConnection.conn.commit()
             
         return question
 
     @classmethod
-    def createFromData(cls, data=None):
+    def createFromData(cls, data):
         question = super(Question, cls).createFromData(data)
         if question:
             authenticatedUserIdField = "authenticated_user_id" if "authenticated_user_id" in data else Person.tableField("authenticated_user_id") if Person.tableField("authenticated_user_id") in data else None
@@ -192,9 +195,7 @@ class Question(DBObject):
         self.update(dbConnection, { "cascade_step" : self.cascade_step+1, "id" : self.id })            
         if CASCADE_CLASSES[self.cascade_step-1]:
             CASCADE_CLASSES[self.cascade_step-1].initStep(dbConnection, self)
-        else:
-            helpers.log("INITSTEP FOR STEP {0} NOT IMPLEMENTED YET".format(self.cascade_step))
-
+        
     def getCascadeJob(self, dbConnection, person):
         job = None
         if CASCADE_CLASSES[self.cascade_step-1]:
@@ -216,14 +217,16 @@ class Question(DBObject):
         dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete user_clients from users,user_clients where users.id=user_clients.user_id and question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from users where question_id={0}".format(self.id))
-        self.deleteCascade(dbConnection, False)
+        self.deleteCascade(dbConnection, commit=False)
         dbConnection.conn.commit()
         self = Question()
         return self
     
     def deleteCascade(self, dbConnection, commit=True):
-        self.update(dbConnection, { "cascade_step" : 0, "id" : self.id })
+        self.update(dbConnection, { "cascade_step" : 0, "id" : self.id }, commit=False)
         dbConnection.cursor.execute("delete from cascade_suggested_categories where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from cascade_best_categories where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from cascade_fit_categories where question_id={0}".format(self.id))
         helpers.log("REMEMBER TO DELETE OTHER CASCADE DATA")
         if commit:
             dbConnection.conn.commit()
@@ -266,17 +269,19 @@ class Question(DBObject):
         return stats
 
 class Person(DBObject):               
-    id = None
-    authenticated_user_id = None
-    authenticated_nickname = None
-    nickname = None
-    question_id = None
-    latest_login_timestamp = None
-    latest_logout_timestamp = None
-    is_logged_in = False # not stored in db
     table = "users"
     fields = { "id", "authenticated_user_id", "authenticated_nickname", "nickname", "question_id", "latest_login_timestamp", "latest_logout_timestamp" }    
 
+    def __init__(self):
+        self.id = None
+        self.authenticated_user_id = None
+        self.authenticated_nickname = None
+        self.nickname = None
+        self.question_id = None
+        self.latest_login_timestamp = None
+        self.latest_logout_timestamp = None
+        self.is_logged_in = False # not stored in db
+    
     @staticmethod
     def create(dbConnection, question=None, nickname=None):
         user = users.get_current_user()
@@ -294,12 +299,11 @@ class Person(DBObject):
         person.nickname = nickname if nickname else (Person.cleanNickname(user.nickname()) if user else None)
         person.question_id = question.id if question else None
           
-        if dbConnection:
-            sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id, latest_login_timestamp, latest_logout_timestamp) values (%s, %s, %s, %s, now(), null)"
-            dbConnection.cursor.execute(sql, (person.authenticated_user_id, person.authenticated_nickname, person.nickname, person.question_id))
-            person.id = dbConnection.cursor.lastrowid
-            dbConnection.conn.commit()
-            person.is_logged_in=True          
+        sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id, latest_login_timestamp, latest_logout_timestamp) values (%s, %s, %s, %s, now(), null)"
+        dbConnection.cursor.execute(sql, (person.authenticated_user_id, person.authenticated_nickname, person.nickname, person.question_id))
+        person.id = dbConnection.cursor.lastrowid
+        dbConnection.conn.commit()
+        person.is_logged_in=True          
     
         return person
     
@@ -437,13 +441,15 @@ class Person(DBObject):
         return self.id == person.id    
  
 class Idea(DBObject):
-    id = None
-    question_id = None
-    user_id = None
-    idea = None
     table = "question_ideas"
     fields = { "id", "question_id", "user_id", "idea" }
         
+    def __init__(self):
+        self.id = None
+        self.question_id = None
+        self.user_id = None
+        self.idea = None
+    
     @staticmethod
     def create(dbConnection, questionId, userId, ideaText):
         idea = Idea()
@@ -451,11 +457,10 @@ class Idea(DBObject):
         idea.user_id = userId
         idea.idea = ideaText
         
-        if dbConnection:
-            sql = "insert into question_ideas (question_id, user_id, idea) values (%s, %s, %s)"
-            dbConnection.cursor.execute(sql, (idea.question_id, idea.user_id, idea.idea))
-            idea.id = dbConnection.cursor.lastrowid
-            dbConnection.conn.commit()
+        sql = "insert into question_ideas (question_id, user_id, idea) values (%s, %s, %s)"
+        dbConnection.cursor.execute(sql, (idea.question_id, idea.user_id, idea.idea))
+        idea.id = dbConnection.cursor.lastrowid
+        dbConnection.conn.commit()
 
         return idea
        
@@ -536,15 +541,17 @@ class Idea(DBObject):
 # 
 
 class CascadeSuggestedCategory(DBObject):
-    id = None
-    question_id = None
-    idea_id = None
-    idea = None # stored in question_ideas table
-    suggested_category = None
-    skipped = 0
-    user_id = None
     table = "cascade_suggested_categories"
     fields = { "id", "question_id", "idea_id", "idea", "suggested_category", "skipped", "user_id" }
+        
+    def __init__(self):
+        self.id = None
+        self.question_id = None
+        self.idea_id = None
+        self.idea = None # stored in question_ideas table
+        self.suggested_category = None
+        self.skipped = 0
+        self.user_id = None
         
     @staticmethod
     def create(dbConnection, questionId, ideaId, commit=True):        
@@ -552,11 +559,10 @@ class CascadeSuggestedCategory(DBObject):
         task.question_id = questionId
         task.idea_id = ideaId
           
-        if dbConnection:
-            sql = "insert into cascade_suggested_categories (question_id, idea_id) values (%s, %s)"
-            dbConnection.cursor.execute(sql, (task.question_id, task.idea_id))
-            if commit:
-                dbConnection.conn.commit()
+        sql = "insert into cascade_suggested_categories (question_id, idea_id) values (%s, %s)"
+        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id))
+        if commit:
+            dbConnection.conn.commit()
     
         return task
     
@@ -599,17 +605,20 @@ class CascadeSuggestedCategory(DBObject):
             job.append(task)
              
         # if not, assign new tasks
+        # do not check if user already performed task on idea when running locally
         if len(job) == 0:
             sql = "select cascade_suggested_categories.*,idea from cascade_suggested_categories,question_ideas where "
             sql += "cascade_suggested_categories.idea_id=question_ideas.id "
             sql += "and cascade_suggested_categories.question_id=%s " 
             sql += "and cascade_suggested_categories.user_id is null "
-            # TODO/TESTING: remove comment when done testing
-            #sql += "and idea_id not in (select idea_id from cascade_suggested_categories where user_id=%s) "
-            sql += "group by idea_id order by rand() limit {0}".format(question.cascade_k)
-            # TODO/TESTING: remove comment when done testing
-            #dbConnection.cursor.execute(sql, (question.id, person.id))
-            dbConnection.cursor.execute(sql, (question.id,))
+            sql += "and idea_id not in (select idea_id from cascade_suggested_categories where user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "group by idea_id order by rand() limit {0}".format(question.cascade_t)
+
+            if helpers.isRunningLocally():
+                dbConnection.cursor.execute(sql, (question.id,))
+            else:
+                dbConnection.cursor.execute(sql, (question.id, person.id))
+
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 task = CascadeSuggestedCategory.createFromData(row)
@@ -656,16 +665,18 @@ class CascadeSuggestedCategory(DBObject):
         return row["ct"] == 0
               
 class CascadeBestCategory(DBObject):
-    id = None
-    question_id = None
-    idea_id = None
-    idea = None # stored in question_ideas table
-    suggested_categories = [] # stored in cascade_suggested_categories table
-    best_category = None
-    none_of_the_above = 0
-    user_id = None
     table = "cascade_best_categories"
     fields = { "id", "question_id", "idea_id", "idea", "suggested_categories", "best_category", "none_of_the_above", "user_id" }
+    
+    def __init__(self):
+        self.id = None
+        self.question_id = None
+        self.idea_id = None
+        self.idea = None # stored in question_ideas
+        self.suggested_categories = [] # stored in cascade_suggested_categories
+        self.best_category = None
+        self.none_of_the_above = 0
+        self.user_id = None
         
     @staticmethod
     def create(dbConnection, questionId, ideaId, commit=True):        
@@ -673,26 +684,26 @@ class CascadeBestCategory(DBObject):
         task.question_id = questionId
         task.idea_id = ideaId
           
-        if dbConnection:
-            sql = "insert into cascade_best_categories (question_id, idea_id) values (%s, %s)"
-            dbConnection.cursor.execute(sql, (task.question_id, task.idea_id))
-            if commit:
-                dbConnection.conn.commit()
+        sql = "insert into cascade_best_categories (question_id, idea_id) values (%s, %s)"
+        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id))
+        if commit:
+            dbConnection.conn.commit()
     
         return task
-    
+        
     @classmethod
-    def createFromData(cls, data):
+    def createFromData(cls, data, dbConnection=None):
         task = super(CascadeBestCategory, cls).createFromData(data)
-        if task:
-            ideaField = "idea" if "idea" in data else Idea.tableField("idea") if Idea.tableField("idea") in data else None
-            if ideaField:
-                task.idea = data[ideaField]
-            else:
-                helpers.log("WARNING: idea not included in task data")
-            # TODO: set suggested_categories
+        if task and dbConnection:
+            sql = "select idea,suggested_category from cascade_suggested_categories,question_ideas where cascade_suggested_categories.idea_id=question_ideas.id and cascade_suggested_categories.idea_id=%s and suggested_category is not null"
+            dbConnection.cursor.execute(sql, (task.idea_id))
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                task.idea = row["idea"]
+                if row["suggested_category"] not in task.suggested_categories:
+                    task.suggested_categories.append(row["suggested_category"])
         return task
-    
+           
     @staticmethod
     def initStep(dbConnection, question):
         # TODO: same as for step 1 except class name
@@ -706,42 +717,43 @@ class CascadeBestCategory(DBObject):
         dbConnection.conn.commit()
 
     @staticmethod
-    def getJob(dbConnection, question, person):      
+    def getJob(dbConnection, question, person):     
         job = []
         # check if job already assigned
-        sql = "select cascade_best_categories.*,idea from cascade_best_categories,question_ideas where "
-        sql += "cascade_best_categories.idea_id=question_ideas.id and "
-        sql += "cascade_best_categories.question_id=%s and "
-        sql += "cascade_best_categories.user_id=%s and "
+        sql = "select * from cascade_best_categories where "
+        sql += "question_id=%s and "
+        sql += "user_id=%s and "
         sql += "best_category is null and "
         sql += "none_of_the_above=0"
         dbConnection.cursor.execute(sql, (question.id, person.id))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
-            task = CascadeSuggestedCategory.createFromData(row)
+            task = CascadeBestCategory.createFromData(row, dbConnection)
             job.append(task)
              
         # if not, assign new tasks
+        # do not check if user already performed task on idea when running locally
         if len(job) == 0:
-            sql = "select cascade_best_categories.*,idea from cascade_best_categories,question_ideas where "
-            sql += "cascade_best_categories.idea_id=question_ideas.id "
-            sql += "and cascade_best_categories.question_id=%s " 
-            sql += "and cascade_best_categories.user_id is null "
-            # TODO/TESTING: remove comment when done testing
-            #sql += "and idea_id not in (select idea_id from cascade_best_categories where user_id=%s) "
+            sql = "select * from cascade_best_categories where "
+            sql += "question_id=%s " 
+            sql += "and user_id is null "
+            sql += "and idea_id not in (select idea_id from cascade_best_categories where user_id=%s) " if not helpers.isRunningLocally() else ""
             sql += "group by idea_id order by rand() limit 1"
-            # TODO/TESTING: remove comment when done testing
-            #dbConnection.cursor.execute(sql, (question.id, person.id))
-            dbConnection.cursor.execute(sql, (question.id,))
+            
+            if helpers.isRunningLocally():
+                dbConnection.cursor.execute(sql, (question.id,))
+            else:
+                dbConnection.cursor.execute(sql, (question.id, person.id))
+            
             rows = dbConnection.cursor.fetchall()
             for row in rows:
-                task = CascadeBestCategory.createFromData(row)
+                task = CascadeBestCategory.createFromData(row, dbConnection)
                 task.assignTo(dbConnection, person, commit=False)
                 job.append(task)
                 
             if len(job) > 0:
                 dbConnection.conn.commit()
-        
+                    
         return job if len(job) > 0 else None
      
     def assignTo(self, dbConnection, person, commit=True):
@@ -760,10 +772,11 @@ class CascadeBestCategory(DBObject):
             if bestCategory != "":
                 sql = "update cascade_best_categories set best_category=%s where id=%s"
                 dbConnection.cursor.execute(sql, (bestCategory, taskId))
-            # if skipped, mark it so not assigned in future
+            # vote for none of the above
             else:
                 sql = "update cascade_best_categories set none_of_the_above=1 where id=%s"
-                dbConnection.cursor.execute(sql, (taskId))
+                dbConnection.cursor.execute(sql, (taskId)) 
+
         dbConnection.conn.commit()
         
         stepComplete = CascadeBestCategory.isStepComplete(dbConnection, question)
@@ -774,46 +787,151 @@ class CascadeBestCategory(DBObject):
         
     @staticmethod
     def isStepComplete(dbConnection, question):
-        sql = "select count(*) as ct from cascade_best_categories where question_id=%s and best_category is null"
+        sql = "select count(*) as ct from cascade_best_categories where question_id=%s and best_category is null and none_of_the_above=0"
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
         return row["ct"] == 0
     
-CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, None, None, None ]
+    def toDict(self, dbConnection=None, includeIdeaText=True):
+        objDict = super(CascadeBestCategory, self).toDict()                 
+        if dbConnection and includeIdeaText:
+            idea = None
+            suggestedCategories = []
+            sql = "select cascade_suggested_categories.*,idea from cascade_suggested_categories,question_ideas where cascade_suggested_categories.idea_id=question_ideas.id and cascade_suggested_categories.idea_id=%s and suggested_category is not null"
+            dbConnection.cursor.execute(sql, (self.id))
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                idea = row["idea"]
+                suggestedCategories.append(row["suggested_catgegory"])
+            objDict["idea"] = idea
+            objDict["suggested_categories"] = suggestedCategories
+            
+        return objDict
+
+class CascadeFitCategory(DBObject):
+    table = "cascade_fit_categories"
+    fields = { "id", "question_id", "idea_id", "idea", "category", "fit", "user_id" }
+        
+    def __init__(self):
+        self.id = None
+        self.question_id = None
+        self.idea_id = None
+        self.idea = None # stored in question_ideas table
+        self.category = None
+        self.fit = 0
+        self.user_id = None
+        
+    @staticmethod
+    def create(dbConnection, questionId, ideaId, category, commit=True):        
+        task = CascadeFitCategory()
+        task.question_id = questionId
+        task.idea_id = ideaId
+        task.category = category
+                  
+        sql = "insert into cascade_fit_categories (question_id, idea_id, category) values (%s, %s, %s)"
+        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, task.category))
+        if commit:
+            dbConnection.conn.commit()
+    
+        return task
+    
+    @classmethod
+    def createFromData(cls, data):
+        task = super(CascadeFitCategory, cls).createFromData(data)
+        if task:
+            ideaField = "idea" if "idea" in data else Idea.tableField("idea") if Idea.tableField("idea") in data else None
+            if ideaField:
+                task.idea = data[ideaField]
+            else:
+                helpers.log("WARNING: idea not included in task data")
+        return task
+    
+    @staticmethod
+    def initStep(dbConnection, question):
+        # TODO: how should voting threshold be determined
+        votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
+        sql = "select *,count(id) as ct from cascade_best_categories where question_id=%s group by question_id,idea_id,best_category having ct>=%s";
+        dbConnection.cursor.execute(sql, (question.id, votingThreshold))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            ideaId = row["idea_id"]
+            category = row["best_category"]
+            for i in range(question.cascade_k):
+                CascadeFitCategory.create(dbConnection, question.id, ideaId, category, False)
+        dbConnection.conn.commit()
+
+    @staticmethod
+    def getJob(dbConnection, question, person):  
+        job = []
+        # check if job already assigned
+        sql = "select cascade_fit_categories.*,idea from cascade_fit_categories,question_ideas where "
+        sql += "cascade_fit_categories.idea_id=question_ideas.id and "
+        sql += "cascade_fit_categories.question_id=%s and "
+        sql += "cascade_fit_categories.user_id=%s and "
+        sql += "fit=-1"
+        dbConnection.cursor.execute(sql, (question.id, person.id))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            task = CascadeFitCategory.createFromData(row)
+            job.append(task)
+             
+        # if not, assign new tasks
+        # do not check if user already performed task on idea when running locally
+        # ask user to check whether all categories fit or not for an idea (regardless of how many)
+        if len(job) == 0:
+            sql = "select cascade_fit_categories.*,idea from "
+            sql += "(select idea_id from cascade_fit_categories where question_id=%s and user_id is null limit 1) t "
+            sql += "left join cascade_fit_categories on t.idea_id=cascade_fit_categories.idea_id "
+            sql += "left join question_ideas on question_ideas.id=cascade_fit_categories.idea_id where "
+            sql += "cascade_fit_categories.user_id is null "
+            sql += "and idea_id not in (select idea_id from cascade_fit_categories where user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "group by cascade_fit_categories.idea_id,category"
+            if helpers.isRunningLocally():
+                dbConnection.cursor.execute(sql, (question.id,))
+            else:
+                dbConnection.cursor.execute(sql, (question.id, person.id))
+
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                task = CascadeFitCategory.createFromData(row)
+                task.assignTo(dbConnection, person, commit=False)
+                job.append(task)
+                
+            if len(job) > 0:
+                dbConnection.conn.commit()
+        
+        return job if len(job) > 0 else None
+     
+    def assignTo(self, dbConnection, person, commit=True):
+        sql = "update cascade_fit_categories set user_id=%s where id=%s"
+        dbConnection.cursor.execute(sql, (person.id, self.id))
+        if commit:
+            dbConnection.conn.commit()
+
+    @staticmethod
+    def saveJob(dbConnection, question, job):
+        for task in job:
+            taskId = task["id"]
+            fit = task["fit"]
+            sql = "update cascade_fit_categories set fit=%s where id=%s"
+            dbConnection.cursor.execute(sql, (fit, taskId))
+        dbConnection.conn.commit()
+        
+        stepComplete = CascadeFitCategory.isStepComplete(dbConnection, question)
+        if stepComplete:
+            question.initCascadeNextStep(dbConnection)
+            
+        return stepComplete
+        
+    @staticmethod
+    def isStepComplete(dbConnection, question):
+        sql = "select count(*) as ct from cascade_fit_categories where question_id=%s and fit!=-1"
+        dbConnection.cursor.execute(sql, (question.id))
+        row = dbConnection.cursor.fetchone()
+        return row["ct"] == 0
+    
+CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategory, None, None ]
                                                      
-#     def createJobsForStep2(self):
-#         suggestedCategories = {}
-#         step1 = CascadeJob.all().filter("question =", self.question).filter("step =", 1)
-#         for job in step1:
-#             i = 0
-#             for idea in job.task.ideas:
-#                 ideaId = idea.key().id()
-#                 category = job.task.categories[i].strip()
-#                 if category != "":
-#                     if ideaId not in suggestedCategories:
-#                         suggestedCategories[ideaId] = { "idea": idea, "categories": [] }
-#                          
-#                     if category not in suggestedCategories[ideaId]["categories"]:
-#                         suggestedCategories[ideaId]["categories"].append(category)
-#                 i += 1
-#                  
-#         # TODO: improve by saving only 1 version of task in datastore, but save result in job?
-#         for i in range(self.k):
-#             for ideaId in suggestedCategories:
-#                 task = CascadeSelectBestTask()
-#                 task.question = self.question
-#                 task.idea = suggestedCategories[ideaId]["idea"]
-#                 task.categories = suggestedCategories[ideaId]["categories"]
-#                 if i==0: task.categories.append(NONE_OF_THE_ABOVE)
-#                 task.put()
-#                      
-#                 job = CascadeJob()
-#                 job.question = self.question
-#                 job.cascade = self
-#                 job.step = 2
-#                 job.task = task
-#                 job.worker = None
-#                 job.put()
 #        
 #     def createJobsForStep3(self):
 #         helpers.log("createJobsForStep3")
@@ -890,50 +1008,6 @@ CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, None, None, N
 #         dbConnection.cursor.execute("delete from cascade_xx where question_id={0}".format(self.question.id))
 #         dbConnection.conn.commit()
 #         helpers.log("WARNING: Remember to delete cascade jobs for steps 3b-5")
-#                   
-# class CascadeTask(db.Model): 
-#     question = db.ReferenceProperty(Question)
-#     
-#     def toDict(self):
-#         return {
-#             "question_id" : self.question.id
-#         }
-#      
-# class CascadeSuggestCategoryTask(CascadeTask):
-#     idea_keys = db.ListProperty(db.Key)
-#     categories = db.StringListProperty(default=[])
-#      
-#     @property
-#     def ideas(self):
-#         return db.get(self.idea_keys)
-#      
-#     def completed(self, data):
-#         self.categories = data["categories"]
-#         self.put()
-#          
-#     def toDict(self): 
-#         dict = CascadeTask.toDict(self)
-#         dict["ideas"] = [ idea.toDict(xx) for idea in self.ideas ]
-#         dict["categories"] = self.categories
-#         return dict
-#          
-# class CascadeSelectBestTask(CascadeTask):
-#     idea = db.ReferenceProperty(Idea)
-#     categories = db.StringListProperty(default=[])
-#     bestCategoryIndex = db.IntegerProperty(default=None)
-#      
-#     def completed(self, data):
-#         bestCategoryIndex = int(data["best_category_index"])
-#         if bestCategoryIndex != -1 and self.categories[bestCategoryIndex] != NONE_OF_THE_ABOVE:
-#             self.bestCategoryIndex = bestCategoryIndex
-#             self.put()
-#          
-#     def toDict(self): 
-#         dict = CascadeTask.toDict(self)
-#         dict["idea"] = self.idea.toDict(xx)
-#         dict["categories"] = self.categories
-#         dict["best_category_index"] = self.bestCategoryIndex
-#         return dict
 #  
 # # TODO: improve by separating out class that just contains single idea, category, and fit vote; same for CascadeSuggestCategoryTask
 # class CascadeCategoryFitTask(CascadeTask):
@@ -955,136 +1029,5 @@ CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, None, None, N
 #         dict["categories"] = self.categories
 #         dict["category_fits"] = self.categoryFits
 #         return dict
-#              
-# class CascadeJob(db.Model):
-#     question = db.ReferenceProperty(Question)
-#     cascade = db.ReferenceProperty(Cascade)
-#     step = db.IntegerProperty() # step for this job, current step in progress stored in Cascade class
-#     task = db.ReferenceProperty(CascadeTask)
-#     worker = db.ReferenceProperty(Person)
-#     status = db.IntegerProperty(default=0)
-#  
-#     @staticmethod
-#     def getJob(question, jobStep, worker):
-#  
-#         # TODO/FIX: Decide what needs to be stored in datastore vs. memcache only      
-#         workerKey = str(worker.key().id())  
-#                          
-#         # check if jobStep stored in memcache
-#         client = memcache.Client()
-#         step = client.gets(question.id + "_step")
-#         assert step is not None, "Step not initialized"
-#         if step != jobStep:
-#             helpers.log("WARNING: Jobs for step {0} not stored in memcache".format(jobStep))
-#             return { "job": None, "newStep": False }
-#  
-#         # check if worker is already assigned a job
-#         # TODO: ok to get all assigned jobs? or better to check only for this worker?
-#         assignedJobsKey = question.id + "_assigned_jobs"
-#         assignedJobs = client.gets(assignedJobsKey)
-#         assert assignedJobs is not None, "Assigned jobs not initialized"
-#         jobId = assignedJobs[workerKey] if workerKey in assignedJobs else None
-#  
-#         # if not, get new assignment
-#         newStep = False
-#         if not jobId:  
-#             # TODO: need to limit to MAX_TRIES
-#             availableJobsKey = question.id + "_available_jobs"
-#             helpers.log("availableJobsKey={0}".format(availableJobsKey))
-#             while True:
-#                 availableJobs = client.gets(availableJobsKey)
-#                 assert availableJobs is not None, "Available jobs not initialized"
-#                 newJobId = availableJobs.pop()
-#                 if client.cas(availableJobsKey, availableJobs):
-#                     jobId = newJobId
-#                     while True:
-#                         # TODO: can retrieved value above be reused?
-#                         # TODO: need to limit to MAX_TRIES
-#                         assignedJobs = client.gets(assignedJobsKey)
-#                         assignedJobs[workerKey] = jobId
-#                         if client.cas(assignedJobsKey, assignedJobs):
-#                             # TODO: get job and pass to below?
-#                             helpers.log("assigned job {0} to worker {1}".format(jobId, workerKey))
-#                             job = CascadeJob.get_by_id(jobId)
-#                             job.worker = worker
-#                             job.put()
-#                             break
-#                     break
-#                          
-#             # check if all jobs completed for this step, and if so, advance to next step
-#             # TODO/FIX: need to store job status in memcache
-#             # QUESTION: is count() strong consistency?
-#             if not jobId and jobStep < 5:
-#                 numJobsRemaining = CascadeJob.all().filter("question =", question).filter("step =", step).filter("status =", 0).count()
-#                 isStepComplete = numJobsRemaining == 0
-#                 if isStepComplete:
-#                     cascade = Cascade.getCascadeForQuestion(question)
-#                     # TODO: combine with memcache update
-#                     cascade.step += 1
-#                     cascade.put()
-#                      
-#                     # TODO: remember to advance step in memcache in init?                                            
-#                     # create jobs for this step
-#                     cascade.init(question, jobStep+1)
-#  
-#                     # TODO: need to notify waiting users that new jobs available
-#                                          
-#                     newStep = True
-#          
-#         return { "job": CascadeJob.get_by_id(jobId) if jobId else None, "new_step": newStep }
-#  
-# #         newStep = False
-# #                         
-# #         # check if job already assigned
-# #         job = CascadeJob.all().filter("question =", question).filter("step =", step).filter("worker =", worker).filter("status =", 0).get()
-# # 
-# #         # if not, get new assignment
-# #         if not job:  
-# #             job = CascadeJob.all().filter("question =", question).filter("step =", step).filter("worker =", None).get()
-# #             if job:
-# #                 job.worker = worker
-# #                 jobKey = job.put()
-# #                 
-# #                 # TODO/HACK - need to guarantee datastore updated and searchable before next job requested
-# #                 job = CascadeJob.get_by_id(jobKey.id()) 
-# #             
-# #             # check if all jobs completed for this step, and if so, advance to next step
-# #             if not job and step < 5:
-# #                 numJobsRemaining = CascadeJob.all().filter("question =", question).filter("step =", step).filter("status =", 0).count()
-# #                 isStepComplete = numJobsRemaining == 0
-# #                 if isStepComplete:
-# #                     cascade = Cascade.getCascadeForQuestion(question)
-# #                     cascade.step += 1
-# #                     cascade.put()
-# #                                             
-# #                     # TODO: check if jobs created and searchable before getJob called
-# #                     # TODO: need to notify waiting users that new jobs available
-# #                     # create jobs for this step
-# #                     cascade.init(question, step+1)
-# #                     
-# #                     job = CascadeJob.getJob(question, step+1, worker)
-# #                     newStep = True
-# #         
-# #         return { "job": job, "new_step": newStep }
-#  
-#     def completed(self, data):
-#         self.task.completed(data)
-#         self.status = 1
-#         key = self.put()
-#                      
-#         # TODO/HACK - seems to increase odds of updated values being in datastore before CascadeJob.getJob called
-#         # otherwise, job only changing every other time submit pressed (at least on localhost)
-#         job = CascadeJob.get_by_id(key.id())
-#          
-#     def toDict(self):
-#         helpers.log("CascadeJob:toDict worker={0}".format(self.worker))
-#         return {
-#             "id" : self.key().id(),
-#             "question_id": self.question.id,
-#             "step": self.step,
-#             "task": self.task.toDict(),    
-#             "worker": Person.toDict(self.worker),
-#             "status": self.status
-#         }
 
 

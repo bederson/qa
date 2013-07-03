@@ -49,14 +49,18 @@ function updateUI(results) {
 	else if (results.step == 2) {
 		updateUIForStep2(results);
 	}
+	else if (results.step == 3) {
+		updateUIForStep3(results);
+	}
 	else {
+		$("#title").html("");
+		$("#help").html("");
 		$("#task_area").html("Not implemented yet");
 	}
 }
 
 // step 1: suggest categories
 function updateUIForStep1(results) {
-	step1Ideas = [];
 	$("#title").html("Suggest Categories");
 	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
 	if (results.status == 1) {
@@ -70,9 +74,9 @@ function updateUIForStep1(results) {
 				taskHtml += "<input class=\"suggested_category\" id=\"category_"+task.id+"\" type=\"text\"/ value=\"\">";
 				taskHtml += "</div>\n";
 			}
-			taskHtml += "<input id=\"submit_categories_btn\" type=\"button\" value=\"Submit Categories\">";
+			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit Categories\">";
 			$("#task_area").html(taskHtml);
-			$("#submit_categories_btn").click(function(event) {
+			$("#submit_btn").click(function(event) {
 				submitStep1();
 			});
 		}
@@ -117,7 +121,7 @@ function submitStep1() {
 // step 2: select best category
 function updateUIForStep2(results) {
 	$("#title").html("Select Best Category");
-	$("#help").html("Vote for the category that you think best fits the note.");
+	$("#help").html("Vote for the category that you think best fits this note.");
 	if (results.status == 1) {
 		var tasks = results.job;
 		if (tasks.length == 1) {
@@ -125,20 +129,24 @@ function updateUIForStep2(results) {
 			var taskHtml = "";
 			taskHtml += "<div class=\"largespaceafter\">";
 			taskHtml += "<div class=\"spaceafter\">" + task.idea + "</div>";
-			alert(task.suggested_categories);
 			for (var i=0; i<task.suggested_categories.length; i++) {
 				var radioBoxId = "category_rb_"+i;
 				taskHtml += "<div class=\"spaceafter\">";
-				taskHtml += "<div style=\"float:left;\"><input type=\"radio\" id=\"" + radioBoxId + "\" name=\"suggested_category\" value=\""+i+"\"></div>";
-				taskHtml += "<div style=\"float:left; margin-left:5px; width:93%\"><label for=\"" + radioBoxId + "\">" + task.categories[i] + "</label></div>";
-				taskHtml += "<div style=\"clear:both\"></div>";
+				taskHtml += "<input type=\"radio\" name=\"suggested_category\" value=\"" + i + "\">";
+				taskHtml += task.suggested_categories[i];
+				taskHtml += "</div>";
+			}
+			if (task.suggested_categories.length > 0) {
+				taskHtml += "<div class=\"spaceafter\">";
+				taskHtml += "<input type=\"radio\" name=\"suggested_category\" value=\"-1\">";
+				taskHtml += "None of the above";
 				taskHtml += "</div>";
 			}
 			taskHtml += "</div>\n";
-			taskHtml += "<input id=\"submit_vote_btn\" type=\"button\" value=\"Submit Vote\">";
+			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit Vote\">";
 			$("#task_area").html(taskHtml);
-			$("#submit_vote_btn").click(function(event) {
-				submitStep2();
+			$("#submit_btn").on("click", { task : task }, function(event) {
+				submitStep2(event.data.task);
 			});
 		}
 		else {
@@ -152,18 +160,87 @@ function updateUIForStep2(results) {
 	}
 }
 
-function submitStep2() {
+function submitStep2(task) {
 	var bestCategoryIndex = $("input:radio[name=suggested_category]:checked").val();
 	if (!bestCategoryIndex) {
 		$("#warning").html("Please select an item");
 		return;
 	}
 	
+	var job = [];
+	var bestCategory = bestCategoryIndex != -1 ? task.suggested_categories[bestCategoryIndex] : ""
+	job.push({ id: task.id, best_category: bestCategory });	
+		
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id,
-		"assignment_id" : assignment.id,
-		"best_category_index" : bestCategoryIndex
+		"step" : 2,
+		"job" : $.toJSON(job)
+	}
+	
+	$.post("/cascade_job", data, function(results) {
+		if (results.status == 0) {
+			$("#warning").html(results.msg);
+		}
+		else {
+			$("#warning").html("");
+			updateUI(results);
+		}
+	}, "json");
+}
+
+// step 3: do categories fit
+function updateUIForStep3(results) {
+	$("#title").html("Check Categories");
+	$("#help").html("Select whether or not these categories fit this note.");
+	alert("Allow user to indicate whether or not a category fits *or* doesn't fit explicitly");
+	if (results.status == 1) {
+		var tasks = results.job;
+		if (tasks.length > 0) {
+			var taskHtml = "";
+			for (var i=0; i<tasks.length; i++) {
+				var task = tasks[i];
+				if (i==0) {
+					taskHtml += "<div class=\"spaceafter\">";
+					taskHtml += task.idea;
+					taskHtml += "</div>";
+				}
+				taskHtml += "<div class=\"smallspaceafter\">";
+				taskHtml += "<input type=\"checkbox\" class=\"category_fit\" id=\"category_fit_"+task.id+"\" value=\"1\"> fits: ";
+				taskHtml += task.category;
+				taskHtml += "</div>\n";
+			}
+			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit\">";
+			$("#task_area").html(taskHtml);
+			$("#submit_btn").click(function(event) {
+				submitStep3();
+			});
+		}
+		else {
+			taskHtml = "You have completed all tasks for this step.<br/>";
+			taskHtml += "Please wait for next step to begin.";
+			$("#task_area").html(taskHtml);
+		}
+	}
+	else {
+		$("#warning").html(results.msg);
+	}
+}
+
+function submitStep3(task) {
+	var job = [];	
+	$(".category_fit").each(function() {
+		var cb = $(this);
+		var cb_id = cb.attr("id");
+		var task_id = cb_id.replace("category_fit_","");
+		job.push({ id: task_id, fit: cb.is(":checked") ? 1 : 0 });	
+	});
+
+	var data = {
+		"client_id" : client_id,
+		"question_id" : question_id,
+		"step" : 1,
+		"job" : $.toJSON(job)
 	}
 	
 	$.post("/cascade_job", data, function(results) {

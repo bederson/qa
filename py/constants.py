@@ -13,7 +13,6 @@ PHASE_CASCADE = 2
 
 # Cascade 
 DEFAULT_VOTING_THRESHOLD = 2
-NONE_OF_THE_ABOVE = "None of the above"
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"

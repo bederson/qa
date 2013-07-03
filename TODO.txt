@@ -6,6 +6,9 @@ GAE Deployment
 * create empty sql file containing database structure and import to Google Cloud SQL database
 * create Google Cloud SQL database user to use instead of root
 
+To Do
+* Does anything need to be created w/in transactions to ensure same id not used when new database item created?  
+
 Features
 * Record cascade step completion times
 * Use stemming when comparing tags for equality
@@ -20,11 +23,11 @@ Misc Improvements
 * Need better way to create unique question id
 * Need consistent terminology (e.g., submission/note/response/idea, person/user/author)
 * Create database indexes
+* Change order items are presented in when creating categories, voting, etc.
 * Destroy channels after some specified period (or does that happen automatically?)
 * Consider what can be stored in datastore and/or memcache to improve performance
 * authenticated_user_id will always stay the same but authenticated_nickname can change.
   Check and update if needed when user logs in
-* Does anything need to be created w/in transactions to ensure same id not used when new database item created?  
   Or does InnoDB handle this ...
 * Reduce character limit for ideas to encourage only one idea per submission
 * Do not allow Cascade to be enabled until notes created
