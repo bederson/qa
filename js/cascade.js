@@ -70,7 +70,7 @@ function updateUIForStep1(results) {
 			for (var i=0; i<tasks.length; i++) {
 				var task = tasks[i];
 				taskHtml += "<div class=\"largespaceafter\">";
-				taskHtml += task.idea + " ";
+				taskHtml += task.idea + "<br/>";
 				taskHtml += "<input class=\"suggested_category\" id=\"category_"+task.id+"\" type=\"text\"/ value=\"\">";
 				taskHtml += "</div>\n";
 			}
@@ -128,7 +128,7 @@ function updateUIForStep2(results) {
 			var task = tasks[0];
 			var taskHtml = "";
 			taskHtml += "<div class=\"largespaceafter\">";
-			taskHtml += "<div class=\"spaceafter\">" + task.idea + "</div>";
+			taskHtml += "<div class=\"green_highlight spaceafter\">" + task.idea + "</div>";
 			for (var i=0; i<task.suggested_categories.length; i++) {
 				var radioBoxId = "category_rb_"+i;
 				taskHtml += "<div class=\"spaceafter\">";
@@ -193,7 +193,7 @@ function submitStep2(task) {
 function updateUIForStep3(results) {
 	$("#title").html("Check Categories");
 	$("#help").html("Select whether or not these categories fit this note.");
-	alert("Allow user to indicate whether or not a category fits *or* doesn't fit explicitly");
+	$("#msg").html("");
 	if (results.status == 1) {
 		var tasks = results.job;
 		if (tasks.length > 0) {
@@ -201,19 +201,27 @@ function updateUIForStep3(results) {
 			for (var i=0; i<tasks.length; i++) {
 				var task = tasks[i];
 				if (i==0) {
-					taskHtml += "<div class=\"spaceafter\">";
+					taskHtml += "<div class=\"green_highlight spaceafter\">";
 					taskHtml += task.idea;
 					taskHtml += "</div>";
+					taskHtml += "<table class=\"spaceafter\">";
+					taskHtml += "<tr>";
+					taskHtml += "<td class=\"small\" style=\"text-align:center;\">Y</td>";
+					taskHtml += "<td class=\"small\" style=\"text-align:center;\">N</td>";
+					taskHtml += "<td>&nbsp;</td>";
+					taskHtml += "</tr>\n";
 				}
-				taskHtml += "<div class=\"smallspaceafter\">";
-				taskHtml += "<input type=\"checkbox\" class=\"category_fit\" id=\"category_fit_"+task.id+"\" value=\"1\"> fits: ";
-				taskHtml += task.category;
-				taskHtml += "</div>\n";
+				taskHtml += "<tr>";
+				taskHtml += "<td><input type=\"radio\" class=\"category_fit\" name=\"category_fit_"+task.id+"\" value=\"1\"></td>";
+				taskHtml += "<td><input type=\"radio\" class=\"catgetory_fit\" name=\"category_fit_"+task.id+"\" value=\"0\"></td>";
+				taskHtml += "<td>" + task.category + "</td>";
+				taskHtml += "</tr>\n";
 			}
+			taskHtml += "</table>";
 			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit\">";
 			$("#task_area").html(taskHtml);
-			$("#submit_btn").click(function(event) {
-				submitStep3();
+			$("#submit_btn").on("click", { tasks: tasks }, function(event) {
+				submitStep3(event.data.tasks);
 			});
 		}
 		else {
@@ -227,15 +235,22 @@ function updateUIForStep3(results) {
 	}
 }
 
-function submitStep3(task) {
+function submitStep3(tasks) {
 	var job = [];	
-	$(".category_fit").each(function() {
-		var cb = $(this);
-		var cb_id = cb.attr("id");
-		var task_id = cb_id.replace("category_fit_","");
-		job.push({ id: task_id, fit: cb.is(":checked") ? 1 : 0 });	
+	$("input:radio").each(function() {
+		var rb = $(this);
+		if (rb.is(":checked")) {
+			var rb_name = rb.attr("name");
+			var task_id = rb_name.replace("category_fit_","");
+			job.push({ id: task_id, fit: rb.val() == "1" ? 1 : 0 });	
+		}
 	});
 
+	if (tasks.length!=job.length) {
+		$("#msg").html("Please indicate whether each category fits or not");
+		return;
+	}
+	
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id,
