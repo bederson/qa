@@ -63,6 +63,7 @@ function updateUI(results) {
 function updateUIForStep1(results) {
 	$("#title").html("Suggest Categories");
 	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
+	$("#msg").html("");
 	if (results.status == 1) {
 		var tasks = results.job;
 		if (tasks.length > 0) {
@@ -76,8 +77,8 @@ function updateUIForStep1(results) {
 			}
 			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit Categories\">";
 			$("#task_area").html(taskHtml);
-			$("#submit_btn").click(function(event) {
-				submitStep1();
+			$("#submit_btn").on("click", { tasks : tasks }, function(event) {
+				submitStep1(event.data.tasks);
 			});
 		}
 		else {
@@ -91,15 +92,25 @@ function updateUIForStep1(results) {
 	}
 }
 
-function submitStep1() {
+function submitStep1(tasks) {
 	var job = [];
+	var skipCount = 0;
 	$(".suggested_category").each(function() {
 		var textbox = $(this);
 		var textbox_id = textbox.attr("id");
 		var task_id = textbox_id.replace("category_","");
-		job.push({ id: task_id, suggested_category: textbox.val() });	
+		var suggested_category = textbox.val();
+		job.push({ id: task_id, suggested_category: suggested_category });	
+		if (suggested_category == "") {
+			skipCount++;
+		}
 	});
 		
+	if (skipCount > 2) {
+		$("#msg").html("You may only skip creating categories for 2 items");
+		return;
+	}
+	
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id,

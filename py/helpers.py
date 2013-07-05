@@ -51,3 +51,6 @@ def cleanWord(word):
     
 def isStopWord(word):
     return (word in constants.STOP_WORDS)
+
+def intersect(a, b):
+    return list(set(a) & set(b))

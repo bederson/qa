@@ -13,6 +13,8 @@ PHASE_CASCADE = 2
 
 # Cascade 
 DEFAULT_VOTING_THRESHOLD = 2
+CASCADE_P = 0.75    # max percentage of items that can be shared between categories
+CASCADE_Q = 1       # min number of items allowed in a category
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"

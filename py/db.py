@@ -19,6 +19,7 @@
 
 import constants
 import helpers
+import math
 import random
 from google.appengine.api import rdbms
 from google.appengine.api import users
@@ -540,6 +541,8 @@ class Idea(DBObject):
 # # TODO: step 2 - how should voting threshold be determined (based on k?)
 # 
 
+# TODO: should user be warned if no suggested categories generated for a particular idea?
+
 class CascadeSuggestedCategory(DBObject):
     table = "cascade_suggested_categories"
     fields = { "id", "question_id", "idea_id", "idea", "suggested_category", "skipped", "user_id" }
@@ -638,6 +641,7 @@ class CascadeSuggestedCategory(DBObject):
 
     @staticmethod
     def saveJob(dbConnection, question, job):
+        # TODO: check that only x number items are skipped
         for task in job:
             taskId = task["id"]
             suggestedCategory = task["suggested_category"]
@@ -706,12 +710,13 @@ class CascadeBestCategory(DBObject):
            
     @staticmethod
     def initStep(dbConnection, question):
-        # TODO: same as for step 1 except class name
-        sql = "select id from question_ideas where question_id=%s"
+        sql = "select distinct idea_id from cascade_suggested_categories where question_id=%s and suggested_category is not null"
         dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
+        if len(rows) == 0:
+            helpers.log("WARNING: No suggested categories found for question {0}".format(question.id))
         for row in rows:
-            ideaId = row["id"]
+            ideaId = row["idea_id"]
             for i in range(question.cascade_k):
                 CascadeBestCategory.create(dbConnection, question.id, ideaId, False)
         dbConnection.conn.commit()
@@ -900,6 +905,10 @@ class CascadeFitCategory(DBObject):
             if len(job) > 0:
                 dbConnection.conn.commit()
         
+        # TODO: TESTING
+        if not job:
+            GenerateCascadeHierarchy(dbConnection, question)
+
         return job if len(job) > 0 else None
      
     def assignTo(self, dbConnection, person, commit=True):
@@ -919,7 +928,8 @@ class CascadeFitCategory(DBObject):
         
         stepComplete = CascadeFitCategory.isStepComplete(dbConnection, question)
         if stepComplete:
-            question.initCascadeNextStep(dbConnection)
+            GenerateCascadeHierarchy(dbConnection, question)
+            #question.initCascadeNextStep(dbConnection)
             
         return stepComplete
         
@@ -929,105 +939,63 @@ class CascadeFitCategory(DBObject):
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
         return row["ct"] == 0
+
+def GenerateCascadeHierarchy(dbConnection, question):
+    categories = {}
+    ideas = {}
+    sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories,question_ideas where "
+    sql += "cascade_fit_categories.idea_id=question_ideas.id "
+    sql += "and cascade_fit_categories.question_id=%s "
+    sql += "and fit=1 "
+    sql += "group by idea_id,category "
+    sql += "having ct>=%s"
+    # TODO: how should minimum count be calculated
+    minCount = math.ceil(question.cascade_k * 0.6)
+    dbConnection.cursor.execute(sql, (question.id, minCount))
+    rows = dbConnection.cursor.fetchall()
+    for row in rows:
+        category = row["category"]
+        ideaId = row["idea_id"]
+        idea = row["idea"]
+        if category not in categories:
+            categories[category] = []
+        categories[category].append(ideaId)
+        ideas[ideaId] = idea
+    
+    # remove any categories with less than q items
+    categoriesToRemove = []
+    for category in categories:
+        if len(categories[category]) < constants.CASCADE_Q:
+            categoriesToRemove.append(category)
+        
+    for category in categoriesToRemove:
+        del categories[category]
+    
+    # remove any duplicate categories (more than p overlapping items)
+    categoriesToRemove = []
+    categoryKeys = categories.keys()
+    for x in range(len(categoryKeys)):
+        for y in range(x, len(categoryKeys)):
+            if x != y:
+                category1 = categoryKeys[x]
+                category2 = categoryKeys[y]
+                ideaIds1 = categories[category1]
+                ideaIds2 = categories[category2]
+                sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
+                if len(sharedIdeaIds) >= max(len(ideaIds1),len(ideaIds2))*constants.CASCADE_P:
+                    categoriesToRemove.append(category1 if len(ideaIds1) < len(ideaIds2) else category2)
+                    helpers.log("DUPLICATE CATEGORY: {0}, {1}".format(category1, category2))
+                    
+    for category in categoriesToRemove:
+        del categories[category]
+    
+    # TODO: created nested categories
+    # TODO/FIX: select best showed null idea and no ideas (may not have created any categories for an idea)
+                    
+    for category in categories:
+        ideaIds = categories[category]
+        helpers.log("======== {0} ==========".format(category))
+        for ideaId in ideaIds:
+            helpers.log(ideas[ideaId])
     
 CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategory, None, None ]
-                                                     
-#        
-#     def createJobsForStep3(self):
-#         helpers.log("createJobsForStep3")
-#         groupedVotes = {}
-#         step2 = CascadeJob.all().filter("question =", self.question).filter("step =", 2)
-#         for job in step2:
-#             idea = job.task.idea
-#             ideaId = idea.key().id()
-#             category = job.task.categories[job.task.bestCategoryIndex] if job.task.bestCategoryIndex is not None else None
-#             if category:
-#                 if ideaId not in groupedVotes:                    
-#                     groupedVotes[ideaId] = { "idea": idea, "votes": {} }
-#                       
-#                 if category not in groupedVotes[ideaId]["votes"]:
-#                     groupedVotes[ideaId]["votes"][category] = 0
-#                 groupedVotes[ideaId]["votes"][category] += 1
-#           
-#         # TODO: how should the voting threshold be calculated; k=5 and voting threshold=2 by default
-#         votingThreshold = DEFAULT_VOTING_THRESHOLD if self.k > 3 else 1
-#  
-#         bestCategories = []
-#         for ideaId in groupedVotes:
-#             for category in groupedVotes[ideaId]["votes"]:
-#                 numVotesForCategory = groupedVotes[ideaId]["votes"][category]
-#                 if numVotesForCategory >= votingThreshold:
-#                     if category not in bestCategories:
-#                         bestCategories.append(category)
-#  
-#         # TODO: currently using t for group size; should be separate variable?
-#         task_group = { "idea_keys": [], "categories": [] }
-#         idea_keys = Idea.all(keys_only=True).filter("question = ", self.question).order("rand")
-#         for i in range(self.k):
-#             for idea_key in idea_keys:
-#                 for category in bestCategories:
-#                     if len(task_group["idea_keys"]) == self.t:
-#                         task = CascadeCategoryFitTask()
-#                         task.question = self.question
-#                         task.idea_keys = task_group["idea_keys"]
-#                         task.categories = task_group["categories"]
-#                         task.put()
-#                          
-#                         job = CascadeJob()
-#                         job.question = self.question
-#                         job.cascade = self
-#                         job.step = 3
-#                         job.task = task
-#                         job.worker = None
-#                         job.put()
-#                          
-#                         task_group = { "idea_keys": [], "categories": [] }
-#  
-#                     task_group["idea_keys"].append(idea_key)
-#                     task_group["categories"].append(category)
-#      
-#         # TODO: move to function?
-#         if len(task_group["idea_keys"]) > 0:
-#             task = CascadeSuggestCategoryTask()
-#             task.question = self.question
-#             task.idea_keys = task_group["idea_keys"]
-#             task.categories = task_group["categories"]
-#             task.put()
-#                      
-#             job = CascadeJob()
-#             job.question = self.question
-#             job.cascade = self
-#             job.step = 3
-#             job.task = task
-#             job.worker = None
-#             job.put()
-#     
-#     def deleteJobs(self, dbConnection):
-#         xx anything else to delete out of memory?
-#         dbConnection.cursor.execute("delete from cascade_jobs where question_id={0}".format(self.question.id))
-#         dbConnection.cursor.execute("delete from cascade_xx where question_id={0}".format(self.question.id))
-#         dbConnection.conn.commit()
-#         helpers.log("WARNING: Remember to delete cascade jobs for steps 3b-5")
-#  
-# # TODO: improve by separating out class that just contains single idea, category, and fit vote; same for CascadeSuggestCategoryTask
-# class CascadeCategoryFitTask(CascadeTask):
-#     idea_keys = db.ListProperty(db.Key)
-#     categories = db.StringListProperty(default=[])
-#     categoryFits = db.ListProperty(bool)
-#      
-#     @property
-#     def ideas(self):
-#         return db.get(self.idea_keys)
-#      
-#     def completed(self, data):
-#         self.categoryFits = data["category_fits"]
-#         self.put()
-#          
-#     def toDict(self): 
-#         dict = CascadeTask.toDict(self)
-#         dict["ideas"] = [ idea.toDict(xx) for idea in self.ideas ]
-#         dict["categories"] = self.categories
-#         dict["category_fits"] = self.categoryFits
-#         return dict
-
-
