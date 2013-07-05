@@ -20,7 +20,8 @@ var MAX_CLOUD_HEIGHT = 800;
 var OFFLINE = false;				// For offline debugging
 
 var question = null;
-var ideas = []
+var ideas = [];
+var ideas2 = [];
    
 $(document).ready(function() {
 	if ($("#msg").html()) {
@@ -51,7 +52,8 @@ function loadQuestion() {
 	$.getJSON("/query", data, function(results) {
 		question = results.question;
 		ideas = results.ideas;
-		
+		ideas2 = results.ideas2;
+				
 		if (question.phase == PHASE_NOTES) {
 			$("#idea_link_area").show();
 			$("#idea_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
@@ -67,12 +69,39 @@ function loadQuestion() {
 	});
 }
 
-function displayIdeas() {	
+function displayIdeas() {
+	var html = ""
+	if (ideas2.length > 0) {
+		for (var i in ideas2) {
+			var category = ideas2[i].category;
+			var categoryIdeas = ideas2[i].ideas;
+			html += "<strong>" + category + "</strong><br/>";
+			html += ideaGroupAsHtml(categoryIdeas);
+		}
+	}
+	else {
+		html = ideaGroupAsHtml(ideas);
+	}
+	
+	$("#ideas").html(html);
+	updateNumIdeas();
+		
+	// BEHAVIOR: tag cloud only displayed when notes no longer being added
+	// TODO/FIX: show clouds when grouped by categories
+	if (SHOW_TAGCLOUDS && question.phase != PHASE_NOTES && !jQuery.browser.mobile && ideas2.length==0) {
+		displayCloud();
+	}
+		
+	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
+}
+
+function ideaGroupAsHtml(group) {
 	var html = "<table style='width: 100%'><tr>";
 	html += "<td style='width: 50%'>";
 	html += "<ul id=\"idea_list\">";
-	for (var i in ideas) {
-		html += ideaAsHtml(ideas[i]);
+	for (var i in group) {
+		var idea = group[i];
+		html += ideaAsHtml(idea);
 	}
 	html += "</ul>"
 	html += "</td>";
@@ -81,15 +110,7 @@ function displayIdeas() {
 		html += "<td style='width: 50%' valign='top'><div id='cloud'></div></td>";
 	}
 	html += "</tr></table>";
-	$("#ideas").html(html);
-	updateNumIdeas();
-		
-	// BEHAVIOR: tag cloud only displayed when notes no longer being added
-	if (SHOW_TAGCLOUDS && question.phase != PHASE_NOTES && !jQuery.browser.mobile) {
-		displayCloud();
-	}
-		
-	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
+	return html;
 }
 
 function addIdea(idea) {

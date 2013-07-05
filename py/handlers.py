@@ -245,7 +245,7 @@ class ResultsPageHandler(BaseHandler):
     def get(self):
         self.init()    
         self.checkRequirements(userRequired=True, questionRequired=True)
-        templateValues = self.getDefaultTemplateValues()  
+        templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -414,7 +414,9 @@ class QueryHandler(BaseHandler):
             # ideas for question
             elif request == "ideas" and self.question:
                 ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)
-                data = { "question": self.question.toDict(), "ideas": ideas }
+                # TODO/FIX: need check to determine if categories exist without requiring db query each time ideas requested
+                ideas2 = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
+                data = { "question": self.question.toDict(), "ideas": ideas, "ideas2": ideas2 }
                 
         self.writeResponseAsJson(data)
         self.destroy()

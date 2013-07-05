@@ -228,6 +228,7 @@ class Question(DBObject):
         dbConnection.cursor.execute("delete from cascade_suggested_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_best_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_fit_categories where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from question_categories where question_id={0}".format(self.id))
         helpers.log("REMEMBER TO DELETE OTHER CASCADE DATA")
         if commit:
             dbConnection.conn.commit()
@@ -490,6 +491,44 @@ class Idea(DBObject):
                     idea = idea.toDict(author=author, admin=Person.isAdmin() or question.isAuthor())
                 ideas.append(idea)
         return ideas
+    
+    # TODO: show user how many notes do not have categories
+    
+    @staticmethod
+    def getByCategories(dbConnection, question, asDict=False):
+        groupedIdeas = []
+        category = None
+        categoryIdeas = []
+        if question:
+            sql = "select {0},{1},category from question_categories,question_ideas,users where question_categories.idea_id=question_ideas.id and question_ideas.user_id=users.id and question_ideas.question_id=%s order by category,idea".format(Idea.fieldsSql(), Person.fieldsSql())
+            dbConnection.cursor.execute(sql, (question.id))
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                ideaCategory = row["category"]
+                if not category:
+                    category = ideaCategory
+                    
+                idea = Idea.createFromData(row)
+                if asDict:
+                    # include author info with idea
+                    author = {
+                        "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
+                        "nickname" : row[Person.tableField("nickname")]
+                    }
+                    idea = idea.toDict(author=author, admin=Person.isAdmin() or question.isAuthor())
+                    
+                if category != ideaCategory:
+                    if len(categoryIdeas) > 0:
+                        groupedIdeas.append({ "category" : category , "ideas" : categoryIdeas })
+                    category = ideaCategory
+                    categoryIdeas = []
+                    
+                categoryIdeas.append(idea)
+                           
+            if len(categoryIdeas) > 0:
+                groupedIdeas.append({ "category" : category , "ideas" : categoryIdeas })
+
+        return groupedIdeas
     
     @staticmethod
     def getCountForQuestion(dbConnection, questionId):
@@ -904,10 +943,6 @@ class CascadeFitCategory(DBObject):
                 
             if len(job) > 0:
                 dbConnection.conn.commit()
-        
-        # TODO: TESTING
-        if not job:
-            GenerateCascadeHierarchy(dbConnection, question)
 
         return job if len(job) > 0 else None
      
@@ -990,12 +1025,18 @@ def GenerateCascadeHierarchy(dbConnection, question):
         del categories[category]
     
     # TODO: created nested categories
-    # TODO/FIX: select best showed null idea and no ideas (may not have created any categories for an idea)
-                    
+    
+    sql = "delete from question_categories where question_id=%s"
+    dbConnection.cursor.execute(sql, (question.id))
+    
     for category in categories:
         ideaIds = categories[category]
-        helpers.log("======== {0} ==========".format(category))
         for ideaId in ideaIds:
-            helpers.log(ideas[ideaId])
+            sql = "insert into question_categories (question_id, category, idea_id) values(%s, %s, %s)"
+            dbConnection.cursor.execute(sql, (question.id, category, ideaId))
+
+    dbConnection.conn.commit()
+    
+    # TODO: push to students? or just update results page if on it?
     
 CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategory, None, None ]
