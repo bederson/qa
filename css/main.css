@@ -115,6 +115,10 @@ a.warning:hover {
 	margin-bottom: 10px;
 }
 
+.spaceright {
+	margin-right: 10px;
+}
+
 .indentleft {
 	margin-left: 30px;
 }
@@ -172,4 +176,8 @@ input[type=button]:hover, input[type=submit]:hover {
 
 .dialog {
 	font-size: 0.9em;
+}
+
+div.jqcloud {
+	font-size: 7px;
 }

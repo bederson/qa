@@ -31,17 +31,17 @@ CREATE TABLE `cascade_best_categories` (
   `none_of_the_above` tinyint(4) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `cascade_fit_categories`
+-- Table structure for table `cascade_fit_categories_phase1`
 --
 
-DROP TABLE IF EXISTS `cascade_fit_categories`;
+DROP TABLE IF EXISTS `cascade_fit_categories_phase1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `cascade_fit_categories` (
+CREATE TABLE `cascade_fit_categories_phase1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `question_id` int(11) DEFAULT NULL,
   `user_id` int(11) DEFAULT NULL,
@@ -50,7 +50,26 @@ CREATE TABLE `cascade_fit_categories` (
   `fit` int(11) DEFAULT '-1',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `cascade_fit_categories_phase2`
+--
+
+DROP TABLE IF EXISTS `cascade_fit_categories_phase2`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `cascade_fit_categories_phase2` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `question_id` int(11) DEFAULT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `idea_id` int(11) DEFAULT NULL,
+  `category` varchar(255) DEFAULT NULL,
+  `fit` int(11) DEFAULT '-1',
+  PRIMARY KEY (`id`),
+  KEY `question_index` (`question_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,7 +89,22 @@ CREATE TABLE `cascade_suggested_categories` (
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`),
   KEY `question_idea_index` (`question_id`,`idea_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=196 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `question_categories`
+--
+
+DROP TABLE IF EXISTS `question_categories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `question_categories` (
+  `question_id` int(11) DEFAULT NULL,
+  `category` varchar(255) DEFAULT NULL,
+  `idea_id` int(11) DEFAULT NULL,
+  KEY `question_index` (`question_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -156,4 +190,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-07-03 16:44:58
+-- Dump completed on 2013-07-08 10:54:32

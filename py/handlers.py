@@ -411,12 +411,10 @@ class QueryHandler(BaseHandler):
             elif request == "stats" and self.question:
                 data = Question.getStats(self.dbConnection, self.question.id)
                       
-            # ideas for question
+            # ideas for question (grouped if categories exist; otherwise returned as uncategorized)
             elif request == "ideas" and self.question:
-                ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)
-                # TODO/FIX: need check to determine if categories exist without requiring db query each time ideas requested
-                ideas2 = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
-                data = { "question": self.question.toDict(), "ideas": ideas, "ideas2": ideas2 }
+                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
+                data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }
                 
         self.writeResponseAsJson(data)
         self.destroy()
@@ -554,15 +552,14 @@ class CascadeJobHandler(BaseHandler):
             job = helpers.fromJson(self.request.get("job", None))
             if job:
                 step = int(self.request.get("step", "0"))
-                complete = self.question.saveCascadeJob(self.dbConnection, step, job)
+                isStepComplete = self.question.saveCascadeJob(self.dbConnection, step, job)
+                # notify client waiting for next step that it is ready
+                # TODO/FIX: need better way to know when Cascade is incomplete (i.e., more steps to complete)
+                if isStepComplete and step < self.question.cascade_step:
+                    sendMessage(self.dbConnection, clientId, self.question.id, { "op": "step", "step": self.question.cascade_step })
                       
             job, step = self.question.getCascadeJob(self.dbConnection, self.person)
             data = { "status" : 1, "step" : step, "job": [task.toDict() for task in job] if job else [] }
-            
-            # TODO/FIX!! complete indicates if step completed, new job will be from different step
-            # Notify clients if new step
-#             if isNewStep:
-#                 sendMessage(self.dbConnection, clientId, self.question, { "op": "step", "step": job.step })
               
         self.writeResponseAsJson(data)
         self.destroy()

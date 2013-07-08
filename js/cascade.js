@@ -50,7 +50,10 @@ function updateUI(results) {
 		updateUIForStep2(results);
 	}
 	else if (results.step == 3) {
-		updateUIForStep3(results);
+		updateUIForStep3(results, 1);
+	}
+	else if (results.step == 4) {
+		updateUIForStep3(results, 2);
 	}
 	else {
 		$("#title").html("");
@@ -132,7 +135,7 @@ function submitStep1(tasks) {
 // step 2: select best category
 function updateUIForStep2(results) {
 	$("#title").html("Select Best Category");
-	$("#help").html("Vote for the category that you think best fits this note.");
+	$("#help").html("Pick the one category that best fits this note.");
 	if (results.status == 1) {
 		var tasks = results.job;
 		if (tasks.length == 1) {
@@ -200,9 +203,9 @@ function submitStep2(task) {
 	}, "json");
 }
 
-// step 3: do categories fit
-function updateUIForStep3(results) {
-	$("#title").html("Check Categories");
+// step 3 phase 1: do categories fit
+function updateUIForStep3(results, phase) {
+	$("#title").html("Check Categories (Phase " + phase + ")");
 	$("#help").html("Select whether or not these categories fit this note.");
 	$("#msg").html("");
 	if (results.status == 1) {
@@ -231,8 +234,8 @@ function updateUIForStep3(results) {
 			taskHtml += "</table>";
 			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit\">";
 			$("#task_area").html(taskHtml);
-			$("#submit_btn").on("click", { tasks: tasks }, function(event) {
-				submitStep3(event.data.tasks);
+			$("#submit_btn").on("click", { tasks: tasks, phase: phase }, function(event) {
+				submitStep3(event.data.tasks, event.data.phase);
 			});
 		}
 		else {
@@ -246,7 +249,7 @@ function updateUIForStep3(results) {
 	}
 }
 
-function submitStep3(tasks) {
+function submitStep3(tasks, phase) {
 	var job = [];	
 	$("input:radio").each(function() {
 		var rb = $(this);
@@ -265,7 +268,7 @@ function submitStep3(tasks) {
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id,
-		"step" : 1,
+		"step" : phase==1 ? 3 : 4,
 		"job" : $.toJSON(job)
 	}
 	
@@ -314,6 +317,7 @@ function handlePhase(data) {
 }
 
 function handleStep(data) {
-	alert("cascade step changed!");
-	window.location.reload();
+	// TODO: notify user but do not automatically assign new job in case they have browsed away from window
+	alert("cascade step changed!: "+data.step);
+	//window.location.reload();
 }

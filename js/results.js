@@ -20,8 +20,10 @@ var MAX_CLOUD_HEIGHT = 800;
 var OFFLINE = false;				// For offline debugging
 
 var question = null;
-var ideas = [];
-var ideas2 = [];
+var categorizedIdeas = [];
+var uncategorizedIdeas = [];
+var numIdeas = 0;
+var expandCategories = true;
    
 $(document).ready(function() {
 	if ($("#msg").html()) {
@@ -41,6 +43,11 @@ $(document).ready(function() {
 		var question_id = getURLParameter("question_id");
 		redirectToAdminPage(question_id);
 	});
+	
+	$("#expand_categories_cb").click(function() {
+		expandCategories = $(this).is(":checked");
+		displayIdeas();
+	});
 });
 
 function loadQuestion() {	
@@ -51,9 +58,10 @@ function loadQuestion() {
 	};
 	$.getJSON("/query", data, function(results) {
 		question = results.question;
-		ideas = results.ideas;
-		ideas2 = results.ideas2;
-				
+		categorizedIdeas = results.categorized;
+		uncategorizedIdeas = results.uncategorized;
+		numIdeas = results.count;
+		
 		if (question.phase == PHASE_NOTES) {
 			$("#idea_link_area").show();
 			$("#idea_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
@@ -70,32 +78,47 @@ function loadQuestion() {
 }
 
 function displayIdeas() {
-	var html = ""
-	if (ideas2.length > 0) {
-		for (var i in ideas2) {
-			var category = ideas2[i].category;
-			var categoryIdeas = ideas2[i].ideas;
-			html += "<strong>" + category + "</strong><br/>";
-			html += ideaGroupAsHtml(categoryIdeas);
+	var html = "";
+	for (var i in categorizedIdeas) {
+		var category = categorizedIdeas[i].category;
+		var categoryIdeas = categorizedIdeas[i].ideas;
+		html += "<strong>" + category + "</strong> <span class='note'>("+categoryIdeas.length+")</span><br/>";
+		if (expandCategories) {
+			html += ideaGroupAsHtml(categoryIdeas, i+1);
 		}
 	}
-	else {
-		html = ideaGroupAsHtml(ideas);
+	
+	if (uncategorizedIdeas.length > 0) {
+		if (categorizedIdeas.length > 0) {
+			html += "<strong>NONE</strong> <span class='note'>("+uncategorizedIdeas.length+")</span><br/>";
+		}
+		if (expandCategories) {
+			html += ideaGroupAsHtml(uncategorizedIdeas, categorizedIdeas.length+1);
+		}
 	}
 	
 	$("#ideas").html(html);
-	updateNumIdeas();
+	updateStats();
+	
+	if (categorizedIdeas.length>0) {
+		$("#display_control_area").show();
+	}
 		
-	// BEHAVIOR: tag cloud only displayed when notes no longer being added
-	// TODO/FIX: show clouds when grouped by categories
-	if (SHOW_TAGCLOUDS && question.phase != PHASE_NOTES && !jQuery.browser.mobile && ideas2.length==0) {
-		displayCloud();
+	// BEHAVIOR: only display tag clouds when notes no longer being added
+	if (SHOW_TAGCLOUDS && question.phase != PHASE_NOTES && !jQuery.browser.mobile) {
+		for (var i in categorizedIdeas) {
+			displayCloud(categorizedIdeas[i].ideas, i+1);
+		}
+		
+		if (uncategorizedIdeas.length > 0) {
+			displayCloud(uncategorizedIdeas, categorizedIdeas.length+1);
+		}
 	}
 		
 	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
 }
 
-function ideaGroupAsHtml(group) {
+function ideaGroupAsHtml(group, id) {
 	var html = "<table style='width: 100%'><tr>";
 	html += "<td style='width: 50%'>";
 	html += "<ul id=\"idea_list\">";
@@ -107,17 +130,18 @@ function ideaGroupAsHtml(group) {
 	html += "</td>";
 	
 	if (!jQuery.browser.mobile) {
-		html += "<td style='width: 50%' valign='top'><div id='cloud'></div></td>";
+		html += "<td style='width: 50%' valign='top'><div id='cloud"+id+"' class='cloud'></div></td>";
 	}
 	html += "</tr></table>";
 	return html;
 }
 
 function addIdea(idea) {
-	ideas.push(idea);
+	uncategorizedIdeas.push(idea);
+	numIdeas++;
 	var html = ideaAsHtml(idea);
 	$("#idea_list").prepend(html);
-	updateNumIdeas();
+	updateStats();
 }
 
 function ideaAsHtml(idea) {
@@ -133,26 +157,30 @@ function ideaAsHtml(idea) {
 	html += "</li>";
 	return html;	
 }
-function updateNumIdeas() {
-	var numIdeas = ideas.length;
-	var html = "(";
-	if (numIdeas == 0) {
-		html += "No notes yet";
-	} else if (numIdeas == 1) {
-		html += "1 note";
-	} else {
-		html += numIdeas + " notes";
+
+function updateStats() {
+	var stats = [];
+
+	// number of ideas
+	var stat = numIdeas == 0 ? "No notes yet" : (numIdeas == 1 ? "1 note" : numIdeas + " notes");
+	stats.push(stat);
+	
+	// number of uncategorized ideas (if any)
+	if (categorizedIdeas.length>0 && uncategorizedIdeas.length > 0) {
+		stats.push(uncategorizedIdeas.length + " uncategorized");
 	}
-	html += ")";
-	$("#num_ideas").html(html);
+		
+	var html = stats.length > 0 ? "(" + stats.join(", ") + ")" : ""
+	$("#question_stats").html(html);
 }
 
 //=================================================================================
 // Cloud Display
 //=================================================================================
 
-function displayCloud() {
-	var div = $("#cloud");
+// TODO: improve css for div.jqcloud
+function displayCloud(group, id) {
+	var div = $("#cloud"+id);
 	var height = div.parent().height();
 	if (height > MAX_CLOUD_HEIGHT) {
 		height = MAX_CLOUD_HEIGHT;
@@ -160,8 +188,8 @@ function displayCloud() {
 	div.height(height);
 				
 	var weights = {};
-	for (var i in ideas) {
-		var words = ideas[i].idea.split(" ");
+	for (var i in group) {
+		var words = group[i].idea.split(" ");
 		for (var j in words) {
 			var word = words[j].trim().toLowerCase();
 			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
@@ -246,6 +274,6 @@ function handleTag(data) {
 }
 
 function handleNickname(data) {
-	// TODO: would be better to only update data that has changed changed
+	// TODO: would be better to only update data that has changed
 	window.location.reload();
 }
