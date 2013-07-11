@@ -40,7 +40,7 @@ onMessage = function(message) {
 	// console.log(dataObj);
 	
 	if (dataObj.op == "newidea") {
-		handleNew(dataObj);
+		handleIdea(dataObj);
 	} else 	if (dataObj.op == "newtag") {
 		handleTag(dataObj);
 	} else 	if (dataObj.op == "refresh") {
@@ -49,6 +49,8 @@ onMessage = function(message) {
 		handlePhase(dataObj);
 	} else if (dataObj.op == "step") {
 		handleStep(dataObj);
+	} else if (dataObj.op == "categories") {
+		handleResults(dataObj);
 	} else if (dataObj.op == "nickname") {
 		handleNickname(dataObj);
 	}
@@ -87,6 +89,10 @@ function getPhaseUrl(question_id, phase) {
     
 function redirectToPhase(phase, question_id) {
 	window.location.href = getPhaseUrl(question_id, phase);
+}
+
+function redirectToResultsPage(question_id) {
+	window.location.href = "/results?question_id=" + question_id;
 }
 
 function getAdminPageUrl(question_id) {

@@ -29,9 +29,10 @@ CREATE TABLE `cascade_best_categories` (
   `idea_id` int(11) DEFAULT NULL,
   `best_category` varchar(255) DEFAULT NULL,
   `none_of_the_above` tinyint(4) DEFAULT '0',
+  `cascade_iteration` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=662 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -48,9 +49,11 @@ CREATE TABLE `cascade_fit_categories_phase1` (
   `idea_id` int(11) DEFAULT NULL,
   `category` varchar(255) DEFAULT NULL,
   `fit` int(11) DEFAULT '-1',
+  `subsequent` tinyint(1) DEFAULT '0',
+  `cascade_iteration` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=7040 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -69,7 +72,7 @@ CREATE TABLE `cascade_fit_categories_phase2` (
   `fit` int(11) DEFAULT '-1',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1005 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -86,10 +89,28 @@ CREATE TABLE `cascade_suggested_categories` (
   `idea_id` int(11) DEFAULT NULL,
   `suggested_category` varchar(255) DEFAULT NULL,
   `skipped` tinyint(4) DEFAULT '0',
+  `cascade_iteration` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`),
   KEY `question_idea_index` (`question_id`,`idea_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1133 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `categories`
+--
+
+DROP TABLE IF EXISTS `categories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `category` varchar(255) DEFAULT NULL,
+  `same_as` text,
+  `question_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `question_index` (`question_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=140 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -101,8 +122,8 @@ DROP TABLE IF EXISTS `question_categories`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `question_categories` (
   `question_id` int(11) DEFAULT NULL,
-  `category` varchar(255) DEFAULT NULL,
   `idea_id` int(11) DEFAULT NULL,
+  `category_id` int(11) DEFAULT NULL,
   KEY `question_index` (`question_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -120,9 +141,10 @@ CREATE TABLE `question_ideas` (
   `user_id` int(11) DEFAULT NULL,
   `idea` varchar(255) DEFAULT NULL,
   `created_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `cascade_iteration` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=158 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=187 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -141,6 +163,8 @@ CREATE TABLE `questions` (
   `phase` int(11) DEFAULT '0',
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `cascade_step` int(11) DEFAULT '0',
+  `cascade_iteration` int(11) DEFAULT '0',
+  `cascade_complete` tinyint(4) DEFAULT '0',
   `cascade_k` int(11) DEFAULT '5',
   `cascade_m` int(11) DEFAULT '32',
   `cascade_t` int(11) DEFAULT '8',
@@ -178,7 +202,7 @@ CREATE TABLE `users` (
   `latest_logout_timestamp` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=117 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=121 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -190,4 +214,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-07-08 10:54:32
+-- Dump completed on 2013-07-11 12:52:36

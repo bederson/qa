@@ -7,30 +7,38 @@ GAE Deployment
 * create Google Cloud SQL database user to use instead of root
 
 To Do
-* Does anything need to be created w/in transactions to ensure same id not used when new database item created?  
+* What needs to be created w/in transactions to ensure same id not used when new database item created?  
+  Or does InnoDB handle this ...
 
 Features
 * Record cascade step completion times
-* Use stemming when comparing tags for equality
+* Support downloading question data
+* Use stemming when comparing categories for equality
 * Allow admins to modify questions, in addition to question authors
-* Support download question activity data
-* Create cronjob to clean up any users who have been logged in for a long time
 * Allow admins to logout students
+* Create cronjob to clean up any users who have been logged in for a long time
 * Handle active users when question disabled or deleted (logout?)
+* Release assignments after some period of inactivity; delete incomplete jobs when user logs out
 
 Misc Improvements
 * Reduce page reloads to reduce unnecessary server calls and # of channels created
 * Need better way to create unique question id
 * Need consistent terminology (e.g., submission/note/response/idea, person/user/author)
 * Create database indexes
-* Change order items are presented in when creating categories, voting, etc.
 * Destroy channels after some specified period (or does that happen automatically?)
-* Consider what can be stored in datastore and/or memcache to improve performance
+* Consider what can be stored in datastore and/or memcache to improve performance (categories, etc.)
 * authenticated_user_id will always stay the same but authenticated_nickname can change.
   Check and update if needed when user logs in
-  Or does InnoDB handle this ...
 * Reduce character limit for ideas to encourage only one idea per submission
-* Do not allow Cascade to be enabled until notes created
+* Do not allow Cascade to be enabled until notes exist
+* Consider using smaller k for Cascade step 3.1
+* Consider asking users to suggest categories when ideas created
+* Need to better randomize jobs and how presented
+* Need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
+* Enabling and disabling of question should be separate from notes and cascade phases
+  Currently disabling and then re-enabling a question looses the current phase and will not allow
+  Cascade to be re-enabled w/o deleting any existing data
+* Fix "Step x of y" on Cascade UI (problem is y is changing)
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

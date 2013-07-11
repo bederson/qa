@@ -82,7 +82,8 @@ function displayIdeas() {
 	for (var i in categorizedIdeas) {
 		var category = categorizedIdeas[i].category;
 		var categoryIdeas = categorizedIdeas[i].ideas;
-		html += "<strong>" + category + "</strong> <span class='note'>("+categoryIdeas.length+")</span><br/>";
+		var sameAs = categorizedIdeas[i].same_as ? "Similar to: "+categorizedIdeas[i].same_as : "";
+		html += "<strong>" + category + "</strong> <span class='note'>("+categoryIdeas.length+") " + sameAs + "</span><br/>";
 		if (expandCategories) {
 			html += ideaGroupAsHtml(categoryIdeas, i+1);
 		}
@@ -258,7 +259,7 @@ function getWordStem(word) {
 /////////////////////////
 // Channel support
 /////////////////////////
-function handleNew(data) {
+function handleIdea(data) {
 	addIdea(data.idea);
 }
 
@@ -275,5 +276,9 @@ function handleTag(data) {
 
 function handleNickname(data) {
 	// TODO: would be better to only update data that has changed
+	window.location.reload();
+}
+
+function handleResults(data) {
 	window.location.reload();
 }

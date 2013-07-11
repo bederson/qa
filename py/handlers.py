@@ -230,8 +230,6 @@ class IdeaPageHandler(BaseHandler):
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
      
-# TODO: check if ideas exist for question; if not, do not enable cascade
-# TODO: when cascade step changes, notify user but do not assigned task automatically
 class CascadePageHandler(BaseHandler):
     def get(self):
         self.init() 
@@ -404,7 +402,7 @@ class QueryHandler(BaseHandler):
             
             # questions created by user
             if request == "questions":
-                questions = Question.getByUser(self.dbConnection, asDict=True)
+                questions = Question.getByUser(self.dbConnection, asDict=True)                        
                 data = { "questions": questions }
                         
             # stats for question (# ideas, etc.)
@@ -498,7 +496,7 @@ class NewIdeaHandler(BaseHandler):
             clientId = self.request.get('client_id')
             ideaText = self.request.get('idea')                
             if ideaText and ideaText != "":
-                idea = Idea.create(self.dbConnection, self.question.id, self.person.id, ideaText)
+                idea = Idea.create(self.dbConnection, self.question, self.person.id, ideaText)
                 data = { "status" : 1 }            
                 author = { 
                     "nickname" : self.person.nickname, 
@@ -549,17 +547,21 @@ class CascadeJobHandler(BaseHandler):
              
         else:
             # save job (if any)
-            job = helpers.fromJson(self.request.get("job", None))
-            if job:
-                step = int(self.request.get("step", "0"))
-                isStepComplete = self.question.saveCascadeJob(self.dbConnection, step, job)
-                # notify client waiting for next step that it is ready
-                # TODO/FIX: need better way to know when Cascade is incomplete (i.e., more steps to complete)
-                if isStepComplete and step < self.question.cascade_step:
+            jobToSave = helpers.fromJson(self.request.get("job", None))
+            if jobToSave:
+                isStepComplete = self.question.saveCascadeJob(self.dbConnection, jobToSave)
+
+                if self.question.cascade_complete:
+                    # notify any waiting clients that categories are ready
+                    sendMessage(self.dbConnection, None, self.question.id, { "op": "categories" })
+                elif isStepComplete:                    
+                    # notify any waiting clients that next step that is ready
                     sendMessage(self.dbConnection, clientId, self.question.id, { "op": "step", "step": self.question.cascade_step })
-                      
-            job, step = self.question.getCascadeJob(self.dbConnection, self.person)
-            data = { "status" : 1, "step" : step, "job": [task.toDict() for task in job] if job else [] }
+
+            newJob = None
+            if not self.question.cascade_complete:
+                newJob = self.question.getCascadeJob(self.dbConnection, self.person)
+            data = { "status" : 1, "step" : self.question.cascade_step, "job": [task.toDict() for task in newJob] if newJob else [], "complete" : 1 if self.question.cascade_complete else 0 }
               
         self.writeResponseAsJson(data)
         self.destroy()
@@ -575,14 +577,13 @@ class CascadeOptionsHandler(BaseHandler):
 
         else:
             properties = {
-                "cascade_k": int(self.request.get('cascade_k')),
-                "cascade_m": int(self.request.get('cascade_m')),
-                "cascade_t": int(self.request.get('cascade_t')),
-                "id": self.question.id
+                "cascade_k" : int(self.request.get('cascade_k')),
+                "cascade_m" : int(self.request.get('cascade_m')),
+                "cascade_t" : int(self.request.get('cascade_t')),
+                "id" : self.question.id
             }
             self.question.update(self.dbConnection, properties)
             data = { "status" : 1, "question" : self.question.toDict() }
-            # TODO: notify other clients
         
         self.writeResponseAsJson(data)
         self.destroy()
@@ -621,7 +622,6 @@ def createChannel(question, person):
     clientId += "_" + (str(question.id) if question else constants.EMPTY_CLIENT_TOKEN)
     clientId += "_" + (str(person.id) if person else constants.EMPTY_CLIENT_TOKEN)
     # question authors are marked with a "_a" in the clientId
-    # TODO: Should application admins also be marked?
     if question and question.isAuthor():
         clientId += "_a"                                     
     token = channel.create_channel(clientId)
@@ -635,21 +635,20 @@ def getInfoFromClient(clientId):
     return (questionId, personId, isAdmin)
 
 def sendMessage(dbConnection, fromClientId, questionId, message, adminMessage=None):
-    """Send message to all listeners (except self) to this topic"""
-    if fromClientId and questionId:
-        # TODO: would it be better to store client ids in the HRD or memcache
-        # as opposed to performing a db query
+    """Send message to all listeners (except self if fromClientId specified) to this topic"""
+    if questionId:
+        # TODO: would it be better to store client ids memcache instead of requiring db query each time
         sql = "select client_id from users,user_clients where users.id=user_clients.user_id and question_id=%s"
         dbConnection.cursor.execute(sql, (questionId))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             toClientId = row["client_id"]
             toMessage = message
-            if toClientId != fromClientId:
+            if not fromClientId or toClientId != fromClientId:
                 if adminMessage:
                     clientQuestionId, clientPersonId, clientIsAdmin = getInfoFromClient(toClientId)
                     if clientIsAdmin:
-                        toMessage = adminMessage;
+                        toMessage = adminMessage
                 channel.send_message(toClientId, json.dumps(toMessage))
 
 #####################
@@ -677,5 +676,8 @@ def getPhaseUrl(question=None):
         if question.phase <= constants.PHASE_NOTES:
             url = "/idea?question_id=" + str(question.id)
         elif question.phase == constants.PHASE_CASCADE:
-            url = "/cascade?question_id=" + str(question.id)
+            if not question.cascade_complete:
+                url = "/cascade?question_id=" + str(question.id)
+            else:
+                url = "/results?question_id=" + str(question.id)
     return url

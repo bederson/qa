@@ -22,10 +22,14 @@ $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
 	}
-	
+
+	if (jQuery.browser.mobile) {
+		$(".stats").hide();
+	}
+		
 	$("#page_content").show();	
 	loadQuestions();
-	
+
 	$("#newq_button").click(function() {
 		createEditQuestion();
 	});
@@ -39,13 +43,14 @@ $(document).ready(function() {
 		setPhase(PHASE_NOTES);
 	});
 	
-	$("#p5button").click(function() {
-		setPhase(PHASE_CASCADE);
+	$("#p2button").click(function() {
+		enableCascade();
 	});
 		
 	$(".cascade_option").blur(function() {
 		setCascadeOptions();
 	});
+	
 });
 
 function loadQuestions() {
@@ -125,16 +130,23 @@ function displaySelectedQuestion() {
 	if (question.phase == PHASE_DISABLED) {
 		$("#p0button").val("Enable question");
 		$("#p1button").val("Note entry disabled");
-		$("#p5button").val("Cascade disabled");
+		$("#p2button").val("Cascade disabled");
+		$(".cascade_option").attr("disabled", "disabled");
 	} 
 	else {
 		$("#p0button").val("Disable question");
 		$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
-		$("#p5button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
+		$("#p2button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
+		if (question.phase == PHASE_CASCADE) {
+			$(".cascade_option").attr("disabled", "disabled");
+		}
+		else {
+			$(".cascade_option").removeAttr("disabled");
+		}
 	}
 	
 	enableDisable($("#p1button"), question.phase != PHASE_DISABLED && question.phase != PHASE_NOTES);
-	enableDisable($("#p5button"), question.phase != PHASE_DISABLED && question.phase != PHASE_CASCADE)
+	enableDisable($("#p2button"), question.phase != PHASE_DISABLED && question.phase != PHASE_CASCADE)
 
 	$("#selected_question").show();
 }
@@ -172,6 +184,10 @@ function displayQuestionStats(question) {
 	var numUsers = question.num_users;
 	var html = numIdeas + " notes, "+ numUsers + " users";
 	$("#stats").html(html);
+	
+	// TODO: incomplete
+	//$("#notes_stats").html(numIdeas + " notes");
+	//$("#cascade_stats").html("Step " + question.cascade_step + " in progress");
 }
 
 function setPhase(phase) {
@@ -190,16 +206,45 @@ function setPhase(phase) {
 			$("#msg").html(result.msg);
 			return;
 		}
+		
 		updateQuestion(result.question.id, result.question);				
 	}, "json");
 }
 
+function enableCascade() {
+	var question = getSelectedQuestion();
+	if (question.cascade_step == 0) {
+		setPhase(PHASE_CASCADE);
+	}
+	// warn user that any existing cascade data will be deleted
+	// warning appears if cascade ever enabled before
+	// does not currently check whether or not any cascade data actually exists
+	else {
+		$("#cascade_confirm").css("display", "inline");
+		$("#cascade_confirm").dialog({
+			resizable: false,
+			width: 300,
+			height: 240,
+			modal: true,
+			buttons: {
+				"Delete Cascade data": function() {
+					setPhase(PHASE_CASCADE);
+					$(this).dialog("close");
+				},
+				Cancel: function() {
+					$(this).dialog("close");
+				}
+			}
+		});
+	}
+}
 function setCascadeOptions() {
 	var question = getSelectedQuestion();
 	if (!question) {
-		alert("Cascade options not change. Question not found");
+		alert("Cascade options not changed. Question not found");
 		return;
-	}	
+	}
+	
 	var data = {
 		"client_id": client_id,
 		"question_id": question.id,

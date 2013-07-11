@@ -24,11 +24,6 @@ import random
 from google.appengine.api import rdbms
 from google.appengine.api import users
 
-# TODO: show categories only when grouped by categories; make sure works both ways; improve category display
-# TODO: need check to determine if categories exist without requiring db query each time ideas requested
-# TODO: group by cascade_m
-# TODO: use smaller cascade_k for step 3.1?
-
 class DatabaseConnection():
     def __init__(self):
         self.conn = None
@@ -71,7 +66,6 @@ class DBObject(object):
     def tableField(cls, field):
         return cls.table + "." + field if cls.table else None
         
-    # TODO: is it possible to make class property instead so it can be called like this: Question.fieldsSql?
     @classmethod
     def fieldsSql(cls):
         tableFields = []
@@ -139,7 +133,7 @@ class DBObject(object):
            
 class Question(DBObject):
     table = "questions"
-    fields = { "id", "title", "question", "nickname_authentication", "user_id", "phase", "cascade_step", "cascade_k", "cascade_m", "cascade_t" }    
+    fields = { "id", "title", "question", "nickname_authentication", "user_id", "phase", "cascade_step", "cascade_iteration", "cascade_complete", "cascade_k", "cascade_m", "cascade_t" }    
         
     def __init__(self):
         self.id = None
@@ -150,6 +144,8 @@ class Question(DBObject):
         self.authenticated_user_id = None # stored in users table
         self.phase = 0
         self.cascade_step = 0
+        self.cascade_iteration = 0
+        self.cascade_complete = 0
         self.cascade_k = 5
         self.cascade_m = 32
         self.cascade_t = 8
@@ -198,26 +194,51 @@ class Question(DBObject):
                 self.initCascadeNextStep(dbConnection)
 
     def initCascadeNextStep(self, dbConnection):
-        self.update(dbConnection, { "cascade_step" : self.cascade_step+1, "id" : self.id })            
-        if CASCADE_CLASSES[self.cascade_step-1]:
-            CASCADE_CLASSES[self.cascade_step-1].initStep(dbConnection, self)
+        if not self.cascade_complete:
+            if self.cascade_step < len(CASCADE_CLASSES):
+                nextStep = self.cascade_step + 1
+                data = { "cascade_step" : nextStep, "id" : self.id }
+                if self.cascade_step == 0:
+                    data["cascade_iteration"] = 1
+                self.update(dbConnection, data)            
+                CASCADE_CLASSES[nextStep-1].initStep(dbConnection, self)
+    
+            # if on last step, check if cascade is complete, if not move to next iteration
+            else:
+                complete = self.checkIfCascadeComplete(dbConnection)
+                if not complete:
+                    nextStep = 1
+                    nextIteration = self.cascade_iteration + 1
+                    self.update(dbConnection, { "cascade_step" : nextStep, "cascade_iteration" : nextIteration, "id" : self.id })
+                    CASCADE_CLASSES[nextStep-1].initStep(dbConnection, self)
         
     def getCascadeJob(self, dbConnection, person):
         job = None
         if CASCADE_CLASSES[self.cascade_step-1]:
             job = CASCADE_CLASSES[self.cascade_step-1].getJob(dbConnection, self, person) 
-        else:
-            helpers.log("GETJOB FOR STEP {0} NOT IMPLEMENTED YET".format(self.cascade_step))
-        return job, self.cascade_step
+        return job
         
-    def saveCascadeJob(self, dbConnection, step, job=[]):
+    def saveCascadeJob(self, dbConnection, job=[]):
         stepComplete = False
         if CASCADE_CLASSES[self.cascade_step-1]:
             stepComplete = CASCADE_CLASSES[self.cascade_step-1].saveJob(dbConnection, self, job)
-        else:
-            helpers.log("SAVEJOB FOR STEP {0} NOT IMPLEMENTED YET".format(self.cascade_step))
         return stepComplete
-        
+
+    def checkIfCascadeComplete(self, dbConnection):
+        if not self.cascade_complete:
+            lastStepComplete = self.cascade_step == len(CASCADE_CLASSES) and CASCADE_CLASSES[self.cascade_step-1].isStepComplete(dbConnection, self)
+            complete = lastStepComplete and self.cascade_iteration == constants.CASCADE_MAX_ITERATIONS
+            if lastStepComplete and self.cascade_iteration < constants.CASCADE_MAX_ITERATIONS:
+                sql = "select count(*) as ct from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null"
+                dbConnection.cursor.execute(sql, (self.id))
+                row = dbConnection.cursor.fetchone()
+                complete = True if row["ct"] <= constants.CASCADE_MAX_UNCATEGORIZED else False 
+            
+            if complete:
+                self.update(dbConnection, { "cascade_complete" : 1, "id" : self.id })
+                
+        return self.cascade_complete
+    
     def delete(self, dbConnection):
         dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
@@ -229,16 +250,16 @@ class Question(DBObject):
         return self
     
     def deleteCascade(self, dbConnection, commit=True):
-        self.update(dbConnection, { "cascade_step" : 0, "id" : self.id }, commit=False)
+        self.update(dbConnection, { "cascade_step" : 0, "cascade_iteration" : 0, "cascade_complete" : 0, "id" : self.id }, commit=False)
         dbConnection.cursor.execute("delete from cascade_suggested_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_best_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_fit_categories_phase1 where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_fit_categories_phase2 where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_categories where question_id={0}".format(self.id))
-        # TODO: check that all cascade delete deleted
+        dbConnection.cursor.execute("delete from categories where question_id={0}".format(self.id))
         if commit:
             dbConnection.conn.commit()
-        
+                    
     def isAuthor(self):
         # BEHAVIOR: check if currently authenticated user is the question author
         # currently only authenticated users can create questions
@@ -337,6 +358,8 @@ class Person(DBObject):
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
                 sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
+                xx
+            
             # otherwise, logout this specific user instance
             else:
                 sql = "update users set latest_logout_timestamp=now() where id=%s"
@@ -459,9 +482,9 @@ class Idea(DBObject):
         self.idea = None
     
     @staticmethod
-    def create(dbConnection, questionId, userId, ideaText):
+    def create(dbConnection, question, userId, ideaText):
         idea = Idea()
-        idea.question_id = questionId
+        idea.question_id = question.id
         idea.user_id = userId
         idea.idea = ideaText
         
@@ -507,12 +530,24 @@ class Idea(DBObject):
         categoryIdeas = []
         uncategorizedIdeas = []
         if question:
-            # TODO: order by largest to smallest category
-            sql = "select {0},{1},category from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id left join users on question_ideas.user_id=users.id where question_ideas.question_id=%s order by category,idea".format(Idea.fieldsSql(), Person.fieldsSql())
+            # sorts categories alphabetically unless sortByFrequency is true
+            # if sortByFrequency is true, return categories in order of largest to smallest
+            # TODO: add option to GUI to specify sort type
+            sortByFrequency = False
+            sql = "select {0},{1},category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql += "left join question_categories on question_ideas.id=question_categories.idea_id "
+            if sortByFrequency:
+                sql += "left join (select id,category,same_as,count(*) as ct from categories,question_categories where categories.id=question_categories.category_id group by id) cat1 on question_categories.category_id=cat1.id "
+            else:
+                sql += "left join categories on question_categories.category_id=categories.id "
+            sql += "left join users on question_ideas.user_id=users.id where "
+            sql += "question_ideas.question_id=%s "
+            sql += "order by ct desc,category,idea" if sortByFrequency else "order by category,idea"
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 ideaCategory = row["category"]
+                ideaSameAs = row["same_as"]
                 idea = Idea.createFromData(row)
                 ideaId = idea.id
                 if asDict:
@@ -526,11 +561,13 @@ class Idea(DBObject):
                 if ideaCategory: 
                     if not category:
                         category = ideaCategory
+                        sameAs = ideaSameAs
                                         
                     if category != ideaCategory:
                         if len(categoryIdeas) > 0:
-                            categorizedIdeas.append({ "category" : category , "ideas" : categoryIdeas })
+                            categorizedIdeas.append({ "category" : category , "same_as" : sameAs, "ideas" : categoryIdeas })
                         category = ideaCategory
+                        sameAs = ideaSameAs
                         categoryIdeas = []
                         
                     categoryIdeas.append(idea)
@@ -541,7 +578,7 @@ class Idea(DBObject):
                 ideaIds.append(ideaId)
                            
             if len(categoryIdeas) > 0:
-                categorizedIdeas.append({ "category" : category , "ideas" : categoryIdeas })
+                categorizedIdeas.append({ "category" : category, "same_as" : sameAs, "ideas" : categoryIdeas })
                 
         return categorizedIdeas, uncategorizedIdeas, len(set(ideaIds))
     
@@ -566,38 +603,20 @@ class Idea(DBObject):
                             
         return objDict
                  
-# ###################
-# ##### CASCADE #####
-# ###################
-# 
-# # BEHAVIOR: cascade jobs created when phase enabled
-# # BEHAVIOR: when cascade params are changed, cascade jobs are re-created
-# # BEHAVIOR: user currently allowed to do as many jobs per step as they can when running locally
-# # BEHAVIOR: step 1 - displays up to t ideas at a time
-# # BEHAVIOR: step 1 - does not remove ideas authored by person
-# # BEHAVIOR: step 1 - k jobs performed to create a category for an idea; should k categories be required for each idea? or ok to skip?
-# # BEHAVIOR: step 2 - user can choose best category or select none of the above
-# 
-# # TODO/BUG: how to ensure updates available to all users in time; model blocking? transactions?
-# # TODO: warn admin that any previous cascade data will be lost when jobs re-created
-# # TODO: need to add timestamps to record how long each step takes
-# # TODO: when step changes, need to notify waiting users
-# # TODO: ask users to suggest category during idea creation
-# # TODO: would it be better to create task and then keep track of k responses (instead of repeating task)
-# # TODO: limit # of channels; do not reload page for new steps
-# # TODO: step 1 - remove any ideas user has authored, skipped, or already created categories for
-# # TODO: step 1 - need to release assignments after some period of inactivity
-# # TODO: step 1 - need to better randomize ideas presented in jobs 
-# # TODO: step 1 - should users be asked once more to create categories for any ideas with no categories
-# # TODO: step 2 - categories that only differ by case should be shown together
-# # TODO: step 2 - how should voting threshold be determined (based on k?)
-# 
-
-# TODO: should user be warned if no suggested categories generated for a particular idea?
+###################
+##### CASCADE #####
+###################
+ 
+# BEHAVIOR: cascade jobs are created when phase is enabled
+# BEHAVIOR: currently cascade data is deleted if cascade is disabled and then re-enabled
+# BEHAVIOR: user currently allowed to do as many jobs per step as they can when running locally
+# BEHAVIOR: recurses if # uncategorized items > CASCADE_MAX_UNCATEGORIZED but not for loose categories 
+# BEHAVIOR: # iterations limited by CASCADE_MAX_ITERATIONS, regardless of how many items still uncategorized
+# BEHAVIOR: categories with fewer than CASCADE_Q items removed, duplicate categories merged, nested categories not generated
 
 class CascadeSuggestedCategory(DBObject):
     table = "cascade_suggested_categories"
-    fields = { "id", "question_id", "idea_id", "idea", "suggested_category", "skipped", "user_id" }
+    fields = { "id", "question_id", "idea_id", "idea", "suggested_category", "skipped", "cascade_iteration", "user_id" }
         
     def __init__(self):
         self.id = None
@@ -606,16 +625,17 @@ class CascadeSuggestedCategory(DBObject):
         self.idea = None # stored in question_ideas table
         self.suggested_category = None
         self.skipped = 0
+        self.cascade_iteration = 0
         self.user_id = None
         
     @staticmethod
-    def create(dbConnection, questionId, ideaId, commit=True):        
+    def create(dbConnection, question, ideaId, commit=True):        
         task = CascadeSuggestedCategory()
-        task.question_id = questionId
+        task.question_id = question.id
         task.idea_id = ideaId
           
-        sql = "insert into cascade_suggested_categories (question_id, idea_id) values (%s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id))
+        sql = "insert into cascade_suggested_categories (question_id, idea_id, cascade_iteration) values (%s, %s, %s)"
+        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, question.cascade_iteration))
         if commit:
             dbConnection.conn.commit()
     
@@ -634,13 +654,16 @@ class CascadeSuggestedCategory(DBObject):
     
     @staticmethod
     def initStep(dbConnection, question):
-        sql = "select id from question_ideas where question_id=%s"
+        if question.cascade_iteration == 1:
+            sql = "select id from question_ideas where question_id=%s order by rand() limit {0}".format(question.cascade_m)
+        else:
+            sql = "select id from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null order by rand()"
         dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             ideaId = row["id"]
             for i in range(question.cascade_k):
-                CascadeSuggestedCategory.create(dbConnection, question.id, ideaId, False)
+                CascadeSuggestedCategory.create(dbConnection, question, ideaId, False)
         dbConnection.conn.commit()
 
     @staticmethod
@@ -693,7 +716,6 @@ class CascadeSuggestedCategory(DBObject):
 
     @staticmethod
     def saveJob(dbConnection, question, job):
-        # TODO: check that only x number items are skipped
         for task in job:
             taskId = task["id"]
             suggestedCategory = task["suggested_category"]
@@ -707,10 +729,7 @@ class CascadeSuggestedCategory(DBObject):
                 dbConnection.cursor.execute(sql, (taskId))
         dbConnection.conn.commit()
         
-        stepComplete = CascadeSuggestedCategory.isStepComplete(dbConnection, question)
-        if stepComplete:
-            question.initCascadeNextStep(dbConnection)
-            
+        stepComplete = CascadeSuggestedCategory.continueToNextStepIfComplete(dbConnection, question)
         return stepComplete
         
     @staticmethod
@@ -719,10 +738,17 @@ class CascadeSuggestedCategory(DBObject):
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
         return row["ct"] == 0
-              
+   
+    @staticmethod
+    def continueToNextStepIfComplete(dbConnection, question):
+        stepComplete = CascadeSuggestedCategory.isStepComplete(dbConnection, question)
+        if stepComplete:
+            question.initCascadeNextStep(dbConnection)
+        return stepComplete
+                       
 class CascadeBestCategory(DBObject):
     table = "cascade_best_categories"
-    fields = { "id", "question_id", "idea_id", "idea", "suggested_categories", "best_category", "none_of_the_above", "user_id" }
+    fields = { "id", "question_id", "idea_id", "idea", "suggested_categories", "best_category", "none_of_the_above", "cascade_iteration", "user_id" }
     
     def __init__(self):
         self.id = None
@@ -732,16 +758,17 @@ class CascadeBestCategory(DBObject):
         self.suggested_categories = [] # stored in cascade_suggested_categories
         self.best_category = None
         self.none_of_the_above = 0
+        self.cascade_iteration = 0
         self.user_id = None
         
     @staticmethod
-    def create(dbConnection, questionId, ideaId, commit=True):        
+    def create(dbConnection, question, ideaId, commit=True):        
         task = CascadeBestCategory()
-        task.question_id = questionId
+        task.question_id = question.id
         task.idea_id = ideaId
           
-        sql = "insert into cascade_best_categories (question_id, idea_id) values (%s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id))
+        sql = "insert into cascade_best_categories (question_id, idea_id, cascade_iteration) values (%s, %s, %s)"
+        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, question.cascade_iteration))
         if commit:
             dbConnection.conn.commit()
     
@@ -762,15 +789,14 @@ class CascadeBestCategory(DBObject):
            
     @staticmethod
     def initStep(dbConnection, question):
-        sql = "select distinct idea_id from cascade_suggested_categories where question_id=%s and suggested_category is not null"
+        iterationCondition = "and cascade_suggested_categories.cascade_iteration=questions.cascade_iteration" if question.cascade_iteration > 1 else ""
+        sql = "select distinct idea_id from cascade_suggested_categories,questions where cascade_suggested_categories.question_id=questions.id and question_id=%s {0} and suggested_category is not null".format(iterationCondition)
         dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
-        if len(rows) == 0:
-            helpers.log("WARNING: No suggested categories found for question {0}".format(question.id))
         for row in rows:
             ideaId = row["idea_id"]
             for i in range(question.cascade_k):
-                CascadeBestCategory.create(dbConnection, question.id, ideaId, False)
+                CascadeBestCategory.create(dbConnection, question, ideaId, False)
         dbConnection.conn.commit()
 
     @staticmethod
@@ -814,7 +840,6 @@ class CascadeBestCategory(DBObject):
         return job if len(job) > 0 else None
      
     def assignTo(self, dbConnection, person, commit=True):
-        # TODO: same as step 1 except for table name
         sql = "update cascade_best_categories set user_id=%s where id=%s"
         dbConnection.cursor.execute(sql, (person.id, self.id))
         if commit:
@@ -836,10 +861,7 @@ class CascadeBestCategory(DBObject):
 
         dbConnection.conn.commit()
         
-        stepComplete = CascadeBestCategory.isStepComplete(dbConnection, question)
-        if stepComplete:
-            question.initCascadeNextStep(dbConnection)
-            
+        stepComplete = CascadeBestCategory.continueToNextStepIfComplete(dbConnection, question)
         return stepComplete
         
     @staticmethod
@@ -849,6 +871,13 @@ class CascadeBestCategory(DBObject):
         row = dbConnection.cursor.fetchone()
         return row["ct"] == 0
     
+    @staticmethod
+    def continueToNextStepIfComplete(dbConnection, question):
+        stepComplete = CascadeBestCategory.isStepComplete(dbConnection, question)
+        if stepComplete:
+            question.initCascadeNextStep(dbConnection)
+        return stepComplete
+            
     def toDict(self, dbConnection=None, includeIdeaText=True):
         objDict = super(CascadeBestCategory, self).toDict()                 
         if dbConnection and includeIdeaText:
@@ -867,7 +896,7 @@ class CascadeBestCategory(DBObject):
 
 class CascadeFitCategoryPhase1(DBObject):
     table = "cascade_fit_categories_phase1"
-    fields = { "id", "question_id", "idea_id", "idea", "category", "fit", "user_id" }
+    fields = { "id", "question_id", "idea_id", "idea", "category", "fit", "cascade_iteration", "subsequent", "user_id" }
         
     def __init__(self):
         self.id = None
@@ -876,17 +905,19 @@ class CascadeFitCategoryPhase1(DBObject):
         self.idea = None # stored in question_ideas table
         self.category = None
         self.fit = 0
+        self.cascade_iteration = 0
+        self.subsequent = 0
         self.user_id = None
         
     @staticmethod
-    def create(dbConnection, questionId, ideaId, category, commit=True):        
+    def create(dbConnection, question, ideaId, category, subsequent=0, commit=True):        
         task = CascadeFitCategoryPhase1()
-        task.question_id = questionId
+        task.question_id = question.id
         task.idea_id = ideaId
         task.category = category
                   
-        sql = "insert into cascade_fit_categories_phase1 (question_id, idea_id, category) values (%s, %s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, task.category))
+        sql = "insert into cascade_fit_categories_phase1 (question_id, idea_id, category, cascade_iteration, subsequent) values (%s, %s, %s, %s, %s)"
+        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, task.category, question.cascade_iteration, subsequent))
         if commit:
             dbConnection.conn.commit()
     
@@ -905,29 +936,26 @@ class CascadeFitCategoryPhase1(DBObject):
     
     @staticmethod
     def initStep(dbConnection, question):
-        # TODO: limit by cascasde_m ideas
-        # TODO: restrict to unique ideas; remove duplicates form suggested categories
-        sql = "select id from question_ideas where question_id=%s"
-        dbConnection.cursor.execute(sql, (question.id))
+        sql = "select distinct idea_id from cascade_suggested_categories where question_id=%s and cascade_iteration=%s"
+        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration))
         rows = dbConnection.cursor.fetchall()
 
-        # TODO: comment        
         # TODO: how should voting threshold be determined
         votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
-        sql = "select distinct best_category from cascade_best_categories where question_id=%s and none_of_the_above=0 group by question_id,idea_id,best_category having count(*)>=%s";
-        dbConnection.cursor.execute(sql, (question.id, votingThreshold))
+        sql = "select distinct best_category from cascade_best_categories where question_id=%s and cascade_iteration=%s and none_of_the_above=0 group by question_id,idea_id,best_category having count(*)>=%s"
+        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
         rows2 = dbConnection.cursor.fetchall()
 
         for row in rows:
-            ideaId = row["id"]
+            ideaId = row["idea_id"]
             for row2 in rows2:
                 category = row2["best_category"]
                 for i in range(question.cascade_k):
-                    CascadeFitCategoryPhase1.create(dbConnection, question.id, ideaId, category, False)
+                    CascadeFitCategoryPhase1.create(dbConnection, question, ideaId, category, False)
         dbConnection.conn.commit()
 
     @staticmethod
-    def getJob(dbConnection, question, person):  
+    def getJob(dbConnection, question, person): 
         job = []
         # check if job already assigned
         sql = "select cascade_fit_categories_phase1.*,idea from cascade_fit_categories_phase1,question_ideas where "
@@ -966,7 +994,7 @@ class CascadeFitCategoryPhase1(DBObject):
                 
             if len(job) > 0:
                 dbConnection.conn.commit()
-            
+              
         return job if len(job) > 0 else None
      
     def assignTo(self, dbConnection, person, commit=True):
@@ -984,10 +1012,7 @@ class CascadeFitCategoryPhase1(DBObject):
             dbConnection.cursor.execute(sql, (fit, taskId))
         dbConnection.conn.commit()
         
-        stepComplete = CascadeFitCategoryPhase1.isStepComplete(dbConnection, question)
-        if stepComplete:
-            question.initCascadeNextStep(dbConnection)
-            
+        stepComplete = CascadeFitCategoryPhase1.continueToNextStepIfComplete(dbConnection, question)
         return stepComplete
         
     @staticmethod
@@ -997,9 +1022,13 @@ class CascadeFitCategoryPhase1(DBObject):
         row = dbConnection.cursor.fetchone()
         return row["ct"] == 0
 
-# TODO: make voting threshold editable cascade attribute
-# TODO: need to know when cascade is complete
-
+    @staticmethod
+    def continueToNextStepIfComplete(dbConnection, question):
+        stepComplete = CascadeFitCategoryPhase1.isStepComplete(dbConnection, question)
+        if stepComplete:
+            question.initCascadeNextStep(dbConnection)
+        return stepComplete
+            
 class CascadeFitCategoryPhase2(DBObject):
     table = "cascade_fit_categories_phase2"
     fields = { "id", "question_id", "idea_id", "idea", "category", "fit", "user_id" }
@@ -1014,14 +1043,14 @@ class CascadeFitCategoryPhase2(DBObject):
         self.user_id = None
         
     @staticmethod
-    def create(dbConnection, questionId, ideaId, category, commit=True):        
+    def create(dbConnection, question, ideaId, category, commit=True):        
         task = CascadeFitCategoryPhase2()
-        task.question_id = questionId
+        task.question_id = question.id
         task.idea_id = ideaId
         task.category = category
                   
-        sql = "insert into cascade_fit_categories_phase2 (question_id, idea_id, category) values (%s, %s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, task.category))
+        sql = "insert into cascade_fit_categories_phase2 (question_id, idea_id, category, cascade_iteration) values (%s, %s, %s, %s)"
+        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, task.category, question.cascade_iteration))
         if commit:
             dbConnection.conn.commit()
     
@@ -1042,14 +1071,14 @@ class CascadeFitCategoryPhase2(DBObject):
     def initStep(dbConnection, question):
         # TODO: how should voting threshold be determined
         votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
-        sql = "select *,count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and fit=1 group by question_id,idea_id,category having ct>=%s";
-        dbConnection.cursor.execute(sql, (question.id, votingThreshold))
+        sql = "select *,count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and cascade_iteration=%s and fit=1 group by question_id,idea_id,category having ct>=%s";
+        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             ideaId = row["idea_id"]
             category = row["category"]
             for i in range(question.cascade_k):
-                CascadeFitCategoryPhase2.create(dbConnection, question.id, ideaId, category, False)
+                CascadeFitCategoryPhase2.create(dbConnection, question, ideaId, category, False)
         dbConnection.conn.commit()
 
     @staticmethod
@@ -1109,12 +1138,7 @@ class CascadeFitCategoryPhase2(DBObject):
             dbConnection.cursor.execute(sql, (fit, taskId))
         dbConnection.conn.commit()
         
-        stepComplete = CascadeFitCategoryPhase2.isStepComplete(dbConnection, question)
-        if stepComplete:
-            # TODO: continue with next cascade_m items, if any
-            # TODO: if finished w/ cascade, show results
-            GenerateCascadeHierarchy(dbConnection, question)
-            
+        stepComplete = CascadeFitCategoryPhase2.continueToNextStepIfComplete(dbConnection, question)
         return stepComplete
         
     @staticmethod
@@ -1123,7 +1147,73 @@ class CascadeFitCategoryPhase2(DBObject):
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
         return row["ct"] == 0
+
+    @staticmethod
+    def continueToNextStepIfComplete(dbConnection, question):
+        stepComplete = CascadeFitCategoryPhase2.isStepComplete(dbConnection, question)
+        if stepComplete:
+            GenerateCascadeHierarchy(dbConnection, question)
+            question.initCascadeNextStep(dbConnection)
+
+        return stepComplete
     
+class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):        
+    def __init__(self):
+        super().__init__()
+    
+    @staticmethod
+    def initStep(dbConnection, question):
+        if question.cascade_iteration == 1:
+            sql = "select id from question_ideas where question_id=%s and id not in (select distinct idea_id from cascade_suggested_categories where question_id=%s)"
+            dbConnection.cursor.execute(sql, (question.id, question.id))
+        else:
+            sql = "select id from question_ideas where question_id=%s and id in (select distinct idea_id from cascade_suggested_categories where question_id=%s and cascade_iteration<%s)"            
+            dbConnection.cursor.execute(sql, (question.id, question.id, question.cascade_iteration))
+        rows = dbConnection.cursor.fetchall()
+                    
+        if len(rows) == 0:
+            # BEHAVIOR: no subsequent items so skip to next step
+            question.initCascadeNextStep(dbConnection)
+            return
+
+        # TODO: how should voting threshold be determined
+        votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1        
+        sql = "select distinct best_category from cascade_best_categories where question_id=%s and cascade_iteration=%s and none_of_the_above=0 group by question_id,idea_id,best_category having count(*)>=%s"
+
+        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
+        rows2= dbConnection.cursor.fetchall()
+
+        for row in rows:
+            ideaId = row["id"]
+            for row2 in rows2:
+                category = row2["best_category"]
+                for i in range(question.cascade_k):
+                    CascadeFitCategoryPhase1.create(dbConnection, question, ideaId, category, subsequent=1, commit=False)
+        dbConnection.conn.commit()
+        
+class CascadeFitCategorySubsequentPhase2(CascadeFitCategoryPhase2):        
+    def __init__(self):
+        super().__init__()
+    
+    @staticmethod
+    def initStep(dbConnection, question):
+        # TODO: how should voting threshold be determined
+        votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
+        sql = "select *,count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and cascade_iteration=%s and subsequent=1 and fit=1 group by question_id,idea_id,category having ct>=%s";
+        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
+        rows = dbConnection.cursor.fetchall()
+        
+        if len(rows) == 0:
+            question.initCascadeNextStep(dbConnection)
+            return
+            
+        for row in rows:
+            ideaId = row["idea_id"]
+            category = row["category"]
+            for i in range(question.cascade_k):
+                CascadeFitCategoryPhase2.create(dbConnection, question, ideaId, category, False)
+        dbConnection.conn.commit()
+                        
 def GenerateCascadeHierarchy(dbConnection, question):
     categories = {}
     ideas = {}
@@ -1133,7 +1223,7 @@ def GenerateCascadeHierarchy(dbConnection, question):
     sql += "and fit=1 "
     sql += "group by idea_id,category "
     sql += "having ct>=%s"
-    # TODO: how should minimum count be calculated
+    # TODO: how should voting threshold be determined
     minCount = math.ceil(question.cascade_k * 0.8)
     dbConnection.cursor.execute(sql, (question.id, minCount))
     rows = dbConnection.cursor.fetchall()
@@ -1156,8 +1246,10 @@ def GenerateCascadeHierarchy(dbConnection, question):
         del categories[category]
     
     # remove any duplicate categories (more than p overlapping items)
+    # TODO: consider whether not duplicate categories should only be removed last time it is called in case subsequent categories change things?
     categoriesToRemove = []
     categoryKeys = categories.keys()
+    duplicateCategories = {}
     for x in range(len(categoryKeys)):
         for y in range(x, len(categoryKeys)):
             if x != y:
@@ -1167,25 +1259,35 @@ def GenerateCascadeHierarchy(dbConnection, question):
                 ideaIds2 = categories[category2]
                 sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
                 if len(sharedIdeaIds) >= max(len(ideaIds1),len(ideaIds2))*constants.CASCADE_P:
-                    categoriesToRemove.append(category1 if len(ideaIds1) < len(ideaIds2) else category2)
-                    helpers.log("DUPLICATE CATEGORY: {0}, {1}".format(category1, category2))
+                    duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
+                    primaryCategory = category1 if duplicateCategory != category1 else category2
+                    if duplicateCategory not in categoriesToRemove:
+                        categoriesToRemove.append(duplicateCategory)
+                    if primaryCategory not in duplicateCategories:
+                        duplicateCategories[primaryCategory] = []
+                    duplicateCategories[primaryCategory].append(duplicateCategory)
                     
     for category in categoriesToRemove:
         del categories[category]
     
-    # TODO: created nested categories
+    # BEHAVIOR: nested categories not created
     
     sql = "delete from question_categories where question_id=%s"
+    dbConnection.cursor.execute(sql, (question.id))
+ 
+    sql = "delete from categories where question_id=%s"
     dbConnection.cursor.execute(sql, (question.id))
     
     for category in categories:
         ideaIds = categories[category]
+        sameAs = ", ".join(duplicateCategories[category]) if category in duplicateCategories else None
+        sql = "insert into categories (question_id, category, same_as) values(%s, %s, %s)"
+        dbConnection.cursor.execute(sql, (question.id, category, sameAs))
+        categoryId = dbConnection.cursor.lastrowid
         for ideaId in ideaIds:
-            sql = "insert into question_categories (question_id, category, idea_id) values(%s, %s, %s)"
-            dbConnection.cursor.execute(sql, (question.id, category, ideaId))
+            sql = "insert into question_categories (question_id, idea_id, category_id) values(%s, %s, %s)"
+            dbConnection.cursor.execute(sql, (question.id, ideaId, categoryId))
 
     dbConnection.conn.commit()
-    
-    # TODO: push to students? or just update results page if on it?
-    
-CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, None ]
+        
+CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, CascadeFitCategorySubsequentPhase1, CascadeFitCategorySubsequentPhase2 ]

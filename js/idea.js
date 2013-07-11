@@ -181,7 +181,7 @@ function updateNicknameArea() {
 /////////////////////////
 // Channel support
 /////////////////////////
-function handleNew(data) {
+function handleIdea(data) {
 	// Ignore it
 }
 

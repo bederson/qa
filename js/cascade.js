@@ -15,79 +15,119 @@
 // limitations under the License.
 //
 
+var waiting = false;
+
 $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
 	}
-	
-	initChannel();
-	initEventHandlers();
-		
+
 	if (phase != PHASE_CASCADE) {
 		redirectToPhase(phase, question_id);
 		return;
 	}
-
-	getJob(question_id);
+		
+	initChannel();
+	initEventHandlers();
+	
+	$("#page_content").show();
+	saveAndGetNextJob();
 });
 
-function getJob(question_id) {	
+function saveAndGetNextJob(jobToSave) {	
 	var data = {
-		"client_id": client_id,
-		"question_id": question_id
-	};
+		"client_id" : client_id,
+		"question_id" : question_id
+	}
+	
+	if (isDefined(jobToSave)) {
+		data["job"] = $.toJSON(jobToSave);
+	}
+	
+	$("#loading_icon").show();
 	$.post("/cascade_job", data, function(results) {
-		updateUI(results);
+		if (results.status == 0) {
+			$("#warning").html(results.msg);
+		}
+		else {
+			$("#warning").html("");
+			updateUI(results);
+		}
 	}, "json");
 }
 
 function updateUI(results) {
-	$("#step").html("Step " + results.step + " of 5");
-	if (results.step == 1) {
+	waiting = false;
+	
+	// show results
+	if (results.complete == 1) {
+		resultsReady();
+	}
+	// step 1: suggest categories
+	else if (results.step == 1) {
 		updateUIForStep1(results);
 	}
+	// step 2: select best category
 	else if (results.step == 2) {
 		updateUIForStep2(results);
 	}
-	else if (results.step == 3) {
-		updateUIForStep3(results, 1);
+	// step 3/4: do categories fit
+	// step 5/6: do subsequent categories fit
+	else if (results.step >= 3) {
+		updateUIForStep3(results);
 	}
-	else if (results.step == 4) {
-		updateUIForStep3(results, 2);
+	else {
+		updateTitleArea(results);
+		$("#task_area").html("Not implemented yet");
+	}
+}
+
+function updateTitleArea(results) {
+	$("#step").html("Step " + results.step + " of 6");
+	$("#msg").html("");
+
+	if (results.step == 1) {
+		$("#title").html("Suggest Categories");
+		$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
+	}
+	else if (results.step == 2) {
+		$("#title").html("Select Best Category");
+		$("#help").html("Pick the one category that best fits this note.");
+	}
+	else if (results.step >= 3 && results.step <= 6) {
+		var stepPhase = results.step == 3 || results.step == 5 ? 1 : 2;
+		$("#title").html("Check " + (results.step>4 ? "Subsequent " : "") + "Categories (Phase " + stepPhase + ")");
+		$("#help").html("Select whether or not each category fits this note.");
 	}
 	else {
 		$("#title").html("");
 		$("#help").html("");
-		$("#task_area").html("Not implemented yet");
 	}
 }
 
 // step 1: suggest categories
 function updateUIForStep1(results) {
-	$("#title").html("Suggest Categories");
-	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
-	$("#msg").html("");
+	updateTitleArea(results);
 	if (results.status == 1) {
 		var tasks = results.job;
 		if (tasks.length > 0) {
 			var taskHtml = "";
 			for (var i=0; i<tasks.length; i++) {
 				var task = tasks[i];
-				taskHtml += "<div class=\"largespaceafter\">";
+				taskHtml += "<div class='largespaceafter'>";
 				taskHtml += task.idea + "<br/>";
-				taskHtml += "<input class=\"suggested_category\" id=\"category_"+task.id+"\" type=\"text\"/ value=\"\">";
+				taskHtml += "<input class='suggested_category' id='category_"+task.id+"' type='text' value=''>";
 				taskHtml += "</div>\n";
 			}
-			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit Categories\">";
+			taskHtml += "<input id='submit_btn' type='button' value='Submit Categories'> ";
+			taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
 			$("#task_area").html(taskHtml);
 			$("#submit_btn").on("click", { tasks : tasks }, function(event) {
 				submitStep1(event.data.tasks);
 			});
 		}
 		else {
-			taskHtml = "You have completed all tasks for this step.<br/>";
-			taskHtml += "Please wait for next step to begin.";
-			$("#task_area").html(taskHtml);
+			updateStatus(results);
 		}
 	}
 	else {
@@ -114,59 +154,43 @@ function submitStep1(tasks) {
 		return;
 	}
 	
-	var data = {
-		"client_id" : client_id,
-		"question_id" : question_id,
-		"step" : 1,
-		"job" : $.toJSON(job)
-	}
-	
-	$.post("/cascade_job", data, function(results) {
-		if (results.status == 0) {
-			$("#warning").html(results.msg);
-		}
-		else {
-			$("#warning").html("");
-			updateUI(results);
-		}
-	}, "json");
+	saveAndGetNextJob(job);
 }
 
 // step 2: select best category
 function updateUIForStep2(results) {
-	$("#title").html("Select Best Category");
-	$("#help").html("Pick the one category that best fits this note.");
+	updateTitleArea(results);
 	if (results.status == 1) {
 		var tasks = results.job;
 		if (tasks.length == 1) {
 			var task = tasks[0];
 			var taskHtml = "";
-			taskHtml += "<div class=\"largespaceafter\">";
-			taskHtml += "<div class=\"green_highlight spaceafter\">" + task.idea + "</div>";
+			taskHtml += "<div class='largespaceafter'>";
+			taskHtml += "<div class='green_highlight largespaceafter'>" + task.idea + "</div>";
+			taskHtml += "<div class='note smallspaceafter'>Best?</div>";
 			for (var i=0; i<task.suggested_categories.length; i++) {
 				var radioBoxId = "category_rb_"+i;
-				taskHtml += "<div class=\"spaceafter\">";
-				taskHtml += "<input type=\"radio\" name=\"suggested_category\" value=\"" + i + "\">";
+				taskHtml += "<div class='spaceafter'>";
+				taskHtml += "<input type='radio' name='suggested_category' value='" + i + "'>";
 				taskHtml += task.suggested_categories[i];
 				taskHtml += "</div>";
 			}
 			if (task.suggested_categories.length > 0) {
-				taskHtml += "<div class=\"spaceafter\">";
-				taskHtml += "<input type=\"radio\" name=\"suggested_category\" value=\"-1\">";
+				taskHtml += "<div class='spaceafter'>";
+				taskHtml += "<input type='radio' name='suggested_category' value='-1'>";
 				taskHtml += "None of the above";
 				taskHtml += "</div>";
 			}
 			taskHtml += "</div>\n";
-			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit Vote\">";
+			taskHtml += "<input id='submit_btn' type='button' value='Submit'> ";
+			taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
 			$("#task_area").html(taskHtml);
 			$("#submit_btn").on("click", { task : task }, function(event) {
 				submitStep2(event.data.task);
 			});
 		}
 		else {
-			taskHtml = "You have completed all task for this step.<br/>";
-			taskHtml += "Please wait for next step to begin.";
-			$("#task_area").html(taskHtml);
+			updateStatus(results);
 		}
 	}
 	else {
@@ -183,31 +207,14 @@ function submitStep2(task) {
 	
 	var job = [];
 	var bestCategory = bestCategoryIndex != -1 ? task.suggested_categories[bestCategoryIndex] : ""
-	job.push({ id: task.id, best_category: bestCategory });	
-		
-	var data = {
-		"client_id" : client_id,
-		"question_id" : question_id,
-		"step" : 2,
-		"job" : $.toJSON(job)
-	}
-	
-	$.post("/cascade_job", data, function(results) {
-		if (results.status == 0) {
-			$("#warning").html(results.msg);
-		}
-		else {
-			$("#warning").html("");
-			updateUI(results);
-		}
-	}, "json");
+	job.push({ id: task.id, best_category: bestCategory });
+	saveAndGetNextJob(job);
 }
 
-// step 3 phase 1: do categories fit
-function updateUIForStep3(results, phase) {
-	$("#title").html("Check Categories (Phase " + phase + ")");
-	$("#help").html("Select whether or not these categories fit this note.");
-	$("#msg").html("");
+// steps 3-4: do categories fit (initial set)
+// steps 5-6: do categories fit (subsequent set)
+function updateUIForStep3(results) {
+	updateTitleArea(results);
 	if (results.status == 1) {
 		var tasks = results.job;
 		if (tasks.length > 0) {
@@ -215,33 +222,33 @@ function updateUIForStep3(results, phase) {
 			for (var i=0; i<tasks.length; i++) {
 				var task = tasks[i];
 				if (i==0) {
-					taskHtml += "<div class=\"green_highlight spaceafter\">";
+					taskHtml += "<div class='green_highlight largespaceafter'>";
 					taskHtml += task.idea;
 					taskHtml += "</div>";
-					taskHtml += "<table class=\"spaceafter\">";
+					taskHtml += "<div class='small'>Fits?</div>";
+					taskHtml += "<table class='spaceafter'>";
 					taskHtml += "<tr>";
-					taskHtml += "<td class=\"small\" style=\"text-align:center;\">Y</td>";
-					taskHtml += "<td class=\"small\" style=\"text-align:center;\">N</td>";
+					taskHtml += "<td class='note' style='text-align:center'>Y</td>";
+					taskHtml += "<td class='note' style='text-align:center'>N</td>";
 					taskHtml += "<td>&nbsp;</td>";
 					taskHtml += "</tr>\n";
 				}
 				taskHtml += "<tr>";
-				taskHtml += "<td><input type=\"radio\" class=\"category_fit\" name=\"category_fit_"+task.id+"\" value=\"1\"></td>";
-				taskHtml += "<td><input type=\"radio\" class=\"catgetory_fit\" name=\"category_fit_"+task.id+"\" value=\"0\"></td>";
+				taskHtml += "<td><input type='radio' class='category_fit' name='category_fit_"+task.id+"' value='1'></td>";
+				taskHtml += "<td><input type='radio' class='catgetory_fit' name='category_fit_"+task.id+"' value='0'></td>";
 				taskHtml += "<td>" + task.category + "</td>";
 				taskHtml += "</tr>\n";
 			}
 			taskHtml += "</table>";
-			taskHtml += "<input id=\"submit_btn\" type=\"button\" value=\"Submit\">";
+			taskHtml += "<input id='submit_btn' type='button' value='Submit'> ";
+			taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
 			$("#task_area").html(taskHtml);
-			$("#submit_btn").on("click", { tasks: tasks, phase: phase }, function(event) {
-				submitStep3(event.data.tasks, event.data.phase);
+			$("#submit_btn").on("click", { tasks: tasks }, function(event) {
+				submitStep3(event.data.tasks);
 			});
 		}
 		else {
-			taskHtml = "You have completed all tasks for this step.<br/>";
-			taskHtml += "Please wait for next step to begin.";
-			$("#task_area").html(taskHtml);
+			updateStatus(results);
 		}
 	}
 	else {
@@ -249,7 +256,7 @@ function updateUIForStep3(results, phase) {
 	}
 }
 
-function submitStep3(tasks, phase) {
+function submitStep3(tasks) {
 	var job = [];	
 	$("input:radio").each(function() {
 		var rb = $(this);
@@ -265,22 +272,37 @@ function submitStep3(tasks, phase) {
 		return;
 	}
 	
-	var data = {
-		"client_id" : client_id,
-		"question_id" : question_id,
-		"step" : phase==1 ? 3 : 4,
-		"job" : $.toJSON(job)
+	saveAndGetNextJob(job);
+}
+
+function updateStatus(results) {
+	if (results.complete == 1) {
+		resultsReady();
 	}
+	else {
+		waitForNextStep();
+	}
+}
+
+function waitForNextStep() {
+	var taskHtml = "You have completed all tasks for this step.<br/>";
+	taskHtml += "Please wait for the next step to begin.";
+	$("#task_area").html(taskHtml);
+	waiting = true;
+}
+
+// cascade complete
+function resultsReady() {
+	$("#title").html("Categories Complete");
+	$("#help").html("");
+	$("#msg").html("");
+	var html = "The categories have been created for this question.</br>";
+	html += "<div class='spaceabove spaceafter'><input id='results_btn' type='button' value='View results'></div>";
+	$("#task_area").html(html);
 	
-	$.post("/cascade_job", data, function(results) {
-		if (results.status == 0) {
-			$("#warning").html(results.msg);
-		}
-		else {
-			$("#warning").html("");
-			updateUI(results);
-		}
-	}, "json");
+	$("#results_btn").click(function() {
+		redirectToResultsPage(question_id);
+	});
 }
 
 function initEventHandlers() {
@@ -291,6 +313,10 @@ function initEventHandlers() {
 
 	$("#admin_button").click(function() {
 		redirectToAdminPage(question_id);
+	});
+	
+	$("#next_task_button").click(function() {
+		saveAndGetNextJob();
 	});
 }
 
@@ -317,7 +343,18 @@ function handlePhase(data) {
 }
 
 function handleStep(data) {
-	// TODO: notify user but do not automatically assign new job in case they have browsed away from window
-	alert("cascade step changed!: "+data.step);
-	//window.location.reload();
+	if (waiting) {
+		updateTitleArea(data);
+		var html = "This step has now started.<br/>";
+		html += "<div class='spaceabove spaceafter'><input id='next_task_button' type='button' value='Get task'></div>";
+		$("#task_area").html(html);
+		
+		$('#next_task_button').click(function() {
+			saveAndGetNextJob();
+		});
+	}
+}
+
+function handleResults(data) {
+	resultsReady();
 }

@@ -151,7 +151,7 @@ input {
 	margin-bottom:3px;
 }
 
-input[type=button], input[type=submit] {
+input[type="button"], input[type=submit] {
 	font-size: 0.9em;
 	background: rgb(246, 244, 240);
 	padding: 4px 5px 4px 5px;
@@ -161,8 +161,12 @@ input[type=button], input[type=submit] {
     cursor: pointer;
 }
 
-input[type=button]:hover, input[type=submit]:hover {
+input[type="button"]:hover, input[type="submit"]:hover {
 	background: white;
+}
+
+input[type="text"][disabled="disabled"] {
+	color: #888;
 }
 
 .ui-slider-horizontal {
@@ -179,5 +183,5 @@ input[type=button]:hover, input[type=submit]:hover {
 }
 
 div.jqcloud {
-	font-size: 7px;
+	font-size: 8pt;
 }
