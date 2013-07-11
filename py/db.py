@@ -358,7 +358,6 @@ class Person(DBObject):
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
                 sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
-                xx
             
             # otherwise, logout this specific user instance
             else:
