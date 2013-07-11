@@ -688,13 +688,13 @@ class CascadeSuggestedCategory(DBObject):
             sql += "cascade_suggested_categories.idea_id=question_ideas.id "
             sql += "and cascade_suggested_categories.question_id=%s " 
             sql += "and cascade_suggested_categories.user_id is null "
-            sql += "and idea_id not in (select idea_id from cascade_suggested_categories where user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "and idea_id not in (select distinct idea_id from cascade_suggested_categories where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
             sql += "group by idea_id order by rand() limit {0}".format(question.cascade_t)
 
             if helpers.isRunningLocally():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
-                dbConnection.cursor.execute(sql, (question.id, person.id))
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
 
             rows = dbConnection.cursor.fetchall()
             for row in rows:
@@ -819,13 +819,13 @@ class CascadeBestCategory(DBObject):
             sql = "select * from cascade_best_categories where "
             sql += "question_id=%s " 
             sql += "and user_id is null "
-            sql += "and idea_id not in (select idea_id from cascade_best_categories where user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "and idea_id not in (select distinct idea_id from cascade_best_categories where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
             sql += "group by idea_id order by rand() limit 1"
             
             if helpers.isRunningLocally():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
-                dbConnection.cursor.execute(sql, (question.id, person.id))
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
             
             rows = dbConnection.cursor.fetchall()
             for row in rows:
@@ -978,13 +978,16 @@ class CascadeFitCategoryPhase1(DBObject):
             sql += "left join cascade_fit_categories_phase1 on t.idea_id=cascade_fit_categories_phase1.idea_id "
             sql += "left join question_ideas on question_ideas.id=cascade_fit_categories_phase1.idea_id where "
             sql += "cascade_fit_categories_phase1.user_id is null "
-            sql += "and idea_id not in (select idea_id from cascade_fit_categories_phase1 where user_id=%s) " if not helpers.isRunningLocally() else ""
+            # TODO/FIX: too restrictive when running on GAE
+            #sql += "and cascade_fit_categories_phase1.idea_id not in (select distinct idea_id from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
             sql += "group by cascade_fit_categories_phase1.idea_id,category order by rand() limit {0}".format(question.cascade_t)
+            helpers.log(sql)
             if helpers.isRunningLocally():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
-                dbConnection.cursor.execute(sql, (question.id, person.id))
-
+                #dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+                dbConnection.cursor.execute(sql, (question.id,))
+                
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 task = CascadeFitCategoryPhase1.createFromData(row)
@@ -1104,12 +1107,14 @@ class CascadeFitCategoryPhase2(DBObject):
             sql += "left join cascade_fit_categories_phase2 on t.idea_id=cascade_fit_categories_phase2.idea_id "
             sql += "left join question_ideas on question_ideas.id=cascade_fit_categories_phase2.idea_id where "
             sql += "cascade_fit_categories_phase2.user_id is null "
-            sql += "and idea_id not in (select idea_id from cascade_fit_categories_phase2 where user_id=%s) " if not helpers.isRunningLocally() else ""
+            # TODO/FIX: too restrictive when running on GAE
+            #sql += "and cascade_fit_categories_phase2.idea_id not in (select distinct idea_id from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
             sql += "group by cascade_fit_categories_phase2.idea_id,category"
             if helpers.isRunningLocally():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
-                dbConnection.cursor.execute(sql, (question.id, person.id))
+                #dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+                dbConnection.cursor.execute(sql, (question.id,))
 
             rows = dbConnection.cursor.fetchall()
             for row in rows:
