@@ -6,7 +6,7 @@ var PHASE_DISABLED = 0;
 var PHASE_NOTES = 1;
 var PHASE_CASCADE = 2;
 
-var MAX_CHARS = 250;
+var MAX_CHARS = 125;
 
 
 /**

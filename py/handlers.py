@@ -577,9 +577,10 @@ class CascadeOptionsHandler(BaseHandler):
 
         else:
             properties = {
-                "cascade_k" : int(self.request.get('cascade_k')),
-                "cascade_m" : int(self.request.get('cascade_m')),
-                "cascade_t" : int(self.request.get('cascade_t')),
+                "cascade_k" :  int(self.request.get('cascade_k')),
+                "cascade_k2" : int(self.request.get('cascade_k2')),
+                "cascade_m" :  int(self.request.get('cascade_m')),
+                "cascade_t" :  int(self.request.get('cascade_t')),
                 "id" : self.question.id
             }
             self.question.update(self.dbConnection, properties)

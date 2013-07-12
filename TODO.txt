@@ -39,9 +39,11 @@ Misc Improvements
   Currently disabling and then re-enabling a question looses the current phase and will not allow
   Cascade to be re-enabled w/o deleting any existing data
 * Fix "Step x of y" on Cascade UI (problem is y is changing)
+* Initializing step 3 is slow
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
+* When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
   
 Testing
 * Build test harness

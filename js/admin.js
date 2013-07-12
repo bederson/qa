@@ -123,6 +123,7 @@ function displaySelectedQuestion() {
 	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
 	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
 	$("#cascade_k").val(question.cascade_k);
+	$("#cascade_k2").val(question.cascade_k2);
 	$("#cascade_m").val(question.cascade_m);
 	$("#cascade_t").val(question.cascade_t);
 	$("#results_link").attr("href", "/results?question_id=" + question.id);
@@ -249,6 +250,7 @@ function setCascadeOptions() {
 		"client_id": client_id,
 		"question_id": question.id,
 		"cascade_k": $("#cascade_k").val(),
+		"cascade_k2": $("#cascade_k2").val(),
 		"cascade_m": $("#cascade_m").val(),
 		"cascade_t": $("#cascade_t").val()
 	};

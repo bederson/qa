@@ -113,10 +113,10 @@ function updateUIForStep1(results) {
 		if (tasks.length > 0) {
 			var taskHtml = "";
 			for (var i=0; i<tasks.length; i++) {
-				var task = tasks[i];
+				var task = tasks[i];				
 				taskHtml += "<div class='largespaceafter'>";
-				taskHtml += task.idea + "<br/>";
-				taskHtml += "<input class='suggested_category' id='category_"+task.id+"' type='text' value=''>";
+				taskHtml += "<div class='green_highlight smallspaceafter'>" + task.idea + "</div>";
+				taskHtml += "<input class='suggested_category' id='category_"+task.id+"' type='text' value='' size='30'>";
 				taskHtml += "</div>\n";
 			}
 			taskHtml += "<input id='submit_btn' type='button' value='Submit Categories'> ";
@@ -150,7 +150,7 @@ function submitStep1(tasks) {
 	});
 		
 	if (skipCount > 2) {
-		$("#msg").html("You may only skip creating categories for 2 items");
+		$("#warning").html("You may only skip 2 notes");
 		return;
 	}
 	
@@ -201,7 +201,7 @@ function updateUIForStep2(results) {
 function submitStep2(task) {
 	var bestCategoryIndex = $("input:radio[name=suggested_category]:checked").val();
 	if (!bestCategoryIndex) {
-		$("#warning").html("Please select an item");
+		$("#warning").html("Please select the best category");
 		return;
 	}
 	
@@ -268,7 +268,7 @@ function submitStep3(tasks) {
 	});
 
 	if (tasks.length!=job.length) {
-		$("#msg").html("Please indicate whether each category fits or not");
+		$("#warning").html("Please indicate whether each category fits or not");
 		return;
 	}
 	

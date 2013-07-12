@@ -133,7 +133,7 @@ class DBObject(object):
            
 class Question(DBObject):
     table = "questions"
-    fields = { "id", "title", "question", "nickname_authentication", "user_id", "phase", "cascade_step", "cascade_iteration", "cascade_complete", "cascade_k", "cascade_m", "cascade_t" }    
+    fields = { "id", "title", "question", "nickname_authentication", "user_id", "phase", "cascade_step", "cascade_iteration", "cascade_complete", "cascade_k", "cascade_k2", "cascade_m", "cascade_t" }    
         
     def __init__(self):
         self.id = None
@@ -147,6 +147,7 @@ class Question(DBObject):
         self.cascade_iteration = 0
         self.cascade_complete = 0
         self.cascade_k = 5
+        self.cascade_k2 = 2
         self.cascade_m = 32
         self.cascade_t = 8
         
@@ -606,12 +607,16 @@ class Idea(DBObject):
 ##### CASCADE #####
 ###################
  
-# BEHAVIOR: cascade jobs are created when phase is enabled
-# BEHAVIOR: currently cascade data is deleted if cascade is disabled and then re-enabled
-# BEHAVIOR: user currently allowed to do as many jobs per step as they can when running locally
-# BEHAVIOR: recurses if # uncategorized items > CASCADE_MAX_UNCATEGORIZED but not for loose categories 
+# BEHAVIOR: cascade jobs for step 1 are created when cascade is enabled, and for subsequent jobs whenever the previous job is completed
+# BEHAVIOR: currently any existing cascade data is deleted if cascade is disabled and then re-enabled
+# BEHAVIOR: users are restricted to unique tasks when running on GAE; >= k users required to complete cascade 
+# BEHAVIOR: users can can do as many jobs as they can when running locally, but are restricted to unique tasks on GAE
+# BEHAVIOR: introduced cascade_k2 to use for steps 3-6 (category fit tasks) since step 3/5 can be very expensive in terms of # of tasks
+# BEHAVIOR: cascade recurses if # uncategorized items > CASCADE_MAX_UNCATEGORIZED but not for loose categories 
 # BEHAVIOR: # iterations limited by CASCADE_MAX_ITERATIONS, regardless of how many items still uncategorized
-# BEHAVIOR: categories with fewer than CASCADE_Q items removed, duplicate categories merged, nested categories not generated
+# BEHAVIOR: categories with fewer than CASCADE_Q items removed
+# BEHAVIOR: duplicate categories merged (the % of overlapping categories used to detect duplicates is defined by CASCADE_P)
+# BEHAVIOR: nested categories not generated
 
 class CascadeSuggestedCategory(DBObject):
     table = "cascade_suggested_categories"
@@ -949,7 +954,7 @@ class CascadeFitCategoryPhase1(DBObject):
             ideaId = row["idea_id"]
             for row2 in rows2:
                 category = row2["best_category"]
-                for i in range(question.cascade_k):
+                for i in range(question.cascade_k2):
                     CascadeFitCategoryPhase1.create(dbConnection, question, ideaId, category, False)
         dbConnection.conn.commit()
 
@@ -973,29 +978,41 @@ class CascadeFitCategoryPhase1(DBObject):
         # do not check if user already performed task on idea when running locally
         # ask user to check whether all categories fit or not for an idea (regardless of how many)
         if len(job) == 0:
-            sql = "select cascade_fit_categories_phase1.*,idea from "
-            sql += "(select idea_id from cascade_fit_categories_phase1 where question_id=%s and user_id is null limit 1) t "
-            sql += "left join cascade_fit_categories_phase1 on t.idea_id=cascade_fit_categories_phase1.idea_id "
-            sql += "left join question_ideas on question_ideas.id=cascade_fit_categories_phase1.idea_id where "
-            sql += "cascade_fit_categories_phase1.user_id is null "
-            # TODO/FIX: too restrictive when running on GAE
-            #sql += "and cascade_fit_categories_phase1.idea_id not in (select distinct idea_id from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-            sql += "group by cascade_fit_categories_phase1.idea_id,category order by rand() limit {0}".format(question.cascade_t)
-            helpers.log(sql)
+            # find an idea that still needs categories checked
+            sql = "select idea_id from cascade_fit_categories_phase1 where "
+            sql += "question_id=%s "
+            sql += "and user_id is null "
+            sql += "and (idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "order by rand() limit 1"
             if helpers.isRunningLocally():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
-                #dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
-                dbConnection.cursor.execute(sql, (question.id,))
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+            row = dbConnection.cursor.fetchone()
+            ideaId = row["idea_id"] if row else None
+    
+            # now find categories that still need to be checked for this idea
+            if ideaId:
+                sql = "select cascade_fit_categories_phase1.*,idea from cascade_fit_categories_phase1,question_ideas where "
+                sql += "cascade_fit_categories_phase1.question_id=%s "
+                sql += "and cascade_fit_categories_phase1.idea_id=question_ideas.id "
+                sql += "and cascade_fit_categories_phase1.idea_id=%s "
+                sql += "and cascade_fit_categories_phase1.user_id is null "
+                sql += "and (cascade_fit_categories_phase1.idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+                sql += "group by category order by rand() limit {0}".format(question.cascade_t)
+                if helpers.isRunningLocally():
+                    dbConnection.cursor.execute(sql, (question.id, ideaId))
+                else:
+                    dbConnection.cursor.execute(sql, (question.id, ideaId, question.id, person.id))
                 
-            rows = dbConnection.cursor.fetchall()
-            for row in rows:
-                task = CascadeFitCategoryPhase1.createFromData(row)
-                task.assignTo(dbConnection, person, commit=False)
-                job.append(task)
+                rows = dbConnection.cursor.fetchall()
+                for row in rows:
+                    task = CascadeFitCategoryPhase1.createFromData(row)
+                    task.assignTo(dbConnection, person, commit=False)
+                    job.append(task)
                 
-            if len(job) > 0:
-                dbConnection.conn.commit()
+                if len(job) > 0:
+                    dbConnection.conn.commit()
               
         return job if len(job) > 0 else None
      
@@ -1079,7 +1096,7 @@ class CascadeFitCategoryPhase2(DBObject):
         for row in rows:
             ideaId = row["idea_id"]
             category = row["category"]
-            for i in range(question.cascade_k):
+            for i in range(question.cascade_k2):
                 CascadeFitCategoryPhase2.create(dbConnection, question, ideaId, category, False)
         dbConnection.conn.commit()
 
@@ -1099,31 +1116,45 @@ class CascadeFitCategoryPhase2(DBObject):
             job.append(task)
              
         # if not, assign new tasks
-        # do not check if user already performed task on idea when running locally
         # ask user to check whether all categories fit or not for an idea (regardless of how many)
+        # do not check if user already performed task on idea when running locally
+
         if len(job) == 0:
-            sql = "select cascade_fit_categories_phase2.*,idea from "
-            sql += "(select idea_id from cascade_fit_categories_phase2 where question_id=%s and user_id is null limit 1) t "
-            sql += "left join cascade_fit_categories_phase2 on t.idea_id=cascade_fit_categories_phase2.idea_id "
-            sql += "left join question_ideas on question_ideas.id=cascade_fit_categories_phase2.idea_id where "
-            sql += "cascade_fit_categories_phase2.user_id is null "
-            # TODO/FIX: too restrictive when running on GAE
-            #sql += "and cascade_fit_categories_phase2.idea_id not in (select distinct idea_id from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-            sql += "group by cascade_fit_categories_phase2.idea_id,category"
+            
+            # find an idea that still needs categories checked
+            sql = "select idea_id from cascade_fit_categories_phase2 where "
+            sql += "question_id=%s "
+            sql += "and user_id is null "
+            sql += "and (idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "order by rand() limit 1"
             if helpers.isRunningLocally():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
-                #dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
-                dbConnection.cursor.execute(sql, (question.id,))
-
-            rows = dbConnection.cursor.fetchall()
-            for row in rows:
-                task = CascadeFitCategoryPhase2.createFromData(row)
-                task.assignTo(dbConnection, person, commit=False)
-                job.append(task)
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+            row = dbConnection.cursor.fetchone()
+            ideaId = row["idea_id"] if row else None
+    
+            # now find categories that still need to be checked for this idea
+            if ideaId:
+                sql = "select cascade_fit_categories_phase2.*,idea from cascade_fit_categories_phase2,question_ideas where "
+                sql += "cascade_fit_categories_phase2.question_id=%s "
+                sql += "and cascade_fit_categories_phase2.idea_id=question_ideas.id "
+                sql += "and cascade_fit_categories_phase2.idea_id=%s "
+                sql += "and cascade_fit_categories_phase2.user_id is null "
+                sql += "and (cascade_fit_categories_phase2.idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+                sql += "group by category order by rand() limit {0}".format(question.cascade_t)
+                if helpers.isRunningLocally():
+                    dbConnection.cursor.execute(sql, (question.id, ideaId))
+                else:
+                    dbConnection.cursor.execute(sql, (question.id, ideaId, question.id, person.id))
+                rows = dbConnection.cursor.fetchall()
+                for row in rows:
+                    task = CascadeFitCategoryPhase2.createFromData(row)
+                    task.assignTo(dbConnection, person, commit=False)
+                    job.append(task)
                 
-            if len(job) > 0:
-                dbConnection.conn.commit()
+                if len(job) > 0:
+                    dbConnection.conn.commit()
 
         return job if len(job) > 0 else None
      
@@ -1191,7 +1222,7 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
             ideaId = row["id"]
             for row2 in rows2:
                 category = row2["best_category"]
-                for i in range(question.cascade_k):
+                for i in range(question.cascade_k2):
                     CascadeFitCategoryPhase1.create(dbConnection, question, ideaId, category, subsequent=1, commit=False)
         dbConnection.conn.commit()
         
@@ -1214,7 +1245,7 @@ class CascadeFitCategorySubsequentPhase2(CascadeFitCategoryPhase2):
         for row in rows:
             ideaId = row["idea_id"]
             category = row["category"]
-            for i in range(question.cascade_k):
+            for i in range(question.cascade_k2):
                 CascadeFitCategoryPhase2.create(dbConnection, question, ideaId, category, False)
         dbConnection.conn.commit()
                         
