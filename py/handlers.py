@@ -562,7 +562,7 @@ class CascadeJobHandler(BaseHandler):
             if not self.question.cascade_complete:
                 newJob = self.question.getCascadeJob(self.dbConnection, self.person)
             data = { "status" : 1, "step" : self.question.cascade_step, "job": [task.toDict() for task in newJob] if newJob else [], "complete" : 1 if self.question.cascade_complete else 0 }
-              
+                   
         self.writeResponseAsJson(data)
         self.destroy()
 
