@@ -631,20 +631,7 @@ class CascadeSuggestedCategory(DBObject):
         self.skipped = 0
         self.cascade_iteration = 0
         self.user_id = None
-        
-    @staticmethod
-    def create(dbConnection, question, ideaId, commit=True):        
-        task = CascadeSuggestedCategory()
-        task.question_id = question.id
-        task.idea_id = ideaId
-          
-        sql = "insert into cascade_suggested_categories (question_id, idea_id, cascade_iteration) values (%s, %s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, question.cascade_iteration))
-        if commit:
-            dbConnection.conn.commit()
-    
-        return task
-    
+                
     @classmethod
     def createFromData(cls, data):
         task = super(CascadeSuggestedCategory, cls).createFromData(data)
@@ -657,17 +644,27 @@ class CascadeSuggestedCategory(DBObject):
         return task
     
     @staticmethod
-    def initStep(dbConnection, question):
+    def initStep(dbConnection, question):        
         if question.cascade_iteration == 1:
             sql = "select id from question_ideas where question_id=%s order by rand() limit {0}".format(question.cascade_m)
         else:
             sql = "select id from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null order by rand()"
         dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
+        
+        insertValues = [];
         for row in rows:
             ideaId = row["id"]
             for i in range(question.cascade_k):
-                CascadeSuggestedCategory.create(dbConnection, question, ideaId, False)
+                insertValues.append("({0}, {1}, {2})".format(question.id, ideaId, question.cascade_iteration))
+
+        # If you are inserting many rows from the same client at the same time, use INSERT statements 
+        # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
+        # (many times faster in some cases) than using separate single-row INSERT statements.
+        # http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+        sql = "insert into cascade_suggested_categories (question_id, idea_id, cascade_iteration) values"
+        sql += ",".join(insertValues)
+        dbConnection.cursor.execute(sql)
         dbConnection.conn.commit()
 
     @staticmethod
@@ -769,19 +766,6 @@ class CascadeBestCategory(DBObject):
         self.cascade_iteration = 0
         self.user_id = None
         
-    @staticmethod
-    def create(dbConnection, question, ideaId, commit=True):        
-        task = CascadeBestCategory()
-        task.question_id = question.id
-        task.idea_id = ideaId
-          
-        sql = "insert into cascade_best_categories (question_id, idea_id, cascade_iteration) values (%s, %s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, question.cascade_iteration))
-        if commit:
-            dbConnection.conn.commit()
-    
-        return task
-        
     @classmethod
     def createFromData(cls, data, dbConnection=None):
         task = super(CascadeBestCategory, cls).createFromData(data)
@@ -801,10 +785,20 @@ class CascadeBestCategory(DBObject):
         sql = "select distinct idea_id from cascade_suggested_categories,questions where cascade_suggested_categories.question_id=questions.id and question_id=%s {0} and suggested_category is not null".format(iterationCondition)
         dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
+        
+        insertValues = [];
         for row in rows:
             ideaId = row["idea_id"]
             for i in range(question.cascade_k):
-                CascadeBestCategory.create(dbConnection, question, ideaId, False)
+                insertValues.append("({0}, {1}, {2})".format(question.id, ideaId, question.cascade_iteration))
+
+        # If you are inserting many rows from the same client at the same time, use INSERT statements 
+        # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
+        # (many times faster in some cases) than using separate single-row INSERT statements.
+        # http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+        sql = "insert into cascade_best_categories (question_id, idea_id, cascade_iteration) values"
+        sql += ",".join(insertValues)
+        dbConnection.cursor.execute(sql)
         dbConnection.conn.commit()
 
     @staticmethod
@@ -921,20 +915,6 @@ class CascadeFitCategoryPhase1(DBObject):
         self.subsequent = 0
         self.user_id = None
         
-    @staticmethod
-    def create(dbConnection, question, ideaId, category, subsequent=0, commit=True):        
-        task = CascadeFitCategoryPhase1()
-        task.question_id = question.id
-        task.idea_id = ideaId
-        task.category = category
-                  
-        sql = "insert into cascade_fit_categories_phase1 (question_id, idea_id, category, cascade_iteration, subsequent) values (%s, %s, %s, %s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, task.category, question.cascade_iteration, subsequent))
-        if commit:
-            dbConnection.conn.commit()
-    
-        return task
-    
     @classmethod
     def createFromData(cls, data):
         task = super(CascadeFitCategoryPhase1, cls).createFromData(data)
@@ -957,13 +937,25 @@ class CascadeFitCategoryPhase1(DBObject):
         sql = "select distinct best_category from cascade_best_categories where question_id=%s and cascade_iteration=%s and none_of_the_above=0 group by question_id,idea_id,best_category having count(*)>=%s"
         dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
         rows2 = dbConnection.cursor.fetchall()
-
+                    
+        insertValues = []
+        categories = ()
         for row in rows:
             ideaId = row["idea_id"]
             for row2 in rows2:
                 category = row2["best_category"]
                 for i in range(question.cascade_k2):
-                    CascadeFitCategoryPhase1.create(dbConnection, question, ideaId, category)
+                    insertValues.append("({0}, {1}, %s, {2})".format(question.id, ideaId, question.cascade_iteration))
+                    categories += (category,)
+
+        # If you are inserting many rows from the same client at the same time, use INSERT statements 
+        # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
+        # (many times faster in some cases) than using separate single-row INSERT statements.
+        # http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+        sql = "insert into cascade_fit_categories_phase1 (question_id, idea_id, category, cascade_iteration) values"
+        sql += ",".join(insertValues)
+        dbConnection.cursor.execute(sql, categories)
+        dbConnection.conn.commit()
 
     @staticmethod
     def getJob(dbConnection, question, person): 
@@ -1072,21 +1064,7 @@ class CascadeFitCategoryPhase2(DBObject):
         self.category = None
         self.fit = 0
         self.user_id = None
-        
-    @staticmethod
-    def create(dbConnection, question, ideaId, category, commit=True):        
-        task = CascadeFitCategoryPhase2()
-        task.question_id = question.id
-        task.idea_id = ideaId
-        task.category = category
-                  
-        sql = "insert into cascade_fit_categories_phase2 (question_id, idea_id, category, cascade_iteration) values (%s, %s, %s, %s)"
-        dbConnection.cursor.execute(sql, (task.question_id, task.idea_id, task.category, question.cascade_iteration))
-        if commit:
-            dbConnection.conn.commit()
-    
-        return task
-    
+      
     @classmethod
     def createFromData(cls, data):
         task = super(CascadeFitCategoryPhase2, cls).createFromData(data)
@@ -1105,11 +1083,29 @@ class CascadeFitCategoryPhase2(DBObject):
         sql = "select *,count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and cascade_iteration=%s and fit=1 group by question_id,idea_id,category having ct>=%s";
         dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
         rows = dbConnection.cursor.fetchall()
+
+        # check if any categories passed phase 1, if not skip to next step        
+        if len(rows) == 0:
+            question.initCascadeNextStep(dbConnection)
+            return
+                
+        insertValues = []
+        categories = ()
         for row in rows:
             ideaId = row["idea_id"]
             category = row["category"]
             for i in range(question.cascade_k2):
-                CascadeFitCategoryPhase2.create(dbConnection, question, ideaId, category)
+                insertValues.append("({0}, {1}, %s, {2})".format(question.id, ideaId, question.cascade_iteration))
+                categories += (category,)
+        
+        # If you are inserting many rows from the same client at the same time, use INSERT statements 
+        # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
+        # (many times faster in some cases) than using separate single-row INSERT statements.
+        # http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+        sql = "insert into cascade_fit_categories_phase2 (question_id, idea_id, category, cascade_iteration) values"
+        sql += ",".join(insertValues)
+        dbConnection.cursor.execute(sql, categories)
+        dbConnection.conn.commit()
 
     @staticmethod
     def getJob(dbConnection, question, person):  
@@ -1232,13 +1228,25 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
 
         dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
         rows2= dbConnection.cursor.fetchall()
-
+                    
+        insertValues = []
+        categories = ()
         for row in rows:
             ideaId = row["id"]
             for row2 in rows2:
                 category = row2["best_category"]
                 for i in range(question.cascade_k2):
-                    CascadeFitCategoryPhase1.create(dbConnection, question, ideaId, category, subsequent=1)
+                    insertValues.append("({0}, {1}, %s, {2}, {3})".format(question.id, ideaId, question.cascade_iteration, 1))
+                    categories += (category,)
+
+        # If you are inserting many rows from the same client at the same time, use INSERT statements 
+        # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
+        # (many times faster in some cases) than using separate single-row INSERT statements.
+        # http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+        sql = "insert into cascade_fit_categories_phase1 (question_id, idea_id, category, cascade_iteration, subsequent) values"
+        sql += ",".join(insertValues)
+        dbConnection.cursor.execute(sql, categories)
+        dbConnection.conn.commit()
         
 class CascadeFitCategorySubsequentPhase2(CascadeFitCategoryPhase2):        
     def __init__(self):
@@ -1255,12 +1263,24 @@ class CascadeFitCategorySubsequentPhase2(CascadeFitCategoryPhase2):
         if len(rows) == 0:
             question.initCascadeNextStep(dbConnection)
             return
-            
+                        
+        insertValues = []
+        categories = ()
         for row in rows:
-            ideaId = row["idea_id"]
+            ideaId = row["id"]
             category = row["category"]
             for i in range(question.cascade_k2):
-                CascadeFitCategoryPhase2.create(dbConnection, question, ideaId, category)
+                insertValues.append("({0}, {1}, %s, {2})".format(question.id, ideaId, question.cascade_iteration))
+                categories += (category,)
+
+        # If you are inserting many rows from the same client at the same time, use INSERT statements 
+        # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
+        # (many times faster in some cases) than using separate single-row INSERT statements.
+        # http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+        sql = "insert into cascade_fit_categories_phase2 (question_id, idea_id, category, cascade_iteration) values"
+        sql += ",".join(insertValues)
+        dbConnection.cursor.execute(sql, categories)
+        dbConnection.conn.commit()
                         
 def GenerateCascadeHierarchy(dbConnection, question):
     categories = {}

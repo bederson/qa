@@ -90,7 +90,7 @@ function displayIdeas() {
 	}
 	
 	if (uncategorizedIdeas.length > 0) {
-		if (categorizedIdeas.length > 0) {
+		if (question.cascade_complete) {
 			html += "<strong>NONE</strong> <span class='note'>("+uncategorizedIdeas.length+")</span><br/>";
 		}
 		if (expandCategories) {

@@ -31,7 +31,6 @@ Misc Improvements
   Check and update if needed when user logs in
 * Reduce character limit for ideas to encourage only one idea per submission
 * Do not allow Cascade to be enabled until notes exist
-* Consider using smaller k for Cascade step 3.1
 * Consider asking users to suggest categories when ideas created
 * Need to better randomize jobs and how presented
 * Need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
@@ -42,6 +41,10 @@ Misc Improvements
 * Initializing step 3 is very slow
 * Consider blinking header when new step available
 * Make word clouds clickable (show ideas & categories where word appears)
+* Allow question author to set maximum # of ideas allowed
+* Remove merge any duplicate ideas before starting cascade
+* Make max # uncategorized cascade items allowed a user-configurable parameter; base on percentage of # of items?
+* Warn if no categories generated after cascade is complete
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
