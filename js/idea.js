@@ -16,34 +16,24 @@
 //
 
 $(function() {
-	initChannel();
-	initEventHandlers();
-
-	if (!question_id) {
-		$("#warning").html("Question code required");
-		return;
-	}
-	
-	if (phase != PHASE_DISABLED && phase != PHASE_NOTES) {
-		redirectToPhase(phase, question_id);
-		return;
-	}
-
-	if (!logged_in) {
-		disableInput("Please log in");
-		return;
-	}
-	
-	$("#answer").focus();
 	$("#title").html(title);
 	$("#question").html(question);
-	if (phase == PHASE_NOTES) {
-		enableInput();
+	
+	if ($("#msg").html()) {
+		disableInput();
+		onResize();
+		return;
 	}
-	else {
-		disableInput("Not currently accepting new submissions");
+	
+	if (phase != PHASE_NOTES) {
+		redirectToPhase(question_id, phase);
+		return;
 	}
 
+	initChannel();
+	initEventHandlers();	
+	
+	$("#answer").focus();		
 	if (change_nickname_allowed) {
 		updateNicknameArea();
 	}
@@ -59,9 +49,10 @@ function enableInput() {
 }
 
 function disableInput(msg) {
-	$("#answer").attr("disabled", "disabled");
-	$("#submit").attr("disabled", "disabled");
-	$("#answer").val(msg);
+	enableDisable($("#answer"), false);
+	enableDisable($("#submit"), false);
+	$("#answer").val("Not currently accepting new submissions");
+	$("#nickname_area").hide();
 }
 
 function initEventHandlers() {
@@ -187,6 +178,11 @@ function handleIdea(data) {
 
 function handleRefresh(data) {
 	// Ignore it
+}
+
+function handleDisable(data) {
+	$("#msg").html("Question has been disabled");
+	disableInput();
 }
 
 function handlePhase(data) {

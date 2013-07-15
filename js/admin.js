@@ -34,9 +34,9 @@ $(document).ready(function() {
 		createEditQuestion();
 	});
 		
-	$("#p0button").click(function() {
-		var question = getSelectedQuestion();
-		setPhase(question.phase == PHASE_DISABLED ? PHASE_NOTES : PHASE_DISABLED);
+	$("#active_cb").click(function() {
+		var active = $(this).is(":checked") ? 1 : 0;
+		setActive(active);
 	});
 	
 	$("#p1button").click(function() {
@@ -95,7 +95,12 @@ function getQuestionItemHtml(question) {
 	if (question.nickname_authentication) {
 		html += '<span class="note"><em>Nickname authentication</em></span><br/>';
 	}
-	html += '<em><span class="note">'+phaseToString(question.phase)+'</em></span>';
+	if (!question.active) {
+		html += '<em><span class="note">Inactive</em></span>';
+	}
+	else {
+		html += '<em><span class="note">'+phaseToString(question.phase)+'</em></span>';
+	}
 	return html;
 }
 
@@ -119,7 +124,8 @@ function displaySelectedQuestion() {
 		
 	// get question stats
 	updateQuestionStats();
-		
+	
+	$("#active_cb").prop("checked", question.active);
 	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
 	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
 	$("#cascade_k").val(question.cascade_k);
@@ -128,27 +134,13 @@ function displaySelectedQuestion() {
 	$("#cascade_t").val(question.cascade_t);
 	$("#results_link").attr("href", "/results?question_id=" + question.id);
 	
-	if (question.phase == PHASE_DISABLED) {
-		$("#p0button").val("Enable question");
-		$("#p1button").val("Note entry disabled");
-		$("#p2button").val("Cascade disabled");
-		$(".cascade_option").attr("disabled", "disabled");
-	} 
-	else {
-		$("#p0button").val("Disable question");
-		$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
-		$("#p2button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
-		if (question.phase == PHASE_CASCADE) {
-			$(".cascade_option").attr("disabled", "disabled");
-		}
-		else {
-			$(".cascade_option").removeAttr("disabled");
-		}
-	}
-	
-	enableDisable($("#p1button"), question.phase != PHASE_DISABLED && question.phase != PHASE_NOTES);
-	enableDisable($("#p2button"), question.phase != PHASE_DISABLED && question.phase != PHASE_CASCADE)
+	enableDisable($("#p1button"), question.active && question.phase != PHASE_NOTES);
+	enableDisable($("#p2button"), question.active && question.phase != PHASE_CASCADE);
+	enableDisable($(".cascade_option"), question.active && question.phase != PHASE_CASCADE);
 
+	$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
+	$("#p2button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
+	
 	$("#selected_question").show();
 }
 
@@ -190,6 +182,27 @@ function displayQuestionStats(question) {
 	//$("#notes_stats").html(numIdeas + " notes");
 	//$("#cascade_stats").html("Step " + question.cascade_step + " in progress");
 }
+
+function setActive(active) {
+	var question = getSelectedQuestion();
+	if (!question) {
+		return;
+	}
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id,
+		"active": active
+	};
+	$.post("/set_active", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		
+		updateQuestion(result.question.id, result.question);				
+	}, "json");
+}
+
 
 function setPhase(phase) {
 	var question = getSelectedQuestion();

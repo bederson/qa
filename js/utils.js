@@ -2,7 +2,6 @@
 // Constants
 //===================================================
 
-var PHASE_DISABLED = 0;
 var PHASE_NOTES = 1;
 var PHASE_CASCADE = 2;
 
@@ -41,11 +40,13 @@ onMessage = function(message) {
 	
 	if (dataObj.op == "newidea") {
 		handleIdea(dataObj);
-	} else 	if (dataObj.op == "newtag") {
+	} else if (dataObj.op == "newtag") {
 		handleTag(dataObj);
-	} else 	if (dataObj.op == "refresh") {
+	} else if (dataObj.op == "refresh") {
 		handleRefresh(dataObj);
-	} else 	if (dataObj.op == "phase") {
+	} else if (dataObj.op == "disable") {
+		handleDisable(dataObj); 
+	} else if (dataObj.op == "phase") {
 		handlePhase(dataObj);
 	} else if (dataObj.op == "step") {
 		handleStep(dataObj);
@@ -68,11 +69,14 @@ onClose = function() {
 // Page Urls
 //===================================================
 
+function redirectToHome() {
+	window.location.href = "/";
+}
+
 function getPhaseUrl(question_id, phase) {
     url = "/";
     if (isDefined(question_id)) {
 	    switch(phase) {
-			case PHASE_DISABLED:
 			case PHASE_NOTES:
 				url = "/idea?question_id=" + question_id;
 				break;
@@ -80,14 +84,14 @@ function getPhaseUrl(question_id, phase) {
 				url = "/cascade?question_id=" + question_id;
 				break;
 			default:
-				alert("Unknown phase: "+phase);
+				url = "/";
 				break;
 		}
 	}
     return url;
 }
     
-function redirectToPhase(phase, question_id) {
+function redirectToPhase(question_id, phase) {
 	window.location.href = getPhaseUrl(question_id, phase);
 }
 
@@ -118,9 +122,6 @@ function getURLParameter(name) {
 function phaseToString(phase) {
 	var str = "";
 	switch(phase) {
-		case PHASE_DISABLED:
-			str = "Disabled";
-			break;
 		case PHASE_NOTES:
 			str = "Note entry";
 			break;

@@ -22,11 +22,12 @@ limitations under the License.
 {% block scripts %}
 	<script type="text/javascript" src="js/idea.js"></script>
 	<script>
-		var phase = parseInt("{{ phase }}");
 		var question_id = "{{ question_id }}";
 		var title = "{{ title }}";
 		var question = "{{ question }}";
 		var change_nickname_allowed = {{ change_nickname_allowed }};
+		var active = parseInt("{{ active }}");
+		var phase = parseInt("{{ phase }}");
 	</script>
 {% endblock %}
 
@@ -37,7 +38,7 @@ limitations under the License.
 	</div>
 	<div style="clear:both"></div>	
 	{% endif %}	
-	<div id="msg" class="warning spaceafter">{{ msg }}</div>
+	<div id="msg" class="warning spaceafter" style="text-align:center">{{ msg }}</div>
 	<div class="white_box largespaceabove">
 		<h1 id="title"></h1>
 		<div id="question"></div>

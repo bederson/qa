@@ -45,6 +45,7 @@ Misc Improvements
 * Remove merge any duplicate ideas before starting cascade
 * Make max # uncategorized cascade items allowed a user-configurable parameter; base on percentage of # of items?
 * Warn if no categories generated after cascade is complete
+* Need to better understand what reasonable defaults should be set in queue.yaml
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

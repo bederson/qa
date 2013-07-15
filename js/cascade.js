@@ -21,9 +21,9 @@ $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
 	}
-
+	
 	if (phase != PHASE_CASCADE) {
-		redirectToPhase(phase, question_id);
+		redirectToPhase(question_id, phase);
 		return;
 	}
 		
@@ -338,6 +338,12 @@ function onResize() {
 /////////////////////////
 // Channel support
 /////////////////////////
+
+function handleDisable(data) {
+	$("#msg").html("Question has been disabled");
+	$("#page_content").hide();
+}
+
 function handlePhase(data) {
 	window.location.reload();
 }
@@ -345,7 +351,7 @@ function handlePhase(data) {
 function handleStep(data) {
 	if (waiting) {
 		updateTitleArea(data);
-		var html = "This step has now started.<br/>";
+		var html = "This step has started.<br/>";
 		html += "<div class='spaceabove spaceafter'><input id='next_task_button' type='button' value='Get task'></div>";
 		$("#task_area").html(html);
 		

@@ -23,6 +23,7 @@ import os
 import string
 import webapp2
 from google.appengine.api import users
+from google.appengine.api import taskqueue
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
 from lib import gaesessions
@@ -126,13 +127,14 @@ class BaseHandler(webapp2.RequestHandler):
             
         if self.question:
             template_values["question_id"] = self.question.id
-            template_values["phase"] = self.question.phase
             template_values["title"] = self.question.title
             template_values["question"] = self.question.question
+            template_values["active"] = self.question.active
+            template_values["phase"] = self.question.phase
                 
         return template_values
     
-    def checkRequirements(self, userRequired=False, authenticatedUserRequired=False, optionalQuestionCode=False, questionRequired=False, editPrivilegesRequired=False):
+    def checkRequirements(self, userRequired=False, authenticatedUserRequired=False, optionalQuestionCode=False, questionRequired=False, activeQuestionRequired=True, editPrivilegesRequired=False):
         ok = True
         
         # check if user logged in
@@ -149,7 +151,7 @@ class BaseHandler(webapp2.RequestHandler):
             
         # check if valid question
         if ok and questionRequired:
-            ok = self.checkIfQuestion()
+            ok = self.checkIfQuestion(activeQuestionRequired)
             
         # check if user has edit privileges for question
         if ok and editPrivilegesRequired:
@@ -175,13 +177,16 @@ class BaseHandler(webapp2.RequestHandler):
             self.session['msg'] = "Invalid question code"
         return ok
     
-    def checkIfQuestion(self):  
+    def checkIfQuestion(self, activeQuestionRequired=True):  
         ok = True  
         if not self.request.get("question_id"):
             self.session['msg'] = "Question code required"
             ok = False
         elif not self.question:
             self.session['msg'] = "Invalid question code"
+            ok = False
+        elif activeQuestionRequired and not self.question.active:
+            self.session['msg'] = "Question not active"
             ok = False
         return ok
           
@@ -448,7 +453,7 @@ class EditQuestionHandler(BaseHandler):
         nicknameAuthentication = self.request.get('nickname_authentication', '0') == "1"
         clientId = self.request.get('client_id')
         
-        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
         
@@ -474,7 +479,7 @@ class DeleteQuestionHandler(BaseHandler):
         self.init(adminRequired=True)
         clientId = self.request.get('client_id')
 
-        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
         
@@ -509,6 +514,28 @@ class NewIdeaHandler(BaseHandler):
         self.writeResponseAsJson(data) 
         self.destroy()
 
+class ActiveHandler(BaseHandler):
+    def post(self):
+        self.init(adminRequired=True)
+        clientId = self.request.get('client_id')
+        try:
+            active = int(self.request.get('active'))
+        except ValueError:
+            active = 0
+            
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") } 
+            
+        else:
+            self.question.setActive(self.dbConnection, active)
+            data = { "status" : 1, "question" : self.question.toDict() }
+            if active == 0:
+                sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "disable" })
+
+        self.writeResponseAsJson(data)            
+        self.destroy()
+        
 class PhaseHandler(BaseHandler):
     def post(self):
         self.init(adminRequired=True)
@@ -550,28 +577,38 @@ class CascadeJobHandler(BaseHandler):
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
                 isStepComplete = self.question.saveCascadeJob(self.dbConnection, jobToSave)
-
-                if self.question.cascade_complete:
-                    # notify any waiting clients that categories are ready
-                    sendMessage(self.dbConnection, None, self.question.id, { "op": "categories" })
-                elif isStepComplete:                    
-                    # notify any waiting clients that next step that is ready
-                    sendMessage(self.dbConnection, clientId, self.question.id, { "op": "step", "step": self.question.cascade_step })
-
+                if isStepComplete:
+                    taskqueue.add(url="/cascade_init_step", params={ 'question_id' : self.question.id })
+               
+            # return new job (if any available)
             newJob = None
-            if not self.question.cascade_complete:
+            if (jobToSave and not isStepComplete) or not self.question.cascade_complete:
                 newJob = self.question.getCascadeJob(self.dbConnection, self.person)
             data = { "status" : 1, "step" : self.question.cascade_step, "job": [task.toDict() for task in newJob] if newJob else [], "complete" : 1 if self.question.cascade_complete else 0 }
                    
         self.writeResponseAsJson(data)
         self.destroy()
 
+class CascadeInitStepHandler(BaseHandler):
+    def post(self):
+        self.init()
+        # userRequired=True does not seem to work within taskqueue so cannot check
+        ok = self.checkRequirements(questionRequired=True)
+        if ok:
+            self.question.continueCascade(self.dbConnection)
+            if self.question.cascade_complete:
+                # notify any waiting clients that categories are ready
+                sendMessage(self.dbConnection, None, self.question.id, { "op": "categories" })
+            else:                    
+                # notify any waiting clients that next step that is ready
+                sendMessage(self.dbConnection, None, self.question.id, { "op": "step", "step": self.question.cascade_step })
+
 class CascadeOptionsHandler(BaseHandler):
     def post(self):
         self.init(adminRequired=True)
         clientId = self.request.get('client_id')
 
-        ok = self.checkRequirements(self, authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
+        ok = self.checkRequirements(self, authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
 
