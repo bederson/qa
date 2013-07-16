@@ -12,13 +12,9 @@ To Do
 
 Features
 * Record cascade step completion times
-* Support downloading question data
 * Use stemming when comparing categories for equality
 * Allow admins to modify questions, in addition to question authors
 * Allow admins to logout students
-* Create cronjob to clean up any users who have been logged in for a long time
-* Handle active users when question disabled or deleted (logout?)
-* Release assignments after some period of inactivity; delete incomplete jobs when user logs out
 
 Misc Improvements
 * Reduce page reloads to reduce unnecessary server calls and # of channels created
@@ -38,8 +34,7 @@ Misc Improvements
   Currently disabling and then re-enabling a question looses the current phase and will not allow
   Cascade to be re-enabled w/o deleting any existing data
 * Fix "Step x of y" on Cascade UI (problem is y is changing)
-* Initializing step 3 is very slow
-* Consider blinking header when new step available
+* Consider blinking browser header when new step available, or highlighting some way
 * Make word clouds clickable (show ideas & categories where word appears)
 * Allow question author to set maximum # of ideas allowed
 * Remove merge any duplicate ideas before starting cascade
@@ -47,6 +42,9 @@ Misc Improvements
 * Warn if no categories generated after cascade is complete
 * Need to better understand what reasonable defaults should be set in queue.yaml
 * Consider whether or not to delete tmp cascade data once categories have been generated (esp. since some tables like cascade_fit_categories_phase1 may get very large)
+* Handle active users when question disabled or deleted (logout?)
+* Release assignments after some period of inactivity; delete incomplete jobs when user logs out
+* Create cronjob to clean up any users who have been logged in for a long time
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

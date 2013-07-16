@@ -519,13 +519,24 @@ class DownloadQuestionHandler(BaseHandler):
             utcOffset = datetime.timedelta(minutes=utcOffsetMinutes)
              
             # write out question info
-            excelWriter.writerow(("Title", self.question.title))
-            excelWriter.writerow(("Question", self.question.question))
-            excelWriter.writerow(("Code", self.question.id))
+            excelWriter.writerow(("Question",))
+            excelWriter.writerow((self.question.title,))
+            excelWriter.writerow((self.question.question,))
+            excelWriter.writerow(("#{0}".format(self.question.id),))
             excelWriter.writerow(())
              
             # write out ideas with categories
             if self.question.cascade_complete:
+                
+                # write out cascade parameters
+                excelWriter.writerow(("Cascade Settings",))
+                excelWriter.writerow(("k", self.question.cascade_k))
+                excelWriter.writerow(("k2", self.question.cascade_k2))
+                excelWriter.writerow(("m", self.question.cascade_m))
+                excelWriter.writerow(("p", self.question.cascade_m))
+                excelWriter.writerow(("t", self.question.cascade_m))
+                excelWriter.writerow(())
+                
                 headers = (
                     "Category",
                     "Same_As",
