@@ -62,6 +62,10 @@ function loadQuestion() {
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
 		
+		if (!question.active) {
+			$("#inactive").html("INACTIVE");
+		}
+		
 		if (question.phase == PHASE_NOTES) {
 			$("#idea_link_area").show();
 			$("#idea_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));

@@ -133,7 +133,7 @@ class DBObject(object):
            
 class Question(DBObject):
     table = "questions"
-    fields = { "id", "title", "question", "nickname_authentication", "user_id", "active", "phase", "cascade_step", "cascade_iteration", "cascade_complete", "cascade_k", "cascade_k2", "cascade_m", "cascade_t" }    
+    fields = { "id", "title", "question", "nickname_authentication", "user_id", "active", "phase", "cascade_step", "cascade_iteration", "cascade_complete", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_t" }    
         
     def __init__(self):
         self.id = None
@@ -150,6 +150,7 @@ class Question(DBObject):
         self.cascade_k = 5
         self.cascade_k2 = 2
         self.cascade_m = 32
+        self.cascade_p = 80
         self.cascade_t = 8
         
     @staticmethod
@@ -650,7 +651,7 @@ class Idea(DBObject):
 # BEHAVIOR: cascade recurses if # uncategorized items > CASCADE_MAX_UNCATEGORIZED but not for loose categories 
 # BEHAVIOR: # iterations limited by CASCADE_MAX_ITERATIONS, regardless of how many items still uncategorized
 # BEHAVIOR: categories with fewer than CASCADE_Q items removed
-# BEHAVIOR: duplicate categories merged (the % of overlapping categories used to detect duplicates is defined by CASCADE_P)
+# BEHAVIOR: duplicate categories merged (the % of overlapping categories used to detect duplicates is defined by cascade_p)
 # BEHAVIOR: nested categories not generated
 
 class CascadeSuggestedCategory(DBObject):
@@ -1328,30 +1329,31 @@ def GenerateCascadeHierarchy(dbConnection, question):
     for category in categoriesToRemove:
         del categories[category]
     
-    # remove any duplicate categories (more than p overlapping items)
-    # TODO: consider whether not duplicate categories should only be removed last time it is called in case subsequent categories change things?
-    categoriesToRemove = []
-    categoryKeys = categories.keys()
-    duplicateCategories = {}
-    for x in range(len(categoryKeys)):
-        for y in range(x, len(categoryKeys)):
-            if x != y:
-                category1 = categoryKeys[x]
-                category2 = categoryKeys[y]
-                ideaIds1 = categories[category1]
-                ideaIds2 = categories[category2]
-                sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
-                if len(sharedIdeaIds) >= max(len(ideaIds1),len(ideaIds2))*constants.CASCADE_P:
-                    duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
-                    primaryCategory = category1 if duplicateCategory != category1 else category2
-                    if duplicateCategory not in categoriesToRemove:
-                        categoriesToRemove.append(duplicateCategory)
-                    if primaryCategory not in duplicateCategories:
-                        duplicateCategories[primaryCategory] = []
-                    duplicateCategories[primaryCategory].append(duplicateCategory)
-                    
-    for category in categoriesToRemove:
-        del categories[category]
+    # remove any duplicate categories (that have more than p % of overlapping items)
+    # TODO/FIX: consider whether not duplicate categories should only be removed last time it is called in case subsequent categories change things?
+    if question.cascade_p > 0:
+        categoriesToRemove = []
+        categoryKeys = categories.keys()
+        duplicateCategories = {}
+        for x in range(len(categoryKeys)):
+            for y in range(x, len(categoryKeys)):
+                if x != y:
+                    category1 = categoryKeys[x]
+                    category2 = categoryKeys[y]
+                    ideaIds1 = categories[category1]
+                    ideaIds2 = categories[category2]
+                    sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
+                    if len(sharedIdeaIds) >= max(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0):
+                        duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
+                        primaryCategory = category1 if duplicateCategory != category1 else category2
+                        if duplicateCategory not in categoriesToRemove:
+                            categoriesToRemove.append(duplicateCategory)
+                        if primaryCategory not in duplicateCategories:
+                            duplicateCategories[primaryCategory] = []
+                        duplicateCategories[primaryCategory].append(duplicateCategory)
+                        
+        for category in categoriesToRemove:
+            del categories[category]
     
     # BEHAVIOR: nested categories not created
     

@@ -96,10 +96,14 @@ function getQuestionItemHtml(question) {
 		html += '<span class="note"><em>Nickname authentication</em></span><br/>';
 	}
 	if (!question.active) {
-		html += '<em><span class="note">Inactive</em></span>';
+		html += '<span class="note"><em>Inactive</em></span><br/>';
 	}
-	else {
-		html += '<em><span class="note">'+phaseToString(question.phase)+'</em></span>';
+	else if (!question.cascade_complete) {
+		html += '<span class="note"><em>'+phaseToString(question.phase)+'</em></span><br/>';
+	}
+	
+	if (question.cascade_complete) {
+		html += "<span class='note'><em>Categories created</em></span>";
 	}
 	return html;
 }
@@ -131,6 +135,7 @@ function displaySelectedQuestion() {
 	$("#cascade_k").val(question.cascade_k);
 	$("#cascade_k2").val(question.cascade_k2);
 	$("#cascade_m").val(question.cascade_m);
+	$("#cascade_p").val(question.cascade_p);
 	$("#cascade_t").val(question.cascade_t);
 	$("#results_link").attr("href", "/results?question_id=" + question.id);
 	
@@ -255,17 +260,49 @@ function enableCascade() {
 function setCascadeOptions() {
 	var question = getSelectedQuestion();
 	if (!question) {
-		alert("Cascade options not changed. Question not found");
+		alert("Cascade options not changed. Question not found.");
 		return;
 	}
 	
+	var cascade_k = $("#cascade_k").val();
+	var cascade_k2 = $("#cascade_k2").val();
+	var cascade_m = $("#cascade_m").val();
+	var cascade_p = $("#cascade_p").val();
+	var cascade_t = $("#cascade_t").val();
+	
+	$("#msg").html("");
+	
+	var allNonEmpty = cascade_k != "" && cascade_k2 != "" && cascade_m != "" && cascade_p != "" && cascade_t != "";
+	if (!allNonEmpty) {
+		$("#msg").html("Cascade options not changed. Empty values not allowed.");
+		return;
+	}
+	
+	var allNumbers = !isNaN(cascade_k) && !isNaN(cascade_k2) && !isNaN(cascade_m) && !isNaN(cascade_p) && !isNaN(cascade_t);
+	if (!allNumbers) {
+		$("#msg").html("Cascade options not changed. All values must be numbers.");
+		return;
+	}
+	
+	var nonZeroValues = cascade_k > 0 && cascade_k2 > 0 && cascade_m > 0 && cascade_t > 0;
+	if (!nonZeroValues) {
+		$("#msg").html("Cascade options not changed. k, k2, m, and t must be greater than 0.");
+		return;
+	}
+	
+	if (cascade_p > 100) {
+		$("#msg").html("Cascade options not changed. p must be between 0-100.");
+		return;
+	}
+
 	var data = {
 		"client_id": client_id,
 		"question_id": question.id,
-		"cascade_k": $("#cascade_k").val(),
-		"cascade_k2": $("#cascade_k2").val(),
-		"cascade_m": $("#cascade_m").val(),
-		"cascade_t": $("#cascade_t").val()
+		"cascade_k": cascade_k,
+		"cascade_k2": cascade_k2,
+		"cascade_m": cascade_m,
+		"cascade_p": cascade_p,
+		"cascade_t": cascade_t
 	};
 	$.post("/set_cascade_options", data, function(result) {
 		if (result.status == 0) {

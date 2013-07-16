@@ -58,7 +58,7 @@ function saveAndGetNextJob(jobToSave) {
 
 function updateUI(results) {
 	waiting = false;
-	
+		
 	// show results
 	if (results.complete == 1) {
 		resultsReady();
@@ -280,13 +280,15 @@ function updateStatus(results) {
 		resultsReady();
 	}
 	else {
-		waitForNextStep();
+		waitForNextStep(results);
 	}
 }
 
-function waitForNextStep() {
-	var taskHtml = "You have completed all tasks for this step.<br/>";
-	taskHtml += "Please wait for the next step to begin.";
+function waitForNextStep(results) {
+	updateTitleArea(results);
+	var taskHtml = "You have completed all your tasks for this step.<br/>";
+	taskHtml += "The next step will begin once everyone finishes their tasks.<br/><br/>";
+	taskHtml += "Please wait ...";
 	$("#task_area").html(taskHtml);
 	waiting = true;
 }

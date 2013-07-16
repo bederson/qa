@@ -55,10 +55,28 @@ limitations under the License.
 						</td>
 						<td>
 							<div class="spaceafter">Go to <a id="cascade_link">Cascade</a></div>
-							<input id="cascade_k" class="cascade_option smallspaceafter" type="text" size="3"></input> k <span class="note">(redundancy factor)</span><br/>
-							<input id="cascade_k2" class="cascade_option smallspaceafter" type="text" size="3"></input> k2 <span class="note">(redundancy factor for category fit tasks)</span><br/>
-							<input id="cascade_m" class="cascade_option smallspaceafter" type="text" size="3"></input> m <span class="note">(# notes in initial set)</span><br/>
-							<input id="cascade_t" class="cascade_option smallspaceafter" type="text" size="3"></input> t <span class="note">(# tasks grouped together in some steps)</span>
+							<table class="smallpadbottom">
+							<tr>
+							<td><input id="cascade_k" class="cascade_option" type="text" size="3"></input></td>
+							<td>k <span class="note">(redundancy factor)</span></td>
+							</tr>
+							<tr>
+							<td><input id="cascade_k2" class="cascade_option" type="text" size="3"></input></td>
+							<td>k2 <span class="note">(redundancy factor for category fit tasks)</span></td>
+							</tr>
+							<tr>
+							<td><input id="cascade_m" class="cascade_option" type="text" size="3"></input></td>
+							<td>m <span class="note">(# notes in initial set)</span></td>
+							</tr>
+							<tr>
+							<td><input id="cascade_p" class="cascade_option" type="text" size="3"></input></td>
+							<td>p <span class="note">(% of overlap used to detect duplicate categories; 0 means do not merge)</span></td>
+							</tr>
+							<tr>
+							<td><input id="cascade_t" class="cascade_option" type="text" size="3"></input></td>
+							<td>t <span class="note">(# tasks grouped together in some steps)</span></td>
+							</tr>
+							</table>
 						</td>
 						<td class="stats">
 							<div id="cascade_stats"></div>

@@ -247,7 +247,7 @@ class CascadePageHandler(BaseHandler):
 class ResultsPageHandler(BaseHandler):
     def get(self):
         self.init()    
-        self.checkRequirements(userRequired=True, questionRequired=True)
+        self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False)
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))
@@ -617,6 +617,7 @@ class CascadeOptionsHandler(BaseHandler):
                 "cascade_k" :  int(self.request.get('cascade_k')),
                 "cascade_k2" : int(self.request.get('cascade_k2')),
                 "cascade_m" :  int(self.request.get('cascade_m')),
+                "cascade_p" :  int(self.request.get('cascade_p')),
                 "cascade_t" :  int(self.request.get('cascade_t')),
                 "id" : self.question.id
             }

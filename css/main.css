@@ -131,6 +131,10 @@ a.warning:hover {
 	padding-bottom: 10px;
 }
 
+.smallpadbottom, .smallpadbottom td {
+	padding-bottom: 5px;
+}
+
 /* layout */
 
 .center {

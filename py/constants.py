@@ -13,7 +13,6 @@ PHASE_CASCADE = 2
 
 # Cascade 
 DEFAULT_VOTING_THRESHOLD = 2
-CASCADE_P = 0.75                # max percentage of items that can be shared between categories
 CASCADE_Q = 1                   # min number of items allowed in a category
 CASCADE_MAX_ITERATIONS = 2      # max number of iterations allowed
 CASCADE_MAX_UNCATEGORIZED = 5   # max number uncategorized items (w/o going over max # iterations)
