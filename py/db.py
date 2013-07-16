@@ -290,7 +290,7 @@ class Question(DBObject):
             elif self.cascade_step == 4 or self.cascade_step == 6:
                 sql = "update cascade_fit_categories_phase2 set user_id=null where question_id={0} and fit=-1".format(self.id)
                 sql += " and user_id={0}".format(userId) if userId else ""
-            x
+            
             if sql:
                 dbConnection.cursor.execute(sql)
                 if commit:
