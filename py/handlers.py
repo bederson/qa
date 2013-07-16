@@ -428,7 +428,7 @@ class QueryHandler(BaseHandler):
             # stats for question (# ideas, etc.)
             elif request == "stats" and self.question:
                 data = Question.getStats(self.dbConnection, self.question.id)
-                      
+                                
             # ideas for question (grouped if categories exist; otherwise returned as uncategorized)
             elif request == "ideas" and self.question:
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
@@ -527,9 +527,10 @@ class DownloadQuestionHandler(BaseHandler):
              
             # write out ideas with categories
             if self.question.cascade_complete:
-                
+                cascadeDuration = self.question.calculateCascadeDuration(self.dbConnection);
                 # write out cascade parameters
                 excelWriter.writerow(("Cascade Settings",))
+                excelWriter.writerow(("Duration", cascadeDuration if cascadeDuration else "" ))
                 excelWriter.writerow(("k", self.question.cascade_k))
                 excelWriter.writerow(("k2", self.question.cascade_k2))
                 excelWriter.writerow(("m", self.question.cascade_m))

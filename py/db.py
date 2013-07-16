@@ -19,6 +19,7 @@
 
 import constants
 import helpers
+import datetime
 import math
 import random
 from google.appengine.api import rdbms
@@ -213,7 +214,7 @@ class Question(DBObject):
                     data["cascade_iteration"] = 1
                 self.update(dbConnection, data)            
                 CASCADE_CLASSES[nextStep-1].initStep(dbConnection, self)
-    
+                
             # if on last step, check if cascade is complete, if not move to next iteration
             else:
                 complete = self.checkIfCascadeComplete(dbConnection)
@@ -238,7 +239,25 @@ class Question(DBObject):
     def continueCascade(self, dbConnection):
         if CASCADE_CLASSES[self.cascade_step-1]:
             CASCADE_CLASSES[self.cascade_step-1].continueCascade(dbConnection, self)
-
+            
+            # record start/end times for each cascade step
+            # final cascade complete time recorded in checkIfCascadeComplete
+            if self.cascade_step > 1:
+                sql = "update cascade_stats set cascade_step{0}_end=now() where question_id=%s and cascade_iteration=%s".format(self.cascade_step-1)
+                dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
+                sql = "update cascade_stats set cascade_step{0}_start=now() where question_id=%s and cascade_iteration=%s".format(self.cascade_step)
+                dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
+            
+            else:
+                if self.cascade_iteration > 1:
+                    sql = "update cascade_stats set cascade_step{0}_end=now() where question_id=%s and cascade_iteration=%s".format(len(CASCADE_CLASSES))
+                    dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
+                    
+                sql = "insert into cascade_stats (question_id, cascade_iteration, cascade_step1_start) values(%s, %s, now())"
+                dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
+            
+            dbConnection.conn.commit()
+            
     def checkIfCascadeComplete(self, dbConnection):
         if not self.cascade_complete:
             lastStepComplete = self.cascade_step == len(CASCADE_CLASSES) and CASCADE_CLASSES[self.cascade_step-1].isStepComplete(dbConnection, self)
@@ -250,9 +269,24 @@ class Question(DBObject):
                 complete = True if row["ct"] <= constants.CASCADE_MAX_UNCATEGORIZED else False 
             
             if complete:
+                sql = "update cascade_stats set cascade_step{0}_end=now() where question_id=%s and cascade_iteration=%s".format(len(CASCADE_CLASSES))
+                dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
                 self.update(dbConnection, { "cascade_complete" : 1, "id" : self.id })
                                 
         return self.cascade_complete
+    
+    def calculateCascadeDuration(self, dbConnection):
+        duration = None
+        if self.cascade_complete:
+            lastStep = len(CASCADE_CLASSES)
+            sql = "select *, unix_timestamp(cascade_step1_start) as step1_start, unix_timestamp(cascade_step{0}_end) as step{0}_end from cascade_stats where question_id=%s".format(lastStep, lastStep)
+            dbConnection.cursor.execute(sql, (self.id))
+            rows = dbConnection.cursor.fetchall()
+            if rows:
+                start = rows[0]["step1_start"]
+                end = rows[len(rows)-1]["step{0}_end".format(lastStep)]
+                duration = datetime.timedelta(seconds=end-start) if start and end else None
+        return duration
     
     def delete(self, dbConnection):
         dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
@@ -272,6 +306,7 @@ class Question(DBObject):
         dbConnection.cursor.execute("delete from cascade_fit_categories_phase2 where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from question_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from categories where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from cascade_stats where question_id={0}".format(self.id))
         if commit:
             dbConnection.conn.commit()
             
@@ -1282,7 +1317,7 @@ class CascadeFitCategorySubsequentPhase2(CascadeFitCategoryPhase2):
         rows = dbConnection.cursor.fetchall()
         
         if len(rows) == 0:
-            question.initCascadeNextStep(dbConnection)
+            question.continueCascade(dbConnection)
             return
                         
         insertValues = []
@@ -1336,10 +1371,10 @@ def GenerateCascadeHierarchy(dbConnection, question):
     
     # remove any duplicate categories (that have more than p % of overlapping items)
     # TODO/FIX: consider whether not duplicate categories should only be removed last time it is called in case subsequent categories change things?
+    duplicateCategories = {}
     if question.cascade_p > 0:
         categoriesToRemove = []
         categoryKeys = categories.keys()
-        duplicateCategories = {}
         for x in range(len(categoryKeys)):
             for y in range(x, len(categoryKeys)):
                 if x != y:
