@@ -539,10 +539,10 @@ class Idea(DBObject):
         return Idea.createFromData(row)
         
     @staticmethod
-    def getByQuestion(dbConnection, question, asDict=False):
+    def getByQuestion(dbConnection, question, asDict=False, includeCreatedOn=False):
         ideas = []
         if question:
-            sql = "select {0},{1} from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},question_ideas.created_on as idea_created_on from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
@@ -554,12 +554,15 @@ class Idea(DBObject):
                         "nickname" : row[Person.tableField("nickname")]
                     }
                     idea = idea.toDict(author=author, admin=Person.isAdmin() or question.isAuthor())
+                    if includeCreatedOn:
+                        idea["created_on"] = row["idea_created_on"]
+                                           
                 ideas.append(idea)
         return ideas
         
     # TODO: store in memcache and only retrieve from database if needed
     @staticmethod
-    def getByCategories(dbConnection, question, asDict=False):
+    def getByCategories(dbConnection, question, asDict=False, includeCreatedOn=False):
         ideaIds = []
         categorizedIdeas = []
         category = None
@@ -570,7 +573,7 @@ class Idea(DBObject):
             # if sortByFrequency is true, return categories in order of largest to smallest
             # TODO: add option to GUI to specify sort type
             sortByFrequency = False
-            sql = "select {0},{1},category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},question_ideas.created_on as idea_created_on,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
             sql += "left join question_categories on question_ideas.id=question_categories.idea_id "
             if sortByFrequency:
                 sql += "left join (select id,category,same_as,count(*) as ct from categories,question_categories where categories.id=question_categories.category_id group by id) cat1 on question_categories.category_id=cat1.id "
@@ -593,6 +596,8 @@ class Idea(DBObject):
                         "nickname" : row[Person.tableField("nickname")]
                     }
                     idea = idea.toDict(author=author, admin=Person.isAdmin() or question.isAuthor())
+                    if includeCreatedOn:
+                        idea["created_on"] = row["idea_created_on"]
                     
                 if ideaCategory: 
                     if not category:

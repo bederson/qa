@@ -46,6 +46,7 @@ Misc Improvements
 * Make max # uncategorized cascade items allowed a user-configurable parameter; base on percentage of # of items?
 * Warn if no categories generated after cascade is complete
 * Need to better understand what reasonable defaults should be set in queue.yaml
+* Consider whether or not to delete tmp cascade data once categories have been generated (esp. since some tables like cascade_fit_categories_phase1 may get very large)
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

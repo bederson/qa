@@ -90,6 +90,7 @@ function getQuestionItemHtml(question) {
 	var html = "<a href='javascript:selectQuestion(" + question.id + ")'>" + question.title + "</a> ";
 	html += "<span class='note'>#"+question.id+"</span>&nbsp;&nbsp;&nbsp;&nbsp;";
 	html += "<a href='javascript:editQuestionForm(" + question.id + ")'>[edit]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
+	html += "<a href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
 	html += "<a href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a><br/>";
 	html += question.question + "<br/>";
 	if (question.nickname_authentication) {
@@ -377,6 +378,10 @@ function editQuestionForm(question_id) {
 		$("#newq_button").val("Update question");
 		$("#newq_button").data("question_id", question.id);
 	}
+}
+
+function downloadQuestion(question_id) {
+	window.location = "/download_question?question_id="+question_id+"&utc_offset_minutes="+(new Date()).getTimezoneOffset()
 }
 
 function deleteQuestion(question_id) {

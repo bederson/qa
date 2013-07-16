@@ -18,9 +18,13 @@
 #
 import constants
 import helpers
+import datetime
 import json
 import os
+import re
 import string
+import StringIO
+import time
 import webapp2
 from google.appengine.api import users
 from google.appengine.api import taskqueue
@@ -202,6 +206,17 @@ class BaseHandler(webapp2.RequestHandler):
     def writeResponseAsJson(self, data):
         self.response.headers.add_header('Content-Type', 'application/json', charset='utf-8')
         self.response.out.write(helpers.toJson(data))
+        
+    def writeResponseAsFile(self, encodedContent, contentType, filename, encoding):
+        # Filename may consist of only letters, numbers, period, underscore, and hyphen.
+        assert re.match(r"^[-_.a-zA-Z0-9]+$", filename) is not None, repr(filename)
+
+        if encoding is not None:
+            contentType += "; charset=%s"%encoding
+
+        self.response.headers["Content-Type"] = contentType
+        self.response.headers["Content-Disposition"] = 'attachment; filename="%s"'%filename
+        self.response.out.write(encodedContent)
         
     def redirectWithMsg(self, msg=None, dst="/"):        
         if msg is not None:
@@ -489,6 +504,97 @@ class DeleteQuestionHandler(BaseHandler):
             sendMessage(self.dbConnection, clientId, self.question.id, { "op": "delete" })
             
         self.writeResponseAsJson(data) 
+        self.destroy()
+        
+class DownloadQuestionHandler(BaseHandler):
+    def get(self):
+        self.init(adminRequired=True)
+
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
+        if ok:
+            reportBuffer = StringIO.StringIO()
+            excelWriter = helpers.UnicodeWriter(reportBuffer, "excel-tab", "utf8")
+            
+            utcOffsetMinutes = int(self.request.get("utc_offset_minutes", 0))
+            utcOffset = datetime.timedelta(minutes=utcOffsetMinutes)
+             
+            # write out question info
+            excelWriter.writerow(("Title", self.question.title))
+            excelWriter.writerow(("Question", self.question.question))
+            excelWriter.writerow(("Code", self.question.id))
+            excelWriter.writerow(())
+             
+            # write out ideas with categories
+            if self.question.cascade_complete:
+                headers = (
+                    "Category",
+                    "Same_As",
+                    "Idea",
+                    "Author",
+                    "Author_Identity",
+                    "Created_On",
+                    "Idea_Id"
+                )
+                excelWriter.writerow(headers)
+        
+                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
+                for categoryInfo in categorizedIdeas:   
+                    category = categoryInfo["category"]
+                    sameAs = categoryInfo["same_as"]
+                    ideas = categoryInfo["ideas"]
+                    for ideaDict in ideas:
+                        line_parts = (
+                            category,
+                            sameAs if sameAs else "",
+                            ideaDict["idea"],
+                            ideaDict["author"],
+                            ideaDict["author_identity"] if "author_identity" in ideaDict else "",
+                            ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
+                            ideaDict["id"]
+                        )
+                        excelWriter.writerow(line_parts)
+                        
+                for ideaDict in uncategorizedIdeas:   
+                    line_parts = (
+                        "NONE",
+                        "",
+                        ideaDict["idea"],
+                        ideaDict["author"],
+                        ideaDict["author_identity"] if "author_identity" in ideaDict else "",
+                        ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
+                        ideaDict["id"]
+                    )
+                    excelWriter.writerow(line_parts)
+                                          
+            # write out ideas generated so far
+            else:
+                headers = (
+                    "Idea",
+                    "Author",
+                    "Author_Identity",
+                    "Created_On",
+                    "Idea_Id"
+                )
+                excelWriter.writerow(headers)
+        
+                ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
+                for ideaDict in ideas:     
+                    line_parts = (
+                        ideaDict["idea"],
+                        ideaDict["author"],
+                        ideaDict["author_identity"] if "author_identity" in ideaDict else "",
+                        ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
+                        ideaDict["id"]
+                    )
+                    excelWriter.writerow(line_parts)  
+                            
+            reportText = reportBuffer.getvalue()
+            reportBuffer.close()
+    
+            contentType = "text/tab-separated-values"
+            filename = "qa_question_{0}_as_of_{1}.txt".format(self.question.id, (datetime.datetime.now()-utcOffset).strftime("%Y%m%d-%H%M%S"))
+            self.writeResponseAsFile(encodedContent=reportText, contentType=contentType, filename=filename, encoding="UTF-8")
+            
         self.destroy()
           
 class NewIdeaHandler(BaseHandler):
