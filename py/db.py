@@ -1074,6 +1074,11 @@ class CascadeFitCategoryPhase1(DBObject):
                     insertValues.append("({0}, {1}, %s, {2})".format(question.id, ideaId, question.cascade_iteration))
                     categories += (category,)
 
+        # if no categories found, skip to next step
+        if len(insertValues) == 0:
+            question.continueCascade(dbConnection, skip=True)
+            return
+        
         # If you are inserting many rows from the same client at the same time, use INSERT statements 
         # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
         # (many times faster in some cases) than using separate single-row INSERT statements.
@@ -1219,6 +1224,11 @@ class CascadeFitCategoryPhase2(DBObject):
                 insertValues.append("({0}, {1}, %s, {2})".format(question.id, ideaId, question.cascade_iteration))
                 categories += (category,)
         
+        # if no categories found, skip to next step
+        if len(insertValues) == 0:
+            question.continueCascade(dbConnection, skip=True)
+            return
+        
         # If you are inserting many rows from the same client at the same time, use INSERT statements 
         # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
         # (many times faster in some cases) than using separate single-row INSERT statements.
@@ -1353,6 +1363,11 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
                     insertValues.append("({0}, {1}, %s, {2}, {3})".format(question.id, ideaId, question.cascade_iteration, 1))
                     categories += (category,)
 
+        # if no categories found, skip to next step
+        if len(insertValues) == 0:
+            question.continueCascade(dbConnection, skip=True)
+            return
+        
         # If you are inserting many rows from the same client at the same time, use INSERT statements 
         # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
         # (many times faster in some cases) than using separate single-row INSERT statements.
@@ -1388,6 +1403,11 @@ class CascadeFitCategorySubsequentPhase2(CascadeFitCategoryPhase2):
                 insertValues.append("({0}, {1}, %s, {2})".format(question.id, ideaId, question.cascade_iteration))
                 categories += (category,)
 
+        # if no categories found, skip to next step
+        if len(insertValues) == 0:
+            question.continueCascade(dbConnection, skip=True)
+            return
+        
         # If you are inserting many rows from the same client at the same time, use INSERT statements 
         # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
         # (many times faster in some cases) than using separate single-row INSERT statements.

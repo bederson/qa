@@ -527,15 +527,16 @@ class DownloadQuestionHandler(BaseHandler):
              
             # write out ideas with categories
             if self.question.cascade_complete:
-                
+                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
+
                 # write out stats
                 stats = self.question.getStats(self.dbConnection)
                 if stats:
-                    helpers.log(stats["cascade_total_duration"])
                     excelWriter.writerow(("Counts",))
                     excelWriter.writerow(("# users", stats["user_count"]))
                     excelWriter.writerow(("# ideas", stats["idea_count"]))
                     excelWriter.writerow(("# categories", stats["category_count"]))
+                    excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
                     excelWriter.writerow(())   
                     
                     excelWriter.writerow(("Cascade Times (h:mm:ss)",))
@@ -569,7 +570,6 @@ class DownloadQuestionHandler(BaseHandler):
                 )
                 excelWriter.writerow(headers)
         
-                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
                 for categoryInfo in categorizedIdeas:   
                     category = categoryInfo["category"]
                     sameAs = categoryInfo["same_as"]
