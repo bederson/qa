@@ -168,8 +168,8 @@ function updateQuestionStats() {
 		$.getJSON("/query", data, function(results) {
 			var question = getQuestion(results.question_id);
 			if (question) {
-				question.num_ideas = results["num_ideas"];
-				question.num_users = results["num_users"];
+				question.idea_count = results["idea_count"];
+				question.user_count = results["user_count"];
 				if (isSelectedQuestion(question.id)) {
 					displayQuestionStats(question);
 				}
@@ -179,14 +179,10 @@ function updateQuestionStats() {
 }
 
 function displayQuestionStats(question) {
-	var numIdeas = question.num_ideas;
-	var numUsers = question.num_users;
-	var html = numIdeas + " notes, "+ numUsers + " users";
+	var ideaCount = question.idea_count;
+	var userCount = question.user_count;
+	var html = ideaCount + " notes, "+ userCount + " users";
 	$("#stats").html(html);
-	
-	// TODO: incomplete
-	//$("#notes_stats").html(numIdeas + " notes");
-	//$("#cascade_stats").html("Step " + question.cascade_step + " in progress");
 }
 
 function setActive(active) {

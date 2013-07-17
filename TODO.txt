@@ -45,6 +45,7 @@ Misc Improvements
 * Handle active users when question disabled or deleted (logout?)
 * Release assignments after some period of inactivity; delete incomplete jobs when user logs out
 * Create cronjob to clean up any users who have been logged in for a long time
+* Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas?
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

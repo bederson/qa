@@ -427,7 +427,7 @@ class QueryHandler(BaseHandler):
                         
             # stats for question (# ideas, etc.)
             elif request == "stats" and self.question:
-                data = Question.getStats(self.dbConnection, self.question.id)
+                data = self.question.getLiveStats(self.dbConnection)
                                 
             # ideas for question (grouped if categories exist; otherwise returned as uncategorized)
             elif request == "ideas" and self.question:
@@ -527,16 +527,36 @@ class DownloadQuestionHandler(BaseHandler):
              
             # write out ideas with categories
             if self.question.cascade_complete:
-                cascadeDuration = self.question.calculateCascadeDuration(self.dbConnection);
+                
+                # write out stats
+                stats = self.question.getStats(self.dbConnection)
+                if stats:
+                    helpers.log(stats["cascade_total_duration"])
+                    excelWriter.writerow(("Counts",))
+                    excelWriter.writerow(("# users", stats["user_count"]))
+                    excelWriter.writerow(("# ideas", stats["idea_count"]))
+                    excelWriter.writerow(("# categories", stats["category_count"]))
+                    excelWriter.writerow(())   
+                    
+                    excelWriter.writerow(("Cascade Times (h:mm:ss)",))
+                    for i in range(len(CASCADE_CLASSES)):
+                        step = i + 1
+                        duration = stats["cascade_step{0}_duration".format(step)]
+                        durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
+                        excelWriter.writerow(("Step {0}".format(step), durationFormatted))
+                    duration = stats["cascade_total_duration"]
+                    durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
+                    excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(stats["cascade_iteration_count"], "iterations" if stats["cascade_iteration_count"]>1 else "iteration")))
+                    excelWriter.writerow(())   
+                
                 # write out cascade parameters
                 excelWriter.writerow(("Cascade Settings",))
-                excelWriter.writerow(("Duration", cascadeDuration if cascadeDuration else "" ))
                 excelWriter.writerow(("k", self.question.cascade_k))
                 excelWriter.writerow(("k2", self.question.cascade_k2))
                 excelWriter.writerow(("m", self.question.cascade_m))
                 excelWriter.writerow(("p", self.question.cascade_m))
                 excelWriter.writerow(("t", self.question.cascade_m))
-                excelWriter.writerow(())
+                excelWriter.writerow(())                
                 
                 headers = (
                     "Category",
