@@ -186,9 +186,14 @@ function updateStats() {
 	var stat = numIdeas == 0 ? "No notes yet" : (numIdeas == 1 ? "1 note" : numIdeas + " notes");
 	stats.push(stat);
 	
+	// number of categories (if any)
+	if (categorizedIdeas.length>0) {
+		stats.push(categorizedIdeas.length + " categories");
+	}
+	
 	// number of uncategorized ideas (if any)
 	if (categorizedIdeas.length>0 && uncategorizedIdeas.length > 0) {
-		stats.push(uncategorizedIdeas.length + " uncategorized");
+		stats.push(uncategorizedIdeas.length + " uncategorized notes");
 	}
 		
 	var html = stats.length > 0 ? "(" + stats.join(", ") + ")" : ""
