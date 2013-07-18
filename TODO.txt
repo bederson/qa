@@ -51,6 +51,7 @@ Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 * When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
 * Nickname authentication NOT working; forget user is logged in when switching between pages sometimes
+* Observed instance when GUI did not switch from note input to cascade categorization when testing with group
   
 Testing
 * Build test harness
