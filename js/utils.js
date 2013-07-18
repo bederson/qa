@@ -36,14 +36,12 @@ onOpened = function() {
 onMessage = function(message) {
 	var data = message.data;
 	dataObj = jQuery.parseJSON(data);
-	// console.log(dataObj);
+	//console.log(dataObj.op);
 	
 	if (dataObj.op == "newidea") {
 		handleIdea(dataObj);
-	} else if (dataObj.op == "newtag") {
-		handleTag(dataObj);
-	} else if (dataObj.op == "refresh") {
-		handleRefresh(dataObj);
+	} else if (dataObj.op == "enable") {
+		handleEnable(dataObj); 
 	} else if (dataObj.op == "disable") {
 		handleDisable(dataObj); 
 	} else if (dataObj.op == "phase") {

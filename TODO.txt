@@ -11,7 +11,6 @@ To Do
   Or does InnoDB handle this ...
 
 Features
-* Record cascade step completion times
 * Use stemming when comparing categories for equality
 * Allow admins to modify questions, in addition to question authors
 * Allow admins to logout students
@@ -46,6 +45,7 @@ Misc Improvements
 * Release assignments after some period of inactivity; delete incomplete jobs when user logs out
 * Create cronjob to clean up any users who have been logged in for a long time
 * Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas?
+* Suggest cascade settings based on # of ideas, # of users, etc.
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

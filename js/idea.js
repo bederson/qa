@@ -46,6 +46,7 @@ function enableInput() {
 	$("#submit").removeAttr("disabled");
 	$("#answer").val("");
 	$("#answer").focus();
+	$("#nickname_area").show();
 }
 
 function disableInput(msg) {
@@ -176,8 +177,9 @@ function handleIdea(data) {
 	// Ignore it
 }
 
-function handleRefresh(data) {
-	// Ignore it
+function handleEnable(data) {
+	$("#msg").html("");
+	enableInput();
 }
 
 function handleDisable(data) {
@@ -187,10 +189,6 @@ function handleDisable(data) {
 
 function handlePhase(data) {
 	window.location.reload();
-}
-
-function handleTag(data) {
-	// Ignore it
 }
 
 function handleNickname(data) {

@@ -62,14 +62,7 @@ function loadQuestion() {
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
 		
-		if (!question.active) {
-			$("#inactive").html("INACTIVE");
-		}
-		
-		if (question.phase == PHASE_NOTES) {
-			$("#idea_link_area").show();
-			$("#idea_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
-		}
+		updatePhase();
 		
 		if (OFFLINE) {
 			displayIdeas();
@@ -79,6 +72,26 @@ function loadQuestion() {
 			google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': displayIdeas });
 		}
 	});
+}
+
+function updatePhase() {
+	$("#inactive").html(!question.active ? "INACTIVE" : "");
+	if (!question.active) {
+		$("#idea_link_area").hide();
+		$("#cascade_link_area").hide();
+	}
+	else if (question.phase == PHASE_NOTES) {
+		$("#idea_link_area").show();
+		$("#idea_link").attr("href", getPhaseUrl(question.id, question.phase));
+	}
+	else if (question.phase == PHASE_CASCADE && !question.cascade_complete) {
+		$("#cascade_link_area").show();
+		$("#cascade_link").attr("href", getPhaseUrl(question.id, question.phase));
+	}
+	else if (question.cascade_complete) {
+		$("#idea_link_area").hide();
+		$("#cascade_link_area").hide();		
+	}
 }
 
 function displayIdeas() {
@@ -267,15 +280,19 @@ function handleIdea(data) {
 	addIdea(data.idea);
 }
 
-function handleRefresh(data) {
-	window.location.reload();
+function handleEnable(data) {
+	question.active = 1;
+	updatePhase();
+}
+
+function handleDisable(data) {
+	question.active = 0;
+	updatePhase();
 }
 
 function handlePhase(data) {
+	// TODO: currently refreshes entire page instead of calling updatePhase since tag clouds only shown when note input disabled
 	window.location.reload();
-}
-
-function handleTag(data) {
 }
 
 function handleNickname(data) {
@@ -283,6 +300,11 @@ function handleNickname(data) {
 	window.location.reload();
 }
 
+function handleStep(data) {
+	// ignore
+}
+
 function handleResults(data) {
+	question.cascade_complete = 1;
 	window.location.reload();
 }

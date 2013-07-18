@@ -668,8 +668,7 @@ class ActiveHandler(BaseHandler):
         else:
             self.question.setActive(self.dbConnection, active)
             data = { "status" : 1, "question" : self.question.toDict() }
-            if active == 0:
-                sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "disable" })
+            sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "enable" if active == 1 else "disable" })
 
         self.writeResponseAsJson(data)            
         self.destroy()
