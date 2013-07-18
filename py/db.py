@@ -377,27 +377,34 @@ class Question(DBObject):
         if commit:
             dbConnection.conn.commit()
             
-    def deleteIncompleteCascadeJobs(self, dbConnection, userId=None, commit=True):
+    def deleteIncompleteCascadeJobs(self, dbConnection, commit=True):
         # there should only be incomplete cascade jobs in the current step
         if not self.cascade_complete:
             sql = None
             if self.cascade_step == 1:
                 sql = "update cascade_suggested_categories set user_id=null where question_id={0} and suggested_category is null and skipped=0".format(self.id)
-                sql += " and user_id={0}".format(userId) if userId else ""
             elif self.cascade_step == 2:
                 sql = "update cascade_best_categories set user_id=null where question_id={0} and best_category is null and none_of_the_above=0".format(self.id)
-                sql += " and user_id={0}".format(userId) if userId else ""
             elif self.cascade_step == 3 or self.cascade_step == 5:
                 sql = "update cascade_fit_categories_phase1 set user_id=null where question_id={0} and fit=-1".format(self.id)
-                sql += " and user_id={0}".format(userId) if userId else ""
             elif self.cascade_step == 4 or self.cascade_step == 6:
                 sql = "update cascade_fit_categories_phase2 set user_id=null where question_id={0} and fit=-1".format(self.id)
-                sql += " and user_id={0}".format(userId) if userId else ""
             
             if sql:
                 dbConnection.cursor.execute(sql)
                 if commit:
                     dbConnection.conn.commit()
+    
+    @staticmethod
+    def unassignCascadeJobsFromUser(dbConnection, userId, questionId, commit=True):
+        # TODO: only need to unassign if cascade is active
+        count = CascadeSuggestedCategory.unassignFrom(dbConnection, userId, questionId, commit=False)
+        count += CascadeBestCategory.unassignFrom(dbConnection, userId, questionId, commit=False)
+        count += CascadeFitCategoryPhase1.unassignFrom(dbConnection, userId, questionId, commit=False)
+        count += CascadeFitCategoryPhase2.unassignFrom(dbConnection, userId, questionId, commit=False)
+        if commit:
+            dbConnection.conn.commit()
+        return count
                     
     def isAuthor(self):
         # BEHAVIOR: check if currently authenticated user is the question author
@@ -480,14 +487,17 @@ class Person(DBObject):
             dbConnection.conn.commit()
             self.is_logged_in = True 
             
-    def logout(self, dbConnection, questionId=None, commit=True):
+    def logout(self, dbConnection, commit=True):
         if self.is_logged_in:
             # if a Google authenticated user is logging out, modify all records associated with this user
             if self.authenticated_user_id:
                 sql = "update users set latest_logout_timestamp=now() where authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
                 sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
-                dbConnection.cursor.execute(sql, (self.authenticated_user_id))                    
+                dbConnection.cursor.execute(sql, (self.authenticated_user_id))
+                
+                # TODO: not finished, need to unassign jobs from all questions user is logged in to         
+                # TODO: need to notify any waiting users that more jobs available
             
             # otherwise, logout this specific user instance
             else:
@@ -495,6 +505,12 @@ class Person(DBObject):
                 dbConnection.cursor.execute(sql, (self.id))
                 sql = "delete from user_clients where user_id=%s"
                 dbConnection.cursor.execute(sql, (self.id))
+
+                # TODO: not finished, need to unassign jobs (if cascade is in progress)
+                # TODO: need to notify any waiting users that more jobs available
+                # consider passing in param to indicate whether or not to check for jobs to unassign or question needs to be loaded?
+                #Question.unassignCascadeJobsFromUser(dbConnection, self.id, self.question_id, commit=commit)
+                
             if commit:
                 dbConnection.conn.commit()
             self.is_logged_in = False
@@ -854,6 +870,14 @@ class CascadeSuggestedCategory(DBObject):
             dbConnection.conn.commit()
 
     @staticmethod
+    def unassignFrom(dbConnection, personId, questionId, commit=True):
+        sql = "update cascade_suggested_categories set user_id=null where question_id=%s and user_id=%s and suggested_category is null and skipped=0"
+        count = dbConnection.cursor.execute(sql, (questionId, personId))
+        if commit:
+            dbConnection.conn.commit()
+        return count
+            
+    @staticmethod
     def saveJob(dbConnection, question, job):
         for task in job:
             taskId = task["id"]
@@ -982,6 +1006,14 @@ class CascadeBestCategory(DBObject):
             dbConnection.conn.commit()
 
     @staticmethod
+    def unassignFrom(dbConnection, personId, questionId, commit=True):
+        sql = "update cascade_best_categories set user_id=null where question_id=%s and user_id=%s and best_category is null and none_of_the_above=0"
+        count = dbConnection.cursor.execute(sql, (questionId, personId))
+        if commit:
+            dbConnection.conn.commit()
+        return count
+            
+    @staticmethod
     def saveJob(dbConnection, question, job):
         for task in job:
             taskId = task["id"]
@@ -1009,7 +1041,7 @@ class CascadeBestCategory(DBObject):
     @staticmethod
     def continueCascade(dbConnection, question):
         question.initCascadeNextStep(dbConnection)
-            
+                        
     def toDict(self, dbConnection=None, includeIdeaText=True):
         objDict = super(CascadeBestCategory, self).toDict()                 
         if dbConnection and includeIdeaText:
@@ -1157,6 +1189,14 @@ class CascadeFitCategoryPhase1(DBObject):
         if commit:
             dbConnection.conn.commit()
 
+    @staticmethod
+    def unassignFrom(dbConnection, personId, questionId, commit=True):
+        sql = "update cascade_fit_categories_phase1 set user_id=null where question_id=%s and user_id=%s and fit=-1"
+        count = dbConnection.cursor.execute(sql, (questionId, personId))
+        if commit:
+            dbConnection.conn.commit()
+        return count
+            
     @staticmethod
     def saveJob(dbConnection, question, job):
         for task in job:
@@ -1306,6 +1346,14 @@ class CascadeFitCategoryPhase2(DBObject):
             dbConnection.conn.commit()
 
     @staticmethod
+    def unassignFrom(dbConnection, personId, questionId, commit=True):
+        sql = "update cascade_fit_categories_phase2 set user_id=null where question_id=%s and user_id=%s and fit=-1"
+        count = dbConnection.cursor.execute(sql, (questionId, personId))
+        if commit:
+            dbConnection.conn.commit()
+        return count
+            
+    @staticmethod
     def saveJob(dbConnection, question, job):
         for task in job:
             taskId = task["id"]
@@ -1326,7 +1374,7 @@ class CascadeFitCategoryPhase2(DBObject):
     def continueCascade(dbConnection, question):
         GenerateCascadeHierarchy(dbConnection, question)
         question.initCascadeNextStep(dbConnection)
-    
+            
 class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):        
     def __init__(self):
         super().__init__()
