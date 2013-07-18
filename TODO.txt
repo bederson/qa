@@ -50,7 +50,7 @@ Misc Improvements
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 * When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
-* DeadlineExceededError when takes too long to generate steps for task
+* Nickname authentication NOT working; forget user is logged in when switching between pages sometimes
   
 Testing
 * Build test harness

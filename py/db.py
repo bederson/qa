@@ -487,7 +487,7 @@ class Person(DBObject):
             dbConnection.conn.commit()
             self.is_logged_in = True 
             
-    def logout(self, dbConnection, commit=True):
+    def logout(self, dbConnection, question=None, commit=True):
         if self.is_logged_in:
             # if a Google authenticated user is logging out, modify all records associated with this user
             if self.authenticated_user_id:
@@ -508,8 +508,10 @@ class Person(DBObject):
 
                 # TODO: not finished, need to unassign jobs (if cascade is in progress)
                 # TODO: need to notify any waiting users that more jobs available
-                # consider passing in param to indicate whether or not to check for jobs to unassign or question needs to be loaded?
-                #Question.unassignCascadeJobsFromUser(dbConnection, self.id, self.question_id, commit=commit)
+                # TODO: need to handle case when user logs out passively (just closes browser) and question not passed in
+                #       can load question from person.question_id but how to check phase/complete before doing that
+#                 if question and question.phase == constants.PHASE_CASCADE and not question.cascade_complete:
+#                     Question.unassignCascadeJobsFromUser(dbConnection, self.id, question.id, commit=commit)
                 
             if commit:
                 dbConnection.conn.commit()

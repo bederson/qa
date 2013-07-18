@@ -363,7 +363,7 @@ class LogoutHandler(BaseHandler):
         self.init()
         ok = self.checkRequirements(userRequired=True)
         if ok:
-            self.person.logout(self.dbConnection)
+            self.person.logout(self.dbConnection, question=self.question)
             session = gaesessions.get_current_session()
             if session.is_active():
                 session.terminate(True)
