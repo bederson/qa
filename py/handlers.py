@@ -433,7 +433,11 @@ class QueryHandler(BaseHandler):
             elif request == "ideas" and self.question:
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
                 data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }
-                
+                if self.question.isAuthor() and self.question.cascade_complete:
+                    stats = self.question.getStats(self.dbConnection)
+                    if stats:
+                        data["admin_stats"] = stats
+
         self.writeResponseAsJson(data)
         self.destroy()
 
