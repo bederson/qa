@@ -24,6 +24,7 @@ import math
 import random
 from google.appengine.api import rdbms
 from google.appengine.api import users
+from lib import gaesessions
 
 class DatabaseConnection():
     def __init__(self):
@@ -436,7 +437,7 @@ class Question(DBObject):
 
 class Person(DBObject):               
     table = "users"
-    fields = [ "id", "authenticated_user_id", "authenticated_nickname", "nickname", "question_id", "latest_login_timestamp", "latest_logout_timestamp" ]   
+    fields = [ "id", "authenticated_user_id", "authenticated_nickname", "nickname", "question_id", "latest_login_timestamp", "latest_logout_timestamp", "session_sid" ]   
 
     def __init__(self):
         self.id = None
@@ -447,6 +448,7 @@ class Person(DBObject):
         self.latest_login_timestamp = None
         self.latest_logout_timestamp = None
         self.is_logged_in = False # not stored in db
+        self.session_sid = None
     
     @staticmethod
     def create(dbConnection, question=None, nickname=None):
@@ -459,14 +461,17 @@ class Person(DBObject):
         if not authenticatedUserId and not nickname:
             return None
         
+        session = gaesessions.get_current_session()
+        
         person = Person()
         person.authenticated_user_id = authenticatedUserId
         person.authenticated_nickname = authenticatedNickname
         person.nickname = nickname if nickname else (Person.cleanNickname(user.nickname()) if user else None)
         person.question_id = question.id if question else None
+        person.session_sid = session.sid if session and authenticatedUserId is None else None
           
-        sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id, latest_login_timestamp, latest_logout_timestamp) values (%s, %s, %s, %s, now(), null)"
-        dbConnection.cursor.execute(sql, (person.authenticated_user_id, person.authenticated_nickname, person.nickname, person.question_id))
+        sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id, session_sid, latest_login_timestamp, latest_logout_timestamp) values (%s, %s, %s, %s, %s, now(), null)"
+        dbConnection.cursor.execute(sql, (person.authenticated_user_id, person.authenticated_nickname, person.nickname, person.question_id, person.session_sid))
         person.id = dbConnection.cursor.lastrowid
         dbConnection.conn.commit()
         person.is_logged_in=True          
@@ -482,16 +487,25 @@ class Person(DBObject):
               
     def login(self, dbConnection, commit=True):
         if not self.is_logged_in:
-            sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null where id=%s"
-            dbConnection.cursor.execute(sql, (self.id))
+            session = gaesessions.get_current_session()
+            updateValues = ()
+            sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null"
+            # store session id with nickname authenticated users
+            if self.authenticated_user_id is None and session is not None:
+                sql += ", session_sid=%s"
+                updateValues += (session.sid,)
+            sql += " where id=%s"
+            updateValues += (self.id,)
+            dbConnection.cursor.execute(sql, updateValues)
             dbConnection.conn.commit()
-            self.is_logged_in = True 
+            self.session_sid = session.sid if session else None
+            self.is_logged_in = True
             
     def logout(self, dbConnection, question=None, commit=True):
         if self.is_logged_in:
             # if a Google authenticated user is logging out, modify all records associated with this user
             if self.authenticated_user_id:
-                sql = "update users set latest_logout_timestamp=now() where authenticated_user_id=%s"
+                sql = "update users set latest_logout_timestamp=now(), session_sid=null where authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
                 sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
@@ -501,7 +515,7 @@ class Person(DBObject):
             
             # otherwise, logout this specific user instance
             else:
-                sql = "update users set latest_logout_timestamp=now() where id=%s"
+                sql = "update users set latest_logout_timestamp=now(), session_sid=null where id=%s"
                 dbConnection.cursor.execute(sql, (self.id))
                 sql = "delete from user_clients where user_id=%s"
                 dbConnection.cursor.execute(sql, (self.id))
@@ -510,11 +524,13 @@ class Person(DBObject):
                 # TODO: need to notify any waiting users that more jobs available
                 # TODO: need to handle case when user logs out passively (just closes browser) and question not passed in
                 #       can load question from person.question_id but how to check phase/complete before doing that
-#                 if question and question.phase == constants.PHASE_CASCADE and not question.cascade_complete:
+#                 if question is not None and question.phase == constants.PHASE_CASCADE and not question.cascade_complete:
 #                     Question.unassignCascadeJobsFromUser(dbConnection, self.id, question.id, commit=commit)
                 
             if commit:
                 dbConnection.conn.commit()
+
+            self.session_sid = None                
             self.is_logged_in = False
         
     def addClient(self, dbConnection, clientId, commit=True):   
@@ -538,6 +554,14 @@ class Person(DBObject):
             dbConnection.conn.commit()
             
         return numClients
+    
+    def getClientIds(self, dbConnection, question):
+        sql = "select client_id from user_clients where user_id={0}".format(self.id)
+        if question:
+            sql += " and client_id like '%\_{0}\_%'".format(question.id)
+        dbConnection.cursor.execute(sql)
+        rows = dbConnection.cursor.fetchall()
+        return [ row["client_id"] for row in rows ]
             
     @staticmethod
     def getPerson(dbConnection, question=None, nickname=None):
@@ -546,7 +570,7 @@ class Person(DBObject):
 
         # if question allows nickname authentication and nickname given, check for user
         # question author does not have to login with nickname if already authenticated
-        if question and question.nickname_authentication and nickname and not question.isAuthor():
+        if question is not None and question.nickname_authentication and nickname is not None and not question.isAuthor():
             sql = "select {0} from users where question_id=%s and nickname=%s".format(Person.fieldsSql())
             dbConnection.cursor.execute(sql, (question.id, nickname))
             row = dbConnection.cursor.fetchone()
@@ -568,7 +592,7 @@ class Person(DBObject):
             # if user not found, check if question author is logging into the 
             # question for the first time (i.e., entering ideas, helping categorize, etc.)
             # and if so, create user            
-            if not person and question and question.isAuthor:
+            if not person and question is not None and question.isAuthor:
                 person = Person.create(dbConnection, question=question)
                 
         return person

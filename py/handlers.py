@@ -38,64 +38,63 @@ from db import *
 #####################
 
 class BaseHandler(webapp2.RequestHandler):
-    dbConnection = None
-    person = None
-    question = None
-    session = None
-
-    def init(self, initUser=True, adminRequired=False):
+    def init(self, initUser=True, adminRequired=False, initSession=True, loggingOut=False):                    
         # Get the current browser session, if any
         # Otherwise, create one
         self.session = gaesessions.get_current_session()
-        if self.session.sid is None:
+        if initSession and self.session.sid is None:
             self.session.start()
-        
-        if self.dbConnection:
-            self.dbConnection.disconnect()
-            
+                    
         # Google recommends that a new connection be created to service each HTTP request, 
         # and re-used for the duration of that request (since the time to create a new connection is 
         # similar to that required to test the liveness of an existing connection).
         # https://developers.google.com/cloud-sql/faq#connections
         self.dbConnection = DatabaseConnection()
         self.dbConnection.connect()
-            
+        
+        self.question = None
         questionId = self.request.get("question_id")
         if questionId:
             self.question = Question.getById(self.dbConnection, questionId)
 
+        self.person = None
         if initUser:
-            self.initUserContext(adminRequired=adminRequired)
+            self.initUserContext(adminRequired=adminRequired, loggingOut=loggingOut)
                 
     def destroy(self):
         if self.dbConnection:
             self.dbConnection.disconnect()
                 
-    def initUserContext(self, adminRequired=False):
+    def initUserContext(self, adminRequired=False, loggingOut=False):
         nickname = self.request.get("nickname", None)
         question = self.question
-                    
+        
         # if question allows nickname authentication and nickname not provided,
         # check if stored in session
-        if question and question.nickname_authentication and not nickname:
+        if question is not None and question.nickname_authentication and not nickname:
             questionValues = self.session.get(question.id) if self.session.has_key(question.id) else None
             nickname = questionValues["nickname"] if questionValues else None
-           
+
         # force check for authenticated Google user not affiliated with a specific question
         if adminRequired:
             question = None
             nickname = None
-        
+            
         # get person, and update login status if needed
         self.person = Person.getPerson(self.dbConnection, question, nickname)
-        if self.person:
-            self.person.login(self.dbConnection)        
-
+        
+        # only allow nickname authenticated user to login to one session
+        if self.person is not None and nickname is not None and self.person.session_sid is not None and self.person.session_sid != self.session.sid:
+            self.person = None
+        
+        if self.person is not None:
+            self.person.login(self.dbConnection)
+        
     def isUserLoggedIn(self):
-        return self.person and self.person.is_logged_in
+        return self.person is not None and self.person.is_logged_in
     
     def isAdminLoggedIn(self):
-        return Person.isAdmin() or (self.question and self.question.isAuthor())
+        return Person.isAdmin() or (self.question is not None and self.question.isAuthor())
     
     def getDefaultTemplateValues(self, connect=True):
         """Return a dictionary of default template values""" 
@@ -112,7 +111,7 @@ class BaseHandler(webapp2.RequestHandler):
         
         # otherwise, user not logged in
         else:
-            nicknameAuthenticationAllowed = self.question and self.question.nickname_authentication and not self.question.isAuthor()
+            nicknameAuthenticationAllowed = self.question is not None and self.question.nickname_authentication and not self.question.isAuthor()
             url = getLoginUrl(self.request.uri, self.question)
             urlLink = "Login w/ Nickname" if nicknameAuthenticationAllowed else "Login w/ Google Account"
                     
@@ -160,7 +159,7 @@ class BaseHandler(webapp2.RequestHandler):
         # check if user has edit privileges for question
         if ok and editPrivilegesRequired:
             ok = self.checkIfHasEditPrivileges()
-            
+        
         return ok
             
     def checkIfUserLoggedIn(self):
@@ -242,10 +241,10 @@ class NicknameLoginPageHandler(BaseHandler):
         
 class IdeaPageHandler(BaseHandler):
     def get(self): 
-        self.init()      
+        self.init()
         self.checkRequirements(userRequired=True, questionRequired=True)
         templateValues = self.getDefaultTemplateValues()  
-        templateValues["change_nickname_allowed"] = json.dumps(self.person and self.person.authenticated_user_id is not None)
+        templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and self.person.authenticated_user_id is not None)
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -346,13 +345,13 @@ class QuestionLoginHandler(BaseHandler):
             data = { "status" : 0, "msg" : self.session.pop("msg") }
                
         else:
-            if self.person:
+            if self.person is not None:
                 self.person.login(self.dbConnection)
                                             
             data = { 
                 "status" : 1, 
                 "question" : self.question.toDict(), 
-                "url" : getPhaseUrl(self.question) if self.person else getLoginUrl(self.request.uri, self.question) 
+                "url" : getPhaseUrl(self.question) if self.person is not None else getLoginUrl(self.request.uri, self.question) 
             }
         
         self.writeResponseAsJson(data)
@@ -360,20 +359,18 @@ class QuestionLoginHandler(BaseHandler):
                      
 class LogoutHandler(BaseHandler):
     def get(self):
-        self.init()
+        self.init(loggingOut=True)
         ok = self.checkRequirements(userRequired=True)
         if ok:
             self.person.logout(self.dbConnection, question=self.question)
-            session = gaesessions.get_current_session()
-            if session.is_active():
-                session.terminate(True)
-                session.clear()
-                session.regenerate_id()
-
+            if self.session.is_active():
+                self.session.terminate(True)
+                self.session.clear()
+                self.session.regenerate_id()
         self.destroy()
         
         # redirect depending on whether logged in as Google user or via nickname
-        self.redirect(users.create_logout_url("/") if self.person and self.person.authenticated_user_id else "/")
+        self.redirect(users.create_logout_url("/") if self.person is not None and self.person.authenticated_user_id else "/")
 
 class NicknameHandler(BaseHandler):
     def post(self):
@@ -775,7 +772,7 @@ class CascadeOptionsHandler(BaseHandler):
 class ChannelConnectedHandler(BaseHandler):
     # Notified when clients connect
     def post(self):
-        self.init(initUser=False)
+        self.init(initUser=False, initSession=False)
         clientId = self.request.get("from")
         questionId, personId, isAdmin = getInfoFromClient(clientId)
         person = Person.getById(self.dbConnection, personId)
@@ -786,7 +783,7 @@ class ChannelConnectedHandler(BaseHandler):
 class ChannelDisconnectedHandler(BaseHandler):
     # Notified when clients disconnect
     def post(self):
-        self.init(initUser=False)
+        self.init(initUser=False, initSession=False)
         clientId = self.request.get("from")
         questionId, personId, isAdmin = getInfoFromClient(clientId)
         person = Person.getById(self.dbConnection, personId)
@@ -802,7 +799,7 @@ def createChannel(question, person):
     clientId += "_" + (str(question.id) if question else constants.EMPTY_CLIENT_TOKEN)
     clientId += "_" + (str(person.id) if person else constants.EMPTY_CLIENT_TOKEN)
     # question authors are marked with a "_a" in the clientId
-    if question and question.isAuthor():
+    if question is not None and question.isAuthor():
         clientId += "_a"                                     
     token = channel.create_channel(clientId)
     return clientId, token

@@ -66,6 +66,7 @@ function initEventHandlers() {
 		enableDisable($("#submit"), false);
 		var idea = $("#answer").val();		
 		if (idea.length == "") {
+			enableDisable($("#submit"), true);
 			return;
 		}
 		
