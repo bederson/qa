@@ -251,7 +251,6 @@ class Question(DBObject):
                 self.calculateQuestionStats(dbConnection)
 
     def recordCascadeStepStartTime(self, dbConnection):
-        #helpers.log("RECORD START TIME: {0}".format(self.cascade_step))
         if self.cascade_step == 1:
             sql = "insert into cascade_times (question_id, cascade_iteration, cascade_step1_start) values(%s, %s, now())"
         else:
@@ -260,11 +259,21 @@ class Question(DBObject):
         dbConnection.conn.commit()
                    
     def recordCascadeStepEndTime(self, dbConnection):
-        #helpers.log("RECORD END TIME: {0}".format(self.cascade_step))
         sql = "update cascade_times set cascade_step{0}_end=now() where question_id=%s and cascade_iteration=%s".format(self.cascade_step)
         dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
         dbConnection.conn.commit()
-
+        
+    def recordCascadeUnsavedTask(self, dbConnection, unsavedCount):
+        try:
+            dbConnection.conn.begin()
+            sql = "select * from cascade_times where question_id=%s and cascade_iteration=%s for update"
+            dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
+            sql = "update cascade_times set cascade_step{0}_unsaved_count = cascade_step{1}_unsaved_count + {2} where question_id=%s and cascade_iteration=%s".format(self.cascade_step, self.cascade_step, unsavedCount)
+            dbConnection.cursor.execute(sql, (self.id, self.cascade_iteration))
+            dbConnection.conn.commit()
+        except:
+            dbConnection.conn.rollback()
+            
     def checkIfCascadeComplete(self, dbConnection):
         if not self.cascade_complete:
             lastStepComplete = self.cascade_step == len(CASCADE_CLASSES) and CASCADE_CLASSES[self.cascade_step-1].isStepComplete(dbConnection, self)
@@ -862,34 +871,31 @@ class CascadeSuggestedCategory(DBObject):
         # if not, assign new tasks
         # do not check if user already performed task on idea when running locally
         if len(job) == 0:
-            try:
-                sql = "select cascade_suggested_categories.*,idea from cascade_suggested_categories,question_ideas where "
-                sql += "cascade_suggested_categories.idea_id=question_ideas.id "
-                sql += "and cascade_suggested_categories.question_id=%s " 
-                sql += "and cascade_suggested_categories.user_id is null "
-                sql += "and idea_id not in (select distinct idea_id from cascade_suggested_categories where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-                sql += "group by idea_id order by rand() limit {0} ".format(question.cascade_t)
-                sql += "for update"
-    
-                if helpers.isRunningLocally():
-                    dbConnection.cursor.execute(sql, (question.id,))
-                else:
-                    dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
-    
-                rows = dbConnection.cursor.fetchall()
-                for row in rows:
-                    task = CascadeSuggestedCategory.createFromData(row)
-                    task.assignTo(dbConnection, person, commit=False)
-                    job.append(task)
-                    
-                dbConnection.conn.commit()
-            except:
-                job = []
-                dbConnection.rollback()
+            sql = "select cascade_suggested_categories.*,idea from cascade_suggested_categories,question_ideas where "
+            sql += "cascade_suggested_categories.idea_id=question_ideas.id "
+            sql += "and cascade_suggested_categories.question_id=%s " 
+            sql += "and cascade_suggested_categories.user_id is null "
+            sql += "and idea_id not in (select distinct idea_id from cascade_suggested_categories where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "group by idea_id order by rand() limit {0} ".format(question.cascade_t)
+
+            # selected rows are write-locked until the current transaction is committed or rolled back
+            # TODO: how to handle if timeout happens before select unblocks
+            # TODO/FIX: all records being locked in table - MUST FIX!!! 
+            if helpers.isRunningLocally():
+                dbConnection.cursor.execute(sql, (question.id,))
+            else:
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+            rows = dbConnection.cursor.fetchall()
+
+            for row in rows:
+                task = CascadeSuggestedCategory.createFromData(row)
+                task.assignTo(dbConnection, person, commit=False)
+                job.append(task)
+            dbConnection.conn.commit()
         
         return job if len(job) > 0 else None
      
-    def assignTo(self, dbConnection, person, commit=True):
+    def assignTo(self, dbConnection, person, commit=True):   
         sql = "update cascade_suggested_categories set user_id=%s where id=%s"
         dbConnection.cursor.execute(sql, (person.id, self.id))
         if commit:
@@ -905,18 +911,27 @@ class CascadeSuggestedCategory(DBObject):
             
     @staticmethod
     def saveJob(dbConnection, question, job):
+        unsavedTasks = []
         for task in job:
             taskId = task["id"]
             suggestedCategory = task["suggested_category"]
             # save suggested category
             if suggestedCategory != "":
-                sql = "update cascade_suggested_categories set suggested_category=%s where id=%s"
-                dbConnection.cursor.execute(sql, (suggestedCategory, taskId))
+                sql = "update cascade_suggested_categories set suggested_category=%s where id=%s and (suggested_category is null and skipped=0)"
+                rowsUpdated = dbConnection.cursor.execute(sql, (suggestedCategory, taskId))                    
             # if skipped, mark it so not assigned in future
             else:
-                sql = "update cascade_suggested_categories set skipped=1 where id=%s"
-                dbConnection.cursor.execute(sql, (taskId))
+                sql = "update cascade_suggested_categories set skipped=1 where id=%s and (suggested_category is null and skipped=0)"
+                rowsUpdated = dbConnection.cursor.execute(sql, (taskId))
+            
+            if rowsUpdated == 0:
+                unsavedTasks.append(taskId)
+
         dbConnection.conn.commit()
+                
+        if len(unsavedTasks) > 0:
+            helpers.log("WARNING: CascadeSuggestedCategory tasks not saved: {0}".format(", ".join(unsavedTasks)))
+            question.recordCascadeUnsavedTask(dbConnection, len(unsavedTasks))
         
         return CascadeSuggestedCategory.isStepComplete(dbConnection, question)
         
@@ -1003,29 +1018,22 @@ class CascadeBestCategory(DBObject):
         # if not, assign new tasks
         # do not check if user already performed task on idea when running locally
         if len(job) == 0:
-            try:
-                sql = "select * from cascade_best_categories where "
-                sql += "question_id=%s " 
-                sql += "and user_id is null "
-                sql += "and idea_id not in (select distinct idea_id from cascade_best_categories where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-                sql += "group by idea_id order by rand() limit 1 "
-                sql += "for update"
-    
-                if helpers.isRunningLocally():
-                    dbConnection.cursor.execute(sql, (question.id,))
-                else:
-                    dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
-                
-                rows = dbConnection.cursor.fetchall()
-                for row in rows:
-                    task = CascadeBestCategory.createFromData(row, dbConnection)
-                    task.assignTo(dbConnection, person, commit=False)
-                    job.append(task)
+            sql = "select * from cascade_best_categories where "
+            sql += "question_id=%s " 
+            sql += "and user_id is null "
+            sql += "and idea_id not in (select distinct idea_id from cascade_best_categories where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "group by idea_id order by rand() limit 1"
+            if helpers.isRunningLocally():
+                dbConnection.cursor.execute(sql, (question.id,))
+            else:
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
             
-                dbConnection.conn.commit()
-            except:
-                job = []
-                dbConnection.rollback()
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                task = CascadeBestCategory.createFromData(row, dbConnection)
+                task.assignTo(dbConnection, person, commit=False)
+                job.append(task)
+            dbConnection.conn.commit()
                     
         return job if len(job) > 0 else None
      
@@ -1045,19 +1053,27 @@ class CascadeBestCategory(DBObject):
             
     @staticmethod
     def saveJob(dbConnection, question, job):
+        unsavedTasks = []
         for task in job:
             taskId = task["id"]
             bestCategory = task["best_category"]
             # save best category
             if bestCategory != "":
-                sql = "update cascade_best_categories set best_category=%s where id=%s"
-                dbConnection.cursor.execute(sql, (bestCategory, taskId))
+                sql = "update cascade_best_categories set best_category=%s where id=%s and (best_category is null and none_of_the_above=0)"
+                rowsUpdated = dbConnection.cursor.execute(sql, (bestCategory, taskId))                    
             # vote for none of the above
             else:
-                sql = "update cascade_best_categories set none_of_the_above=1 where id=%s"
-                dbConnection.cursor.execute(sql, (taskId)) 
+                sql = "update cascade_best_categories set none_of_the_above=1 where id=%s and (best_category is null and none_of_the_above=0)"
+                rowsUpdated = dbConnection.cursor.execute(sql, (taskId))
+            
+            if rowsUpdated == 0:
+                unsavedTasks.append(taskId)
 
         dbConnection.conn.commit()
+        
+        if len(unsavedTasks) > 0:
+            helpers.log("WARNING: CascadeBestCategory tasks not saved: {0}".format(", ".join(unsavedTasks)))
+            question.recordCascadeUnsavedTask(dbConnection, len(unsavedTasks))
         
         return CascadeBestCategory.isStepComplete(dbConnection, question)
         
@@ -1170,46 +1186,39 @@ class CascadeFitCategoryPhase1(DBObject):
         # do not check if user already performed task on idea when running locally
         # ask user to check whether all categories fit or not for an idea (regardless of how many)
         if len(job) == 0:
-            try:
-                # find an idea that still needs categories checked
-                sql = "select idea_id from cascade_fit_categories_phase1 where "
-                sql += "question_id=%s "
-                sql += "and user_id is null "
-                sql += "and (idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-                sql += "order by rand() limit 1 "
-                sql += "for update"
+            # find an idea that still needs categories checked
+            sql = "select idea_id from cascade_fit_categories_phase1 where "
+            sql += "question_id=%s "
+            sql += "and user_id is null "
+            sql += "and (idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "order by rand() limit 1"
+            if helpers.isRunningLocally():
+                dbConnection.cursor.execute(sql, (question.id,))
+            else:
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+            row = dbConnection.cursor.fetchone()
+            ideaId = row["idea_id"] if row else None
+    
+            # now find categories that still need to be checked for this idea
+            if ideaId:
+                sql = "select cascade_fit_categories_phase1.*,idea from cascade_fit_categories_phase1,question_ideas where "
+                sql += "cascade_fit_categories_phase1.question_id=%s "
+                sql += "and cascade_fit_categories_phase1.idea_id=question_ideas.id "
+                sql += "and cascade_fit_categories_phase1.idea_id=%s "
+                sql += "and cascade_fit_categories_phase1.user_id is null "
+                sql += "and (cascade_fit_categories_phase1.idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+                sql += "group by category order by rand() limit {0}".format(question.cascade_t)                    
                 if helpers.isRunningLocally():
-                    dbConnection.cursor.execute(sql, (question.id,))
+                    dbConnection.cursor.execute(sql, (question.id, ideaId))
                 else:
-                    dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
-                row = dbConnection.cursor.fetchone()
-                ideaId = row["idea_id"] if row else None
-        
-                # now find categories that still need to be checked for this idea
-                if ideaId:
-                    sql = "select cascade_fit_categories_phase1.*,idea from cascade_fit_categories_phase1,question_ideas where "
-                    sql += "cascade_fit_categories_phase1.question_id=%s "
-                    sql += "and cascade_fit_categories_phase1.idea_id=question_ideas.id "
-                    sql += "and cascade_fit_categories_phase1.idea_id=%s "
-                    sql += "and cascade_fit_categories_phase1.user_id is null "
-                    sql += "and (cascade_fit_categories_phase1.idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-                    sql += "group by category order by rand() limit {0} ".format(question.cascade_t)
-                    sql += "for update"
-                    if helpers.isRunningLocally():
-                        dbConnection.cursor.execute(sql, (question.id, ideaId))
-                    else:
-                        dbConnection.cursor.execute(sql, (question.id, ideaId, question.id, person.id))
-                    
-                    rows = dbConnection.cursor.fetchall()
-                    for row in rows:
-                        task = CascadeFitCategoryPhase1.createFromData(row)
-                        task.assignTo(dbConnection, person, commit=False)
-                        job.append(task)
-                    
-                    dbConnection.conn.commit()
-            except:
-                job = []
-                dbConnection.rollback()
+                    dbConnection.cursor.execute(sql, (question.id, ideaId, question.id, person.id))
+                
+                rows = dbConnection.cursor.fetchall()
+                for row in rows:
+                    task = CascadeFitCategoryPhase1.createFromData(row)
+                    task.assignTo(dbConnection, person, commit=False)
+                    job.append(task)
+                dbConnection.conn.commit()
                 
         return job if len(job) > 0 else None
      
@@ -1229,12 +1238,20 @@ class CascadeFitCategoryPhase1(DBObject):
             
     @staticmethod
     def saveJob(dbConnection, question, job):
+        unsavedTasks = []
         for task in job:
             taskId = task["id"]
             fit = task["fit"]
-            sql = "update cascade_fit_categories_phase1 set fit=%s where id=%s"
-            dbConnection.cursor.execute(sql, (fit, taskId))
+            sql = "update cascade_fit_categories_phase1 set fit=%s where id=%s and fit=-1"
+            rowsUpdated = dbConnection.cursor.execute(sql, (fit, taskId))
+            if rowsUpdated == 0:
+                unsavedTasks.append(taskId)
         dbConnection.conn.commit()
+        
+        if len(unsavedTasks) > 0:
+            helpers.log("WARNING: CascadeFitCategoryPhase1 tasks not saved: {0}".format(", ".join(unsavedTasks)))
+            question.recordCascadeUnsavedTask(dbConnection, len(unsavedTasks))
+        
         return CascadeFitCategoryPhase1.isStepComplete(dbConnection, question)
         
     @staticmethod
@@ -1327,45 +1344,38 @@ class CascadeFitCategoryPhase2(DBObject):
         # ask user to check whether all categories fit or not for an idea (regardless of how many)
         # do not check if user already performed task on idea when running locally
         if len(job) == 0:
-            try:
-                # find an idea that still needs categories checked
-                sql = "select idea_id from cascade_fit_categories_phase2 where "
-                sql += "question_id=%s "
-                sql += "and user_id is null "
-                sql += "and (idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-                sql += "order by rand() limit 1 "
-                sql += "for update"
+            # find an idea that still needs categories checked
+            sql = "select idea_id from cascade_fit_categories_phase2 where "
+            sql += "question_id=%s "
+            sql += "and user_id is null "
+            sql += "and (idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+            sql += "order by rand() limit 1"
+            if helpers.isRunningLocally():
+                dbConnection.cursor.execute(sql, (question.id,))
+            else:
+                dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+            row = dbConnection.cursor.fetchone()
+            ideaId = row["idea_id"] if row else None
+    
+            # now find categories that still need to be checked for this idea
+            if ideaId:
+                sql = "select cascade_fit_categories_phase2.*,idea from cascade_fit_categories_phase2,question_ideas where "
+                sql += "cascade_fit_categories_phase2.question_id=%s "
+                sql += "and cascade_fit_categories_phase2.idea_id=question_ideas.id "
+                sql += "and cascade_fit_categories_phase2.idea_id=%s "
+                sql += "and cascade_fit_categories_phase2.user_id is null "
+                sql += "and (cascade_fit_categories_phase2.idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
+                sql += "group by category order by rand() limit {0}".format(question.cascade_t)                    
                 if helpers.isRunningLocally():
-                    dbConnection.cursor.execute(sql, (question.id,))
+                    dbConnection.cursor.execute(sql, (question.id, ideaId))
                 else:
-                    dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
-                row = dbConnection.cursor.fetchone()
-                ideaId = row["idea_id"] if row else None
-        
-                # now find categories that still need to be checked for this idea
-                if ideaId:
-                    sql = "select cascade_fit_categories_phase2.*,idea from cascade_fit_categories_phase2,question_ideas where "
-                    sql += "cascade_fit_categories_phase2.question_id=%s "
-                    sql += "and cascade_fit_categories_phase2.idea_id=question_ideas.id "
-                    sql += "and cascade_fit_categories_phase2.idea_id=%s "
-                    sql += "and cascade_fit_categories_phase2.user_id is null "
-                    sql += "and (cascade_fit_categories_phase2.idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase2 where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
-                    sql += "group by category order by rand() limit {0} ".format(question.cascade_t)
-                    sql += "for update"
-                    if helpers.isRunningLocally():
-                        dbConnection.cursor.execute(sql, (question.id, ideaId))
-                    else:
-                        dbConnection.cursor.execute(sql, (question.id, ideaId, question.id, person.id))
-                    rows = dbConnection.cursor.fetchall()
-                    for row in rows:
-                        task = CascadeFitCategoryPhase2.createFromData(row)
-                        task.assignTo(dbConnection, person, commit=False)
-                        job.append(task)
-                    
-                    dbConnection.conn.commit()
-            except:
-                job = []
-                dbConnection.rollback()
+                    dbConnection.cursor.execute(sql, (question.id, ideaId, question.id, person.id))
+                rows = dbConnection.cursor.fetchall()
+                for row in rows:
+                    task = CascadeFitCategoryPhase2.createFromData(row)
+                    task.assignTo(dbConnection, person, commit=False)
+                    job.append(task)
+                dbConnection.conn.commit()
                 
         return job if len(job) > 0 else None
      
@@ -1385,12 +1395,20 @@ class CascadeFitCategoryPhase2(DBObject):
             
     @staticmethod
     def saveJob(dbConnection, question, job):
+        unsavedTasks = []
         for task in job:
             taskId = task["id"]
             fit = task["fit"]
-            sql = "update cascade_fit_categories_phase2 set fit=%s where id=%s"
-            dbConnection.cursor.execute(sql, (fit, taskId))
+            sql = "update cascade_fit_categories_phase2 set fit=%s where id=%s and fit=-1"
+            rowsUpdated = dbConnection.cursor.execute(sql, (fit, taskId))
+            if rowsUpdated == 0:
+                unsavedTasks.append(taskId)
         dbConnection.conn.commit()
+        
+        if len(unsavedTasks) > 0:
+            helpers.log("WARNING: CascadeFitCategoryPhase2 tasks not saved: {0}".format(", ".join(unsavedTasks)))
+            question.recordCascadeUnsavedTask(dbConnection, len(unsavedTasks))
+        
         return CascadeFitCategoryPhase2.isStepComplete(dbConnection, question)
         
     @staticmethod
