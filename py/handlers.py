@@ -814,9 +814,9 @@ def getInfoFromClient(clientId):
 def sendMessage(dbConnection, fromClientId, questionId, message, adminMessage=None):
     """Send message to all listeners (except self if fromClientId specified) to this topic"""
     if questionId:
-        # TODO: would it be better to store client ids memcache instead of requiring db query each time
-        sql = "select client_id from users,user_clients where users.id=user_clients.user_id and question_id=%s"
-        dbConnection.cursor.execute(sql, (questionId))
+        # TODO: would it be better to store client ids in memcache instead of requiring db query each time
+        sql = "select client_id from users,user_clients where users.id=user_clients.user_id and question_id={0} and client_id like '%\_{1}\_%'".format(questionId, questionId)
+        dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             toClientId = row["client_id"]

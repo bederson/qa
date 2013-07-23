@@ -14,6 +14,7 @@ Features
 * Use stemming when comparing categories for equality
 * Allow admins to modify questions, in addition to question authors
 * Allow admins to logout students
+* Design GUI to work on mobile devices
 
 Misc Improvements
 * Reduce page reloads to reduce unnecessary server calls and # of channels created
@@ -46,6 +47,7 @@ Misc Improvements
 * Create cronjob to clean up any users who have been logged in for a long time
 * Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas?
 * Suggest cascade settings based on # of ideas, # of users, etc.
+* Consider when it would speed things up to check for duplicate categories/ideas before step 3
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

@@ -950,13 +950,17 @@ class CascadeBestCategory(DBObject):
     def createFromData(cls, data, dbConnection=None):
         task = super(CascadeBestCategory, cls).createFromData(data)
         if task and dbConnection:
+            # suggested_categories are the unique, case-insensitive categories suggested for this idea in step 1
             sql = "select idea,suggested_category from cascade_suggested_categories,question_ideas where cascade_suggested_categories.idea_id=question_ideas.id and cascade_suggested_categories.idea_id=%s and suggested_category is not null"
             dbConnection.cursor.execute(sql, (task.idea_id))
             rows = dbConnection.cursor.fetchall()
+            lowerCaseSuggestedCategories = []
             for row in rows:
                 task.idea = row["idea"]
-                if row["suggested_category"] not in task.suggested_categories:
+                suggestedCategory = row["suggested_category"]
+                if suggestedCategory.lower() not in lowerCaseSuggestedCategories:
                     task.suggested_categories.append(row["suggested_category"])
+                    lowerCaseSuggestedCategories.append(suggestedCategory.lower())
         return task
            
     @staticmethod
