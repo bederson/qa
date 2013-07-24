@@ -254,6 +254,7 @@ class CascadePageHandler(BaseHandler):
         self.init() 
         self.checkRequirements(userRequired=True, questionRequired=True)
         templateValues = self.getDefaultTemplateValues()
+        templateValues["num_steps"] = self.question.cascade_step_count
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -264,7 +265,7 @@ class ResultsPageHandler(BaseHandler):
         self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False)
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
-        self.response.out.write(template.render(path, templateValues))
+        self.response.out.write(template.render(path, templateValues))        
         self.destroy()
 
 class AdminPageHandler(BaseHandler):
@@ -530,26 +531,25 @@ class DownloadQuestionHandler(BaseHandler):
             if self.question.cascade_complete:
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
 
-                # write out stats
-                stats = self.question.calculateQuestionStats(self.dbConnection)
-                cascadeStats = self.question.getCascadeStats(self.dbConnection)
+                # write out stats                
+                stats = self.question.getCascadeStats(self.dbConnection)                    
                 if stats:
                     excelWriter.writerow(("Counts",))
                     excelWriter.writerow(("# users", stats["user_count"]))
                     excelWriter.writerow(("# ideas", stats["idea_count"]))
-                    excelWriter.writerow(("# categories", cascadeStats["category_count"]))
+                    excelWriter.writerow(("# categories", stats["category_count"]))
                     excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
                     excelWriter.writerow(())   
                     
                     excelWriter.writerow(("Cascade Times (h:mm:ss)",))
                     for i in range(len(CASCADE_CLASSES)):
                         step = i + 1
-                        duration = cascadeStats["step{0}_duration".format(step)]
+                        duration = stats["step{0}_duration".format(step)]
                         durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
                         excelWriter.writerow(("Step {0}".format(step), durationFormatted))
-                    duration = cascadeStats["total_duration"]
+                    duration = stats["total_duration"]
                     durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
-                    excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(cascadeStats["iteration_count"], "iterations" if cascadeStats["iteration_count"]>1 else "iteration")))
+                    excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(stats["iteration_count"], "iterations" if stats["iteration_count"]>1 else "iteration")))
                     excelWriter.writerow(())   
                 
                 # write out cascade parameters
@@ -602,6 +602,13 @@ class DownloadQuestionHandler(BaseHandler):
                                           
             # write out ideas generated so far
             else:
+                stats = self.question.calculateQuestionStats(self.dbConnection)                    
+                if stats:
+                    excelWriter.writerow(("Counts",))
+                    excelWriter.writerow(("# users", stats["user_count"]))
+                    excelWriter.writerow(("# ideas", stats["idea_count"]))
+                    excelWriter.writerow(())   
+                    
                 headers = (
                     "Idea",
                     "Author",
@@ -740,7 +747,7 @@ class CascadeInitStepHandler(BaseHandler):
                 sendMessage(self.dbConnection, None, self.question.id, { "op": "categories" })
             else:                    
                 # notify any waiting clients that next step that is ready
-                sendMessage(self.dbConnection, None, self.question.id, { "op": "step", "step": self.question.cascade_step })
+                sendMessage(self.dbConnection, None, self.question.id, { "op": "step", "step": self.question.cascade_step, "iteration" : self.question.cascade_iteration })
 
 class CascadeOptionsHandler(BaseHandler):
     def post(self):

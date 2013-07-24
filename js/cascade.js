@@ -353,7 +353,17 @@ function handlePhase(data) {
 function handleStep(data) {
 	if (waiting) {
 		updateTitleArea(data);
-		var html = "This step has started.<br/>";
+		
+		var html = "";
+		if (data.step == 1 && data.iteration > 1) {
+			html += "<div class='yellow_highlight'>";
+			html += "Several notes were not categorized on the first pass.<br/>";
+			html += "Let's try one more time to categorize them.";
+			html += "</div>";
+		}
+		else {
+			html += "This step has started.<br/>";
+		}
 		html += "<div class='spaceabove spaceafter'><input id='next_task_button' type='button' value='Get task'></div>";
 		$("#task_area").html(html);
 		

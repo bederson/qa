@@ -93,6 +93,12 @@ a.warning:hover {
 	border-radius: 7px;
 }
 
+.yellow_highlight {
+	padding: 5px;
+	background-color: #ffff99;
+	border-radius: 7px;
+}
+
 /* spacing */
 
 .largespaceabove {
