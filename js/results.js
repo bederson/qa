@@ -204,14 +204,14 @@ function displayAdminStats() {
 	if (adminStats) {
 		html = "<hr/>";
 		html += "Cascade Timings<br/>";
-		html += "Step 1: " + toHHMMSS(adminStats["cascade_step1_duration"]) + "<br/>";
-		html += "Step 2: " + toHHMMSS(adminStats["cascade_step2_duration"]) + "<br/>";
-		html += "Step 3: " + toHHMMSS(adminStats["cascade_step3_duration"]) + "<br/>";	
-		html += "Step 4: " + toHHMMSS(adminStats["cascade_step4_duration"]) + "<br/>";
-		html += "Step 5: " + toHHMMSS(adminStats["cascade_step5_duration"]) + "<br/>";
-		html += "Step 6: " + toHHMMSS(adminStats["cascade_step6_duration"]) + "<br/>";
-		html += "TOTAL: " + toHHMMSS(adminStats["cascade_total_duration"]);
-		html +=  " (" + adminStats["cascade_iteration_count"] + " " + (adminStats["cascade_iteration_count"]==1?"iteration":"iterations") + ")<br/><br/>";		
+		html += "Step 1: " + toHHMMSS(adminStats["step1_duration"]) + "<br/>";
+		html += "Step 2: " + toHHMMSS(adminStats["step2_duration"]) + "<br/>";
+		html += "Step 3: " + toHHMMSS(adminStats["step3_duration"]) + "<br/>";	
+		html += "Step 4: " + toHHMMSS(adminStats["step4_duration"]) + "<br/>";
+		html += "Step 5: " + toHHMMSS(adminStats["step5_duration"]) + "<br/>";
+		html += "Step 6: " + toHHMMSS(adminStats["step6_duration"]) + "<br/>";
+		html += "TOTAL: " + toHHMMSS(adminStats["total_duration"]);
+		html +=  " (" + adminStats["iteration_count"] + " " + (adminStats["iteration_count"]==1?"iteration":"iterations") + ")<br/><br/>";		
 		$("#admin_stats").html(html);
 	}
 }

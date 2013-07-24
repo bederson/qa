@@ -6,10 +6,6 @@ GAE Deployment
 * create empty sql file containing database structure and import to Google Cloud SQL database
 * create Google Cloud SQL database user to use instead of root
 
-To Do
-* What needs to be created w/in transactions to ensure same id not used when new database item created?  
-  Or does InnoDB handle this ...
-
 Features
 * Use stemming when comparing categories for equality
 * Allow admins to modify questions, in addition to question authors
@@ -28,12 +24,11 @@ Misc Improvements
 * Reduce character limit for ideas to encourage only one idea per submission
 * Do not allow Cascade to be enabled until notes exist
 * Consider asking users to suggest categories when ideas created
-* Need to better randomize jobs and how presented
 * Need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
 * Enabling and disabling of question should be separate from notes and cascade phases
   Currently disabling and then re-enabling a question looses the current phase and will not allow
   Cascade to be re-enabled w/o deleting any existing data
-* Fix "Step x of y" on Cascade UI (problem is y is changing)
+* Fix "Step x of y" on Cascade UI (problem is y is changing) - if m > # items, only 4 steps per iteration
 * Consider blinking browser header when new step available, or highlighting some way
 * Make word clouds clickable (show ideas & categories where word appears)
 * Allow question author to set maximum # of ideas allowed
@@ -45,17 +40,24 @@ Misc Improvements
 * Handle active users when question disabled or deleted (logout?)
 * Release assignments after some period of inactivity; delete incomplete jobs when user logs out
 * Create cronjob to clean up any users who have been logged in for a long time
-* Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas?
+* Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas? Editable by question author?
 * Suggest cascade settings based on # of ideas, # of users, etc.
 * Consider when it would speed things up to check for duplicate categories/ideas before step 3
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 * When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
-* Nickname authentication NOT working; forget user is logged in when switching between pages sometimes
 * Observed instance when GUI did not switch from note input to cascade categorization when testing with group
+* If many users working concurrently, it may be possible for a job to be assigned to multiple users
+  Currently the first job submitted is saved in the database
+  Subsequent saved jobs are silently ignored but the count is recorded in the cascade_times table
+  Would need to use transactions and select..for update to fix
+  Not sure how frequently this may happen
+  Don't think deadlock errors will occur if updates happen at exactly the same time (will wait until lock released)
+* If many users working concurrently, it is possible for multiple users to authenticate with same nickname
   
 Testing
+* Nickname authentication needs to be tested more completely (see known bugs)
 * Build test harness
   (look at the Firefox extension Selenium: seleniumhq.org)
 

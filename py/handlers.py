@@ -253,7 +253,7 @@ class CascadePageHandler(BaseHandler):
     def get(self):
         self.init() 
         self.checkRequirements(userRequired=True, questionRequired=True)
-        templateValues = self.getDefaultTemplateValues()  
+        templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -424,14 +424,14 @@ class QueryHandler(BaseHandler):
                         
             # stats for question (# ideas, etc.)
             elif request == "stats" and self.question:
-                data = self.question.getLiveStats(self.dbConnection)
+                data = self.question.calculateQuestionStats(self.dbConnection)
                                 
             # ideas for question (grouped if categories exist; otherwise returned as uncategorized)
             elif request == "ideas" and self.question:
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
                 data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }
                 if self.question.isAuthor() and self.question.cascade_complete:
-                    stats = self.question.getStats(self.dbConnection)
+                    stats = self.question.getCascadeStats(self.dbConnection)
                     if stats:
                         data["admin_stats"] = stats
 
@@ -531,24 +531,25 @@ class DownloadQuestionHandler(BaseHandler):
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
 
                 # write out stats
-                stats = self.question.getStats(self.dbConnection)
+                stats = self.question.calculateQuestionStats(self.dbConnection)
+                cascadeStats = self.question.getCascadeStats(self.dbConnection)
                 if stats:
                     excelWriter.writerow(("Counts",))
                     excelWriter.writerow(("# users", stats["user_count"]))
                     excelWriter.writerow(("# ideas", stats["idea_count"]))
-                    excelWriter.writerow(("# categories", stats["category_count"]))
+                    excelWriter.writerow(("# categories", cascadeStats["category_count"]))
                     excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
                     excelWriter.writerow(())   
                     
                     excelWriter.writerow(("Cascade Times (h:mm:ss)",))
                     for i in range(len(CASCADE_CLASSES)):
                         step = i + 1
-                        duration = stats["cascade_step{0}_duration".format(step)]
+                        duration = cascadeStats["step{0}_duration".format(step)]
                         durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
                         excelWriter.writerow(("Step {0}".format(step), durationFormatted))
-                    duration = stats["cascade_total_duration"]
+                    duration = cascadeStats["total_duration"]
                     durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
-                    excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(stats["cascade_iteration_count"], "iterations" if stats["cascade_iteration_count"]>1 else "iteration")))
+                    excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(cascadeStats["iteration_count"], "iterations" if cascadeStats["iteration_count"]>1 else "iteration")))
                     excelWriter.writerow(())   
                 
                 # write out cascade parameters
@@ -714,7 +715,7 @@ class CascadeJobHandler(BaseHandler):
             # save job (if any)
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
-                isStepComplete = self.question.saveCascadeJob(self.dbConnection, jobToSave)
+                isStepComplete = self.question.saveCascadeJob(self.dbConnection, jobToSave, person=self.person)
                 if isStepComplete:
                     taskqueue.add(url="/cascade_init_step", params={ 'question_id' : self.question.id })
                

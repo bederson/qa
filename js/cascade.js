@@ -83,7 +83,7 @@ function updateUI(results) {
 }
 
 function updateTitleArea(results) {
-	$("#step").html("Step " + results.step + " of 6");
+	$("#step").html("Step " + results.step + " of " + num_steps);
 	$("#msg").html("");
 
 	if (results.step == 1) {
