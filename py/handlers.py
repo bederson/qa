@@ -60,7 +60,7 @@ class BaseHandler(webapp2.RequestHandler):
         self.person = None
         if initUser:
             self.initUserContext(adminRequired=adminRequired, loggingOut=loggingOut)
-                
+                            
     def destroy(self):
         if self.dbConnection:
             self.dbConnection.disconnect()
@@ -363,15 +363,24 @@ class LogoutHandler(BaseHandler):
         self.init(loggingOut=True)
         ok = self.checkRequirements(userRequired=True)
         if ok:
-            self.person.logout(self.dbConnection, question=self.question)
+            logoutUser(self.dbConnection, self.person, self.question)
             if self.session.is_active():
                 self.session.terminate(True)
                 self.session.clear()
                 self.session.regenerate_id()
         self.destroy()
-        
+                
         # redirect depending on whether logged in as Google user or via nickname
         self.redirect(users.create_logout_url("/") if self.person is not None and self.person.authenticated_user_id else "/")
+
+def logoutUser(dbConnection, person, question):
+    if person:
+        unassignedJobCount = person.logout(dbConnection, question)
+        if unassignedJobCount > 0:
+            helpers.log("UNASSIGN {0} CASCADE JOBS FROM USER {1}".format(unassignedJobCount, person.id))
+            # TODO/FIX: only notify users who haven't done the new jobs yet
+            # currently all users are notified and they have to check to see if any jobs available for them
+            sendMessage(dbConnection, None, question.id if question else None, { "op" : "morejobs" })
 
 class NicknameHandler(BaseHandler):
     def post(self):
@@ -798,7 +807,9 @@ class ChannelDisconnectedHandler(BaseHandler):
         if person:
             numClients = person.removeClient(self.dbConnection, clientId, returnNumClients=True, commit=False)
             if numClients == 0 and person.is_logged_in:
-                person.logout(self.dbConnection, commit=False)
+                # TODO: how can this be done w/o required question to be retrieved from db each time
+                question = Question.getById(self.dbConnection, questionId) if questionId else None
+                logoutUser(self.dbConnection, person, question)
             self.dbConnection.conn.commit()
         self.destroy()
 
@@ -822,7 +833,6 @@ def getInfoFromClient(clientId):
 def sendMessage(dbConnection, fromClientId, questionId, message, adminMessage=None):
     """Send message to all listeners (except self if fromClientId specified) to this topic"""
     if questionId:
-        # TODO: would it be better to store client ids in memcache instead of requiring db query each time
         sql = "select client_id from users,user_clients where users.id=user_clients.user_id and question_id={0} and client_id like '%\_{1}\_%'".format(questionId, questionId)
         dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()

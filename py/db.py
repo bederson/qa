@@ -424,8 +424,7 @@ class Question(DBObject):
                     dbConnection.conn.commit()
     
     @staticmethod
-    def unassignCascadeJobsFromUser(dbConnection, userId, questionId, commit=True):
-        # TODO: only need to unassign if cascade is active
+    def unassignCascadeJobsFromUser(dbConnection, userId, questionId=None, commit=True):
         count = CascadeSuggestedCategory.unassignFrom(dbConnection, userId, questionId, commit=False)
         count += CascadeBestCategory.unassignFrom(dbConnection, userId, questionId, commit=False)
         count += CascadeFitCategoryPhase1.unassignFrom(dbConnection, userId, questionId, commit=False)
@@ -536,9 +535,6 @@ class Person(DBObject):
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
                 sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
-                
-                # TODO: not finished, need to unassign jobs from all questions user is logged in to         
-                # TODO: need to notify any waiting users that more jobs available
             
             # otherwise, logout this specific user instance
             else:
@@ -546,19 +542,21 @@ class Person(DBObject):
                 dbConnection.cursor.execute(sql, (self.id))
                 sql = "delete from user_clients where user_id=%s"
                 dbConnection.cursor.execute(sql, (self.id))
-
-                # TODO: not finished, need to unassign jobs (if cascade is in progress)
-                # TODO: need to notify any waiting users that more jobs available
-                # TODO: need to handle case when user logs out passively (just closes browser) and question not passed in
-                #       can load question from person.question_id but how to check phase/complete before doing that
-#                 if question is not None and question.phase == constants.PHASE_CASCADE and not question.cascade_complete:
-#                     Question.unassignCascadeJobsFromUser(dbConnection, self.id, question.id, commit=commit)
                 
+            # unassign jobs if cascade in progress
+            unassignedJobCount = 0
+            if question and question.phase == constants.PHASE_CASCADE and not question.cascade_complete:
+                # BEHAVIOR: will lose assigned jobs if user explicitly logs out, browses to another url in cascade tab, or 
+                # maybe if they go to another page (like results); depends on connect/disconnect order
+                unassignedJobCount = Question.unassignCascadeJobsFromUser(dbConnection, self.id, question.id)
+                        
             if commit:
                 dbConnection.conn.commit()
 
             self.session_sid = None                
             self.is_logged_in = False
+            
+            return unassignedJobCount
         
     def addClient(self, dbConnection, clientId, commit=True):   
         sql = "insert into user_clients (user_id, client_id) values(%s, %s)"
@@ -722,7 +720,6 @@ class Idea(DBObject):
                 ideas.append(idea)
         return ideas
         
-    # TODO: store in memcache and only retrieve from database if needed
     @staticmethod
     def getByCategories(dbConnection, question, asDict=False, includeCreatedOn=False):
         ideaIds = []
@@ -896,9 +893,6 @@ class CascadeSuggestedCategory(DBObject):
             sql += "and idea_id not in (select distinct idea_id from cascade_suggested_categories where question_id=%s and user_id=%s) " if not helpers.isRunningLocally() else ""
             sql += "group by idea_id order by rand() limit {0} ".format(question.cascade_t)
 
-            # selected rows are write-locked until the current transaction is committed or rolled back
-            # TODO: how to handle if timeout happens before select unblocks
-            # TODO/FIX: all records being locked in table - MUST FIX!!! 
             if helpers.isRunningLocally():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
@@ -920,9 +914,13 @@ class CascadeSuggestedCategory(DBObject):
             dbConnection.conn.commit()
 
     @staticmethod
-    def unassignFrom(dbConnection, personId, questionId, commit=True):
-        sql = "update cascade_suggested_categories set user_id=null where question_id=%s and user_id=%s and suggested_category is null and skipped=0"
-        count = dbConnection.cursor.execute(sql, (questionId, personId))
+    def unassignFrom(dbConnection, personId, questionId=None, commit=True):
+        sql = "update cascade_suggested_categories set user_id=null where user_id=%s and suggested_category is null and skipped=0"
+        sqlValues = (personId,)
+        if questionId:
+            sql += " and question_id=%s"
+            sqlValues += (questionId,)
+        count = dbConnection.cursor.execute(sql, sqlValues)
         if commit:
             dbConnection.conn.commit()
         return count
@@ -1066,9 +1064,13 @@ class CascadeBestCategory(DBObject):
             dbConnection.conn.commit()
 
     @staticmethod
-    def unassignFrom(dbConnection, personId, questionId, commit=True):
-        sql = "update cascade_best_categories set user_id=null where question_id=%s and user_id=%s and best_category is null and none_of_the_above=0"
-        count = dbConnection.cursor.execute(sql, (questionId, personId))
+    def unassignFrom(dbConnection, personId, questionId=None, commit=True):
+        sql = "update cascade_best_categories set user_id=null where user_id=%s and best_category is null and none_of_the_above=0"
+        sqlValues = (personId,)
+        if questionId:
+            sql += " and question_id=%s"
+            sqlValues += (questionId,)
+        count = dbConnection.cursor.execute(sql, sqlValues)
         if commit:
             dbConnection.conn.commit()
         return count
@@ -1255,9 +1257,13 @@ class CascadeFitCategoryPhase1(DBObject):
             dbConnection.conn.commit()
 
     @staticmethod
-    def unassignFrom(dbConnection, personId, questionId, commit=True):
-        sql = "update cascade_fit_categories_phase1 set user_id=null where question_id=%s and user_id=%s and fit=-1"
-        count = dbConnection.cursor.execute(sql, (questionId, personId))
+    def unassignFrom(dbConnection, personId, questionId=None, commit=True):
+        sql = "update cascade_fit_categories_phase1 set user_id=null where user_id=%s and fit=-1"
+        sqlValues = (personId,)
+        if questionId:
+            sql += " and question_id=%s"
+            sqlValues += (questionId,)
+        count = dbConnection.cursor.execute(sql, sqlValues)
         if commit:
             dbConnection.conn.commit()
         return count
@@ -1415,8 +1421,12 @@ class CascadeFitCategoryPhase2(DBObject):
 
     @staticmethod
     def unassignFrom(dbConnection, personId, questionId, commit=True):
-        sql = "update cascade_fit_categories_phase2 set user_id=null where question_id=%s and user_id=%s and fit=-1"
-        count = dbConnection.cursor.execute(sql, (questionId, personId))
+        sql = "update cascade_fit_categories_phase2 set user_id=null where user_id=%s and fit=-1"
+        sqlValues = (personId,)
+        if questionId:
+            sql += " and question_id=%s"
+            sqlValues += (questionId,)
+        count = dbConnection.cursor.execute(sql, sqlValues)
         if commit:
             dbConnection.conn.commit()
         return count

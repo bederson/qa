@@ -38,6 +38,7 @@ Misc Improvements
 * Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas? Editable by question author?
 * Suggest cascade settings based on # of ideas, # of users, etc.
 * Consider when it would speed things up to check for duplicate categories/ideas before step 3
+* Instead of pushing first cascade job to users, change gui to say ready to being categorizing (and require user to request job assignment)
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

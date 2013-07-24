@@ -48,6 +48,8 @@ onMessage = function(message) {
 		handlePhase(dataObj);
 	} else if (dataObj.op == "step") {
 		handleStep(dataObj);
+	} else if (dataObj.op == "morejobs") {
+		handleMoreJobs(dataObj);
 	} else if (dataObj.op == "categories") {
 		handleResults(dataObj);
 	} else if (dataObj.op == "nickname") {

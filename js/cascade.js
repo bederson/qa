@@ -353,7 +353,6 @@ function handlePhase(data) {
 function handleStep(data) {
 	if (waiting) {
 		updateTitleArea(data);
-		
 		var html = "";
 		if (data.step == 1 && data.iteration > 1) {
 			html += "<div class='yellow_highlight'>";
@@ -364,6 +363,19 @@ function handleStep(data) {
 		else {
 			html += "This step has started.<br/>";
 		}
+		html += "<div class='spaceabove spaceafter'><input id='next_task_button' type='button' value='Get task'></div>";
+		$("#task_area").html(html);
+		
+		$('#next_task_button').click(function() {
+			saveAndGetNextJob();
+		});
+	}
+}
+
+function handleMoreJobs(data) {
+	if (waiting) {
+		var html = "A few more tasks have become available for this step.<br/>";
+		html += "Check to see if there are any you can help complete.";
 		html += "<div class='spaceabove spaceafter'><input id='next_task_button' type='button' value='Get task'></div>";
 		$("#task_area").html(html);
 		
