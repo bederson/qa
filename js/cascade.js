@@ -16,6 +16,7 @@
 //
 
 var waiting = false;
+var assignedJob = [];
 
 $(document).ready(function() {
 	if ($("#msg").html()) {
@@ -46,11 +47,13 @@ function saveAndGetNextJob(jobToSave) {
 	
 	$("#loading_icon").show();
 	$.post("/cascade_job", data, function(results) {
+		assignedJob = [];
 		if (results.status == 0) {
 			$("#warning").html(results.msg);
 		}
 		else {
 			$("#warning").html("");
+			assignedJob = results.job;
 			updateUI(results);
 		}
 	}, "json");
@@ -275,6 +278,17 @@ function submitStep3(tasks) {
 	saveAndGetNextJob(job);
 }
 
+function cancelCascadeJob() {
+	if (assignedJob.length > 0) {
+		var data = {
+			"client_id" : client_id,
+			"question_id" : question_id,
+			"job" : $.toJSON(assignedJob)
+		}
+		$.post("/cancel_cascade_job", data);
+	}
+}
+
 function updateStatus(results) {
 	if (results.complete == 1) {
 		resultsReady();
@@ -319,6 +333,19 @@ function initEventHandlers() {
 	
 	$("#next_task_button").click(function() {
 		saveAndGetNextJob();
+	});
+	
+	$("#login_logout_link").click(function() {
+		if (logged_in) {
+			cancelCascadeJob();
+			return true;
+		}
+	});
+	
+	// if a user closes the window/tab or browses to another url
+	// before they submit their job, notify the server
+	$(window).on('beforeunload', function() {
+		cancelCascadeJob();
 	});
 }
 

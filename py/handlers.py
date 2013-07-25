@@ -254,7 +254,7 @@ class CascadePageHandler(BaseHandler):
         self.init() 
         self.checkRequirements(userRequired=True, questionRequired=True)
         templateValues = self.getDefaultTemplateValues()
-        templateValues["num_steps"] = self.question.cascade_step_count
+        templateValues["num_steps"] = self.question.cascade_step_count if self.question else 0
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -363,7 +363,7 @@ class LogoutHandler(BaseHandler):
         self.init(loggingOut=True)
         ok = self.checkRequirements(userRequired=True)
         if ok:
-            logoutUser(self.dbConnection, self.person, self.question)
+            self.person.logout(self.dbConnection)
             if self.session.is_active():
                 self.session.terminate(True)
                 self.session.clear()
@@ -372,16 +372,7 @@ class LogoutHandler(BaseHandler):
                 
         # redirect depending on whether logged in as Google user or via nickname
         self.redirect(users.create_logout_url("/") if self.person is not None and self.person.authenticated_user_id else "/")
-
-def logoutUser(dbConnection, person, question):
-    if person:
-        unassignedJobCount = person.logout(dbConnection, question)
-        if unassignedJobCount > 0:
-            helpers.log("UNASSIGN {0} CASCADE JOBS FROM USER {1}".format(unassignedJobCount, person.id))
-            # TODO/FIX: only notify users who haven't done the new jobs yet
-            # currently all users are notified and they have to check to see if any jobs available for them
-            sendMessage(dbConnection, None, question.id if question else None, { "op" : "morejobs" })
-
+                    
 class NicknameHandler(BaseHandler):
     def post(self):
         self.init()
@@ -744,6 +735,18 @@ class CascadeJobHandler(BaseHandler):
         self.writeResponseAsJson(data)
         self.destroy()
 
+class CancelCascadeJobHandler(BaseHandler):
+    def post(self):
+        self.init()
+        job = helpers.fromJson(self.request.get("job", None))
+        if self.question and job:
+            count = self.question.cancelCascadeJob(self.dbConnection, job)
+            if count > 0:    
+                # TODO/FIX: only notify users who haven't done the new jobs yet
+                # currently all users are notified and they have to check to see if any jobs available for them
+                sendMessage(self.dbConnection, None, self.question.id, { "op" : "morejobs" })
+        self.destroy()
+        
 class CascadeInitStepHandler(BaseHandler):
     def post(self):
         self.init()
@@ -807,9 +810,7 @@ class ChannelDisconnectedHandler(BaseHandler):
         if person:
             numClients = person.removeClient(self.dbConnection, clientId, returnNumClients=True, commit=False)
             if numClients == 0 and person.is_logged_in:
-                # TODO: how can this be done w/o required question to be retrieved from db each time
-                question = Question.getById(self.dbConnection, questionId) if questionId else None
-                logoutUser(self.dbConnection, person, question)
+                person.logout(self.dbConnection)
             self.dbConnection.conn.commit()
         self.destroy()
 

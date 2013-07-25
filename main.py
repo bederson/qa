@@ -47,6 +47,7 @@ app = webapp2.WSGIApplication([
     ('/set_cascade_options', CascadeOptionsHandler),
     ('/cascade_init_step', CascadeInitStepHandler),
 	('/cascade_job', CascadeJobHandler),
+    ('/cancel_cascade_job', CancelCascadeJobHandler),
     ('/new_idea', NewIdeaHandler),
     ('/query', QueryHandler),
 	
