@@ -280,8 +280,7 @@ class Question(DBObject):
         if self.phase == constants.PHASE_CASCADE and not self.cascade_complete:
             for task in job:
                 # assumes job being cancelled belongs to current step
-                count += CASCADE_CLASSES[self.cascade_step-1].unassign(dbConnection, self.id, task["id"], commit=False) 
-            dbConnection.conn.commit()
+                count += CASCADE_CLASSES[self.cascade_step-1].unassign(dbConnection, self.id, task["id"])
         return count
             
     def recordCascadeStepStartTime(self, dbConnection):
@@ -904,12 +903,12 @@ class CascadeSuggestedCategory(DBObject):
             dbConnection.conn.commit()
 
     @staticmethod
-    def unassign(dbConnection, questionId, taskId, commit=True):
+    def unassign(dbConnection, questionId, taskId):
         sql = "update cascade_suggested_categories set user_id=null where question_id=%s and id=%s"
-        count = dbConnection.cursor.execute(sql, (questionId, taskId))
-        if commit:
-            dbConnection.conn.commit()
-        return count
+        dbConnection.cursor.execute(sql, (questionId, taskId))
+        rowsUpdated = dbConnection.cursor.rowcount
+        dbConnection.conn.commit()
+        return rowsUpdated if rowsUpdated is not None and rowsUpdated > 0 else 0
             
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
@@ -922,15 +921,16 @@ class CascadeSuggestedCategory(DBObject):
                 sql = "update cascade_suggested_categories set suggested_category=%s"
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and (suggested_category is null and skipped=0)"
-                rowsUpdated = dbConnection.cursor.execute(sql, (suggestedCategory, taskId))                    
+                dbConnection.cursor.execute(sql, (suggestedCategory, taskId))                    
             # if skipped, mark it so not assigned in future
             else:
                 sql = "update cascade_suggested_categories set skipped=1"
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and (suggested_category is null and skipped=0)"
-                rowsUpdated = dbConnection.cursor.execute(sql, (taskId))
+                dbConnection.cursor.execute(sql, (taskId))
             
-            if rowsUpdated == 0:
+            rowsUpdated = dbConnection.cursor.rowcount
+            if rowsUpdated is None or rowsUpdated <= 0:
                 unsavedTasks.append(taskId)
 
         dbConnection.conn.commit()
@@ -1050,13 +1050,13 @@ class CascadeBestCategory(DBObject):
             dbConnection.conn.commit()
     
     @staticmethod
-    def unassign(dbConnection, questionId, taskId, commit=True):
+    def unassign(dbConnection, questionId, taskId):
         sql = "update cascade_best_categories set user_id=null where question_id=%s and id=%s"
-        count = dbConnection.cursor.execute(sql, (questionId, taskId))
-        if commit:
-            dbConnection.conn.commit()
-        return count
-            
+        dbConnection.cursor.execute(sql, (questionId, taskId))
+        rowsUpdated = dbConnection.cursor.rowcount
+        dbConnection.conn.commit()
+        return rowsUpdated if rowsUpdated is not None and rowsUpdated > 0 else 0
+             
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
         unsavedTasks = []
@@ -1068,15 +1068,17 @@ class CascadeBestCategory(DBObject):
                 sql = "update cascade_best_categories set best_category=%s"
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and (best_category is null and none_of_the_above=0)"
-                rowsUpdated = dbConnection.cursor.execute(sql, (bestCategory, taskId))                    
+                dbConnection.cursor.execute(sql, (bestCategory, taskId))   
+                                 
             # vote for none of the above
             else:
                 sql = "update cascade_best_categories set none_of_the_above=1"
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and (best_category is null and none_of_the_above=0)"
-                rowsUpdated = dbConnection.cursor.execute(sql, (taskId))
+                dbConnection.cursor.execute(sql, (taskId))
             
-            if rowsUpdated == 0:
+            rowsUpdated = dbConnection.cursor.rowcount
+            if rowsUpdated is None or rowsUpdated <= 0:
                 unsavedTasks.append(taskId)
 
         dbConnection.conn.commit()
@@ -1239,12 +1241,12 @@ class CascadeFitCategoryPhase1(DBObject):
             dbConnection.conn.commit()
     
     @staticmethod
-    def unassign(dbConnection, questionId, taskId, commit=True):
+    def unassign(dbConnection, questionId, taskId):
         sql = "update cascade_fit_categories_phase1 set user_id=null where question_id=%s and id=%s"
-        count = dbConnection.cursor.execute(sql, (questionId, taskId))
-        if commit:
-            dbConnection.conn.commit()
-        return count
+        dbConnection.cursor.execute(sql, (questionId, taskId))
+        rowsUpdated = dbConnection.cursor.rowcount
+        dbConnection.conn.commit()
+        return rowsUpdated if rowsUpdated is not None and rowsUpdated > 0 else 0
             
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
@@ -1255,8 +1257,9 @@ class CascadeFitCategoryPhase1(DBObject):
             sql = "update cascade_fit_categories_phase1 set fit=%s"
             sql += ", user_id={0} ".format(person.id) if person else " "
             sql += "where id=%s and fit=-1"
-            rowsUpdated = dbConnection.cursor.execute(sql, (fit, taskId))
-            if rowsUpdated == 0:
+            dbConnection.cursor.execute(sql, (fit, taskId))
+            rowsUpdated = dbConnection.cursor.rowcount
+            if rowsUpdated is None or rowsUpdated <= 0:
                 unsavedTasks.append(taskId)
         dbConnection.conn.commit()
         
@@ -1398,12 +1401,12 @@ class CascadeFitCategoryPhase2(DBObject):
             dbConnection.conn.commit()
     
     @staticmethod
-    def unassign(dbConnection, questionId, taskId, commit=True):
+    def unassign(dbConnection, questionId, taskId):
         sql = "update cascade_fit_categories_phase2 set user_id=null where question_id=%s and id=%s"
-        count = dbConnection.cursor.execute(sql, (questionId, taskId))
-        if commit:
-            dbConnection.conn.commit()
-        return count
+        dbConnection.cursor.execute(sql, (questionId, taskId))
+        rowsUpdated = dbConnection.cursor.rowcount
+        dbConnection.conn.commit()
+        return rowsUpdated if rowsUpdated is not None and rowsUpdated > 0 else 0
             
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
@@ -1414,8 +1417,9 @@ class CascadeFitCategoryPhase2(DBObject):
             sql = "update cascade_fit_categories_phase2 set fit=%s"
             sql += ", user_id={0} ".format(person.id) if person else " "
             sql += "where id=%s and fit=-1"
-            rowsUpdated = dbConnection.cursor.execute(sql, (fit, taskId))
-            if rowsUpdated == 0:
+            dbConnection.cursor.execute(sql, (fit, taskId))
+            rowsUpdated = dbConnection.cursor.rowcount
+            if rowsUpdated is None or rowsUpdated <= 0:
                 unsavedTasks.append(taskId)
         dbConnection.conn.commit()
         
