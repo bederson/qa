@@ -146,7 +146,23 @@ function displaySelectedQuestion() {
 
 	$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
 	$("#p2button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
-	
+
+	// get cascade stats
+	html = "";
+	if (isDefined(question.cascade_jobs_required)) {
+		var totalJobsRequired = 0;
+		for (var i=0; i<question.cascade_jobs_required.length; i++) {
+			var step = i+1;
+			var jobsRequiredForStep = question.cascade_jobs_required[i].total;
+			totalJobsRequired += jobsRequiredForStep;
+			html += "Step " + step + ": ";
+			html += jobsRequiredForStep > 0 ? jobsRequiredForStep + (jobsRequiredForStep > 1 ? " jobs" : " job") : "-";
+			html += "<br/>";
+		}
+		html += "TOTAL: " + totalJobsRequired + " jobs";
+	}
+	$("#cascade_stats").html(html);
+		
 	$("#selected_question").show();
 }
 
@@ -268,6 +284,11 @@ function setCascadeOptions() {
 	var cascade_t = $("#cascade_t").val();
 	
 	$("#msg").html("");
+	
+	var valuesHaveNotChanged = cascade_k == question.cascade_k && cascade_k2 == question.cascade_k2 && cascade_m == question.cascade_m && cascade_p == question.cascade_p && cascade_t && question.cascade_t;
+	if (valuesHaveNotChanged) {
+		return;
+	}
 	
 	var allNonEmpty = cascade_k != "" && cascade_k2 != "" && cascade_m != "" && cascade_p != "" && cascade_t != "";
 	if (!allNonEmpty) {

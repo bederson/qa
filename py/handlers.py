@@ -780,11 +780,52 @@ class CascadeOptionsHandler(BaseHandler):
                 "id" : self.question.id
             }
             self.question.update(self.dbConnection, properties)
-            data = { "status" : 1, "question" : self.question.toDict() }
+            
+            questionDict = self.question.toDict()
+            questionDict["cascade_jobs_required"] = estimateRequiredCascadeJobs(self.dbConnection, self.question)
+            data = { "status" : 1, "question" : questionDict }
         
         self.writeResponseAsJson(data)
         self.destroy()
+
+def estimateRequiredCascadeJobs(dbConnection, question):
+    # TODO/FIX: can idea count be passed in vs. getting it every time
+    ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
+    m = min(ideaCount, question.cascade_m)
+    n = ideaCount
+    C = 1.5 * m # estimate
+    k = question.cascade_k
+    k2 = question.cascade_k2
+    t = question.cascade_t
+
+    jobsRequired = []
+    
+    # step 1
+    count = math.ceil(float(m)/t) * k
+    jobsRequired.append({ "total" : count, "options" : ["m", "k", "t"] })
+    
+    # step 2
+    count = m * k
+    jobsRequired.append({ "total" : count, "options" : ["m", "k"] })
+    
+    # step 3
+    count = m * math.ceil(float(C)/t) * k2
+    jobsRequired.append({ "total" : count, "options" : ["m", "k2", "t", "C"] })
+
+    # step 4
+    count = m * k2
+    jobsRequired.append({ "total" : count, "options" : ["m", "k2"] })
+
+    # step 5
+    count = (n-m) * math.ceil(float(C)/t) * k2
+    jobsRequired.append({ "total" : count, "options" : ["n-m", "k2", "t", "C"] })
+    
+    # step 6
+    count = (n-m) * k2
+    jobsRequired.append({ "total" : count, "options" : ["n-m", "k2"] })
         
+    return jobsRequired
+         
 #####################
 # Channel support
 #####################
