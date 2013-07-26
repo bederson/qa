@@ -793,7 +793,6 @@ def estimateRequiredCascadeJobs(dbConnection, question):
     ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
     m = min(ideaCount, question.cascade_m)
     n = ideaCount
-    C = 1.5 * m # estimate
     k = question.cascade_k
     k2 = question.cascade_k2
     t = question.cascade_t
@@ -809,6 +808,7 @@ def estimateRequiredCascadeJobs(dbConnection, question):
     jobsRequired.append({ "total" : count, "options" : ["m", "k"] })
     
     # step 3
+    C = 1.5 * m # estimate
     count = m * math.ceil(float(C)/t) * k2
     jobsRequired.append({ "total" : count, "options" : ["m", "k2", "t", "C"] })
 

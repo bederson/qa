@@ -285,7 +285,7 @@ function setCascadeOptions() {
 	
 	$("#msg").html("");
 	
-	var valuesHaveNotChanged = cascade_k == question.cascade_k && cascade_k2 == question.cascade_k2 && cascade_m == question.cascade_m && cascade_p == question.cascade_p && cascade_t && question.cascade_t;
+	var valuesHaveNotChanged = cascade_k == question.cascade_k && cascade_k2 == question.cascade_k2 && cascade_m == question.cascade_m && cascade_p == question.cascade_p && cascade_t == question.cascade_t;
 	if (valuesHaveNotChanged) {
 		return;
 	}
