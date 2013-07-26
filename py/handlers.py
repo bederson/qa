@@ -779,15 +779,28 @@ class CascadeOptionsHandler(BaseHandler):
                 "cascade_t" :  int(self.request.get('cascade_t')),
                 "id" : self.question.id
             }
-            self.question.update(self.dbConnection, properties)
-            
-            questionDict = self.question.toDict()
-            questionDict["cascade_jobs_required"] = estimateRequiredCascadeJobs(self.dbConnection, self.question)
-            data = { "status" : 1, "question" : questionDict }
+            self.question.update(self.dbConnection, properties)            
+            data = { "status" : 1, "question" : self.question.toDict() }
         
         self.writeResponseAsJson(data)
         self.destroy()
 
+class CascadeEstimatesHandler(BaseHandler):
+    def post(self):
+        self.init(adminRequired=True)
+        clientId = self.request.get('client_id')
+
+        ok = self.checkRequirements(self, questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+
+        else:
+            jobsRequired, ideaCount = estimateRequiredCascadeJobs(self.dbConnection, self.question)
+            data = { "status" : 1, "cascade_jobs_required" : jobsRequired, "idea_count" : ideaCount }
+        
+        self.writeResponseAsJson(data)
+        self.destroy()
+        
 def estimateRequiredCascadeJobs(dbConnection, question):
     # TODO/FIX: can idea count be passed in vs. getting it every time
     ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
@@ -824,7 +837,7 @@ def estimateRequiredCascadeJobs(dbConnection, question):
     count = (n-m) * k2
     jobsRequired.append({ "total" : count, "options" : ["n-m", "k2"] })
         
-    return jobsRequired
+    return jobsRequired, ideaCount
          
 #####################
 # Channel support

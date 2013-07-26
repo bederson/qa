@@ -49,8 +49,7 @@ $(document).ready(function() {
 		
 	$(".cascade_option").blur(function() {
 		setCascadeOptions();
-	});
-	
+	});	
 });
 
 function loadQuestions() {
@@ -130,6 +129,9 @@ function displaySelectedQuestion() {
 	// get question stats
 	updateQuestionStats();
 	
+	// get cascade stats
+	updateCascadeStats(question);
+	
 	$("#active_cb").prop("checked", question.active);
 	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
 	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
@@ -146,22 +148,6 @@ function displaySelectedQuestion() {
 
 	$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
 	$("#p2button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
-
-	// get cascade stats
-	html = "";
-	if (isDefined(question.cascade_jobs_required)) {
-		var totalJobsRequired = 0;
-		for (var i=0; i<question.cascade_jobs_required.length; i++) {
-			var step = i+1;
-			var jobsRequiredForStep = question.cascade_jobs_required[i].total;
-			totalJobsRequired += jobsRequiredForStep;
-			html += "Step " + step + ": ";
-			html += jobsRequiredForStep > 0 ? jobsRequiredForStep + (jobsRequiredForStep > 1 ? " jobs" : " job") : "-";
-			html += "<br/>";
-		}
-		html += "TOTAL: " + totalJobsRequired + " jobs";
-	}
-	$("#cascade_stats").html(html);
 		
 	$("#selected_question").show();
 }
@@ -201,6 +187,50 @@ function displayQuestionStats(question) {
 	$("#stats").html(html);
 }
 
+function updateCascadeStats(question) {
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id
+	};
+	$.post("/cascade_estimates", data, function(results) {
+		if (results.status == 0) {
+			$("#msg").html(results.msg);
+			return;
+		}
+		
+		var html = "";
+		if (isDefined(results.cascade_jobs_required)) {
+			question.idea_count = results.idea_count;
+			if (question.idea_count > 0) {
+				var totalJobsRequired = 0;
+				for (var i=0; i<results.cascade_jobs_required.length; i++) {
+					var step = i+1;
+					var jobsRequiredForStep = results.cascade_jobs_required[i].total;
+					totalJobsRequired += jobsRequiredForStep;
+					html += "Step " + step + ": ";
+					html += jobsRequiredForStep > 0 ? jobsRequiredForStep + (jobsRequiredForStep > 1 ? " jobs" : " job") : "-";
+					html += "<br/>";
+				}
+				html += "TOTAL: " + totalJobsRequired + " jobs<br/>";
+				html += "<span class='note'>Estimates based on " + question.idea_count + " notes</span><br/>";
+				html += "<a id='refresh_cascade_stats_link' href='#'><span class='small'>Refresh</span></a>";
+			}
+		}
+		$("#cascade_stats").html(html);
+		
+		$("#refresh_cascade_stats_link").unbind("click");
+		$("#refresh_cascade_stats_link").click(function() {
+			var question = getSelectedQuestion();
+			if (question) {
+				updateCascadeStats(question);
+			}
+			return false;
+		});
+		
+		displayQuestionStats(question);
+	}, "json");
+}
+
 function setActive(active) {
 	var question = getSelectedQuestion();
 	if (!question) {
@@ -220,7 +250,6 @@ function setActive(active) {
 		updateQuestion(result.question.id, result.question);				
 	}, "json");
 }
-
 
 function setPhase(phase) {
 	var question = getSelectedQuestion();
@@ -328,6 +357,7 @@ function setCascadeOptions() {
 			return;
 		}
 		updateQuestion(result.question.id, result.question);
+		updateCascadeStats(result.question);
 	}, "json");
 }
 
