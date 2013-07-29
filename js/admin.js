@@ -212,18 +212,24 @@ function updateCascadeStats(question) {
 		if (isDefined(results.cascade_jobs_required)) {
 			question.idea_count = results.idea_count;
 			if (question.idea_count > 0) {
+				html += "<span class='small'>";
+				html += "<strong>Cascade Jobs</strong><br/>";
 				var totalJobsRequired = 0;
 				for (var i=0; i<results.cascade_jobs_required.length; i++) {
 					var step = i+1;
 					var jobsRequiredForStep = results.cascade_jobs_required[i].total;
 					totalJobsRequired += jobsRequiredForStep;
+					if (question.phase==PHASE_CASCADE && !results.cascade_complete && step == results.cascade_step) {
+						html += "=> ";
+					}
 					html += "Step " + step + ": ";
 					html += jobsRequiredForStep > 0 ? jobsRequiredForStep + (jobsRequiredForStep > 1 ? " jobs" : " job") : "-";
 					html += "<br/>";
 				}
-				html += "TOTAL: " + totalJobsRequired + " jobs<br/>";
+				html += "<strong>TOTAL: " + totalJobsRequired + " jobs</strong><br/>";
 				html += "<span class='note'>Estimates based on " + question.idea_count + " notes</span><br/>";
 				html += "<a id='refresh_cascade_stats_link' href='#'><span class='small'>Refresh</span></a>";
+				html += "</span>";
 			}
 		}
 		$("#cascade_stats").html(html);

@@ -363,7 +363,7 @@ class LogoutHandler(BaseHandler):
         self.init(loggingOut=True)
         ok = self.checkRequirements(userRequired=True)
         if ok:
-            self.person.logout(self.dbConnection)
+            self.person.logout(self.dbConnection, userRequestedLogout=True)
             if self.session.is_active():
                 self.session.terminate(True)
                 self.session.clear()
@@ -797,7 +797,7 @@ class CascadeEstimatesHandler(BaseHandler):
 
         else:
             jobsRequired, ideaCount = estimateRequiredCascadeJobs(self.dbConnection, self.question)
-            data = { "status" : 1, "cascade_jobs_required" : jobsRequired, "idea_count" : ideaCount }
+            data = { "status" : 1, "cascade_jobs_required" : jobsRequired, "idea_count" : ideaCount, "cascade_complete" : self.question.cascade_complete, "cascade_step" : self.question.cascade_step, "cascade_iteration" : self.question.cascade_iteration }
         
         self.writeResponseAsJson(data)
         self.destroy()
@@ -865,7 +865,7 @@ class ChannelDisconnectedHandler(BaseHandler):
         if person:
             numClients = person.removeClient(self.dbConnection, clientId, returnNumClients=True, commit=False)
             if numClients == 0 and person.is_logged_in:
-                person.logout(self.dbConnection)
+                person.logout(self.dbConnection, userRequestedLogout=False)
             self.dbConnection.conn.commit()
         self.destroy()
 

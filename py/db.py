@@ -526,10 +526,11 @@ class Person(DBObject):
             self.session_sid = session.sid if session else None
             self.is_logged_in = True
             
-    def logout(self, dbConnection, commit=True):
+    def logout(self, dbConnection, userRequestedLogout=True, commit=True):
         if self.is_logged_in:
-            # if a Google authenticated user is logging out, modify all records associated with this user
-            if self.authenticated_user_id:
+            # if a Google authenticated user is actively logging out (clicked on Logout), 
+            # modify all records associated with this user            
+            if userRequestedLogout and self.authenticated_user_id:
                 sql = "update users set latest_logout_timestamp=now(), session_sid=null where authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
                 sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
