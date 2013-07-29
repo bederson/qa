@@ -123,7 +123,7 @@ function displaySelectedQuestion() {
 	var html = "<strong>Question Code: " + question.id + "</strong><br/>";
 	html += "Title: " + question.title + "<br/>";
 	html += "Question: " + question.question + "<br/>";
-	html += "<div id=\"stats\">&nbsp;</div><br/>";
+	html += "<div id='stats' class='largespaceafter'>line1<br/><span class='small'>line2</span></div>";
 	$("#question").html(html);
 		
 	// get question stats
@@ -172,6 +172,7 @@ function updateQuestionStats() {
 			if (question) {
 				question.idea_count = results["idea_count"];
 				question.user_count = results["user_count"];
+				question.active_user_count = results["active_user_count"];
 				if (isSelectedQuestion(question.id)) {
 					displayQuestionStats(question);
 				}
@@ -183,8 +184,17 @@ function updateQuestionStats() {
 function displayQuestionStats(question) {
 	var ideaCount = question.idea_count;
 	var userCount = question.user_count;
-	var html = ideaCount + " notes, "+ userCount + " users";
-	$("#stats").html(html);
+	var activeUserCount = question.active_user_count;
+	var stats = [];
+	stats.push(ideaCount + (ideaCount!=1 ? " notes" : " note"));
+	stats.push(userCount + (userCount!=1 ? " users" : " user"));
+	stats.push(activeUserCount + (activeUserCount!=1 ? " active users" : " active user"));
+	$("#stats").html(stats.join(", ")+"<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh</span></a>");
+	$("#refresh_question_stats_link").unbind("click");
+	$("#refresh_question_stats_link").click(function() {
+		updateQuestionStats();
+		return false;
+	});
 }
 
 function updateCascadeStats(question) {
@@ -357,7 +367,6 @@ function setCascadeOptions() {
 			return;
 		}
 		updateQuestion(result.question.id, result.question);
-		updateCascadeStats(result.question);
 	}, "json");
 }
 

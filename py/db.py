@@ -386,6 +386,7 @@ class Question(DBObject):
         stats = {
             "question_id" : self.id,
             "user_count" : Person.getCountForQuestion(dbConnection, self.id),
+            "active_user_count" : Person.getCountForQuestion(dbConnection, self.id, loggedIn=True),
             "idea_count" : Idea.getCountForQuestion(dbConnection, self.id)
         }
         return stats
@@ -640,9 +641,10 @@ class Person(DBObject):
         return person
         
     @staticmethod
-    def getCountForQuestion(dbConnection, questionId):
+    def getCountForQuestion(dbConnection, questionId, loggedIn=False):
         sql = "select count(*) as ct from users where question_id=%s"
-        #sql = "select count(*) as ct from users where question_id=%s and latest_login_timestamp is not null and latest_logout_timestamp is null"
+        if loggedIn:
+            sql += " and latest_login_timestamp is not null and latest_logout_timestamp is null"
         dbConnection.cursor.execute(sql, (questionId))
         row = dbConnection.cursor.fetchone()
         return row["ct"] if row else 0

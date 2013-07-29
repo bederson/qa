@@ -436,8 +436,9 @@ class QueryHandler(BaseHandler):
                     if stats:
                         data["admin_stats"] = stats
 
+            self.destroy()
+
         self.writeResponseAsJson(data)
-        self.destroy()
 
 class NewQuestionHandler(BaseHandler):
     def post(self):
