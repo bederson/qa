@@ -244,27 +244,54 @@ function displayCascadeStats(question) {
 	var html = "";
 	if (question.idea_count > 0) {
 		html += "<div class='white_box small'>";
-		html += "<strong>Cascade Jobs</strong><br/>";
-		html += "<table class='small smallpadbottom' style='margin-bottom:0px'>";
+		html += "<strong>Cascade Estimates</strong><br/>";
+		html += "<table class='smallpadbottom' style='margin-bottom:0px'>";
 		var totalJobCount = 0;
+		var completionTime = 0;
 		for (var i=0; i<question.cascade_job_counts.length; i++) {
 			var step = i+1;
 			var jobCount = question.cascade_job_counts[i];
 			totalJobCount += jobCount;
+			if (question.active_user_count > 0) {
+				completionTime += Math.ceil(jobCount / question.active_user_count) * TIME_REQUIRED_PER_CASCADE_JOB;
+			}
 			var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
+			var isStepComplete = question.phase==PHASE_CASCADE && (question.cascade_complete || step < question.cascade_step) && jobCount>0;
 			html += "<tr>";
 			html += "<td>Step " + step + "</td>";
 			html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? " jobs" : " job") : "-") + "</td>";
-			html += "<td>" + (isCurrentStep ? "&lt;=" : "&nbsp;") + "</td>";
+			html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
 			html += "</tr>";
 		}
 		
-		html += "<tr><td><strong>TOTAL</strong></td><td>" + totalJobCount + " jobs</strong></td><td>" + (question.cascade_complete ? "&lt;=" : "&nbsp;") + "</td></tr>";
+		html += "<tr>";
+		html += "<td><strong>TOTAL</strong></td>";
+		html += "<td>" + totalJobCount + " jobs</td>";
+		html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
+		html += "</tr>";
+		if (question.active_user_count > 0) {
+			html += "<tr>";
+			html += "<td>&nbsp;</td>";
+			html += "<td colspan='2'>" + Math.ceil(totalJobCount/question.active_user_count) + " jobs/user</td>";
+			html += "</tr>";
+			html += "<tr>";
+			html += "<td>&nbsp;</td>";
+			html += "<td colspan='2'>" + toHHMMSS(completionTime) + "</td>";
+			html += "</tr>";
+		}
+
 		html += "</table>";
-		html += "<div class='note'>Estimated counts</div>";
+		html += "<div class='note'>";
+		html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? " note" : " note");
+		html += ",<br/>" + Math.ceil(question.idea_count * 1.5) + " best categories";
+		if (question.active_user_count > 0) {
+			html += ", " + question.active_user_count + (question.active_user_count > 1 ? " users" : " user");
+			html += ",<br/> " + TIME_REQUIRED_PER_CASCADE_JOB + " seconds per job"; 
+		}
+		html += "</div>";
 		html += "</div>";
 	}
-	$("#cascade_stats").html(html);
+	$("#cascade_estimates").html(html);
 }
         
 function setActive(active) {

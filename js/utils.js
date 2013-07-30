@@ -4,6 +4,7 @@
 
 var PHASE_NOTES = 1;
 var PHASE_CASCADE = 2;
+var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
 
 var MAX_CHARS = 125;
 
