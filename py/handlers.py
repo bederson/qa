@@ -87,7 +87,7 @@ class BaseHandler(webapp2.RequestHandler):
         if self.person is not None and nickname is not None and self.person.session_sid is not None and self.person.session_sid != self.session.sid:
             self.person = None
         
-        if self.person is not None:
+        if self.person is not None and not self.person.is_logged_in:
             self.person.login(self.dbConnection)
         
     def isUserLoggedIn(self):
@@ -290,9 +290,9 @@ class LoginHandler(BaseHandler):
         self.person = Person.getPerson(self.dbConnection, self.question)              
         if not self.person:
             self.person = Person.create(self.dbConnection, question=self.question)
-        else:
+        elif not self.person.is_logged_in:
             self.person.login(self.dbConnection)
-                     
+    
         self.destroy()
         self.redirect(str(page) if page else (getPhaseUrl(self.question) if self.question else "/"))
                 
@@ -326,7 +326,7 @@ class NicknameLoginHandler(BaseHandler):
             else:
                 if not self.person:
                     self.person = Person.create(self.dbConnection, question=self.question, nickname=nickname)
-                else:
+                elif not self.person.is_logged_in:
                     self.person.login(self.dbConnection)
 
                 self.session[self.question.id] = { "nickname": nickname }
@@ -346,7 +346,7 @@ class QuestionLoginHandler(BaseHandler):
             data = { "status" : 0, "msg" : self.session.pop("msg") }
                
         else:
-            if self.person is not None:
+            if self.person is not None and not self.person.is_logged_in:
                 self.person.login(self.dbConnection)
                                             
             data = { 
@@ -404,7 +404,7 @@ class NicknameHandler(BaseHandler):
                 "op": "nickname",
                 "user": self.person.toDict()
             }
-            sendMessage(self.dbConnection, clientId, self.question.id, message)      
+            sendMessage(self.dbConnection, clientId, self.question, message)      
         
         self.writeResponseAsJson(data)
         self.destroy()
@@ -458,7 +458,7 @@ class NewQuestionHandler(BaseHandler):
         else:
             self.question = Question.create(self.dbConnection, self.person, title, questionText, nicknameAuthentication)
             data = { "status": 1, "question": self.question.toDict() }
-            #sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "newquestion" })
+            #sendMessage(self.dbConnection, clientId, self.question, { "op" : "newquestion" })
 
         self.writeResponseAsJson(data)
         self.destroy()
@@ -487,7 +487,7 @@ class EditQuestionHandler(BaseHandler):
             }
             self.question.update(self.dbConnection, properties)            
             data = { "status": 1, "question": self.question.toDict() }
-            #sendMessage(self.dbConnection, clientId, self.question.id, { "op": "editquestion" })
+            #sendMessage(self.dbConnection, clientId, self.question, { "op": "editquestion" })
             
         self.writeResponseAsJson(data)
         self.destroy()
@@ -504,7 +504,7 @@ class DeleteQuestionHandler(BaseHandler):
         else:
             self.question.delete(self.dbConnection)
             data = { "status" : 1 }
-            sendMessage(self.dbConnection, clientId, self.question.id, { "op": "delete" })
+            sendMessage(self.dbConnection, clientId, self.question, { "op": "delete" })
             
         self.writeResponseAsJson(data) 
         self.destroy()
@@ -657,7 +657,7 @@ class NewIdeaHandler(BaseHandler):
                 }
                 msg = { "op": "newidea", "idea": idea.toDict(author=author, admin=False) }
                 adminMsg = { "op": "newidea", "idea": idea.toDict(author=author, admin=True) }
-                sendMessage(self.dbConnection, clientId, self.question.id, msg, adminMsg)
+                sendMessage(self.dbConnection, clientId, self.question, msg, adminMsg)
         
         self.writeResponseAsJson(data) 
         self.destroy()
@@ -678,7 +678,7 @@ class ActiveHandler(BaseHandler):
         else:
             self.question.setActive(self.dbConnection, active)
             data = { "status" : 1, "question" : self.question.toDict() }
-            sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "enable" if active == 1 else "disable" })
+            sendMessage(self.dbConnection, clientId, self.question, { "op" : "enable" if active == 1 else "disable" })
 
         self.writeResponseAsJson(data)            
         self.destroy()
@@ -702,7 +702,7 @@ class PhaseHandler(BaseHandler):
         else:
             self.question.setPhase(self.dbConnection, phase)
             data = { "status" : 1, "question" : self.question.toDict() }
-            sendMessage(self.dbConnection, clientId, self.question.id, { "op" : "phase", "phase" : phase, "cascade_step" : self.question.cascade_step })
+            sendMessage(self.dbConnection, clientId, self.question, { "op" : "phase", "phase" : phase, "cascade_step" : self.question.cascade_step })
 
         self.writeResponseAsJson(data)            
         self.destroy()
@@ -745,7 +745,7 @@ class CancelCascadeJobHandler(BaseHandler):
             if count > 0:    
                 # TODO/FIX: only notify users who haven't done the new jobs yet
                 # currently all users are notified and they have to check to see if any jobs available for them
-                sendMessage(self.dbConnection, None, self.question.id, { "op" : "morejobs" })
+                sendMessage(self.dbConnection, None, self.question, { "op" : "morejobs" })
         self.destroy()
         
 class CascadeInitStepHandler(BaseHandler):
@@ -757,10 +757,10 @@ class CascadeInitStepHandler(BaseHandler):
             self.question.continueCascade(self.dbConnection)
             if self.question.cascade_complete:
                 # notify any waiting clients that categories are ready
-                sendMessage(self.dbConnection, None, self.question.id, { "op": "categories" })
+                sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id })
             else:                    
                 # notify any waiting clients that next step that is ready
-                sendMessage(self.dbConnection, None, self.question.id, { "op": "step", "step": self.question.cascade_step, "iteration" : self.question.cascade_iteration })
+                sendMessage(self.dbConnection, None, self.question, { "op": "step", "question_id" : self.question.id, "step": self.question.cascade_step, "iteration" : self.question.cascade_iteration })
 
 class CascadeOptionsHandler(BaseHandler):
     def post(self):
@@ -785,61 +785,7 @@ class CascadeOptionsHandler(BaseHandler):
         
         self.writeResponseAsJson(data)
         self.destroy()
-
-class CascadeEstimatesHandler(BaseHandler):
-    def post(self):
-        self.init(adminRequired=True)
-        clientId = self.request.get('client_id')
-
-        ok = self.checkRequirements(self, questionRequired=True)
-        if not ok:
-            data = { "status" : 0, "msg" : self.session.pop("msg") }
-
-        else:
-            jobsRequired, ideaCount = estimateRequiredCascadeJobs(self.dbConnection, self.question)
-            data = { "status" : 1, "cascade_jobs_required" : jobsRequired, "idea_count" : ideaCount, "cascade_complete" : self.question.cascade_complete, "cascade_step" : self.question.cascade_step, "cascade_iteration" : self.question.cascade_iteration }
-        
-        self.writeResponseAsJson(data)
-        self.destroy()
-        
-def estimateRequiredCascadeJobs(dbConnection, question):
-    # TODO/FIX: can idea count be passed in vs. getting it every time
-    ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
-    m = min(ideaCount, question.cascade_m)
-    n = ideaCount
-    k = question.cascade_k
-    k2 = question.cascade_k2
-    t = question.cascade_t
-
-    jobsRequired = []
-    
-    # step 1
-    count = math.ceil(float(m)/t) * k
-    jobsRequired.append({ "total" : count, "options" : ["m", "k", "t"] })
-    
-    # step 2
-    count = m * k
-    jobsRequired.append({ "total" : count, "options" : ["m", "k"] })
-    
-    # step 3
-    C = 1.5 * m # estimate
-    count = m * math.ceil(float(C)/t) * k2
-    jobsRequired.append({ "total" : count, "options" : ["m", "k2", "t", "C"] })
-
-    # step 4
-    count = m * k2
-    jobsRequired.append({ "total" : count, "options" : ["m", "k2"] })
-
-    # step 5
-    count = (n-m) * math.ceil(float(C)/t) * k2
-    jobsRequired.append({ "total" : count, "options" : ["n-m", "k2", "t", "C"] })
-    
-    # step 6
-    count = (n-m) * k2
-    jobsRequired.append({ "total" : count, "options" : ["n-m", "k2"] })
-        
-    return jobsRequired, ideaCount
-         
+                 
 #####################
 # Channel support
 #####################
@@ -886,10 +832,11 @@ def getInfoFromClient(clientId):
     isAdmin = "a" in tokens[3] if len(tokens) >= 4 else False
     return (questionId, personId, isAdmin)
 
-def sendMessage(dbConnection, fromClientId, questionId, message, adminMessage=None):
+def sendMessage(dbConnection, fromClientId, question, message, adminMessage=None):
     """Send message to all listeners (except self if fromClientId specified) to this topic"""
-    if questionId:
-        sql = "select client_id from users,user_clients where users.id=user_clients.user_id and question_id={0} and client_id like '%\_{1}\_%'".format(questionId, questionId)
+    if question:
+        # send messages to both question users and question author (which may not be logged in to question explicitly)
+        sql = "select client_id from user_clients,users where users.id=user_clients.user_id and ((question_id={0} and client_id like '%\_{0}\_%') or users.id={1})".format(question.id, question.user_id)
         dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()
         for row in rows:
@@ -898,9 +845,18 @@ def sendMessage(dbConnection, fromClientId, questionId, message, adminMessage=No
             if not fromClientId or toClientId != fromClientId:
                 if adminMessage:
                     clientQuestionId, clientPersonId, clientIsAdmin = getInfoFromClient(toClientId)
-                    if clientIsAdmin:
+                    if clientIsAdmin or clientPersonId==question.user_id:
                         toMessage = adminMessage
                 channel.send_message(toClientId, json.dumps(toMessage))
+                
+def sendMessageToQuestionAuthor(dbConnection, question, message):
+    if question is not None:
+        sql = "select client_id from user_clients where user_id={0} and client_id like '%\_{1}\_{0}'".format(question.user_id, constants.EMPTY_CLIENT_TOKEN)
+        dbConnection.cursor.execute(sql)
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            toClientId = row["client_id"] 
+            channel.send_message(toClientId, json.dumps(message))
 
 #####################
 # URL routines

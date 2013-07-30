@@ -23,6 +23,8 @@ $(document).ready(function() {
 		return;
 	}
 
+	initChannel();
+	
 	if (jQuery.browser.mobile) {
 		$(".stats").hide();
 	}
@@ -129,9 +131,6 @@ function displaySelectedQuestion() {
 	// get question stats
 	updateQuestionStats();
 	
-	// get cascade stats
-	updateCascadeStats(question);
-	
 	$("#active_cb").prop("checked", question.active);
 	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
 	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
@@ -152,15 +151,18 @@ function displaySelectedQuestion() {
 	$("#selected_question").show();
 }
 
-function updateQuestionStats() {
+function updateQuestionStats(forceRefresh) {
 // BEHAVIOR: currently stats are only retrieved for each question once per page load
 	var question = getSelectedQuestion();
 	if (!question) {
 		return;
 	}
 	
-	if (isDefined(question.num_ideas)) {
+	forceRefresh = isDefined(forceRefresh) ? forceRefresh : false;
+	
+	if (!forceRefresh && isDefined(question.idea_count)) {
 		displayQuestionStats(question);
+		displayCascadeStats(question);
 	}
 	else {
 		data = {
@@ -175,6 +177,7 @@ function updateQuestionStats() {
 				question.active_user_count = results["active_user_count"];
 				if (isSelectedQuestion(question.id)) {
 					displayQuestionStats(question);
+					updateCascadeStats(question);
 				}
 			}
 		});
@@ -189,64 +192,81 @@ function displayQuestionStats(question) {
 	stats.push(ideaCount + (ideaCount!=1 ? " notes" : " note"));
 	stats.push(userCount + (userCount!=1 ? " users" : " user"));
 	stats.push(activeUserCount + (activeUserCount!=1 ? " active users" : " active user"));
-	$("#stats").html(stats.join(", ")+"<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh</span></a>");
+	
+	// idea count is being updated dynamically via messages from server
+	// but user count is only updated once per page load
+	$("#stats").html(stats.join(", ")+"<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh User Counts</span></a>");
 	$("#refresh_question_stats_link").unbind("click");
 	$("#refresh_question_stats_link").click(function() {
-		updateQuestionStats();
+		updateQuestionStats(true);
 		return false;
 	});
 }
 
 function updateCascadeStats(question) {
-	var data = {
-		"client_id": client_id,
-		"question_id": question.id
-	};
-	$.post("/cascade_estimates", data, function(results) {
-		if (results.status == 0) {
-			$("#msg").html(results.msg);
-			return;
-		}
-		
-		var html = "";
-		if (isDefined(results.cascade_jobs_required)) {
-			question.idea_count = results.idea_count;
-			if (question.idea_count > 0) {
-				html += "<span class='small'>";
-				html += "<strong>Cascade Jobs</strong><br/>";
-				var totalJobsRequired = 0;
-				for (var i=0; i<results.cascade_jobs_required.length; i++) {
-					var step = i+1;
-					var jobsRequiredForStep = results.cascade_jobs_required[i].total;
-					totalJobsRequired += jobsRequiredForStep;
-					if (question.phase==PHASE_CASCADE && !results.cascade_complete && step == results.cascade_step) {
-						html += "=> ";
-					}
-					html += "Step " + step + ": ";
-					html += jobsRequiredForStep > 0 ? jobsRequiredForStep + (jobsRequiredForStep > 1 ? " jobs" : " job") : "-";
-					html += "<br/>";
-				}
-				html += "<strong>TOTAL: " + totalJobsRequired + " jobs</strong><br/>";
-				html += "<span class='note'>Estimates based on " + question.idea_count + " notes</span><br/>";
-				html += "<a id='refresh_cascade_stats_link' href='#'><span class='small'>Refresh</span></a>";
-				html += "</span>";
-			}
-		}
-		$("#cascade_stats").html(html);
-		
-		$("#refresh_cascade_stats_link").unbind("click");
-		$("#refresh_cascade_stats_link").click(function() {
-			var question = getSelectedQuestion();
-			if (question) {
-				updateCascadeStats(question);
-			}
-			return false;
-		});
-		
-		displayQuestionStats(question);
-	}, "json");
+    var m = Math.min(question.idea_count, question.cascade_m)
+    var n = question.idea_count
+    var k = question.cascade_k
+    var k2 = question.cascade_k2
+    var t = question.cascade_t
+
+    question.cascade_job_counts = []
+    
+    // step 1
+    var count = Math.ceil(m/t) * k;
+    question.cascade_job_counts.push(count);
+    
+    // step 2
+    count = m * k;
+    question.cascade_job_counts.push(count);
+    
+    // step 3
+    var C = 1.5 * m; 	// estimate
+    count = m * Math.ceil(C/t) * k2
+    question.cascade_job_counts.push(count);
+
+    // step 4
+    count = m * k2;
+    question.cascade_job_counts.push(count);
+
+    // step 5
+    count = (n-m) * Math.ceil(C/t) * k2;
+    question.cascade_job_counts.push(count);
+    
+    // step 6
+    count = (n-m) * k2;
+    question.cascade_job_counts.push(count);
+    
+    displayCascadeStats(question);
 }
 
+function displayCascadeStats(question) {
+	var html = "";
+	if (question.idea_count > 0) {
+		html += "<div class='white_box small'>";
+		html += "<strong>Cascade Jobs</strong><br/>";
+		html += "<table class='small smallpadbottom' style='margin-bottom:0px'>";
+		var totalJobCount = 0;
+		for (var i=0; i<question.cascade_job_counts.length; i++) {
+			var step = i+1;
+			var jobCount = question.cascade_job_counts[i];
+			totalJobCount += jobCount;
+			var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
+			html += "<tr>";
+			html += "<td>Step " + step + "</td>";
+			html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? " jobs" : " job") : "-") + "</td>";
+			html += "<td>" + (isCurrentStep ? "&lt;=" : "&nbsp;") + "</td>";
+			html += "</tr>";
+		}
+		
+		html += "<tr><td><strong>TOTAL</strong></td><td>" + totalJobCount + " jobs</strong></td><td>" + (question.cascade_complete ? "&lt;=" : "&nbsp;") + "</td></tr>";
+		html += "</table>";
+		html += "<div class='note'>Estimated counts</div>";
+		html += "</div>";
+	}
+	$("#cascade_stats").html(html);
+}
+        
 function setActive(active) {
 	var question = getSelectedQuestion();
 	if (!question) {
@@ -515,4 +535,50 @@ function getQuestionIndex(question_id) {
 		}
 	}
 	return index;	
+}
+
+/////////////////////////
+// Channel support
+/////////////////////////
+function handleIdea(data) {
+	var question = getSelectedQuestion();
+	if (question && data.idea.question_id==question.id) {
+		question.idea_count++;
+		displayQuestionStats(question);
+		updateCascadeStats(question);
+	}
+}
+
+function handleStep(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_step = data.step;
+		question.cascade_iteration = data.iteration;
+		updateCascadeStats(question);
+	}
+}
+
+function handleResults(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_complete = 1;
+		updateCascadeStats(question);
+		displayQuestionItem(question);
+	}
+}
+
+function handleEnable(data) {
+	// ignore
+}
+
+function handleDisable(data) {
+	// ignore
+}
+
+function handlePhase(data) {
+	// ignore
+}
+
+function handleNickname(data) {
+	// ignore
 }
