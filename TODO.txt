@@ -14,12 +14,14 @@ Features
 
 Misc Improvements
 * Reduce page reloads to reduce unnecessary server calls and # of channels created
+* Code would be cleaner (esp. login/logout) if channel only created once per user
+  Currently code is created every time user visits a page and disconnect when they leave it
 * Need better way to create unique question id
 * Need consistent terminology (e.g., submission/note/response/idea, person/user/author)
 * Create database indexes
 * Destroy channels after some specified period (or does that happen automatically?)
 * Consider what can be stored in datastore and/or memcache to improve performance (categories, etc.)
-* authenticated_user_id will always stay the same but authenticated_nickname can change.
+* authenticated_user_id will always stay the same but authenticated_nickname can change
   Check and update if needed when user logs in
 * Do not allow Cascade to be enabled until notes exist
 * Consider asking users to suggest categories when ideas created
@@ -27,20 +29,20 @@ Misc Improvements
 * Consider blinking browser header when new step available, or highlighting some way
 * Make word clouds clickable (show ideas & categories where word appears)
 * Allow question author to set maximum # of ideas allowed
-* Remove merge any duplicate ideas before starting cascade
+* Remove/merge any duplicate ideas before starting cascade
 * Need to better understand what reasonable defaults should be set in queue.yaml
 * Consider whether or not to delete tmp cascade data once categories have been generated 
   (esp. since some tables like cascade_fit_categories_phase1 may get very large)
-* Handle active users when question disabled or deleted (logout?)
+* Notify active users when question disabled or deleted
 * Allow question author to release incomplete cascade assignments after some period of inactivity
-* Create cronjob to clean up any users who have been logged in for a long time (remember to unassign jobs); 
-  consider what needs to be done when channels expire
+* Create cronjob to clean up any users who have been logged in for a long time (remember to unassign jobs)
+  Consider what needs to be done when channels expire
 * Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas? Editable by question author?
 * Suggest cascade settings based on # of ideas, # of users, etc.
 * Consider when it would speed things up to check for duplicate categories/ideas before step 3
 * Instead of pushing first cascade job to users, change gui to say ready to being categorizing 
   (and require user to request job assignment)
-* Update # users shown on admin panel, also show # active users?
+* Update # users shown on admin panel (easier to do if only one channel created per user)
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

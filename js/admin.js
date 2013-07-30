@@ -90,9 +90,9 @@ function displayQuestionItem(question) {
 function getQuestionItemHtml(question) {
 	var html = "<a href='javascript:selectQuestion(" + question.id + ")'>" + question.title + "</a> ";
 	html += "<span class='note'>#"+question.id+"</span>&nbsp;&nbsp;&nbsp;&nbsp;";
-	html += "<a href='javascript:editQuestionForm(" + question.id + ")'>[edit]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
-	html += "<a href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
-	html += "<a href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a><br/>";
+	html += "<a class='small' href='javascript:editQuestionForm(" + question.id + ")'>[edit]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
+	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
+	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a><br/>";
 	html += question.question + "<br/>";
 	if (question.nickname_authentication) {
 		html += '<span class="note"><em>Nickname authentication</em></span><br/>';
@@ -121,11 +121,11 @@ function displaySelectedQuestion() {
 		$("#selected_question").hide();
 		return;
 	}
-		
-	var html = "<strong>Question Code: " + question.id + "</strong><br/>";
-	html += "Title: " + question.title + "<br/>";
-	html += "Question: " + question.question + "<br/>";
-	html += "<div id='stats' class='largespaceafter'>line1<br/><span class='small'>line2</span></div>";
+	
+	var html = "<h2 class='spaceafter'>Selected question:</h2>";
+	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
+	html += question.question + "<br/>";
+	html += "<div id='question_stats' class='small largespaceafter'>line1<br/><span class='small'>line2</span></div>";
 	$("#question").html(html);
 		
 	// get question stats
@@ -195,7 +195,7 @@ function displayQuestionStats(question) {
 	
 	// idea count is being updated dynamically via messages from server
 	// but user count is only updated once per page load
-	$("#stats").html(stats.join(", ")+"<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh User Counts</span></a>");
+	$("#question_stats").html("("+stats.join(", ")+")<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh User Counts</span></a>");
 	$("#refresh_question_stats_link").unbind("click");
 	$("#refresh_question_stats_link").click(function() {
 		updateQuestionStats(true);
@@ -282,7 +282,7 @@ function displayCascadeStats(question) {
 
 		html += "</table>";
 		html += "<div class='note'>";
-		html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? " note" : " note");
+		html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? " notes" : " note");
 		html += ",<br/>" + Math.ceil(question.idea_count * 1.5) + " best categories";
 		if (question.active_user_count > 0) {
 			html += ", " + question.active_user_count + (question.active_user_count > 1 ? " users" : " user");
