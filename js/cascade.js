@@ -417,5 +417,6 @@ function handleResults(data) {
 }
 
 function handleLogout(data) {
+	cancelCascadeJob();
 	redirectToLogout(question_id);
 }

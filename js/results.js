@@ -188,12 +188,12 @@ function updateStats() {
 	
 	// number of categories (if any)
 	if (categorizedIdeas.length>0) {
-		stats.push(categorizedIdeas.length + (categorizedIdeas.length == 1 ? " category" : "categories"));
+		stats.push(categorizedIdeas.length + (categorizedIdeas.length == 1 ? " category" : " categories"));
 	}
 	
 	// number of uncategorized ideas (if any)
 	if (categorizedIdeas.length>0 && uncategorizedIdeas.length > 0) {
-		stats.push(uncategorizedIdeas.length + (uncategorizedIdeas.length == 1? "uncategorized note" : " uncategorized notes"));
+		stats.push(uncategorizedIdeas.length + (uncategorizedIdeas.length == 1? " uncategorized note" : " uncategorized notes"));
 	}
 		
 	var html = stats.length > 0 ? "(" + stats.join(", ") + ")" : ""

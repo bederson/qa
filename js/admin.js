@@ -259,15 +259,15 @@ function displayCascadeStats(question) {
 			var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
 			var isStepComplete = question.phase==PHASE_CASCADE && (question.cascade_complete || step < question.cascade_step) && jobCount>0;
 			html += "<tr>";
-			html += "<td>Step " + step + "</td>";
-			html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? " jobs" : " job") : "-") + "</td>";
+			html += "<td>Step&nbsp;" + step + "</td>";
+			html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? "&nbsp;jobs" : "&nbsp;job") : "-") + "</td>";
 			html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
 			html += "</tr>";
 		}
 		
 		html += "<tr>";
 		html += "<td><strong>TOTAL</strong></td>";
-		html += "<td>" + totalJobCount + " jobs</td>";
+		html += "<td>" + totalJobCount + "&nbsp;jobs</td>";
 		html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
 		html += "</tr>";
 		if (question.active_user_count > 0) {
@@ -283,16 +283,16 @@ function displayCascadeStats(question) {
 
 		html += "</table>";
 		html += "<div class='note'>";
-		html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? " notes" : " note");
-		html += ",<br/>" + Math.ceil(question.idea_count * 1.5) + " best categories";
+		html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? "&nbsp;notes" : "&nbsp;note");
+		html += ", " + Math.ceil(Math.min(question.idea_count,question.cascade_m) * 1.5) + "&nbsp;best&nbsp;categories";
 		if (question.active_user_count > 0) {
-			html += ", " + question.active_user_count + (question.active_user_count > 1 ? " users" : " user");
-			html += ",<br/> " + TIME_REQUIRED_PER_CASCADE_JOB + " seconds per job"; 
+			html += ", " + question.active_user_count + (question.active_user_count > 1 ? "&nbsp;users" : "&nbsp;user");
+			html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
 		}
 		html += "</div>";
 		html += "</div>";
 	}
-	$("#cascade_estimates").html(html);
+	$("#cascade_estimates").html(html);	
 }
         
 function setActive(active) {
