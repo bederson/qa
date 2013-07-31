@@ -230,6 +230,7 @@ function updateCascadeStats(question) {
     question.cascade_job_counts.push(count);
 
     // step 5
+    // C is probably smaller here but we don't have better estimate
     count = (n-m) * Math.ceil(C/t) * k2;
     question.cascade_job_counts.push(count);
     

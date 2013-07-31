@@ -6,6 +6,13 @@ GAE Deployment
 * create empty sql file containing database structure and import to Google Cloud SQL database
 * create Google Cloud SQL database user to use instead of root
 
+Issues
+* Cascade step 5 has more hits than described in paper - wrong implementation?
+  C is probably smaller for this step but don't have better estimate
+  Also not clear if step 5 has 2 phases (like step 3)
+  Code Steps 3-4 => Paper Steps 3 Phase 1-2
+  Code Steps 5-6 => Paper Step 5
+  
 Features
 * Use stemming when comparing categories for equality
 * Allow admins to modify questions, in addition to question authors
@@ -46,7 +53,6 @@ Misc Improvements
 * Check if function to support message (in js) is defined vs. requiring an empty function to be defined
 
 Known Bugs
-* Cascade step 6 has more hits than described in paper - wrong implementation?
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 * When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
 * Observed instance when GUI did not switch from note input to cascade categorization when testing with group
