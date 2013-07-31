@@ -271,7 +271,10 @@ class ResultsPageHandler(BaseHandler):
 class AdminPageHandler(BaseHandler):
     def get(self):
         self.init(adminRequired=True)
-        self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True)  
+        self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True)
+        # set question to None so not used when creating channel client id
+        # but if one passed in, it has already been checked for validity
+        self.question = None
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
@@ -851,15 +854,6 @@ def sendMessage(dbConnection, fromClientId, question, message, adminMessage=None
                     if clientIsAdmin or clientPersonId==question.user_id:
                         toMessage = adminMessage
                 channel.send_message(toClientId, json.dumps(toMessage))
-                
-def sendMessageToQuestionAuthor(dbConnection, question, message):
-    if question is not None:
-        sql = "select client_id from user_clients where user_id={0} and client_id like '%\_{1}\_{0}'".format(question.user_id, constants.EMPTY_CLIENT_TOKEN)
-        dbConnection.cursor.execute(sql)
-        rows = dbConnection.cursor.fetchall()
-        for row in rows:
-            toClientId = row["client_id"] 
-            channel.send_message(toClientId, json.dumps(message))
             
 def sendMessageToUser(dbConnection, fromClientId, person, message, sendToAllAuthenticatedInstances=False):
     if sendToAllAuthenticatedInstances and person.authenticated_user_id is not None:
