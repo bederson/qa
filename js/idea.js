@@ -175,7 +175,7 @@ function updateNicknameArea() {
 // Channel support
 /////////////////////////
 function handleIdea(data) {
-	// Ignore it
+	// ignore
 }
 
 function handleEnable(data) {
@@ -193,5 +193,9 @@ function handlePhase(data) {
 }
 
 function handleNickname(data) {
-	// Ignore it
+	// ignore
+}
+
+function handleLogout(data) {
+	redirectToLogout(question_id);
 }

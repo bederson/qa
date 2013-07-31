@@ -332,3 +332,7 @@ function handleResults(data) {
 	question.cascade_complete = 1;
 	window.location.reload();
 }
+
+function handleLogout(data) {
+	redirectToLogout(question_id);
+}

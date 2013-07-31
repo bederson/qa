@@ -55,6 +55,8 @@ onMessage = function(message) {
 		handleResults(dataObj);
 	} else if (dataObj.op == "nickname") {
 		handleNickname(dataObj);
+	} else if (dataObj.op == "logout") {
+		handleLogout(dataObj);
 	}
 }
 
@@ -114,6 +116,14 @@ function redirectToAdminPage(question_id) {
 
 function getURLParameter(name) {
     return decodeURIComponent((new RegExp('[?|&|#]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+}
+
+function redirectToLogout(question_id) {
+	var url = "/logout";
+	if (question_id) {
+		url += "?question_id=" + question_id;
+	}
+	window.location.href = url;
 }
 
 //===================================================

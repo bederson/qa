@@ -415,3 +415,7 @@ function handleMoreJobs(data) {
 function handleResults(data) {
 	resultsReady();
 }
+
+function handleLogout(data) {
+	redirectToLogout(question_id);
+}

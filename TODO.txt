@@ -43,8 +43,10 @@ Misc Improvements
 * Instead of pushing first cascade job to users, change gui to say ready to being categorizing 
   (and require user to request job assignment)
 * Update # users shown on admin panel (easier to do if only one channel created per user)
+* Check if function to support message (in js) is defined vs. requiring an empty function to be defined
 
 Known Bugs
+* Cascade step 6 has more hits than described in paper - wrong implementation?
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 * When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
 * Observed instance when GUI did not switch from note input to cascade categorization when testing with group

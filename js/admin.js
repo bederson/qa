@@ -609,3 +609,7 @@ function handlePhase(data) {
 function handleNickname(data) {
 	// ignore
 }
+
+function handleLogout(data) {
+	redirectToLogout();
+}

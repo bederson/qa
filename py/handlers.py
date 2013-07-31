@@ -271,7 +271,7 @@ class ResultsPageHandler(BaseHandler):
 class AdminPageHandler(BaseHandler):
     def get(self):
         self.init(adminRequired=True)
-        self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True)            
+        self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True)  
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
@@ -364,6 +364,9 @@ class LogoutHandler(BaseHandler):
         ok = self.checkRequirements(userRequired=True)
         if ok:
             self.person.logout(self.dbConnection, userRequestedLogout=True)
+            if self.person.authenticated_user_id is not None:
+                sendMessageToUser(self.dbConnection, None, self.person, { "op" : "logout" }, sendToAllAuthenticatedInstances=True)
+
             if self.session.is_active():
                 self.session.terminate(True)
                 self.session.clear()
@@ -856,6 +859,21 @@ def sendMessageToQuestionAuthor(dbConnection, question, message):
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             toClientId = row["client_id"] 
+            channel.send_message(toClientId, json.dumps(message))
+            
+def sendMessageToUser(dbConnection, fromClientId, person, message, sendToAllAuthenticatedInstances=False):
+    if sendToAllAuthenticatedInstances and person.authenticated_user_id is not None:
+        sql = "select client_id from user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
+        dbConnection.cursor.execute(sql, (person.authenticated_user_id))
+    else:
+        sql = "select client_id from user_clients where user_id=%s"
+        dbConnection.cursor.execute(sql, (person.id))
+        
+    rows = dbConnection.cursor.fetchall()
+    for row in rows:
+        toClientId = row["client_id"]
+        if not fromClientId or toClientId != fromClientId:
+            helpers.log("{0}: {1}".format(toClientId, message))
             channel.send_message(toClientId, json.dumps(message))
 
 #####################

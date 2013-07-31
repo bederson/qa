@@ -20,6 +20,9 @@ $(function() {
 		enableDisable($("#admin_button"), false);
 		$("#admin_help").show();
 	}
+	else {
+		initChannel();
+	}
 	
 	$("#code_box").on("keydown", function(evt) {
 		if (evt.keyCode == 13) {		// Return key
@@ -66,4 +69,39 @@ function loginToQuestion() {
 function showInfoMessage(msg) {
 	$("#info").html(msg);
 	$("#info").show();
+}
+
+/////////////////////////
+// Channel support
+/////////////////////////
+function handleIdea(data) {
+	// ignore
+}
+
+function handleEnable(data) {
+	// ignore
+}
+
+function handleDisable(data) {
+	// ignore
+}
+
+function handlePhase(data) {
+	// ignore
+}
+
+function handleNickname(data) {
+	// ignore
+}
+
+function handleStep(data) {
+	// ignore
+}
+
+function handleResults(data) {
+	// ignore
+}
+
+function handleLogout(data) {
+	redirectToLogout();
 }

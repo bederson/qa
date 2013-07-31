@@ -533,15 +533,18 @@ class Person(DBObject):
             if userRequestedLogout and self.authenticated_user_id:
                 sql = "update users set latest_logout_timestamp=now(), session_sid=null where authenticated_user_id=%s"
                 dbConnection.cursor.execute(sql, (self.authenticated_user_id))
-                sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
-                dbConnection.cursor.execute(sql, (self.authenticated_user_id))
-            
+                # do not need to delete rows from user_clients since since "logout" message is sent to each client
+                # which in response calls /logout
+                #sql = "delete from user_clients using user_clients, users where user_clients.user_id=users.id and authenticated_user_id=%s"
+                #dbConnection.cursor.execute(sql, (self.authenticated_user_id))
+    
             # otherwise, logout this specific user instance
             else:
                 sql = "update users set latest_logout_timestamp=now(), session_sid=null where id=%s"
                 dbConnection.cursor.execute(sql, (self.id))
-                sql = "delete from user_clients where user_id=%s"
-                dbConnection.cursor.execute(sql, (self.id))
+                # do not need to delete rows from user_clients since ChannelDisconnectedHandler will do this
+                #sql = "delete from user_clients where user_id=%s"
+                #dbConnection.cursor.execute(sql, (self.id))
                         
             if commit:
                 dbConnection.conn.commit()
