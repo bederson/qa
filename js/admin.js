@@ -253,8 +253,8 @@ function displayCascadeStats(question) {
 			var step = i+1;
 			var jobCount = question.cascade_job_counts[i];
 			totalJobCount += jobCount;
-			if (question.active_user_count > 0) {
-				completionTime += Math.ceil(jobCount / question.active_user_count) * TIME_REQUIRED_PER_CASCADE_JOB;
+			if (question.user_count > 0) {
+				completionTime += Math.ceil(jobCount / question.user_count) * TIME_REQUIRED_PER_CASCADE_JOB;
 			}
 			var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
 			var isStepComplete = question.phase==PHASE_CASCADE && (question.cascade_complete || step < question.cascade_step) && jobCount>0;
@@ -270,10 +270,10 @@ function displayCascadeStats(question) {
 		html += "<td>" + totalJobCount + "&nbsp;jobs</td>";
 		html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
 		html += "</tr>";
-		if (question.active_user_count > 0) {
+		if (question.user_count > 0) {
 			html += "<tr>";
 			html += "<td>&nbsp;</td>";
-			html += "<td colspan='2'>" + Math.ceil(totalJobCount/question.active_user_count) + " jobs/user</td>";
+			html += "<td colspan='2'>" + Math.ceil(totalJobCount/question.user_count) + " jobs/user</td>";
 			html += "</tr>";
 			html += "<tr>";
 			html += "<td>&nbsp;</td>";
@@ -285,8 +285,8 @@ function displayCascadeStats(question) {
 		html += "<div class='note'>";
 		html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? "&nbsp;notes" : "&nbsp;note");
 		html += ", " + Math.ceil(Math.min(question.idea_count,question.cascade_m) * 1.5) + "&nbsp;best&nbsp;categories";
-		if (question.active_user_count > 0) {
-			html += ", " + question.active_user_count + (question.active_user_count > 1 ? "&nbsp;users" : "&nbsp;user");
+		if (question.user_count > 0) {
+			html += ", " + question.user_count + (question.user_count > 1 ? "&nbsp;users" : "&nbsp;user");
 			html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
 		}
 		html += "</div>";		
