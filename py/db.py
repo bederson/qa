@@ -322,7 +322,7 @@ class Question(DBObject):
                 self.update(dbConnection, { "cascade_complete" : 1, "id" : self.id })
                 
         return self.cascade_complete
-    
+        
     def updateCascadeStats(self, dbConnection):
         if self.cascade_step >= 1 and self.cascade_step <= len(CASCADE_CLASSES):
             sql = "select sum(time_to_sec(if(step{0}_start is not null, timediff(step{0}_end,step{0}_start),0))) as step_duration ".format(self.cascade_step)
@@ -946,7 +946,7 @@ class CascadeSuggestedCategory(DBObject):
             question.recordCascadeUnsavedTask(dbConnection, len(unsavedTasks))
         
         return CascadeSuggestedCategory.isStepComplete(dbConnection, question)
-        
+            
     @staticmethod
     def isStepComplete(dbConnection, question):
         sql = "select count(*) as ct from cascade_suggested_categories where question_id=%s and suggested_category is null and skipped=0"

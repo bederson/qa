@@ -238,7 +238,7 @@ function updateUIForStep3(results) {
 				}
 				taskHtml += "<tr>";
 				taskHtml += "<td><input type='radio' class='category_fit' name='category_fit_"+task.id+"' value='1'></td>";
-				taskHtml += "<td><input type='radio' class='catgetory_fit' name='category_fit_"+task.id+"' value='0'></td>";
+				taskHtml += "<td><input type='radio' class='catgetory_fit' name='category_fit_"+task.id+"' value='0' checked='checked'></td>";
 				taskHtml += "<td>" + task.category + "</td>";
 				taskHtml += "</tr>\n";
 			}

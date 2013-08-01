@@ -12,6 +12,8 @@ Issues
   Also not clear if step 5 has 2 phases (like step 3)
   Code Steps 3-4 => Paper Steps 3 Phase 1-2
   Code Steps 5-6 => Paper Step 5
+* Google Cloud SQL is not cheap
+* Remove Step 6 & change estimate for Step 5
   
 Features
 * Use stemming when comparing categories for equality
@@ -64,6 +66,8 @@ Known Bugs
   Don't think deadlock errors will occur if updates happen at exactly the same time (will wait until lock released)
 * If many users working concurrently, it may be possible for multiple users to authenticate with same nickname 
   (but they should still have unique id)
+* Sometimes user and channel not deleted from database
+  (if user still logged in from before, can they get job assigned if client still exists?)
   
 Testing
 * Nickname authentication needs to be tested more completely (see known bugs)

@@ -289,7 +289,7 @@ function displayCascadeStats(question) {
 			html += ", " + question.active_user_count + (question.active_user_count > 1 ? "&nbsp;users" : "&nbsp;user");
 			html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
 		}
-		html += "</div>";
+		html += "</div>";		
 		html += "</div>";
 	}
 	$("#cascade_estimates").html(html);	

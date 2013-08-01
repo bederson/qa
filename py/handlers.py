@@ -791,7 +791,7 @@ class CascadeOptionsHandler(BaseHandler):
         
         self.writeResponseAsJson(data)
         self.destroy()
-                 
+                         
 #####################
 # Channel support
 #####################
@@ -815,10 +815,9 @@ class ChannelDisconnectedHandler(BaseHandler):
         questionId, personId, isAdmin = getInfoFromClient(clientId)
         person = Person.getById(self.dbConnection, personId)
         if person:
-            numClients = person.removeClient(self.dbConnection, clientId, returnNumClients=True, commit=False)
+            numClients = person.removeClient(self.dbConnection, clientId, returnNumClients=True)
             if numClients == 0 and person.is_logged_in:
                 person.logout(self.dbConnection, userRequestedLogout=False)
-            self.dbConnection.conn.commit()
         self.destroy()
 
 def createChannel(question, person):
