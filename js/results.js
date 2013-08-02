@@ -209,7 +209,6 @@ function displayAdminStats() {
 		html += "Step 3: " + toHHMMSS(adminStats["step3_duration"]) + "<br/>";	
 		html += "Step 4: " + toHHMMSS(adminStats["step4_duration"]) + "<br/>";
 		html += "Step 5: " + toHHMMSS(adminStats["step5_duration"]) + "<br/>";
-		html += "Step 6: " + toHHMMSS(adminStats["step6_duration"]) + "<br/>";
 		html += "TOTAL: " + toHHMMSS(adminStats["total_duration"]);
 		html +=  " (" + adminStats["iteration_count"] + " " + (adminStats["iteration_count"]==1?"iteration":"iterations") + ")<br/><br/>";		
 		$("#admin_stats").html(html);

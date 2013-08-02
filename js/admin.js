@@ -234,10 +234,6 @@ function updateCascadeStats(question) {
     count = (n-m) * Math.ceil(C/t) * k2;
     question.cascade_job_counts.push(count);
     
-    // step 6
-    count = (n-m) * k2;
-    question.cascade_job_counts.push(count);
-    
     displayCascadeStats(question);
 }
 

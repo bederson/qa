@@ -5,15 +5,6 @@ GAE Deployment
   https://developers.google.com/cloud-sql/docs/import_export#migrate
 * create empty sql file containing database structure and import to Google Cloud SQL database
 * create Google Cloud SQL database user to use instead of root
-
-Issues
-* Cascade step 5 has more hits than described in paper - wrong implementation?
-  C is probably smaller for this step but don't have better estimate
-  Also not clear if step 5 has 2 phases (like step 3)
-  Code Steps 3-4 => Paper Steps 3 Phase 1-2
-  Code Steps 5-6 => Paper Step 5
-* Google Cloud SQL is not cheap
-* Remove Step 6 & change estimate for Step 5
   
 Features
 * Use stemming when comparing categories for equality
@@ -53,6 +44,7 @@ Misc Improvements
   (and require user to request job assignment)
 * Update # users shown on admin panel (easier to do if only one channel created per user)
 * Check if function to support message (in js) is defined vs. requiring an empty function to be defined
+* Reduce usage of Google Cloud Sql where possible to reduce cost
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

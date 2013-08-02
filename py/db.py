@@ -424,7 +424,7 @@ class Question(DBObject):
                 sql = "update cascade_best_categories set user_id=null where question_id={0} and best_category is null and none_of_the_above=0".format(self.id)
             elif self.cascade_step == 3 or self.cascade_step == 5:
                 sql = "update cascade_fit_categories_phase1 set user_id=null where question_id={0} and fit=-1".format(self.id)
-            elif self.cascade_step == 4 or self.cascade_step == 6:
+            elif self.cascade_step == 4:
                 sql = "update cascade_fit_categories_phase2 set user_id=null where question_id={0} and fit=-1".format(self.id)
             
             if sql:
@@ -806,7 +806,7 @@ class Idea(DBObject):
 # BEHAVIOR: currently any existing cascade data is deleted if cascade is disabled and then re-enabled
 # BEHAVIOR: users are restricted to unique tasks when running on GAE; >= k users required to complete cascade 
 # BEHAVIOR: users can can do as many jobs as they can when running locally, but are restricted to unique tasks on GAE
-# BEHAVIOR: introduced cascade_k2 to use for steps 3-6 (category fit tasks) since step 3/5 can be very expensive in terms of # of tasks
+# BEHAVIOR: introduced cascade_k2 to use for steps 3-5 (category fit tasks) since step 3/5 can be very expensive in terms of # of tasks
 # BEHAVIOR: cascade recurses if # uncategorized items > CASCADE_MAX_UNCATEGORIZED but not for loose categories 
 # BEHAVIOR: # iterations limited by CASCADE_MAX_ITERATIONS, regardless of how many items still uncategorized
 # BEHAVIOR: categories with fewer than CASCADE_Q items removed
@@ -1003,6 +1003,11 @@ class CascadeBestCategory(DBObject):
             for i in range(question.cascade_k):
                 insertValues.append("({0}, {1}, {2})".format(question.id, ideaId, question.cascade_iteration))
 
+        # if no categories found, skip to next step
+        if len(insertValues) == 0:
+            question.continueCascade(dbConnection, skip=True)
+            return
+        
         # If you are inserting many rows from the same client at the same time, use INSERT statements 
         # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
         # (many times faster in some cases) than using separate single-row INSERT statements.
@@ -1444,7 +1449,7 @@ class CascadeFitCategoryPhase2(DBObject):
 
     @staticmethod
     def continueCascade(dbConnection, question):
-        GenerateCascadeHierarchy(dbConnection, question)
+        #GenerateCascadeHierarchy(dbConnection, question)
         question.initCascadeNextStep(dbConnection)
             
 class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):        
@@ -1466,11 +1471,20 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
             question.continueCascade(dbConnection, skip=True)
             return
 
-        # TODO: how should voting threshold be determined
-        votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>=3 else 1        
-        sql = "select distinct best_category from cascade_best_categories where question_id=%s and cascade_iteration=%s and none_of_the_above=0 group by question_id,idea_id,best_category having count(*)>=%s"
+        #votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>=3 else 1        
+        #sql = "select distinct best_category from cascade_best_categories where question_id=%s and cascade_iteration=%s and none_of_the_above=0 group by question_id,idea_id,best_category having count(*)>=%s"
+        #dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
 
-        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
+        # Check subsequent items against categories that passed step 4
+        sql = "select category,count(*) as ct from cascade_fit_categories_phase2 where "
+        sql += "question_id=%s "
+        sql += "and cascade_iteration=%s "
+        sql += "and fit=1 "
+        sql += "group by category "
+        sql += "having ct>=%s"
+        minCount = math.ceil(question.cascade_k2 * 0.8)
+        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, minCount))
+    
         rows2= dbConnection.cursor.fetchall()
                     
         insertValues = []
@@ -1478,7 +1492,7 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
         for row in rows:
             ideaId = row["id"]
             for row2 in rows2:
-                category = row2["best_category"]
+                category = row2["category"]
                 for i in range(question.cascade_k2):
                     insertValues.append("({0}, {1}, %s, {2}, {3})".format(question.id, ideaId, question.cascade_iteration, 1))
                     categories += (category,)
@@ -1497,46 +1511,11 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
         dbConnection.cursor.execute(sql, categories)
         dbConnection.conn.commit()
         
-class CascadeFitCategorySubsequentPhase2(CascadeFitCategoryPhase2):        
-    def __init__(self):
-        super().__init__()
-    
     @staticmethod
-    def initStep(dbConnection, question):
-        # TODO: how should voting threshold be determined
-        votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>=3 else 1
-        sql = "select *,count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and cascade_iteration=%s and subsequent=1 and fit=1 group by question_id,idea_id,category having ct>=%s";
-        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
-        rows = dbConnection.cursor.fetchall()
+    def continueCascade(dbConnection, question):
+        GenerateCascadeHierarchy(dbConnection, question)
+        question.initCascadeNextStep(dbConnection)
         
-        # if no subsequent items passed phase1, skip to next step
-        if len(rows) == 0:
-            question.continueCascade(dbConnection, skip=True)
-            return
-                        
-        insertValues = []
-        categories = ()
-        for row in rows:
-            ideaId = row["idea_id"]
-            category = row["category"]
-            for i in range(question.cascade_k2):
-                insertValues.append("({0}, {1}, %s, {2})".format(question.id, ideaId, question.cascade_iteration))
-                categories += (category,)
-
-        # if no categories found, skip to next step
-        if len(insertValues) == 0:
-            question.continueCascade(dbConnection, skip=True)
-            return
-        
-        # If you are inserting many rows from the same client at the same time, use INSERT statements 
-        # with multiple VALUES lists to insert several rows at a time. This is considerably faster 
-        # (many times faster in some cases) than using separate single-row INSERT statements.
-        # http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
-        sql = "insert into cascade_fit_categories_phase2 (question_id, idea_id, category, cascade_iteration) values"
-        sql += ",".join(insertValues)
-        dbConnection.cursor.execute(sql, categories)
-        dbConnection.conn.commit()
-                        
 def GenerateCascadeHierarchy(dbConnection, question):
     categories = {}
     ideas = {}
@@ -1558,6 +1537,27 @@ def GenerateCascadeHierarchy(dbConnection, question):
             categories[category] = []
         categories[category].append(ideaId)
         ideas[ideaId] = idea
+    
+    # check for any categories that passed step 5 (if performed)
+    ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
+    if ideaCount > question.cascade_m:
+        sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories_phase1,question_ideas where "
+        sql += "cascade_fit_categories_phase1.idea_id=question_ideas.id "
+        sql += "and cascade_fit_categories_phase1.question_id=%s "
+        sql += "and subsequent=1 "
+        sql += "and fit=1 "
+        sql += "group by idea_id,category "
+        sql += "having ct>=%s"
+        dbConnection.cursor.execute(sql, (question.id, minCount))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            category = row["category"]
+            ideaId = row["idea_id"]
+            idea = row["idea"]
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(ideaId)
+            ideas[ideaId] = idea
     
     # remove any categories with less than q items
     categoriesToRemove = []
@@ -1614,4 +1614,5 @@ def GenerateCascadeHierarchy(dbConnection, question):
 
     dbConnection.conn.commit()
         
-CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, CascadeFitCategorySubsequentPhase1, CascadeFitCategorySubsequentPhase2 ]
+#CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, CascadeFitCategorySubsequentPhase1, CascadeFitCategorySubsequentPhase2 ]
+CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, CascadeFitCategorySubsequentPhase1 ]

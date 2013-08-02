@@ -75,7 +75,7 @@ function updateUI(results) {
 		updateUIForStep2(results);
 	}
 	// step 3/4: do categories fit
-	// step 5/6: do subsequent categories fit
+	// step 5: do subsequent categories fit
 	else if (results.step >= 3) {
 		updateUIForStep3(results);
 	}
@@ -97,7 +97,7 @@ function updateTitleArea(results) {
 		$("#title").html("Select Best Category");
 		$("#help").html("Pick the one category that best fits this note.");
 	}
-	else if (results.step >= 3 && results.step <= 6) {
+	else if (results.step >= 3 && results.step <= 5) {
 		var stepPhase = results.step == 3 || results.step == 5 ? 1 : 2;
 		$("#title").html("Check " + (results.step>4 ? "Subsequent " : "") + "Categories (Phase " + stepPhase + ")");
 		$("#help").html("Select whether or not each category fits this note.");
@@ -215,7 +215,7 @@ function submitStep2(task) {
 }
 
 // steps 3-4: do categories fit (initial set)
-// steps 5-6: do categories fit (subsequent set)
+// steps 5: do categories fit (subsequent set)
 function updateUIForStep3(results) {
 	updateTitleArea(results);
 	if (results.status == 1) {
@@ -309,6 +309,7 @@ function waitForNextStep(results) {
 
 // cascade complete
 function resultsReady() {
+	$("#step").html("");
 	$("#title").html("Categories Complete");
 	$("#help").html("");
 	$("#msg").html("");
