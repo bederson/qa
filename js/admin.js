@@ -204,13 +204,13 @@ function displayQuestionStats(question) {
 }
 
 function updateCascadeStats(question) {
-    var m = Math.min(question.idea_count, question.cascade_m)
-    var n = question.idea_count
-    var k = question.cascade_k
-    var k2 = question.cascade_k2
-    var t = question.cascade_t
+    var m = Math.min(question.idea_count, question.cascade_m);
+    var n = question.idea_count;
+    var k = question.cascade_k;
+    var k2 = question.cascade_k2;
+    var t = question.cascade_t;
 
-    question.cascade_job_counts = []
+    question.cascade_job_counts = [];
     
     // step 1
     var count = Math.ceil(m/t) * k;
@@ -222,7 +222,7 @@ function updateCascadeStats(question) {
     
     // step 3
     var C = Math.ceil(1.5 * m); 	// estimate
-    count = m * Math.ceil(C/t) * k2
+    count = m * Math.ceil(C/t) * k2;
     question.cascade_job_counts.push(count);
 
     // step 4

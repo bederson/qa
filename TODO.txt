@@ -68,6 +68,8 @@ Testing
 
 Design Issues
 * General tension between student individual focus and how much they see of collective activity
+* What are implications of having students wait until others finish before moving to next step
+* Is it better to make users explicitly select Y or N for category fit tasks or is it ok to default to N to reduce clicks
 
 Google Cloud SQL
 * Google Cloud SQL uses MySQL 5.5 (using 5.6 for local testing)
