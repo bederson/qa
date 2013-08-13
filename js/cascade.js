@@ -97,9 +97,16 @@ function updateTitleArea(results) {
 		$("#title").html("Select Best Category");
 		$("#help").html("Pick the one category that best fits this note.");
 	}
-	else if (results.step >= 3 && results.step <= 5) {
-		var stepPhase = results.step == 3 || results.step == 5 ? 1 : 2;
-		$("#title").html("Check " + (results.step>4 ? "Subsequent " : "") + "Categories (Phase " + stepPhase + ")");
+	else if (results.step == 3) {
+		$("#title").html("Match Categories");
+		$("#help").html("Select whether or not each category fits this note.");
+	}
+	else if (results.step == 4) {
+		$("#title").html("Verify Categories");
+		$("#help").html("Select whether or not each category fits this note.");
+	}
+	else if (results.step == 5) {
+		$("#title").html("Match Additional Categories");
 		$("#help").html("Select whether or not each category fits this note.");
 	}
 	else {
@@ -214,8 +221,9 @@ function submitStep2(task) {
 	saveAndGetNextJob(job);
 }
 
-// steps 3-4: do categories fit (initial set)
-// steps 5: do categories fit (subsequent set)
+// step 3: match categories (initial set)
+// step 4: verify categories (initial set)
+// step 5: match categories (subsequent set)
 function updateUIForStep3(results) {
 	updateTitleArea(results);
 	if (results.status == 1) {
