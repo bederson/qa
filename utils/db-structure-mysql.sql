@@ -108,6 +108,7 @@ CREATE TABLE `cascade_stats` (
   `question_id` int(11) NOT NULL,
   `idea_count` int(11) DEFAULT '0',
   `category_count` int(11) DEFAULT '0',
+  `uncategorized_count` int(11) DEFAULT '0',
   `user_count` int(11) DEFAULT '0',
   `iteration_count` int(11) DEFAULT '0',
   `step1_duration` int(11) DEFAULT '0',
@@ -298,4 +299,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-14 12:18:58
+-- Dump completed on 2013-08-14 15:43:00

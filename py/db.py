@@ -350,6 +350,12 @@ class Question(DBObject):
             dbConnection.cursor.execute(sql, (self.id))
             row = dbConnection.cursor.fetchone()
             categoryCount = row["ct"] if row else 0
+            
+            # uncategorized count
+            sql = "select count(*) as ct from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null"
+            dbConnection.cursor.execute(sql, (self.id))
+            row = dbConnection.cursor.fetchone()
+            uncategorizedCount = row["ct"] if row else 0
         
             # iteration count
             sql = "select count(*) as iteration_count from cascade_times where question_id=%s"
@@ -363,8 +369,8 @@ class Question(DBObject):
             row = dbConnection.cursor.fetchone()
             totalDuration = row["total_duration"] if row else 0
 
-            sql = "update cascade_stats set category_count=%s, user_count=%s, iteration_count=%s, total_duration=%s where question_id=%s"
-            dbConnection.cursor.execute(sql, (categoryCount, userCount, iterationCount, totalDuration, self.id))
+            sql = "update cascade_stats set user_count=%s, category_count=%s, uncategorized_count=%s, iteration_count=%s, total_duration=%s where question_id=%s"
+            dbConnection.cursor.execute(sql, (userCount, categoryCount, uncategorizedCount, iterationCount, totalDuration, self.id))
         
         dbConnection.conn.commit()
        
@@ -387,6 +393,7 @@ class Question(DBObject):
             stats["user_count"] = row["user_count"]
             stats["idea_count"] = row["idea_count"]
             stats["category_count"] = row["category_count"]
+            stats["uncategorized_count"] = row["uncategorized_count"]
             stats["iteration_count"] = row["iteration_count"]
             
             # duration stats only updated when steps are completed

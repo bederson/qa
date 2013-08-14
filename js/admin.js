@@ -279,7 +279,7 @@ function displayCascadeStats(question) {
 		
 		// jobs per user
 		var userCount = question.cascade_complete ? question.cascade_stats["user_count"] : question.user_count;
-		if (userCount > 0) {
+		if (userCount > 0 && totalJobCount > 0) {
 			html += "<tr>";
 			html += "<td>&nbsp;</td>";
 			html += "<td colspan='2'>" + Math.ceil(totalJobCount/userCount) + " jobs/user</td>";
@@ -315,6 +315,10 @@ function displayCascadeStats(question) {
 			html += " by " + question.cascade_stats["user_count"] + (question.cascade_stats["user_count"] > 1 ? "&nbsp;users" : "&nbsp;user");
 			if (question.cascade_stats["iteration_count"] > 1) {
 				html += " in " + question.cascade_stats["iteration_count"] + "&nbsp;iterations";
+			}
+			html += "; " + question.cascade_stats["category_count"] + (question.cascade_stats["category_count"] > 1 ? "&nbsp;categories" : "&nbsp;category") + " created";
+			if (question.cascade_stats["uncategorized_count"] > 0) {
+				html += " (" + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized)";
 			}
 			html += "</div>";
 		}	
