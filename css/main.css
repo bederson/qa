@@ -75,6 +75,10 @@ a.warning:hover {
 	height: 40px;
 }
 
+#cascade_stats {
+	width: 225px;
+}
+
 /* backgrounds */
 
 .white_box {

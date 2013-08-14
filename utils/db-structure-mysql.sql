@@ -51,7 +51,7 @@ CREATE TABLE `cascade_fit_categories` (
   `fit` int(11) DEFAULT '-1',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -116,6 +116,11 @@ CREATE TABLE `cascade_stats` (
   `step4_duration` int(11) DEFAULT '0',
   `step5_duration` int(11) DEFAULT '0',
   `total_duration` int(11) DEFAULT '0',
+  `step1_job_count` int(11) DEFAULT '0',
+  `step2_job_count` int(11) DEFAULT '0',
+  `step3_job_count` int(11) DEFAULT '0',
+  `step4_job_count` int(11) DEFAULT '0',
+  `step5_job_count` int(11) DEFAULT '0',
   `step1_unsaved_count` int(11) DEFAULT '0',
   `step2_unsaved_count` int(11) DEFAULT '0',
   `step3_unsaved_count` int(11) DEFAULT '0',
@@ -293,4 +298,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-02 14:30:06
+-- Dump completed on 2013-08-14 12:18:58

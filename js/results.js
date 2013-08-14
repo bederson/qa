@@ -62,7 +62,6 @@ function loadQuestion() {
 		categorizedIdeas = results.categorized;
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
-		adminStats = isDefined(results.admin_stats) ? results.admin_stats : null;
 		
 		updatePhase();
 		
@@ -119,7 +118,6 @@ function displayIdeas() {
 	
 	$("#ideas").html(html);
 	updateStats();
-	displayAdminStats();
 	
 	if (categorizedIdeas.length>0) {
 		$("#display_control_area").show();
@@ -198,21 +196,6 @@ function updateStats() {
 		
 	var html = stats.length > 0 ? "(" + stats.join(", ") + ")" : ""
 	$("#question_stats").html(html);
-}
-
-function displayAdminStats() {
-	if (adminStats) {
-		html = "<hr/>";
-		html += "Cascade Timings<br/>";
-		html += "Step 1: " + toHHMMSS(adminStats["step1_duration"]) + "<br/>";
-		html += "Step 2: " + toHHMMSS(adminStats["step2_duration"]) + "<br/>";
-		html += "Step 3: " + toHHMMSS(adminStats["step3_duration"]) + "<br/>";	
-		html += "Step 4: " + toHHMMSS(adminStats["step4_duration"]) + "<br/>";
-		html += "Step 5: " + toHHMMSS(adminStats["step5_duration"]) + "<br/>";
-		html += "TOTAL: " + toHHMMSS(adminStats["total_duration"]);
-		html +=  " (" + adminStats["iteration_count"] + " " + (adminStats["iteration_count"]==1?"iteration":"iterations") + ")<br/><br/>";		
-		$("#admin_stats").html(html);
-	}
 }
 
 //=================================================================================

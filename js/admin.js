@@ -125,11 +125,11 @@ function displaySelectedQuestion() {
 	var html = "<h2 class='spaceafter'>Selected question:</h2>";
 	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
 	html += question.question + "<br/>";
-	html += "<div id='question_stats' class='small largespaceafter'>line1<br/><span class='small'>line2</span></div>";
+	html += "<div id='question_stats' class='small largespaceafter'>&nbsp;<br/><span class='small'>&nbsp;</span></div>";
 	$("#question").html(html);
 		
 	// get question stats
-	updateQuestionStats();
+	loadStats();
 	
 	$("#active_cb").prop("checked", question.active);
 	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
@@ -151,37 +151,28 @@ function displaySelectedQuestion() {
 	$("#selected_question").show();
 }
 
-function updateQuestionStats(forceRefresh) {
-// BEHAVIOR: currently stats are only retrieved for each question once per page load
+function loadStats() {
 	var question = getSelectedQuestion();
 	if (!question) {
 		return;
 	}
 	
-	forceRefresh = isDefined(forceRefresh) ? forceRefresh : false;
-	
-	if (!forceRefresh && isDefined(question.idea_count)) {
-		displayQuestionStats(question);
-		displayCascadeStats(question);
+	var data = {
+		"request": "stats",
+		"question_id": question.id
 	}
-	else {
-		data = {
-			"request": "stats",
-			"question_id": question.id
-		}
-		$.getJSON("/query", data, function(results) {
-			var question = getQuestion(results.question_id);
-			if (question) {
-				question.idea_count = results["idea_count"];
-				question.user_count = results["user_count"];
-				question.active_user_count = results["active_user_count"];
-				if (isSelectedQuestion(question.id)) {
-					displayQuestionStats(question);
-					updateCascadeStats(question);
-				}
+	$.getJSON("/query", data, function(results) {
+		var question = getQuestion(results.question_id);
+		if (question) {
+			question.idea_count = results["idea_count"];
+			question.user_count = results["user_count"];
+			question.active_user_count = results["active_user_count"];
+			question.cascade_stats = results["cascade_stats"];
+			if (isSelectedQuestion(question.id)) {
+				displayQuestionStats(question);
 			}
-		});
-	}
+		}
+	});
 }
 
 function displayQuestionStats(question) {
@@ -198,97 +189,137 @@ function displayQuestionStats(question) {
 	$("#question_stats").html("("+stats.join(", ")+")<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh User Counts</span></a>");
 	$("#refresh_question_stats_link").unbind("click");
 	$("#refresh_question_stats_link").click(function() {
-		updateQuestionStats(true);
+		loadStats();
 		return false;
 	});
+	
+	displayCascadeStats(question);
 }
 
-function updateCascadeStats(question) {
+function displayCascadeStats(question) {
     var m = Math.min(question.idea_count, question.cascade_m);
     var n = question.idea_count;
     var k = question.cascade_k;
     var k2 = question.cascade_k2;
     var t = question.cascade_t;
 
-    question.cascade_job_counts = [];
+	var title = "";
+    var cascade_job_counts = [];
+    var cascade_step_durations = [];
+    var step_count = 5;
     
-    // step 1
-    var count = Math.ceil(m/t) * k;
-    question.cascade_job_counts.push(count);
+    // if cascade not complete, estimate cascade job info
+    if (!question.cascade_complete) {
+    	title = "Cascade Estimates";
+    	// step 1
+    	var count = Math.ceil(m/t) * k;
+    	cascade_job_counts.push(count);
     
-    // step 2
-    count = m * k;
-    question.cascade_job_counts.push(count);
+    	// step 2
+    	count = m * k;
+    	cascade_job_counts.push(m * k);
     
-    // step 3
-    var C = Math.ceil(1.5 * m); 	// estimate
-    count = m * Math.ceil(C/t) * k2;
-    question.cascade_job_counts.push(count);
+    	// step 3
+    	var C = Math.ceil(1.5 * m); 	// estimate
+    	count = m * Math.ceil(C/t) * k2;
+    	cascade_job_counts.push(count);
 
-    // step 4
-    count = m * k2;
-    question.cascade_job_counts.push(count);
+    	// step 4
+    	count = m * k2;
+    	cascade_job_counts.push(count);
 
-    // step 5
-    C = Math.ceil(0.33 * m); 		// estimate - smaller than in step 3
-    count = (n-m) * Math.ceil(C/t) * k2;
-    question.cascade_job_counts.push(count);
+    	// step 5
+    	C = Math.ceil(0.33 * m); 		// estimate - smaller than in step 3
+    	count = (n-m) * Math.ceil(C/t) * k2;
+    	cascade_job_counts.push(count);
+    	
+    	for (var i=0; i<step_count; i++) {
+    		var stepDuration = question.user_count > 0 ? Math.ceil(cascade_job_counts[i] / question.user_count) * TIME_REQUIRED_PER_CASCADE_JOB : 0;
+			cascade_step_durations.push(stepDuration);
+    	}
+    }
+    else {
+    	title = "Cascade Stats";
+    	if (question.cascade_stats != null) {
+    		for (var i=0; i<step_count; i++) {
+    			cascade_job_counts.push(question.cascade_stats["step"+(i+1)+"_job_count"]);
+    			cascade_step_durations.push(question.cascade_stats["step"+(i+1)+"_duration"]);
+    		}
+    	}
+    }
     
-    displayCascadeStats(question);
-}
-
-function displayCascadeStats(question) {
 	var html = "";
-	if (question.idea_count > 0) {
-		html += "<div class='white_box small'>";
-		html += "<strong>Cascade Estimates</strong><br/>";
+	if (question.idea_count >= 0) {
+		html += "<strong>" + title + "</strong><br/>";
 		html += "<table class='smallpadbottom' style='margin-bottom:0px'>";
 		var totalJobCount = 0;
 		var completionTime = 0;
-		for (var i=0; i<question.cascade_job_counts.length; i++) {
+		for (var i=0; i<cascade_job_counts.length; i++) {
 			var step = i+1;
-			var jobCount = question.cascade_job_counts[i];
+			var jobCount = cascade_job_counts[i];
 			totalJobCount += jobCount;
-			if (question.user_count > 0) {
-				completionTime += Math.ceil(jobCount / question.user_count) * TIME_REQUIRED_PER_CASCADE_JOB;
-			}
+			var stepDuration = cascade_step_durations[i];
+			completionTime += stepDuration;
 			var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
 			var isStepComplete = question.phase==PHASE_CASCADE && (question.cascade_complete || step < question.cascade_step) && jobCount>0;
 			html += "<tr>";
 			html += "<td>Step&nbsp;" + step + "</td>";
 			html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? "&nbsp;jobs" : "&nbsp;job") : "-") + "</td>";
+			html += "<td>" + toHHMMSS(stepDuration) + "</td>";
 			html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
 			html += "</tr>";
 		}
 		
 		html += "<tr>";
 		html += "<td><strong>TOTAL</strong></td>";
-		html += "<td>" + totalJobCount + "&nbsp;jobs</td>";
+		html += "<td>" + (totalJobCount > 0 ? totalJobCount + "&nbsp;jobs" : "-") + "</td>";
+		html += "<td>" + toHHMMSS(completionTime) + "</td>";
 		html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
 		html += "</tr>";
-		if (question.user_count > 0) {
+		
+		// jobs per user
+		var userCount = question.cascade_complete ? question.cascade_stats["user_count"] : question.user_count;
+		if (userCount > 0) {
 			html += "<tr>";
 			html += "<td>&nbsp;</td>";
-			html += "<td colspan='2'>" + Math.ceil(totalJobCount/question.user_count) + " jobs/user</td>";
-			html += "</tr>";
-			html += "<tr>";
-			html += "<td>&nbsp;</td>";
-			html += "<td colspan='2'>" + toHHMMSS(completionTime) + "</td>";
+			html += "<td colspan='2'>" + Math.ceil(totalJobCount/userCount) + " jobs/user</td>";
 			html += "</tr>";
 		}
 
 		html += "</table>";
-		html += "<div class='note'>";
-		html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? "&nbsp;notes" : "&nbsp;note");
-		html += ", " + Math.ceil(Math.min(question.idea_count,question.cascade_m) * 1.5) + "&nbsp;best&nbsp;categories";
-		if (question.user_count > 0) {
-			html += ", " + question.user_count + (question.user_count > 1 ? "&nbsp;users" : "&nbsp;user");
-			html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
+
+		// link to results		
+		if (question.cascade_complete) {
+			html += "<div class='green_highlight'>";
+			html += "<a href='/results?question_id=" + question.id + "'>View Results</a>";
+			html += "</div>";
 		}
-		html += "</div>";		
-		html += "</div>";
+		
+		// note about cascade estimates
+		if (!question.cascade_complete) {
+			if (question.idea_count > 0) {
+				html += "<div class='note'>";
+				html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? "&nbsp;notes" : "&nbsp;note");
+				html += ", " + Math.ceil(Math.min(question.idea_count,question.cascade_m) * 1.5) + "&nbsp;best&nbsp;categories";
+				if (question.user_count > 0) {
+					html += ", " + question.user_count + (question.user_count > 1 ? "&nbsp;users" : "&nbsp;user");
+					html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
+				}
+				html += "</div>";
+			}
+		}
+		else {
+			html += "<div class='note'>";
+			html += "Cascade performed";
+			html += " on " + question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note");
+			html += " by " + question.cascade_stats["user_count"] + (question.cascade_stats["user_count"] > 1 ? "&nbsp;users" : "&nbsp;user");
+			if (question.cascade_stats["iteration_count"] > 1) {
+				html += " in " + question.cascade_stats["iteration_count"] + "&nbsp;iterations";
+			}
+			html += "</div>";
+		}	
 	}
-	$("#cascade_estimates").html(html);	
+	$("#cascade_stats").html(html);	
 }
         
 function setActive(active) {
@@ -569,7 +600,6 @@ function handleIdea(data) {
 	if (question && data.idea.question_id==question.id) {
 		question.idea_count++;
 		displayQuestionStats(question);
-		updateCascadeStats(question);
 	}
 }
 
@@ -578,7 +608,7 @@ function handleStep(data) {
 	if (question && data.question_id==question.id) {
 		question.cascade_step = data.step;
 		question.cascade_iteration = data.iteration;
-		updateCascadeStats(question);
+		displayCascadeStats(question);
 	}
 }
 
@@ -586,7 +616,7 @@ function handleResults(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.cascade_complete = 1;
-		updateCascadeStats(question);
+		displayCascadeStats(question);
 		displayQuestionItem(question);
 	}
 }

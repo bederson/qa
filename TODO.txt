@@ -13,6 +13,7 @@ Features
 * Design GUI to work on mobile devices
 
 Misc Improvements
+* TODO: add suggestions from testing on August 13
 * Reduce page reloads to reduce unnecessary server calls and # of channels created
 * Code would be cleaner (esp. login/logout) if channel only created once per user
   Currently code is created every time user visits a page and disconnect when they leave it
@@ -45,6 +46,9 @@ Misc Improvements
 * Update # users shown on admin panel (easier to do if only one channel created per user)
 * Check if function to support message (in js) is defined vs. requiring an empty function to be defined
 * Reduce usage of Google Cloud Sql where possible to reduce cost
+* When should singletons be removed or included in results
+* Create hierarchical categories (look at results of #89507 on qa-umd.appspot.com)
+* Use Whiz to display results
 
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed

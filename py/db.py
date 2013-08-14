@@ -211,11 +211,11 @@ class Question(DBObject):
         self.deleteCascade(dbConnection)
         
         # initialize cascade stats
-        # actual # users who help with cascade might be different than # of idea authors
+        # actual # users who help with cascade might be different than current # of active users
         # when cascade is finished, # users is updated based on how many users performed step 3
-        stats = self.calculateQuestionStats(dbConnection)
+        stats = self.getQuestionStats(dbConnection)
         sql = "insert into cascade_stats (question_id, idea_count, user_count) values(%s, %s, %s)"
-        dbConnection.cursor.execute(sql, (self.id, stats["idea_count"], stats["user_count"]))
+        dbConnection.cursor.execute(sql, (self.id, stats["idea_count"], stats["active_user_count"]))
 
         # update cascade_step_count based on cascade_m and # ideas    
         cascadeStepCount = len(CASCADE_CLASSES) if stats["idea_count"] > self.cascade_m else 4    
@@ -282,7 +282,7 @@ class Question(DBObject):
                 # assumes job being cancelled belongs to current step
                 count += CASCADE_CLASSES[self.cascade_step-1].unassign(dbConnection, self.id, task["id"])
         return count
-            
+                    
     def recordCascadeStepStartTime(self, dbConnection):
         if self.cascade_step == 1:
             sql = "insert into cascade_times (question_id, iteration, step1_start) values(%s, %s, now())"
@@ -297,6 +297,11 @@ class Question(DBObject):
         dbConnection.conn.commit()
         self.updateCascadeStats(dbConnection)
 
+    def recordCascadeStepJobCount(self, dbConnection, jobCount=0):
+        sql = "update cascade_stats set step{0}_job_count = step{0}_job_count + {1} where question_id=%s".format(self.cascade_step, jobCount)
+        dbConnection.cursor.execute(sql, (self.id))
+        dbConnection.conn.commit()
+        
     def recordCascadeUnsavedTask(self, dbConnection, unsavedCount):
         try:
             dbConnection.conn.begin()
@@ -362,6 +367,15 @@ class Question(DBObject):
             dbConnection.cursor.execute(sql, (categoryCount, userCount, iterationCount, totalDuration, self.id))
         
         dbConnection.conn.commit()
+       
+    def getQuestionStats(self, dbConnection):
+        stats = {}
+        stats["question_id"] = self.id
+        stats["user_count"] = Person.getCountForQuestion(dbConnection, self.id)
+        stats["active_user_count"] = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)    
+        stats["idea_count"] = Idea.getCountForQuestion(dbConnection, self.id) 
+        stats["cascade_stats"] = self.getCascadeStats(dbConnection) if self.cascade_complete else None
+        return stats
     
     def getCascadeStats(self, dbConnection):
         stats = None
@@ -370,25 +384,17 @@ class Question(DBObject):
         row = dbConnection.cursor.fetchone()
         if row:
             stats = {}
+            stats["user_count"] = row["user_count"]
             stats["idea_count"] = row["idea_count"]
             stats["category_count"] = row["category_count"]
-            stats["user_count"] = row["user_count"]
             stats["iteration_count"] = row["iteration_count"]
             
             # duration stats only updated when steps are completed
             stats["total_duration"] = row["total_duration"] 
             for i in range(len(CASCADE_CLASSES)):
                 stats["step{0}_duration".format(i+1)] = row["step{0}_duration".format(i+1)]
+                stats["step{0}_job_count".format(i+1)] = row["step{0}_job_count".format(i+1)]
                                 
-        return stats
-   
-    def calculateQuestionStats(self, dbConnection):
-        stats = {
-            "question_id" : self.id,
-            "user_count" : Person.getCountForQuestion(dbConnection, self.id),
-            "active_user_count" : Person.getCountForQuestion(dbConnection, self.id, loggedIn=True),
-            "idea_count" : Idea.getCountForQuestion(dbConnection, self.id)
-        }
         return stats
            
     def delete(self, dbConnection):
@@ -446,7 +452,7 @@ class Question(DBObject):
         return Question.createFromData(row)
 
     @staticmethod                
-    def getByUser(dbConnection, asDict=False):
+    def getByUser(dbConnection):
         questions = []
         user = users.get_current_user()
         if user:
@@ -455,9 +461,8 @@ class Question(DBObject):
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 question = Question.createFromData(row)
-                if asDict:
-                    question = question.toDict()
-                questions.append(question)
+                questionDict = question.toDict()
+                questions.append(questionDict)
         return questions
 
 class Person(DBObject):               
@@ -861,6 +866,9 @@ class CascadeSuggestedCategory(DBObject):
         sql += ",".join(insertValues)
         dbConnection.cursor.execute(sql)
         dbConnection.conn.commit()
+      
+        jobCount = int(math.ceil(float(len(rows)) / question.cascade_t)) * question.cascade_k
+        question.recordCascadeStepJobCount(dbConnection, jobCount)
 
     @staticmethod
     def getJob(dbConnection, question, person):      
@@ -1016,6 +1024,9 @@ class CascadeBestCategory(DBObject):
         sql += ",".join(insertValues)
         dbConnection.cursor.execute(sql)
         dbConnection.conn.commit()
+        
+        jobCount = len(rows) * question.cascade_k
+        question.recordCascadeStepJobCount(dbConnection, jobCount)
 
     @staticmethod
     def getJob(dbConnection, question, person):     
@@ -1189,6 +1200,9 @@ class CascadeFitCategoryPhase1(DBObject):
         dbConnection.cursor.execute(sql, categories)
         dbConnection.conn.commit()
 
+        jobCount = len(rows) * int(math.ceil(float(len(rows2)) / question.cascade_t)) * question.cascade_k2
+        question.recordCascadeStepJobCount(dbConnection, jobCount)
+        
     @staticmethod
     def getJob(dbConnection, question, person): 
         job = []
@@ -1318,7 +1332,7 @@ class CascadeFitCategoryPhase2(DBObject):
     @staticmethod
     def initStep(dbConnection, question):
         # TODO: how should voting threshold be determined
-        votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>=3 else 1
+        votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
         sql = "select *,count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and cascade_iteration=%s and fit=1 group by question_id,idea_id,category having ct>=%s";
         dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
         rows = dbConnection.cursor.fetchall()
@@ -1351,6 +1365,9 @@ class CascadeFitCategoryPhase2(DBObject):
         dbConnection.cursor.execute(sql, categories)
         dbConnection.conn.commit()
 
+        jobCount = len(rows) * question.cascade_k2
+        question.recordCascadeStepJobCount(dbConnection, jobCount)
+        
     @staticmethod
     def getJob(dbConnection, question, person):  
         job = []
@@ -1470,10 +1487,6 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
         if len(rows) == 0:
             question.continueCascade(dbConnection, skip=True)
             return
-
-        #votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>=3 else 1        
-        #sql = "select distinct best_category from cascade_best_categories where question_id=%s and cascade_iteration=%s and none_of_the_above=0 group by question_id,idea_id,best_category having count(*)>=%s"
-        #dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, votingThreshold))
 
         # Check subsequent items against categories that passed step 4
         sql = "select category,count(*) as ct from cascade_fit_categories_phase2 where "
@@ -1614,5 +1627,4 @@ def GenerateCascadeHierarchy(dbConnection, question):
 
     dbConnection.conn.commit()
         
-#CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, CascadeFitCategorySubsequentPhase1, CascadeFitCategorySubsequentPhase2 ]
 CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, CascadeFitCategorySubsequentPhase1 ]

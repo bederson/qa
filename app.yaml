@@ -1,5 +1,9 @@
+#application: qa-umd
+#version: 4
+
 application: qa-umd-test
 version: dev
+
 runtime: python27
 api_version: 1
 threadsafe: yes

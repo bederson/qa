@@ -426,21 +426,17 @@ class QueryHandler(BaseHandler):
             
             # questions created by user
             if request == "questions":
-                questions = Question.getByUser(self.dbConnection, asDict=True)                        
+                questions = Question.getByUser(self.dbConnection)                        
                 data = { "questions": questions }
                         
-            # stats for question (# ideas, etc.)
+            # stats for question (# ideas, cascade stats if complete, etc.)
             elif request == "stats" and self.question:
-                data = self.question.calculateQuestionStats(self.dbConnection)
+                data = self.question.getQuestionStats(self.dbConnection)
                                 
             # ideas for question (grouped if categories exist; otherwise returned as uncategorized)
             elif request == "ideas" and self.question:
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
                 data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }
-                if self.question.isAuthor() and self.question.cascade_complete:
-                    stats = self.question.getCascadeStats(self.dbConnection)
-                    if stats:
-                        data["admin_stats"] = stats
 
             self.destroy()
 
@@ -533,39 +529,40 @@ class DownloadQuestionHandler(BaseHandler):
             excelWriter.writerow((self.question.question,))
             excelWriter.writerow(("#{0}".format(self.question.id),))
             excelWriter.writerow(())
+            
+            stats = self.question.getQuestionStats(self.dbConnection)
+            cascadeStats = stats["cascade_stats"]                 
              
             # write out ideas with categories
             if self.question.cascade_complete:
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
 
                 # write out stats                
-                stats = self.question.getCascadeStats(self.dbConnection)                    
-                if stats:
-                    excelWriter.writerow(("Counts",))
-                    excelWriter.writerow(("# users", stats["user_count"]))
-                    excelWriter.writerow(("# ideas", stats["idea_count"]))
-                    excelWriter.writerow(("# categories", stats["category_count"]))
-                    excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
-                    excelWriter.writerow(())   
+                excelWriter.writerow(("Counts",))
+                excelWriter.writerow(("# users", stats["user_count"]))
+                excelWriter.writerow(("# ideas", stats["idea_count"]))
+                excelWriter.writerow(("# categories", cascadeStats["category_count"]))
+                excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
+                excelWriter.writerow(())   
                     
-                    excelWriter.writerow(("Cascade Times (h:mm:ss)",))
-                    for i in range(len(CASCADE_CLASSES)):
-                        step = i + 1
-                        duration = stats["step{0}_duration".format(step)]
-                        durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
-                        excelWriter.writerow(("Step {0}".format(step), durationFormatted))
-                    duration = stats["total_duration"]
+                excelWriter.writerow(("Cascade Times (h:mm:ss)",))
+                for i in range(len(CASCADE_CLASSES)):
+                    step = i + 1
+                    duration = cascadeStats["step{0}_duration".format(step)]
                     durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
-                    excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(stats["iteration_count"], "iterations" if stats["iteration_count"]>1 else "iteration")))
-                    excelWriter.writerow(())   
+                    excelWriter.writerow(("Step {0}".format(step), durationFormatted))
+                duration = cascadeStats["total_duration"]
+                durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
+                excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(cascadeStats["iteration_count"], "iterations" if cascadeStats["iteration_count"]>1 else "iteration")))
+                excelWriter.writerow(())   
                 
                 # write out cascade parameters
                 excelWriter.writerow(("Cascade Settings",))
                 excelWriter.writerow(("k", self.question.cascade_k))
                 excelWriter.writerow(("k2", self.question.cascade_k2))
                 excelWriter.writerow(("m", self.question.cascade_m))
-                excelWriter.writerow(("p", self.question.cascade_m))
-                excelWriter.writerow(("t", self.question.cascade_m))
+                excelWriter.writerow(("p", self.question.cascade_p))
+                excelWriter.writerow(("t", self.question.cascade_t))
                 excelWriter.writerow(())                
                 
                 headers = (
@@ -609,12 +606,10 @@ class DownloadQuestionHandler(BaseHandler):
                                           
             # write out ideas generated so far
             else:
-                stats = self.question.calculateQuestionStats(self.dbConnection)                    
-                if stats:
-                    excelWriter.writerow(("Counts",))
-                    excelWriter.writerow(("# users", stats["user_count"]))
-                    excelWriter.writerow(("# ideas", stats["idea_count"]))
-                    excelWriter.writerow(())   
+                excelWriter.writerow(("Counts",))
+                excelWriter.writerow(("# users", stats["user_count"]))
+                excelWriter.writerow(("# ideas", stats["idea_count"]))
+                excelWriter.writerow(())   
                     
                 headers = (
                     "Idea",
@@ -866,7 +861,6 @@ def sendMessageToUser(dbConnection, fromClientId, person, message, sendToAllAuth
     for row in rows:
         toClientId = row["client_id"]
         if not fromClientId or toClientId != fromClientId:
-            helpers.log("{0}: {1}".format(toClientId, message))
             channel.send_message(toClientId, json.dumps(message))
 
 #####################
