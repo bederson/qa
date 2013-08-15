@@ -169,10 +169,15 @@ function loadStats() {
 			question.active_user_count = results["active_user_count"];
 			question.cascade_stats = results["cascade_stats"];
 			if (isSelectedQuestion(question.id)) {
-				displayQuestionStats(question);
+				displayStats(question);
 			}
 		}
 	});
+}
+
+function displayStats(question) {
+	displayQuestionStats(question);
+	displayCascadeStats(question);
 }
 
 function displayQuestionStats(question) {
@@ -191,9 +196,7 @@ function displayQuestionStats(question) {
 	$("#refresh_question_stats_link").click(function() {
 		loadStats();
 		return false;
-	});
-	
-	displayCascadeStats(question);
+	});	
 }
 
 function displayCascadeStats(question) {
@@ -248,80 +251,77 @@ function displayCascadeStats(question) {
     	}
     }
     
-	var html = "";
-	if (question.idea_count >= 0) {
-		html += "<strong>" + title + "</strong><br/>";
-		html += "<table class='smallpadbottom' style='margin-bottom:0px'>";
-		var totalJobCount = 0;
-		var completionTime = 0;
-		for (var i=0; i<cascade_job_counts.length; i++) {
-			var step = i+1;
-			var jobCount = cascade_job_counts[i];
-			totalJobCount += jobCount;
-			var stepDuration = cascade_step_durations[i];
-			completionTime += stepDuration;
-			var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
-			var isStepComplete = question.phase==PHASE_CASCADE && (question.cascade_complete || step < question.cascade_step) && jobCount>0;
-			html += "<tr>";
-			html += "<td>Step&nbsp;" + step + "</td>";
-			html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? "&nbsp;jobs" : "&nbsp;job") : "-") + "</td>";
-			html += "<td>" + toHHMMSS(stepDuration) + "</td>";
-			html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
-			html += "</tr>";
-		}
-		
+	var html = "<strong>" + title + "</strong><br/>";
+	html += "<table class='smallpadbottom' style='margin-bottom:0px'>";
+	var totalJobCount = 0;
+	var completionTime = 0;
+	for (var i=0; i<cascade_job_counts.length; i++) {
+		var step = i+1;
+		var jobCount = cascade_job_counts[i];
+		totalJobCount += jobCount;
+		var stepDuration = cascade_step_durations[i];
+		completionTime += stepDuration;
+		var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
+		var isStepComplete = question.phase==PHASE_CASCADE && (question.cascade_complete || step < question.cascade_step) && jobCount>0;
 		html += "<tr>";
-		html += "<td><strong>TOTAL</strong></td>";
-		html += "<td>" + (totalJobCount > 0 ? totalJobCount + "&nbsp;jobs" : "-") + "</td>";
-		html += "<td>" + toHHMMSS(completionTime) + "</td>";
-		html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
+		html += "<td>Step&nbsp;" + step + "</td>";
+		html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? "&nbsp;jobs" : "&nbsp;job") : "-") + "</td>";
+		html += "<td>" + toHHMMSS(stepDuration) + "</td>";
+		html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
 		html += "</tr>";
+	}
 		
-		// jobs per user
-		var userCount = question.cascade_complete ? question.cascade_stats["user_count"] : question.user_count;
-		if (userCount > 0 && totalJobCount > 0) {
-			html += "<tr>";
-			html += "<td>&nbsp;</td>";
-			html += "<td colspan='2'>" + Math.ceil(totalJobCount/userCount) + " jobs/user</td>";
-			html += "</tr>";
-		}
-
-		html += "</table>";
-
-		// link to results		
-		if (question.cascade_complete) {
-			html += "<div class='green_highlight'>";
-			html += "<a href='/results?question_id=" + question.id + "'>View Results</a>";
-			html += "</div>";
-		}
+	html += "<tr>";
+	html += "<td><strong>TOTAL</strong></td>";
+	html += "<td>" + (totalJobCount > 0 ? totalJobCount + "&nbsp;jobs" : "-") + "</td>";
+	html += "<td>" + toHHMMSS(completionTime) + "</td>";
+	html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
+	html += "</tr>";
 		
-		// note about cascade estimates
-		if (!question.cascade_complete) {
-			if (question.idea_count > 0) {
-				html += "<div class='note'>";
-				html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? "&nbsp;notes" : "&nbsp;note");
-				html += ", " + Math.ceil(Math.min(question.idea_count,question.cascade_m) * 1.5) + "&nbsp;best&nbsp;categories";
-				if (question.user_count > 0) {
-					html += ", " + question.user_count + (question.user_count > 1 ? "&nbsp;users" : "&nbsp;user");
-					html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
-				}
-				html += "</div>";
-			}
-		}
-		else {
+	// jobs per user
+	var userCount = question.cascade_complete ? question.cascade_stats["user_count"] : question.user_count;
+	if (userCount > 0 && totalJobCount > 0) {
+		html += "<tr>";
+		html += "<td>&nbsp;</td>";
+		html += "<td colspan='2'>" + Math.ceil(totalJobCount/userCount) + " jobs/user</td>";
+		html += "</tr>";
+	}
+
+	html += "</table>";
+
+	// link to results		
+	if (question.cascade_complete) {
+		html += "<div class='green_highlight'>";
+		html += "<a href='/results?question_id=" + question.id + "'>View results</a>";
+		html += "</div>";
+	}
+		
+	// note about cascade estimates
+	if (!question.cascade_complete) {
+		if (question.idea_count > 0) {
 			html += "<div class='note'>";
-			html += "Cascade performed";
-			html += " on " + question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note");
-			html += " by " + question.cascade_stats["user_count"] + (question.cascade_stats["user_count"] > 1 ? "&nbsp;users" : "&nbsp;user");
-			if (question.cascade_stats["iteration_count"] > 1) {
-				html += " in " + question.cascade_stats["iteration_count"] + "&nbsp;iterations";
-			}
-			html += "; " + question.cascade_stats["category_count"] + (question.cascade_stats["category_count"] > 1 ? "&nbsp;categories" : "&nbsp;category") + " created";
-			if (question.cascade_stats["uncategorized_count"] > 0) {
-				html += " (" + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized)";
+			html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? "&nbsp;notes" : "&nbsp;note");
+			html += ", " + Math.ceil(Math.min(question.idea_count,question.cascade_m) * 1.5) + "&nbsp;best&nbsp;categories";
+			if (question.user_count > 0) {
+				html += ", " + question.user_count + (question.user_count > 1 ? "&nbsp;users" : "&nbsp;user");
+				html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
 			}
 			html += "</div>";
-		}	
+		}
+	}
+	else {
+		html += "<div class='note'>";
+		html += "Cascade performed";
+		html += " on " + question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note");
+		html += " by " + question.cascade_stats["user_count"] + (question.cascade_stats["user_count"] > 1 ? "&nbsp;users" : "&nbsp;user");
+		if (question.cascade_stats["iteration_count"] > 1) {
+			html += " in " + question.cascade_stats["iteration_count"] + "&nbsp;iterations";
+		}
+		html += "; " + question.cascade_stats["category_count"] + (question.cascade_stats["category_count"] > 1 ? "&nbsp;categories" : "&nbsp;category") + " created";
+		if (question.cascade_stats["uncategorized_count"] > 0) {
+			html += " (" + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized)";
+		}
+		html += "</div>";
 	}
 	$("#cascade_stats").html(html);	
 }
@@ -603,7 +603,7 @@ function handleIdea(data) {
 	var question = getSelectedQuestion();
 	if (question && data.idea.question_id==question.id) {
 		question.idea_count++;
-		displayQuestionStats(question);
+		displayStats(question);
 	}
 }
 
@@ -620,25 +620,18 @@ function handleResults(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.cascade_complete = 1;
+		question.cascade_stats = data.cascade_stats;
 		displayCascadeStats(question);
 		displayQuestionItem(question);
 	}
 }
 
-function handleEnable(data) {
-	// ignore
+function handleStudentLogin(data) {
+	//alert(data.user.nickname+ " logged in to question "+data.question_id);
 }
 
-function handleDisable(data) {
-	// ignore
-}
-
-function handlePhase(data) {
-	// ignore
-}
-
-function handleNickname(data) {
-	// ignore
+function handleStudentLogout(data) {
+	//alert(data.user.nickname+ " logged out of question "+data.question_id);
 }
 
 function handleLogout(data) {

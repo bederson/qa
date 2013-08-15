@@ -174,10 +174,6 @@ function updateNicknameArea() {
 /////////////////////////
 // Channel support
 /////////////////////////
-function handleIdea(data) {
-	// ignore
-}
-
 function handleEnable(data) {
 	$("#msg").html("");
 	enableInput();
@@ -190,10 +186,6 @@ function handleDisable(data) {
 
 function handlePhase(data) {
 	window.location.reload();
-}
-
-function handleNickname(data) {
-	// ignore
 }
 
 function handleLogout(data) {

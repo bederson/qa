@@ -306,15 +306,13 @@ function handleNickname(data) {
 	window.location.reload();
 }
 
-function handleStep(data) {
-	// ignore
-}
-
 function handleResults(data) {
 	question.cascade_complete = 1;
+	question.cascade_stats = data.cascade_stats;
 	window.location.reload();
 }
 
 function handleLogout(data) {
+	var question_id = getURLParameter("question_id");
 	redirectToLogout(question_id);
 }

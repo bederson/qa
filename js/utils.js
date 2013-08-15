@@ -38,24 +38,38 @@ onMessage = function(message) {
 	var data = message.data;
 	dataObj = jQuery.parseJSON(data);
 	//console.log(dataObj.op);
-	
-	if (dataObj.op == "newidea") {
+		
+	if (dataObj.op == "newidea" && typeof window.handleIdea == 'function') {
 		handleIdea(dataObj);
-	} else if (dataObj.op == "enable") {
+	}
+	else if (dataObj.op == "enable" && typeof window.handleEnable == 'function') {
 		handleEnable(dataObj); 
-	} else if (dataObj.op == "disable") {
+	}
+	else if (dataObj.op == "disable" && typeof window.handleDisable == 'function') {
 		handleDisable(dataObj); 
-	} else if (dataObj.op == "phase") {
+	}
+	else if (dataObj.op == "phase" && typeof window.handlePhase == 'function') {
 		handlePhase(dataObj);
-	} else if (dataObj.op == "step") {
+	}
+	else if (dataObj.op == "step" && typeof window.handleStep == 'function') {
 		handleStep(dataObj);
-	} else if (dataObj.op == "morejobs") {
+	}
+	else if (dataObj.op == "morejobs" && typeof window.handleMoreJobs == 'function') {
 		handleMoreJobs(dataObj);
-	} else if (dataObj.op == "categories") {
+	}
+	else if (dataObj.op == "categories" && typeof window.handleResults == 'function') {
 		handleResults(dataObj);
-	} else if (dataObj.op == "nickname") {
+	}	
+	else if (dataObj.op == "nickname" && typeof window.handleNickname == 'function') {
 		handleNickname(dataObj);
-	} else if (dataObj.op == "logout") {
+	}	
+	else if (dataObj.op == "student_login" && typeof window.handleStudentLogin == 'function') {
+		handleStudentLogin(dataObj);
+	}	
+	else if (dataObj.op == "student_logout" && typeof window.handleStudentLogout == 'function') {
+		handleStudentLogout(dataObj);
+	}	
+	else if (dataObj.op == "logout" && typeof window.handleLogout == 'function') {
 		handleLogout(dataObj);
 	}
 }
@@ -127,6 +141,22 @@ function redirectToLogout(question_id) {
 }
 
 //===================================================
+// Existence Functions
+//===================================================
+
+function isDefined(obj) {
+    return !isUndefined(obj);
+}
+
+function isUndefined(obj) {
+    return typeof(obj) == "undefined" || obj == null;
+}
+
+function isFunction(func) {
+    return isDefined(func) && typeof(func) == "function";
+}
+
+//===================================================
 // Misc
 //===================================================
 
@@ -144,14 +174,6 @@ function phaseToString(phase) {
 			break;
 	}
 	return str;
-}
-
-function isDefined(obj) {
-    return !isUndefined(obj);
-}
-
-function isUndefined(obj) {
-    return typeof(obj) == "undefined" || obj == null;
 }
 
 function enableDisable(obj, enable) {

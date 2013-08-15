@@ -511,8 +511,8 @@ class Person(DBObject):
         dbConnection.cursor.execute(sql, (person.authenticated_user_id, person.authenticated_nickname, person.nickname, person.question_id, person.session_sid))
         person.id = dbConnection.cursor.lastrowid
         dbConnection.conn.commit()
-        person.is_logged_in=True          
-    
+        person.is_logged_in=True   
+        
         return person
     
     @classmethod
@@ -522,7 +522,7 @@ class Person(DBObject):
             person.is_logged_in = person.latest_login_timestamp is not None and person.latest_logout_timestamp is None
         return person
               
-    def login(self, dbConnection, commit=True):
+    def login(self, dbConnection):
         if not self.is_logged_in:
             session = gaesessions.get_current_session()
             updateValues = ()
@@ -537,7 +537,7 @@ class Person(DBObject):
             dbConnection.conn.commit()
             self.session_sid = session.sid if session else None
             self.is_logged_in = True
-            
+  
     def logout(self, dbConnection, userRequestedLogout=True, commit=True):
         if self.is_logged_in:
             # if a Google authenticated user is actively logging out (clicked on Logout), 
@@ -563,7 +563,7 @@ class Person(DBObject):
 
             self.session_sid = None                
             self.is_logged_in = False
-                    
+                        
     def addClient(self, dbConnection, clientId, commit=True):   
         sql = "insert into user_clients (user_id, client_id) values(%s, %s)"
         dbConnection.cursor.execute(sql, (self.id, clientId))
@@ -597,6 +597,7 @@ class Person(DBObject):
     @staticmethod
     def getPerson(dbConnection, question=None, nickname=None):
         person = None
+        isNew = False
         user = users.get_current_user()
 
         # if question allows nickname authentication and nickname given, check for user
@@ -622,11 +623,12 @@ class Person(DBObject):
 
             # if user not found, check if question author is logging into the 
             # question for the first time (i.e., entering ideas, helping categorize, etc.)
-            # and if so, create user            
+            # and if so, create user   
             if not person and question is not None and question.isAuthor:
                 person = Person.create(dbConnection, question=question)
+                isNew = True
                 
-        return person
+        return person, isNew
                                                                           
     @staticmethod
     def doesNicknameExist(dbConnection, questionId, nickname):

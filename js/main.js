@@ -74,34 +74,6 @@ function showInfoMessage(msg) {
 /////////////////////////
 // Channel support
 /////////////////////////
-function handleIdea(data) {
-	// ignore
-}
-
-function handleEnable(data) {
-	// ignore
-}
-
-function handleDisable(data) {
-	// ignore
-}
-
-function handlePhase(data) {
-	// ignore
-}
-
-function handleNickname(data) {
-	// ignore
-}
-
-function handleStep(data) {
-	// ignore
-}
-
-function handleResults(data) {
-	// ignore
-}
-
 function handleLogout(data) {
 	redirectToLogout();
 }
