@@ -3,53 +3,68 @@ TODO
 GAE Deployment
 * download and install gsutil to make importing data easier:
   https://developers.google.com/cloud-sql/docs/import_export#migrate
-* create empty sql file containing database structure and import to Google Cloud SQL database
 * create Google Cloud SQL database user to use instead of root
   
-Features
-* Use stemming when comparing categories for equality
-* Allow admins to modify questions, in addition to question authors
-* Allow admins to logout students
-* Design GUI to work on mobile devices
+Suggestions
+* Login: add note when you login that your name/id will be displayed
+* Login: authenticated_user_id will always stay the same but authenticated_nickname can change
+         Check and update if needed when user logs in
 
-Misc Improvements
-* TODO: add suggestions from testing on August 13
-* Reduce page reloads to reduce unnecessary server calls and # of channels created
-* Code would be cleaner (esp. login/logout) if channel only created once per user
-  Currently code is created every time user visits a page and disconnect when they leave it
-* Need better way to create unique question id
-* Need consistent terminology (e.g., submission/note/response/idea, person/user/author)
-* Create database indexes
-* Destroy channels after some specified period (or does that happen automatically?)
-* Consider what can be stored in datastore and/or memcache to improve performance (categories, etc.)
-* authenticated_user_id will always stay the same but authenticated_nickname can change
-  Check and update if needed when user logs in
-* Do not allow Cascade to be enabled until notes exist
-* Consider asking users to suggest categories when ideas created
-* Need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
-* Consider blinking browser header when new step available, or highlighting some way
-* Make word clouds clickable (show ideas & categories where word appears)
-* Allow question author to set maximum # of ideas allowed
-* Remove/merge any duplicate ideas before starting cascade
-* Need to better understand what reasonable defaults should be set in queue.yaml
-* Consider whether or not to delete tmp cascade data once categories have been generated 
-  (esp. since some tables like cascade_fit_categories_phase1 may get very large)
-* Notify active users when question disabled or deleted
-* Allow question author to release incomplete cascade assignments after some period of inactivity
-* Create cronjob to clean up any users who have been logged in for a long time (remember to unassign jobs)
-  Consider what needs to be done when channels expire
-* Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas? Editable by question author?
-* Suggest cascade settings based on # of ideas, # of users, etc.
-* Consider when it would speed things up to check for duplicate categories/ideas before step 3
-* Instead of pushing first cascade job to users, change gui to say ready to being categorizing 
-  (and require user to request job assignment)
-* Update # users shown on admin panel (easier to do if only one channel created per user)
-* Check if function to support message (in js) is defined vs. requiring an empty function to be defined
-* Reduce usage of Google Cloud Sql where possible to reduce cost
-* When should singletons be removed or included in results
-* Create hierarchical categories (look at results of #89507 on qa-umd.appspot.com)
-* Use Whiz to display results
+* Notes: Consider asking users to suggest categories when ideas created
+* Notes: add done button to note entry and notify instructor
+* Notes: inform users how many ideas have been contributed so far
 
+* Categorize: change waiting text to something like "Done - wait until others are finished"; hide step x of y text
+* Categorize: word "task" confusing
+* Categorize: add question outside white box
+* Categorize: Use stemming when comparing categories for equality
+* Categorize: Consider when it would speed things up to check for duplicate categories/ideas before step 3
+* Categorize: Should CASCADE_MAX_UNCATEGORIZED be a fixed number or percentage of ideas? Editable by question author?
+* Categorize: Consider blinking browser header when new step available, or highlighting some way
+* Categorize: Remove/merge any duplicate ideas before starting cascade
+* Categorize: Need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
+* Categorize: Instead of pushing first cascade job to users, change gui to say ready to being categorizing 
+              (and require user to request job assignment)
+                                      
+* Results: if note in multiple categories, list "also in" categories
+* Results: add "discuss" button to categories and items and show counts
+* Results: allow users to expand/collapse individual categories
+* Results: sort by category item count
+* Results: only show tag clouds when category has >= 10 notes
+* Results: consider showing categories suggested by not used
+* Results: display categories like a network where shared notes are the edges
+* Results: use Whiz to display results
+* Results: When should singletons be removed or included in results
+* Results: Create hierarchical categories (look at results of #89507 on qa-umd.appspot.com)
+* Results: Make word clouds clickable (show ideas & categories where word appears)
+
+* Admin: Allow question author to set maximum # of ideas allowed
+* Admin: Allow question author to release incomplete cascade assignments after some period of inactivity
+* Admin: one cascade configuration value => # students
+* Admin: recommend smaller group cascade setting (t) to balance jobs among available users
+* Admin: add option to hide names completely for a question
+* Admin: Update # users shown on admin panel (easier to do if only one channel created per user)
+* Admin: Allow admins to logout students
+* Admin: Suggest cascade settings based on # of ideas, # of users, etc.
+* Admin: Need better way to create unique question id
+* Admin: Do not allow Cascade to be enabled until notes exist
+
+* Misc: Need consistent terminology (e.g., submission/note/response/idea, person/user/author)
+* Misc: Create/check database indexes
+* Misc: Destroy channels after some specified period (or does that happen automatically?)
+* Misc: Consider what can be stored in datastore and/or memcache to improve performance (categories, etc.)
+* Misc: Need to better understand what reasonable defaults should be set in queue.yaml
+* Misc: Reduce usage of Google Cloud Sql where possible to reduce cost
+* Misc: Design GUI to work on mobile devices
+* Misc: Reduce page reloads to reduce unnecessary server calls and # of channels created
+* Misc: Notify active users when question disabled or deleted
+* Misc: Create cronjob to clean up any users who have been logged in for a long time (remember to unassign jobs)
+        Consider what needs to be done when channels expire
+* Misc: Consider whether or not to delete tmp cascade data once categories have been generated 
+        (esp. since some tables like cascade_fit_categories_phase1 may get very large)
+* Misc: Code would be cleaner (esp. login/logout) if channel only created once per user
+        Currently code is created every time user visits a page and disconnect when they leave it
+                
 Known Bugs
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 * When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
