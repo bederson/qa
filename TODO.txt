@@ -12,6 +12,8 @@ Suggestions
 
 * Notes: Consider asking users to suggest categories when ideas created
 * Notes: add done button to note entry and notify instructor
+         (implemented but not stored so if admin refreshes admin page or browses away count will be lost)
+         (if student refreshes page and starts adding more notes, admin not notified)
 * Notes: inform users how many ideas have been contributed so far
 
 * Categorize: change waiting text to something like "Done - wait until others are finished"; hide step x of y text

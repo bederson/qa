@@ -39,25 +39,28 @@ limitations under the License.
 	<div style="clear:both"></div>	
 	{% endif %}	
 	<div id="msg" class="warning spaceafter" style="text-align:center">{{ msg }}</div>
-	<div class="white_box largespaceabove">
-		<h1 id="title"></h1>
-		<div id="question"></div>
-		<div class="help">
-			Only put a single thing here. If you have other things to say, submit multiple times.
-		</div>
+	<div id="page_content">
+		<div id="answer_box" class="white_box largespaceabove">
+			<h1 id="title"></h1>
+			<div id="question"></div>
+			<div class="help">
+				Only put a single thing here. If you have other things to say, submit multiple times.
+			</div>
+			<br>
+			<textarea id="answer"></textarea><br>
+			<div id="charlimit" class="note right">125 chars max</div>		
+			<input id="submit" type="submit" value="Add">
+			- or -
+			<input id="done_button" type="button" value="Done Adding">
+			<div id="thankyou" style="display:none">
+				<br/><br/>
+				<hr/>
+				Thank you. Please enter as many submissions as you'd like.<br>
+				Or, look at <a id="results_link">other people's submissions</a> as they come in.
+			</div>
+		</div>	
 		<br>
-		<textarea id="answer"></textarea><br>
-		<div id="charlimit" class="note right">125 chars max</div>		
-		<input id="submit" type="submit" value="Submit">
-		<div id="thankyou" style="display:none">
-			<br/><br/>
-			<hr/>
-			Thank you. Please enter as many submissions as you'd like.<br>
-			Or, look at <a id="results_link">other people's submissions</a> as they come in.
-		</div>
+		<div id="nickname_area" class="white_box" style="display:none"></div>
 	</div>
-	
-	<br>
-	<div id="nickname_area" class="white_box" style="display:none"></div>
 	
 {% endblock %}

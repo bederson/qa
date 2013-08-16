@@ -49,6 +49,7 @@ app = webapp2.WSGIApplication([
 	('/cascade_job', CascadeJobHandler),
     ('/cancel_cascade_job', CancelCascadeJobHandler),
     ('/new_idea', NewIdeaHandler),
+	('/ideas_done', IdeasDoneHandler),
     ('/query', QueryHandler),
 	
 	('/_ah/channel/connected/', ChannelConnectedHandler),

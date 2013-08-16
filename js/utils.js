@@ -38,9 +38,12 @@ onMessage = function(message) {
 	var data = message.data;
 	dataObj = jQuery.parseJSON(data);
 	//console.log(dataObj.op);
-		
+	
 	if (dataObj.op == "newidea" && typeof window.handleIdea == 'function') {
 		handleIdea(dataObj);
+	}
+	else if (dataObj.op == "ideasdone" && typeof window.handleIdeasDone == 'function') {
+		handleIdeasDone(dataObj);
 	}
 	else if (dataObj.op == "enable" && typeof window.handleEnable == 'function') {
 		handleEnable(dataObj); 
@@ -107,21 +110,29 @@ function getPhaseUrl(question_id, phase) {
 	}
     return url;
 }
-    
-function redirectToPhase(question_id, phase) {
-	window.location.href = getPhaseUrl(question_id, phase);
-}
 
-function redirectToResultsPage(question_id) {
-	window.location.href = "/results?question_id=" + question_id;
+function getResultsPageUrl(question_id) {
+	var url = "/results";
+	if (isDefined(question_id)) {
+		url += "?question_id=" + question_id;
+	}
+	return url;
 }
-
+ 
 function getAdminPageUrl(question_id) {
 	var url = "/admin";
 	if (isDefined(question_id)) {
 		url += "?question_id=" + question_id;
 	}
 	return url;
+}
+   
+function redirectToPhase(question_id, phase) {
+	window.location.href = getPhaseUrl(question_id, phase);
+}
+
+function redirectToResultsPage(question_id) {
+	window.location.href = getResultsPageUrl(question_id);
 }
 
 function redirectToAdminPage(question_id) {

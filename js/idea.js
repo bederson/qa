@@ -15,6 +15,8 @@
 // limitations under the License.
 //
 
+var done = false;
+
 $(function() {
 	$("#title").html(title);
 	$("#question").html(question);
@@ -87,13 +89,34 @@ function initEventHandlers() {
 			$("#answer").focus();
 			updateRemainingChars();
 		}, "json");
-		
 	});
-
+	
 	$("#answer").keyup(function() {
 		updateRemainingChars();
 	});
 
+	$("#done_button").click(function() {
+		var data = {
+			"client_id": client_id,
+			"question_id": question_id
+		};
+		$.post("/ideas_done", data, function(result) {
+			if (result.status == 0) {
+				$("#msg").html(result.msg);
+				return;
+			}
+			done = true;
+			var html = '<h1 id="title">' + title + '</h1>';
+			html += '<div id="question">' + question + '</div>';
+			html += '<br>';
+			html += "Done ... please wait for others to finish";
+			// TODO/FIX: need to make sure results page redirects to cascade when teacher switches phases
+			//html += "You can view <a href=\"" + getResultsPageUrl(question_id) + "\">other people's submissions</a> as they come in.";
+			$("#answer_box").html(html);
+			$("#nickname_area").hide();
+		}, "json");
+	});
+	
 	$("#admin_button").click(function() {	
 		redirectToAdminPage(question_id);
 	});

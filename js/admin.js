@@ -125,7 +125,8 @@ function displaySelectedQuestion() {
 	var html = "<h2 class='spaceafter'>Selected question:</h2>";
 	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
 	html += question.question + "<br/>";
-	html += "<div id='question_stats' class='small largespaceafter'>&nbsp;<br/><span class='small'>&nbsp;</span></div>";
+	html += "<div id='question_stats' class='small largespaceafter'>&nbsp;</div>";
+	//html += "<div id='question_stats' class='small largespaceafter'>&nbsp;<br/><span class='small'>&nbsp;</span></div>";
 	$("#question").html(html);
 		
 	// get question stats
@@ -188,15 +189,19 @@ function displayQuestionStats(question) {
 	stats.push(ideaCount + (ideaCount!=1 ? " notes" : " note"));
 	stats.push(userCount + (userCount!=1 ? " users" : " user"));
 	stats.push(activeUserCount + (activeUserCount!=1 ? " active users" : " active user"));
+	if (question.phase == PHASE_NOTES) {
+		var doneUserCount = isDefined(question.done_students) ? question.done_students.length : 0;
+		stats.push(doneUserCount + " done w/ notes");
+	}
+	$("#question_stats").html("("+stats.join(", ")+")");
 	
-	// idea count is being updated dynamically via messages from server
-	// but user count is only updated once per page load
-	$("#question_stats").html("("+stats.join(", ")+")<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh User Counts</span></a>");
-	$("#refresh_question_stats_link").unbind("click");
-	$("#refresh_question_stats_link").click(function() {
-		loadStats();
-		return false;
-	});	
+	// counts should be getting updating dynamically now
+	// $("#question_stats").html("("+stats.join(", ")+")<br/><a id='refresh_question_stats_link' href='#'><span class='small'>Refresh User Counts</span></a>");
+	//$("#refresh_question_stats_link").unbind("click");
+	//$("#refresh_question_stats_link").click(function() {
+	//	loadStats();
+	//	return false;
+	//});	
 }
 
 function displayCascadeStats(question) {
@@ -363,6 +368,10 @@ function setPhase(phase) {
 			return;
 		}
 		
+		if (data.phase == PHASE_NOTES) {
+			result.question.done_students = [];
+		}
+			
 		updateQuestion(result.question.id, result.question);				
 	}, "json");
 }
@@ -604,6 +613,21 @@ function handleIdea(data) {
 	if (question && data.idea.question_id==question.id) {
 		question.idea_count++;
 		displayStats(question);
+	}
+}
+
+function handleIdeasDone(data) {
+	var question = getQuestion(data.question_id);
+	if (question) {
+		if (isUndefined(question.done_students)) {
+			question.done_students = [];
+		}
+		if (question.done_students.indexOf(data.user_id) == -1) {
+			question.done_students.push(data.user_id);
+		}
+		if (isSelectedQuestion(question.id)) {
+			displayQuestionStats(question);
+		}
 	}
 }
 

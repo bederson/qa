@@ -664,6 +664,20 @@ class NewIdeaHandler(BaseHandler):
         self.writeResponseAsJson(data) 
         self.destroy()
 
+class IdeasDoneHandler(BaseHandler):
+    def post(self):
+        self.init()
+        ok = self.checkRequirements(userRequired=True, questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+        else:
+            clientId = self.request.get('client_id')
+            sendMessageToAdmin(self.dbConnection, self.question.id, { "op" : "ideasdone", "question_id" : self.question.id, "user_id" : self.person.id })
+            data = { "status" : 1 }
+        
+        self.writeResponseAsJson(data) 
+        self.destroy()
+            
 class ActiveHandler(BaseHandler):
     def post(self):
         self.init(adminRequired=True)
