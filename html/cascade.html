@@ -39,12 +39,18 @@ limitations under the License.
 	{% endif %}	
 	<div id="msg" class="warning spaceafter" style="text-align:center">{{ msg }}</div>
 	<div id="page_content" style="display:none">
-	<div id="step" class="center step note" style="text-align:right"></div>
-	<div class="white_box">
-		<h1 id="title" class="spaceafter">Cascade</h1>
-		<div id="help" class="help spaceafter"></div>
-		<div id="warning" class="warning largespaceafter"></div>
-		<div id="task_area"></div>		
-	</div>
+		<div id="box_area" class="center">
+			<div class="green_highlight smallspaceafter" style="padding-top:8px; padding-bottom:8px">
+				<h1 id="question_title" class="smallspaceafter">{{ title }}</h1>
+				<div id="question">{{ question }}</div>
+			</div>
+			<div id="step" class="center step note" style="text-align:right"></div>
+			<div class="white_box">
+				<h1 id="title" class="spaceafter">Cascade</h1>
+				<div id="help" class="help spaceafter"></div>
+				<div id="warning" class="warning largespaceafter"></div>
+				<div id="task_area"></div>		
+			</div>
+		</div>
 	</div>
 {% endblock %}

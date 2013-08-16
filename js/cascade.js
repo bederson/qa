@@ -369,8 +369,7 @@ function onResize() {
 			width = $(window).width() - padding;
 		}
 	}
-	$(".step").width(width);
-	$(".white_box").width(width);
+	$("#box_area").width(width);
 }
 
 /////////////////////////
