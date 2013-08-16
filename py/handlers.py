@@ -81,7 +81,7 @@ class BaseHandler(webapp2.RequestHandler):
             nickname = None
             
         # get person, and update login status if needed
-        self.person, isLogin = Person.getPerson(self.dbConnection, question, nickname)
+        self.person = Person.getPerson(self.dbConnection, question, nickname)
             
         # only allow nickname authenticated user to login to one session
         if self.person is not None and nickname is not None and self.person.session_sid is not None and self.person.session_sid != self.session.sid:
@@ -89,10 +89,6 @@ class BaseHandler(webapp2.RequestHandler):
         
         if self.person is not None and not self.person.is_logged_in:
             self.person.login(self.dbConnection)
-            isLogin = True
-            
-        if isLogin and self.question:
-            notifyAdminAboutLogin(self.dbConnection, self.person)
                     
     def isUserLoggedIn(self):
         return self.person is not None and self.person.is_logged_in
@@ -294,14 +290,11 @@ class LoginHandler(BaseHandler):
         self.init(initUser=False)
         page = self.request.get("page")
 
-        self.person, isNew = Person.getPerson(self.dbConnection, self.question)      
+        self.person = Person.getPerson(self.dbConnection, self.question)    
         if not self.person:
             self.person = Person.create(self.dbConnection, question=self.question)
         elif not self.person.is_logged_in:
             self.person.login(self.dbConnection)
-            
-        if self.question:
-            notifyAdminAboutLogin(self.dbConnection, self.person)
 
         self.destroy()
         self.redirect(str(page) if page else (getPhaseUrl(self.question) if self.question else "/"))
@@ -327,7 +320,7 @@ class NicknameLoginHandler(BaseHandler):
                 data = { "status" : 0, "msg" : "Nickname can not contain {0}".format("".join(specialChars)) }                
         
         else:
-            self.person, isNew = Person.getPerson(self.dbConnection, self.question, nickname)  
+            self.person = Person.getPerson(self.dbConnection, self.question, nickname)
             
             # check if someone is already logged in with same nickname
             if self.isUserLoggedIn():
@@ -338,7 +331,6 @@ class NicknameLoginHandler(BaseHandler):
                     self.person = Person.create(self.dbConnection, question=self.question, nickname=nickname)
                 elif not self.person.is_logged_in:
                     self.person.login(self.dbConnection)
-                notifyAdminAboutLogin(self.dbConnection, self.person)
 
                 self.session[self.question.id] = { "nickname": nickname }
                 data = { "status" : 1, "url" : str(page) if page else (getPhaseUrl(self.question) if self.question else "/") }
@@ -359,7 +351,6 @@ class QuestionLoginHandler(BaseHandler):
         else:
             if self.person is not None and not self.person.is_logged_in:
                 self.person.login(self.dbConnection)
-            notifyAdminAboutLogin(self.dbConnection, self.person)
                             
             data = { 
                 "status" : 1, 
@@ -824,8 +815,6 @@ class ChannelDisconnectedHandler(BaseHandler):
             numClients = person.removeClient(self.dbConnection, clientId, returnNumClients=True)
             if numClients == 0 and person.is_logged_in:
                 person.logout(self.dbConnection, userRequestedLogout=False)
-            if numClients == 0:
-                notifyAdminAboutLogout(self.dbConnection, person)
         self.destroy()
 
 def createChannel(question, person):
@@ -883,15 +872,23 @@ def sendMessageToAdmin(dbConnection, questionId, message):
     for row in rows:
         toClientId = row["client_id"]
         channel.send_message(toClientId, json.dumps(message))
-                       
-def notifyAdminAboutLogin(dbConnection, person):
+                           
+def onCreatePerson(person, dbConnection):
     if person and person.question_id:
-        sendMessageToAdmin(dbConnection, person.question_id, { "op": "student_login", "question_id" : person.question_id, "user": person.toDict() })
+        sendMessageToAdmin(dbConnection, person.question_id, { "op": "student_login", "question_id" : person.question_id, "user": person.toDict(), "is_new" : True })
+    
+def onLoginPerson(person, dbConnection):
+    if person and person.question_id:
+        sendMessageToAdmin(dbConnection, person.question_id, { "op": "student_login", "question_id" : person.question_id, "user": person.toDict(), "is_new" : False })
 
-def notifyAdminAboutLogout(dbConnection, person):
+def onLogoutPerson(person, dbConnection):
     if person and person.question_id:
         sendMessageToAdmin(dbConnection, person.question_id, { "op": "student_logout", "question_id" : person.question_id, "user": person.toDict() })
-    
+     
+Person.onCreate = onCreatePerson
+Person.onLogin = onLoginPerson
+Person.onLogout = onLogoutPerson
+      
 #####################
 # URL routines
 #####################

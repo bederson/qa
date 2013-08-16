@@ -627,11 +627,22 @@ function handleResults(data) {
 }
 
 function handleStudentLogin(data) {
-	//alert(data.user.nickname+ " logged in to question "+data.question_id);
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.active_user_count++;
+		if (data.is_new) {
+			question.user_count++;
+		}
+		displayStats(question);
+	}	
 }
 
 function handleStudentLogout(data) {
-	//alert(data.user.nickname+ " logged out of question "+data.question_id);
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.active_user_count--;
+		displayStats(question);
+	}
 }
 
 function handleLogout(data) {

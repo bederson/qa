@@ -475,7 +475,10 @@ class Question(DBObject):
 class Person(DBObject):               
     table = "users"
     fields = [ "id", "authenticated_user_id", "authenticated_nickname", "nickname", "question_id", "latest_login_timestamp", "latest_logout_timestamp", "session_sid" ]   
-
+    onCreate = None
+    onLogin = None
+    onLogout = None
+    
     def __init__(self):
         self.id = None
         self.authenticated_user_id = None
@@ -513,6 +516,9 @@ class Person(DBObject):
         dbConnection.conn.commit()
         person.is_logged_in=True   
         
+        if Person.onCreate:
+            Person.onCreate(person, dbConnection)
+            
         return person
     
     @classmethod
@@ -537,6 +543,9 @@ class Person(DBObject):
             dbConnection.conn.commit()
             self.session_sid = session.sid if session else None
             self.is_logged_in = True
+            
+            if Person.onLogin:
+                Person.onLogin(self, dbConnection)
   
     def logout(self, dbConnection, userRequestedLogout=True, commit=True):
         if self.is_logged_in:
@@ -563,6 +572,9 @@ class Person(DBObject):
 
             self.session_sid = None                
             self.is_logged_in = False
+            
+            if Person.onLogout:
+                Person.onLogout(self, dbConnection)
                         
     def addClient(self, dbConnection, clientId, commit=True):   
         sql = "insert into user_clients (user_id, client_id) values(%s, %s)"
@@ -597,7 +609,6 @@ class Person(DBObject):
     @staticmethod
     def getPerson(dbConnection, question=None, nickname=None):
         person = None
-        isNew = False
         user = users.get_current_user()
 
         # if question allows nickname authentication and nickname given, check for user
@@ -626,9 +637,8 @@ class Person(DBObject):
             # and if so, create user   
             if not person and question is not None and question.isAuthor:
                 person = Person.create(dbConnection, question=question)
-                isNew = True
                 
-        return person, isNew
+        return person
                                                                           
     @staticmethod
     def doesNicknameExist(dbConnection, questionId, nickname):
