@@ -151,11 +151,11 @@ class Question(DBObject):
         self.cascade_iteration = 0
         self.cascade_complete = 0
         self.cascade_worker_count = 0 # used to calculate cascade settings automatically
-        self.cascade_k = 5
-        self.cascade_k2 = 2
-        self.cascade_m = 32
+        self.cascade_k = 2
+        self.cascade_k2 = 1
+        self.cascade_m = 10
         self.cascade_p = 80
-        self.cascade_t = 8
+        self.cascade_t = 5
         
     @staticmethod
     def create(dbConnection, author, title, questionText, nicknameAuthentication=False):
