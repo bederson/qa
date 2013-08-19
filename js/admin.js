@@ -148,7 +148,7 @@ function displaySelectedQuestion() {
 	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
 	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
 	$("#default_cascade_settings_cb").prop("checked", question.cascade_worker_count > 0);
-	$("#cascade_worker_count").val(question.cascade_worker_count > 0 ? question.cascade_worker_count : (isDefined(question.user_count) && question.user_count>0 ? question.user_count : 5));
+	$("#cascade_worker_count").val(question.cascade_worker_count > 0 ? question.cascade_worker_count : (isDefined(question.user_count) && question.user_count>0 ? question.user_count : 1));
 	$("#cascade_k").val(question.cascade_k);
 	$("#cascade_k2").val(question.cascade_k2);
 	$("#cascade_m").val(question.cascade_m);
