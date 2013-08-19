@@ -53,7 +53,13 @@ $(document).ready(function() {
 	});
 	
 	$("#p2button").click(function() {
-		enableCascade();
+		var question = getSelectedQuestion();
+		if (question.idea_count == 0) {
+			alert("Must add notes before you can enable Cascade");
+		}
+		else {
+			enableCascade();
+		}
 	});
 		
 	$(".cascade_option").blur(function() {
@@ -468,9 +474,10 @@ function setDefaultCascadeOptions() {
 
 	// TODO: how to best calculate defaults
 
+	var ideaCount = question.idea_count > 0 ? question.idea_count : (cascade_worker_count * 3);	
 	var cascade_p = 80;
-	var cascade_m = Math.ceil(question.idea_count / 2);	
-	var ideasPerWorker = question.idea_count / cascade_worker_count;
+	var cascade_m = ideaCount <= 60 ? Math.ceil(ideaCount / 2) : 30;
+	var ideasPerWorker = ideaCount / cascade_worker_count;
 	if (cascade_worker_count == 1) {
 		cascade_k = 1;
 		cascade_k2 = 1;
@@ -489,7 +496,7 @@ function setDefaultCascadeOptions() {
 		cascade_k2 = 2;
 	}
 
-	cascade_t = cascade_worker_count == 1 ? 8 : Math.max(Math.ceil(question.idea_count / cascade_worker_count), 2);
+	cascade_t = cascade_worker_count == 1 ? 8 : Math.max(Math.ceil(ideaCount / cascade_worker_count), 2);
 	
 	$("#cascade_k").val(cascade_k);
 	$("#cascade_k2").val(cascade_k2);

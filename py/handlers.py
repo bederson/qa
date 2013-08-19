@@ -717,7 +717,7 @@ class PhaseHandler(BaseHandler):
           
         elif phase == None:
             data = { "status" : 0, "msg" : "Invalid phase requested" }   
-            
+                                                                                    
         else:
             # update cascade settings
             if phase == constants.PHASE_CASCADE:
