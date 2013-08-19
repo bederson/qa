@@ -255,6 +255,7 @@ class CascadePageHandler(BaseHandler):
         self.checkRequirements(userRequired=True, questionRequired=True)
         templateValues = self.getDefaultTemplateValues()
         templateValues["num_steps"] = self.question.cascade_step_count if self.question else 0
+        templateValues["skip_verify"] = json.dumps(constants.SKIP_VERIFY_CATEGORY)
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -276,6 +277,8 @@ class AdminPageHandler(BaseHandler):
         # but if one passed in, it has already been checked for validity
         self.question = None
         templateValues = self.getDefaultTemplateValues()
+        templateValues["max_cascade_steps"] = len(CASCADE_CLASSES)
+        templateValues["skip_verify"] = json.dumps(constants.SKIP_VERIFY_CATEGORY)
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -716,6 +719,19 @@ class PhaseHandler(BaseHandler):
             data = { "status" : 0, "msg" : "Invalid phase requested" }   
             
         else:
+            # update cascade settings
+            if phase == constants.PHASE_CASCADE:
+                properties = {
+                    "cascade_worker_count" :  int(self.request.get('cascade_worker_count')),
+                    "cascade_k" :  int(self.request.get('cascade_k')),
+                    "cascade_k2" : int(self.request.get('cascade_k2')),
+                    "cascade_m" :  int(self.request.get('cascade_m')),
+                    "cascade_p" :  int(self.request.get('cascade_p')),
+                    "cascade_t" :  int(self.request.get('cascade_t')),
+                    "id" : self.question.id
+                }
+                self.question.update(self.dbConnection, properties)            
+        
             self.question.setPhase(self.dbConnection, phase)
             data = { "status" : 1, "question" : self.question.toDict() }
             sendMessage(self.dbConnection, clientId, self.question, { "op" : "phase", "phase" : phase, "cascade_step" : self.question.cascade_step })
@@ -778,30 +794,6 @@ class CascadeInitStepHandler(BaseHandler):
             else:                    
                 # notify any waiting clients that next step that is ready
                 sendMessage(self.dbConnection, None, self.question, { "op": "step", "question_id" : self.question.id, "step": self.question.cascade_step, "iteration" : self.question.cascade_iteration })
-
-class CascadeOptionsHandler(BaseHandler):
-    def post(self):
-        self.init(adminRequired=True)
-        clientId = self.request.get('client_id')
-
-        ok = self.checkRequirements(self, authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
-        if not ok:
-            data = { "status" : 0, "msg" : self.session.pop("msg") }
-
-        else:
-            properties = {
-                "cascade_k" :  int(self.request.get('cascade_k')),
-                "cascade_k2" : int(self.request.get('cascade_k2')),
-                "cascade_m" :  int(self.request.get('cascade_m')),
-                "cascade_p" :  int(self.request.get('cascade_p')),
-                "cascade_t" :  int(self.request.get('cascade_t')),
-                "id" : self.question.id
-            }
-            self.question.update(self.dbConnection, properties)            
-            data = { "status" : 1, "question" : self.question.toDict() }
-        
-        self.writeResponseAsJson(data)
-        self.destroy()
                          
 #####################
 # Channel support

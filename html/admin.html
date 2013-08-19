@@ -25,6 +25,10 @@ limitations under the License.
 {% block scripts %}
 	<script src="http://code.jquery.com/ui/1.10.0/jquery-ui.js"></script>
 	<script type="text/javascript" src="js/admin.js"></script>
+	<script>
+		var max_cascade_steps = parseInt("{{ max_cascade_steps }}");
+		var skip_verify = {{ skip_verify }};
+	</script>
 {% endblock %}
 
 {% block content %}
@@ -57,7 +61,18 @@ limitations under the License.
 						</td>
 						<td>
 							<div class="spaceafter">Go to <a id="cascade_link">Cascade</a></div>
-							<table class="smallpadbottom">
+							<input id="default_cascade_settings_cb" type="checkbox" name="default_cascade_settings_cb" class="cascade_option spaceafter"> Use default settings<br>
+							<table id="default_cascade_settings" class="smallpadbottom">
+							<tr>
+							<td><input id="cascade_worker_count" class="cascade_option" type="text" size="3"></input></td>
+							<td># users</span></td>
+							</tr>							
+							<tr>
+							<td><span class="note">- OR -</span></td>
+							<td>&nbsp;</td>
+							</tr>
+							</table>
+							<table id="custom_cascade_settings" class="smallpadbottom">
 							<tr>
 							<td><input id="cascade_k" class="cascade_option" type="text" size="3"></input></td>
 							<td>k <span class="note">(redundancy factor)</span></td>

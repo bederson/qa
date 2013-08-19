@@ -44,7 +44,6 @@ app = webapp2.WSGIApplication([
     ('/download_question', DownloadQuestionHandler),
     ('/set_active', ActiveHandler),
     ('/set_phase', PhaseHandler),
-    ('/set_cascade_options', CascadeOptionsHandler),
     ('/cascade_init_step', CascadeInitStepHandler),
 	('/cascade_job', CascadeJobHandler),
     ('/cancel_cascade_job', CancelCascadeJobHandler),

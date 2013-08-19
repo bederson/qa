@@ -1,3 +1,4 @@
+
 ENABLE_DEBUG_LOGGING = True
 USE_LOCAL_DATABASE_WHEN_RUNNING_LOCALLY = True # Does not work to use Google SQL instance when running locally yet
 
@@ -12,9 +13,10 @@ PHASE_NOTES = 1
 PHASE_CASCADE = 2
 
 # Cascade 
+SKIP_VERIFY_CATEGORY = True
 DEFAULT_VOTING_THRESHOLD = 2
 CASCADE_Q = 1                   # min number of items allowed in a category
-CASCADE_MAX_ITERATIONS = 2      # max number of iterations allowed
+CASCADE_MAX_ITERATIONS = 1      # max number of iterations allowed
 CASCADE_MAX_UNCATEGORIZED = 5   # max number uncategorized items (w/o going over max # iterations)
 
 # Channel

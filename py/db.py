@@ -135,7 +135,7 @@ class DBObject(object):
            
 class Question(DBObject):
     table = "questions"
-    fields = [ "id", "title", "question", "nickname_authentication", "user_id", "active", "phase", "cascade_step", "cascade_step_count", "cascade_iteration", "cascade_complete", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_t" ]  
+    fields = [ "id", "title", "question", "nickname_authentication", "user_id", "active", "phase", "cascade_step", "cascade_step_count", "cascade_iteration", "cascade_complete", "cascade_worker_count", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_t" ]  
         
     def __init__(self):
         self.id = None
@@ -150,6 +150,7 @@ class Question(DBObject):
         self.cascade_step_count = 0
         self.cascade_iteration = 0
         self.cascade_complete = 0
+        self.cascade_worker_count = 0 # used to calculate cascade settings automatically
         self.cascade_k = 5
         self.cascade_k2 = 2
         self.cascade_m = 32
@@ -217,8 +218,13 @@ class Question(DBObject):
         sql = "insert into cascade_stats (question_id, idea_count, user_count) values(%s, %s, %s)"
         dbConnection.cursor.execute(sql, (self.id, stats["idea_count"], stats["active_user_count"]))
 
-        # update cascade_step_count based on cascade_m and # ideas    
-        cascadeStepCount = len(CASCADE_CLASSES) if stats["idea_count"] > self.cascade_m else 4    
+        # update cascade_step_count based on cascade_m and # ideas, and whether or not verify category step is skipped    
+        cascadeStepCount = len(CASCADE_CLASSES)
+        if self.cascade_m >= stats["idea_count"]:
+            cascadeStepCount -= 1
+        if constants.SKIP_VERIFY_CATEGORY:
+            cascadeStepCount -= 1
+            
         sql = "update questions set cascade_step_count=%s where id=%s"
         dbConnection.cursor.execute(sql, (cascadeStepCount, self.id))
         dbConnection.conn.commit()
@@ -1350,6 +1356,11 @@ class CascadeFitCategoryPhase2(DBObject):
     
     @staticmethod
     def initStep(dbConnection, question):
+        # check constants and skip step if specified
+        if constants.SKIP_VERIFY_CATEGORY:
+            question.continueCascade(dbConnection, skip=True)
+            return;
+        
         # TODO: how should voting threshold be determined
         votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
         sql = "select *,count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and cascade_iteration=%s and fit=1 group by question_id,idea_id,category having ct>=%s";
@@ -1507,17 +1518,29 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
             question.continueCascade(dbConnection, skip=True)
             return
 
-        # Check subsequent items against categories that passed step 4
-        sql = "select category,count(*) as ct from cascade_fit_categories_phase2 where "
-        sql += "question_id=%s "
-        sql += "and cascade_iteration=%s "
-        sql += "and fit=1 "
-        sql += "group by category "
-        sql += "having ct>=%s"
-        minCount = math.ceil(question.cascade_k2 * 0.8)
-        dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, minCount))
-    
-        rows2= dbConnection.cursor.fetchall()
+        if constants.SKIP_VERIFY_CATEGORY:
+            sql = "select category,count(*) as ct from cascade_fit_categories_phase1 where "
+            sql += "question_id=%s "
+            sql += "and cascade_iteration=%s "
+            sql += "and fit=1 "
+            sql += "group by category "
+            sql += "having ct>=%s"
+            # TODO: how should voting threshold be determined
+            minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
+            dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, minCount))
+            rows2= dbConnection.cursor.fetchall()
+
+        else:
+            # Check subsequent items against categories that passed step 4
+            sql = "select category,count(*) as ct from cascade_fit_categories_phase2 where "
+            sql += "question_id=%s "
+            sql += "and cascade_iteration=%s "
+            sql += "and fit=1 "
+            sql += "group by category "
+            sql += "having ct>=%s"
+            minCount = math.ceil(question.cascade_k2 * 0.8)
+            dbConnection.cursor.execute(sql, (question.id, question.cascade_iteration, minCount))
+            rows2= dbConnection.cursor.fetchall()
                     
         insertValues = []
         categories = ()
@@ -1542,6 +1565,9 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
         sql += ",".join(insertValues)
         dbConnection.cursor.execute(sql, categories)
         dbConnection.conn.commit()
+                
+        jobCount = len(rows) * int(math.ceil(float(len(rows2)) / question.cascade_t)) * question.cascade_k2
+        question.recordCascadeStepJobCount(dbConnection, jobCount)
         
     @staticmethod
     def continueCascade(dbConnection, question):
@@ -1551,35 +1577,17 @@ class CascadeFitCategorySubsequentPhase1(CascadeFitCategoryPhase1):
 def GenerateCascadeHierarchy(dbConnection, question):
     categories = {}
     ideas = {}
-    sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories_phase2,question_ideas where "
-    sql += "cascade_fit_categories_phase2.idea_id=question_ideas.id "
-    sql += "and cascade_fit_categories_phase2.question_id=%s "
-    sql += "and fit=1 "
-    sql += "group by idea_id,category "
-    sql += "having ct>=%s"
-    # TODO: how should voting threshold be determined
-    minCount = math.ceil(question.cascade_k2 * 0.8)
-    dbConnection.cursor.execute(sql, (question.id, minCount))
-    rows = dbConnection.cursor.fetchall()
-    for row in rows:
-        category = row["category"]
-        ideaId = row["idea_id"]
-        idea = row["idea"]
-        if category not in categories:
-            categories[category] = []
-        categories[category].append(ideaId)
-        ideas[ideaId] = idea
-    
-    # check for any categories that passed step 5 (if performed)
-    ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
-    if ideaCount > question.cascade_m:
+
+    # if step 4 skipped, check for any categories that passed step 3 (this includes any subsequent items)      
+    if constants.SKIP_VERIFY_CATEGORY:
         sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories_phase1,question_ideas where "
         sql += "cascade_fit_categories_phase1.idea_id=question_ideas.id "
         sql += "and cascade_fit_categories_phase1.question_id=%s "
-        sql += "and subsequent=1 "
         sql += "and fit=1 "
         sql += "group by idea_id,category "
         sql += "having ct>=%s"
+        # TODO: how should voting threshold be determined
+        minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
         dbConnection.cursor.execute(sql, (question.id, minCount))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
@@ -1590,6 +1598,48 @@ def GenerateCascadeHierarchy(dbConnection, question):
                 categories[category] = []
             categories[category].append(ideaId)
             ideas[ideaId] = idea
+       
+    else:
+        # check for any categories that passed step 4
+        sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories_phase2,question_ideas where "
+        sql += "cascade_fit_categories_phase2.idea_id=question_ideas.id "
+        sql += "and cascade_fit_categories_phase2.question_id=%s "
+        sql += "and fit=1 "
+        sql += "group by idea_id,category "
+        sql += "having ct>=%s"
+        # TODO: how should voting threshold be determined
+        minCount = math.ceil(question.cascade_k2 * 0.8)
+        dbConnection.cursor.execute(sql, (question.id, minCount))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            category = row["category"]
+            ideaId = row["idea_id"]
+            idea = row["idea"]
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(ideaId)
+            ideas[ideaId] = idea
+        
+        # check for any categories that passed step 5 (if performed)
+        ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
+        if ideaCount > question.cascade_m:
+            sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories_phase1,question_ideas where "
+            sql += "cascade_fit_categories_phase1.idea_id=question_ideas.id "
+            sql += "and cascade_fit_categories_phase1.question_id=%s "
+            sql += "and subsequent=1 "
+            sql += "and fit=1 "
+            sql += "group by idea_id,category "
+            sql += "having ct>=%s"
+            dbConnection.cursor.execute(sql, (question.id, minCount))
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                category = row["category"]
+                ideaId = row["idea_id"]
+                idea = row["idea"]
+                if category not in categories:
+                    categories[category] = []
+                categories[category].append(ideaId)
+                ideas[ideaId] = idea
     
     # remove any categories with less than q items
     categoriesToRemove = []
@@ -1644,6 +1694,6 @@ def GenerateCascadeHierarchy(dbConnection, question):
             sql = "insert into question_categories (question_id, idea_id, category_id) values(%s, %s, %s)"
             dbConnection.cursor.execute(sql, (question.id, ideaId, categoryId))
 
-    dbConnection.conn.commit()
-        
+    dbConnection.conn.commit
+
 CASCADE_CLASSES = [ CascadeSuggestedCategory, CascadeBestCategory, CascadeFitCategoryPhase1, CascadeFitCategoryPhase2, CascadeFitCategorySubsequentPhase1 ]

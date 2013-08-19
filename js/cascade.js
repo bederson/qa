@@ -86,7 +86,8 @@ function updateUI(results) {
 }
 
 function updateTitleArea(results) {
-	$("#step").html("Step " + results.step + " of " + num_steps);
+	var x = (results.skip_verify && results.step>4) ? results.step-1 : results.step;
+	$("#step").html("Step " + x + " of " + num_steps);
 	$("#msg").html("");
 
 	if (results.step == 1) {
@@ -317,7 +318,7 @@ function waitForNextStep(results) {
 
 // cascade complete
 function resultsReady() {
-	$("#step").html("");
+	$("#step").html("&nbsp;");
 	$("#title").html("Categories Complete");
 	$("#help").html("");
 	$("#msg").html("");
