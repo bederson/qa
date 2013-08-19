@@ -55,7 +55,7 @@ $(document).ready(function() {
 	$("#p2button").click(function() {
 		var question = getSelectedQuestion();
 		if (question.idea_count == 0) {
-			alert("Must add notes before you can enable Cascade");
+			alert("Notes must be added before you can enable Cascade");
 		}
 		else {
 			enableCascade();
@@ -449,10 +449,11 @@ function setDefaultCascadeOptions() {
 	
 	$("#msg").html("");
 	
-	var valueHasChanged = cascade_worker_count != question.cascade_worker_count;
-	if (!valueHasChanged) {
-		return false;
-	}
+	// skip checking since # ideas may have changed
+	//var valueHasChanged = cascade_worker_count != question.cascade_worker_count;
+	//if (!valueHasChanged) {
+	//	return false;
+	//}
 	
 	var nonEmptyValue = cascade_worker_count != "";
 	if (!nonEmptyValue) {
@@ -610,7 +611,7 @@ function createEditQuestion() {
 				}
 				questions.push(result.question);
 				displayQuestionsList();
-				selectQuestion(result.question.id, true);	
+				selectQuestion(result.question.id);
 				createQuestionForm();			
 			}, "json");
 		}
