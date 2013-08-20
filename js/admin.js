@@ -41,13 +41,6 @@ $(document).ready(function() {
 		setActive(active);
 	});
 	
-	$("#default_cascade_settings_cb").click(function() {
-		var useDefault = $(this).is(":checked");
-		enableDisable($("#default_cascade_settings .cascade_option"), useDefault);			
-		enableDisable($("#custom_cascade_settings .cascade_option"), !useDefault);
-		setCascadeOptions();
-	});
-	
 	$("#p1button").click(function() {
 		setPhase(PHASE_NOTES);
 	});
@@ -60,10 +53,6 @@ $(document).ready(function() {
 		else {
 			enableCascade();
 		}
-	});
-		
-	$(".cascade_option").blur(function() {
-		setCascadeOptions();
 	});
 });
 
@@ -125,7 +114,12 @@ function getQuestionItemHtml(question) {
 
 function selectQuestion(question_id) {
 	selected_question_id = question_id;
-	loadStats();
+	if (question_id) {
+		loadStats();
+	}
+	else {
+		$("#selected_question").hide();
+	}
 }
 
 function displaySelectedQuestion() {
@@ -147,8 +141,6 @@ function displaySelectedQuestion() {
 	$("#active_cb").prop("checked", question.active);
 	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
 	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
-	$("#default_cascade_settings_cb").prop("checked", question.cascade_worker_count > 0);
-	$("#cascade_worker_count").val(question.cascade_worker_count > 0 ? question.cascade_worker_count : (isDefined(question.user_count) && question.user_count>0 ? question.user_count : 1));
 	$("#cascade_k").val(question.cascade_k);
 	$("#cascade_k2").val(question.cascade_k2);
 	$("#cascade_m").val(question.cascade_m);
@@ -158,15 +150,6 @@ function displaySelectedQuestion() {
 	
 	enableDisable($("#p1button"), question.active && question.phase != PHASE_NOTES);
 	enableDisable($("#p2button"), question.active && question.phase != PHASE_CASCADE);
-	if (question.active && question.phase != PHASE_CASCADE) {
-		var useDefault = $("#default_cascade_settings_cb").is(":checked");
-		enableDisable($("#default_cascade_settings_cb"), true);
-		enableDisable($("#default_cascade_settings .cascade_option"), useDefault);			
-		enableDisable($("#custom_cascade_settings .cascade_option"), !useDefault);
-	}
-	else {
-		enableDisable($(".cascade_option"), false);
-	}
 
 	$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
 	$("#p2button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
@@ -191,6 +174,8 @@ function loadStats() {
 			question.user_count = results["user_count"];
 			question.active_user_count = results["active_user_count"];
 			question.cascade_stats = results["cascade_stats"];
+			calculateCascadeOptions(question);
+			
 			if (isSelectedQuestion(question.id)) {
 				displaySelectedQuestion(question);
 			}
@@ -224,7 +209,7 @@ function displayCascadeStats(question) {
     var k = question.cascade_k;
     var k2 = question.cascade_k2;
     var t = question.cascade_t;
-    var workerCount = question.cascade_complete ? question["cascade_stats"].user_count : ($("#default_cascade_settings_cb").is(":checked") ? parseInt($("#cascade_worker_count").val()) : question.user_count);
+    var workerCount = getCascadeWorkerCount(question);
     
 	var title = "";
     var cascade_job_counts = [];
@@ -298,7 +283,7 @@ function displayCascadeStats(question) {
 	html += "</tr>";
 		
 	// jobs per user
-	if (workerCount > 0 && totalJobCount > 0) {
+	if (workerCount > 1 && totalJobCount > 0) {
 		html += "<tr>";
 		html += "<td>&nbsp;</td>";
 		html += "<td colspan='2'>" + Math.ceil(totalJobCount/workerCount) + " jobs/user</td>";
@@ -341,6 +326,11 @@ function displayCascadeStats(question) {
 		}
 		html += "</div>";
 	}
+	
+	if (totalJobCount > 0) {
+		html += "k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=" + question.cascade_m + ", t=" + question.cascade_t; 
+	}
+	
 	$("#cascade_stats").html(html);	
 }
         
@@ -379,8 +369,7 @@ function setPhase(phase) {
 		"phase": phase
 	};
 	if (phase == PHASE_CASCADE) {
-		var useDefault = $("#default_cascade_settings_cb").is(":checked");
-		data["cascade_worker_count"] = useDefault ? question.cascade_worker_count : 0;
+		//calculateCascadeOptions(question);
 		data["cascade_k"] = question.cascade_k;
 		data["cascade_k2"] = question.cascade_k2;
 		data["cascade_m"] = question.cascade_m;
@@ -438,48 +427,30 @@ function enableCascade() {
 	}
 }
 
-function setDefaultCascadeOptions() {
-	var question = getSelectedQuestion();
-	if (!question) {
-		alert("Cascade options not changed. Question not found.");
-		return false;
+function calculateCascadeOptions(question, forceUpdate) {	
+	forceUpdate = isDefined(forceUpdate) ? forceUpdate : false;
+	
+	// use values stored in db if cascade complete
+	if (question.cascade_complete) {
+		return;
 	}
 	
-	var cascade_worker_count = $("#cascade_worker_count").val();
-	
-	$("#msg").html("");
-	
-	// skip checking since # ideas may have changed
-	//var valueHasChanged = cascade_worker_count != question.cascade_worker_count;
-	//if (!valueHasChanged) {
-	//	return false;
-	//}
-	
-	var nonEmptyValue = cascade_worker_count != "";
-	if (!nonEmptyValue) {
-		$("#msg").html("Cascade options not changed. Worker count required.");
-		return false;
+	// use values stored in db if cascade already started
+	if (question.phase == PHASE_CASCADE && !forceUpdate) {
+		return;
 	}
 	
-	var isANumber = !isNaN(cascade_worker_count);
-	if (!isANumber) {
-		$("#msg").html("Cascade options not changed. Worker count must be a number.");
-		return false;
+	if (question.idea_count == 0) {
+		return;
 	}
 	
-	var nonZeroValue = cascade_worker_count != 0;
-	if (!nonZeroValue) {
-		$("#msg").html("Cascade options not changed. Worker count must be greater than 0.");
-		return false;
-	}
-
-	// TODO: how to best calculate defaults
-
-	var ideaCount = question.idea_count > 0 ? question.idea_count : (cascade_worker_count * 3);	
+	var workerCount = getCascadeWorkerCount(question);
+	
 	var cascade_p = 80;
-	var cascade_m = ideaCount <= 60 ? Math.ceil(ideaCount / 2) : 30;
-	var ideasPerWorker = ideaCount / cascade_worker_count;
-	if (cascade_worker_count == 1) {
+	var cascade_m = question.idea_count <= 60 ? Math.ceil(question.idea_count / 2) : 30;
+
+	var ideasPerWorker = question.idea_count / workerCount;
+	if (workerCount == 1) {
 		cascade_k = 1;
 		cascade_k2 = 1;
 	}
@@ -497,76 +468,18 @@ function setDefaultCascadeOptions() {
 		cascade_k2 = 2;
 	}
 
-	cascade_t = cascade_worker_count == 1 ? 8 : Math.max(Math.ceil(ideaCount / cascade_worker_count), 2);
-	
-	$("#cascade_k").val(cascade_k);
-	$("#cascade_k2").val(cascade_k2);
-	$("#cascade_m").val(cascade_m);
-	$("#cascade_p").val(cascade_p);
-	$("#cascade_t").val(cascade_t);
-			
-	return true;
-}
-	
-function setCascadeOptions() {
-	var question = getSelectedQuestion();
-	if (!question) {
-		alert("Cascade options not changed. Question not found.");
-		return;
-	}
-	
-	var useDefault = $("#default_cascade_settings_cb").is(":checked");
-	if (useDefault) {
-		var success = setDefaultCascadeOptions();
-		if (!success) {
-			return;
-		}
-		question.cascade_worker_count = $("#cascade_worker_count").val();
-	}
-	
-	var cascade_k = $("#cascade_k").val();
-	var cascade_k2 = $("#cascade_k2").val();
-	var cascade_m = $("#cascade_m").val();
-	var cascade_p = $("#cascade_p").val();
-	var cascade_t = $("#cascade_t").val();
-	
-	$("#msg").html("");
-	
-	// skip checking since # users might have changed
-	//var valuesHaveNotChanged = cascade_k == question.cascade_k && cascade_k2 == question.cascade_k2 && cascade_m == question.cascade_m && cascade_p == question.cascade_p && cascade_t == question.cascade_t;
-	//if (valuesHaveNotChanged) {
-	//	return;
-	//}
-	
-	var allNonEmpty = cascade_k != "" && cascade_k2 != "" && cascade_m != "" && cascade_p != "" && cascade_t != "";
-	if (!allNonEmpty) {
-		$("#msg").html("Cascade options not changed. Empty values not allowed.");
-		return;
-	}
-	
-	var allNumbers = !isNaN(cascade_k) && !isNaN(cascade_k2) && !isNaN(cascade_m) && !isNaN(cascade_p) && !isNaN(cascade_t);
-	if (!allNumbers) {
-		$("#msg").html("Cascade options not changed. All values must be numbers.");
-		return;
-	}
-	
-	var nonZeroValues = cascade_k > 0 && cascade_k2 > 0 && cascade_m > 0 && cascade_t > 0;
-	if (!nonZeroValues) {
-		$("#msg").html("Cascade options not changed. k, k2, m, and t must be greater than 0.");
-		return;
-	}
-	
-	if (cascade_p > 100) {
-		$("#msg").html("Cascade options not changed. p must be between 0-100.");
-		return;
-	}
+	cascade_t = Math.max(Math.floor((cascade_m * cascade_k) / workerCount), 2);
 
 	question.cascade_k = cascade_k;
 	question.cascade_k2 = cascade_k2;
 	question.cascade_m = cascade_m;
 	question.cascade_p = cascade_p;
 	question.cascade_t = cascade_t;
-	displayCascadeStats(question);
+}
+
+function getCascadeWorkerCount(question) {
+	// assume admin is going to perform Cascade tasks if no active users
+	return question.active_user_count > 0 ? question.active_user_count : 1;
 }
 
 function createEditQuestion() {
@@ -720,9 +633,8 @@ function handleIdea(data) {
 	var question = getSelectedQuestion();
 	if (question && data.idea.question_id==question.id) {
 		question.idea_count++;
-		if ($("#default_cascade_settings_cb").is(":checked")) {
-			setCascadeOptions();
-		}
+		
+		calculateCascadeOptions(question);
 		displayStats(question);
 	}
 }
@@ -767,6 +679,7 @@ function handleStudentLogin(data) {
 		question.active_user_count++;
 		if (data.is_new) {
 			question.user_count++;
+			calculateCascadeOptions(question);
 		}
 		displayStats(question);
 	}	
@@ -776,6 +689,7 @@ function handleStudentLogout(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.active_user_count--;
+		calculateCascadeOptions(question);
 		displayStats(question);
 	}
 }

@@ -722,7 +722,6 @@ class PhaseHandler(BaseHandler):
             # update cascade settings
             if phase == constants.PHASE_CASCADE:
                 properties = {
-                    "cascade_worker_count" :  int(self.request.get('cascade_worker_count')),
                     "cascade_k" :  int(self.request.get('cascade_k')),
                     "cascade_k2" : int(self.request.get('cascade_k2')),
                     "cascade_m" :  int(self.request.get('cascade_m')),

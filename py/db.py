@@ -135,7 +135,7 @@ class DBObject(object):
            
 class Question(DBObject):
     table = "questions"
-    fields = [ "id", "title", "question", "nickname_authentication", "user_id", "active", "phase", "cascade_step", "cascade_step_count", "cascade_iteration", "cascade_complete", "cascade_worker_count", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_t" ]  
+    fields = [ "id", "title", "question", "nickname_authentication", "user_id", "active", "phase", "cascade_step", "cascade_step_count", "cascade_iteration", "cascade_complete", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_t" ]  
         
     def __init__(self):
         self.id = None
@@ -150,7 +150,6 @@ class Question(DBObject):
         self.cascade_step_count = 0
         self.cascade_iteration = 0
         self.cascade_complete = 0
-        self.cascade_worker_count = 0 # used to calculate cascade settings automatically
         self.cascade_k = 2
         self.cascade_k2 = 1
         self.cascade_m = 10
