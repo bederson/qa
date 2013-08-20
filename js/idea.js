@@ -15,7 +15,9 @@
 // limitations under the License.
 //
 
+var ideas = [];
 var done = false;
+SHOW_IDEAS_WHEN_DONE = true;
 
 $(function() {
 	$("#title").html(title);
@@ -106,14 +108,14 @@ function initEventHandlers() {
 				return;
 			}
 			done = true;
-			var html = '<h1 id="title">' + title + '</h1>';
-			html += '<div id="question">' + question + '</div>';
-			html += '<br>';
-			html += "Done ... please wait for others to finish";
-			// TODO/FIX: need to make sure results page redirects to cascade when teacher switches phases
-			//html += "You can view <a href=\"" + getResultsPageUrl(question_id) + "\">other people's submissions</a> as they come in.";
+			var html = '<h1 id="title" class="largespaceafter">Add Answers</h1>';
+			html += "Please wait for others to finish.<br/></br>";
 			$("#answer_box").html(html);
 			$("#nickname_area").hide();
+			if (SHOW_IDEAS_WHEN_DONE) {
+				$("#ideas").show();
+				loadIdeas();
+			}
 		}, "json");
 	});
 	
@@ -145,8 +147,7 @@ function onResize() {
 		}
 	}
 
-	$(".white_box").width(width);
-	$("#answer").width(width - 6);
+	$("#box_area").width(width);
 }
 
 function updateNicknameArea() {
@@ -192,11 +193,56 @@ function updateNicknameArea() {
 
 		$("#nickname_area").show();
 	}
-	
 }
+
+function loadIdeas() {	
+	// TODO/FIX: request all ideas in single array (not separated by categories!)
+	var data = {
+		"request": "ideas",
+		"question_id": question_id
+	};
+	$.getJSON("/query", data, function(results) {
+		question = results.question;
+		ideas = results.ideas;
+		var html = "<ul id='idea_list'>";
+		for (var i in ideas) {
+			var idea = ideas[i];
+			html += ideaAsHtml(idea);
+		}
+		html += "</ul>"
+		$("#ideas").html(html);
+	});
+}
+
+function addIdea(idea) {
+	ideas.push(idea);
+	var html = ideaAsHtml(idea);
+	$("#idea_list").prepend(html);
+}
+
+function ideaAsHtml(idea) {
+	var html = "<li>";
+	html += idea.idea + "<br/>";
+	html += "<span class='author'";
+	var realIdentity = isDefined(idea.author_identity) ? idea.author_identity : "";
+	var isIdentityHidden = realIdentity != "" && realIdentity != idea.author;
+	if (isIdentityHidden) {
+		html += " title='" + realIdentity + "' ";
+	}
+	html += ">&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + (isIdentityHidden?"*":"") + "</span>";
+	html += "</li>";
+	return html;	
+}
+
 /////////////////////////
 // Channel support
 /////////////////////////
+function handleIdea(data) {
+	if (SHOW_IDEAS_WHEN_DONE && done) {
+		addIdea(data.idea);
+	}
+}
+
 function handleEnable(data) {
 	$("#msg").html("");
 	enableInput();

@@ -55,6 +55,7 @@ function loadQuestion() {
 	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "ideas",
+		"group_by": "category",
 		"question_id": question_id
 	};
 	$.getJSON("/query", data, function(results) {

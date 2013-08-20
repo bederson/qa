@@ -439,8 +439,13 @@ class QueryHandler(BaseHandler):
                                 
             # ideas for question (grouped if categories exist; otherwise returned as uncategorized)
             elif request == "ideas" and self.question:
-                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
-                data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }
+                groupBy = self.request.get("group_by", None)
+                if groupBy == "category":
+                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
+                    data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }
+                else:
+                    ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)
+                    data = { "question": self.question.toDict(), "ideas": ideas }
 
             self.destroy()
 

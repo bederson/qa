@@ -107,7 +107,12 @@ function getQuestionItemHtml(question) {
 	}
 	
 	if (question.cascade_complete) {
-		html += "<span class='note'><em>Categories created</em></span>";
+		if (question.phase == PHASE_NOTES) {
+			html += "<span class='note'><em>"+phaseToString(question.phase)+' (categories created for previous notes)</em></span>';
+		}
+		else {
+				html += "<span class='note'><em>Categories created</em></span>";
+		}
 	}
 	return html;
 }
@@ -327,8 +332,8 @@ function displayCascadeStats(question) {
 		html += "</div>";
 	}
 	
-	if (totalJobCount > 0) {
-		html += "k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=" + question.cascade_m + ", t=" + question.cascade_t; 
+	if (totalJobCount > 0 || question.cascade_complete) {
+		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=" + question.cascade_m + ", t=" + question.cascade_t + "</div>"; 
 	}
 	
 	$("#cascade_stats").html(html);	
