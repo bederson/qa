@@ -449,12 +449,13 @@ function calculateCascadeOptions(question, forceUpdate) {
 		return;
 	}
 	
-	var workerCount = getCascadeWorkerCount(question);
-	
+	var cascade_m = Math.ceil(question.idea_count / 2);
 	var cascade_p = 80;
-	var cascade_m = question.idea_count <= 60 ? Math.ceil(question.idea_count / 2) : 30;
+	var cascade_t = 3;
 
+	var workerCount = getCascadeWorkerCount(question);
 	var ideasPerWorker = question.idea_count / workerCount;
+	
 	if (workerCount == 1) {
 		cascade_k = 1;
 		cascade_k2 = 1;
@@ -472,8 +473,6 @@ function calculateCascadeOptions(question, forceUpdate) {
 		cascade_k = 3;
 		cascade_k2 = 2;
 	}
-
-	cascade_t = Math.max(Math.floor((cascade_m * cascade_k) / workerCount), 2);
 
 	question.cascade_k = cascade_k;
 	question.cascade_k2 = cascade_k2;
