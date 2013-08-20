@@ -17,7 +17,7 @@
 
 var ideas = [];
 var done = false;
-SHOW_IDEAS_WHEN_DONE = true;
+SHOW_IDEAS_WHEN_DONE = false;
 
 $(function() {
 	$("#title").html(title);
@@ -86,7 +86,10 @@ function initEventHandlers() {
 			}
 			enableDisable($("#submit"), true);
 			$("#thankyou").show();
-			$("#results_link").attr("href", "/results?question_id=" + question_id);
+			if (SHOW_IDEAS_WHEN_DONE) {
+				$("#results_link").attr("href", "/results?question_id=" + question_id);
+				$("#show_results_text").show();
+			}
 			$("#answer").val("");
 			$("#answer").focus();
 			updateRemainingChars();

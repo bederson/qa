@@ -87,7 +87,7 @@ function updateUI(results) {
 
 function updateTitleArea(results) {
 	var x = (results.skip_verify && results.step>4) ? results.step-1 : results.step;
-	$("#step").html("Step " + x + " of " + num_steps);
+	//$("#step").html("Step " + x + " of " + num_steps);
 	$("#msg").html("");
 
 	if (results.step == 1) {
