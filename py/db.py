@@ -409,8 +409,12 @@ class Question(DBObject):
                                 
         return stats
            
-    def delete(self, dbConnection):
-        dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
+    def delete(self, dbConnection, dataOnly=False):
+        if dataOnly:
+            dbConnection.cursor.execute("update questions set phase={0},cascade_step_count=0,cascade_iteration=0,cascade_complete=0 where id={1}".format(constants.PHASE_NOTES, self.id))
+        else:
+            dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))
+            
         dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete user_clients from users,user_clients where users.id=user_clients.user_id and question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from users where question_id={0}".format(self.id))

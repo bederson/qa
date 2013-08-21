@@ -29,10 +29,11 @@ $(function() {
 		return;
 	}
 	
-	if (phase != PHASE_NOTES) {
-		redirectToPhase(question_id, phase);
-		return;
-	}
+	// TODO/REMOVE - no longer needed?
+	//if (phase != PHASE_NOTES) {
+	//	redirectToPhase(question_id, phase);
+	//	return;
+	//}
 
 	initChannel();
 	initEventHandlers();	
@@ -101,25 +102,7 @@ function initEventHandlers() {
 	});
 
 	$("#done_button").click(function() {
-		var data = {
-			"client_id": client_id,
-			"question_id": question_id
-		};
-		$.post("/ideas_done", data, function(result) {
-			if (result.status == 0) {
-				$("#msg").html(result.msg);
-				return;
-			}
-			done = true;
-			var html = '<h1 id="title" class="largespaceafter">Add Answers</h1>';
-			html += "Please wait for others to finish.<br/></br>";
-			$("#answer_box").html(html);
-			$("#nickname_area").hide();
-			if (SHOW_IDEAS_WHEN_DONE) {
-				$("#ideas").show();
-				loadIdeas();
-			}
-		}, "json");
+		redirectToPhase(question_id, PHASE_CASCADE);
 	});
 	
 	$("#admin_button").click(function() {	

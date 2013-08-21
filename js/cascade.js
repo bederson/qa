@@ -23,10 +23,11 @@ $(document).ready(function() {
 		return;
 	}
 	
-	if (phase != PHASE_CASCADE) {
-		redirectToPhase(question_id, phase);
-		return;
-	}
+	// TODO/REMOVE - no longer needed
+	//if (phase != PHASE_CASCADE) {
+	//	redirectToPhase(question_id, phase);
+	//	return;
+	//}
 		
 	initChannel();
 	initEventHandlers();

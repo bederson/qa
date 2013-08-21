@@ -93,6 +93,7 @@ function getQuestionItemHtml(question) {
 	var html = "<a href='javascript:selectQuestion(" + question.id + ")'>" + question.title + "</a> ";
 	html += "<span class='note'>#"+question.id+"</span>&nbsp;&nbsp;&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:editQuestionForm(" + question.id + ")'>[edit]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
+	html += "<a class='small' href='javascript:deleteQuestionData(" + question.id + ")'>[delete data]</a>&nbsp;&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a><br/>";
 	html += question.question + "<br/>";
@@ -408,28 +409,6 @@ function enableCascade() {
 	if (question.cascade_step == 0) {
 		setPhase(PHASE_CASCADE);
 	}
-	// warn user that any existing cascade data will be deleted
-	// warning appears if cascade ever enabled before
-	// does not currently check whether or not any cascade data actually exists
-	else {
-		$("#cascade_confirm").css("display", "inline");
-		$("#cascade_confirm").dialog({
-			resizable: false,
-			width: 300,
-			height: 240,
-			modal: true,
-			buttons: {
-				"Delete Cascade data": function() {
-					setPhase(PHASE_CASCADE);
-					displayCascadeStats(question);
-					$(this).dialog("close");
-				},
-				Cancel: function() {
-					$(this).dialog("close");
-				}
-			}
-		});
-	}
 }
 
 function calculateCascadeOptions(question, forceUpdate) {	
@@ -560,6 +539,39 @@ function downloadQuestion(question_id) {
 	window.location = "/download_question?question_id="+question_id+"&utc_offset_minutes="+(new Date()).getTimezoneOffset()
 }
 
+function deleteQuestionData(question_id) {
+	$("#delete_data_confirm").css("display", "inline");
+	$("#delete_data_confirm").dialog({
+		resizable: false,
+		width: 300,
+		height: 240,
+		modal: true,
+		buttons: {
+			"Delete data": function() {
+				var data = {
+					"client_id": client_id,
+					"question_id": question_id,
+					"data_only" : true
+				};
+				$.post("/delete_question", data, function(result) {
+					if (result.status == 1) {
+						var index = getQuestionIndex(question_id);
+						questions[index] = result.question;
+						if (isSelectedQuestion(question_id)) {
+							selectQuestion(question_id)
+						}
+						createQuestionForm();
+					}
+				}, "json");
+				$(this).dialog("close");
+			},
+			Cancel: function() {
+				$(this).dialog("close");
+			}
+		}
+	});
+}
+
 function deleteQuestion(question_id) {
 	$("#delete_confirm").css("display", "inline");
 	$("#delete_confirm").dialog({
@@ -568,7 +580,7 @@ function deleteQuestion(question_id) {
 		height: 240,
 		modal: true,
 		buttons: {
-			"Delete all data": function() {
+			"Delete question": function() {
 				var data = {
 					"client_id": client_id,
 					"question_id": question_id

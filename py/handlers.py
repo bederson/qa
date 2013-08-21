@@ -463,8 +463,8 @@ class NewQuestionHandler(BaseHandler):
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
         
-        elif len(title) < 5 or len(questionText) < 5:
-            data = { "status" : 0, "msg" : "Title and question must must be at least 5 characters" }
+        elif len(title) < 4 or len(questionText) < 4:
+            data = { "status" : 0, "msg" : "Title and question must must be at least 4 characters" }
                      
         else:
             self.question = Question.create(self.dbConnection, self.person, title, questionText, nicknameAuthentication)
@@ -507,14 +507,15 @@ class DeleteQuestionHandler(BaseHandler):
     def post(self):
         self.init(adminRequired=True)
         clientId = self.request.get('client_id')
+        dataOnly = self.request.get('data_only', False)
 
         ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
         
         else:
-            self.question.delete(self.dbConnection)
-            data = { "status" : 1 }
+            self.question.delete(self.dbConnection, dataOnly=dataOnly)
+            data = { "status" : 1, "question" : self.question.toDict() if dataOnly else {} }                
             sendMessage(self.dbConnection, clientId, self.question, { "op": "delete" })
             
         self.writeResponseAsJson(data) 
