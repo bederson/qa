@@ -1,6 +1,6 @@
-
 ENABLE_DEBUG_LOGGING = True
 USE_LOCAL_DATABASE_WHEN_RUNNING_LOCALLY = True # Does not work to use Google SQL instance when running locally yet
+ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = False
 
 # Database
 CLOUDSQL_INSTANCE = "qa-umd-test:qadb"
@@ -11,6 +11,13 @@ LOCAL_DB_PWD = "qatest"
 # Phases
 PHASE_NOTES = 1
 PHASE_CASCADE = 2
+
+# Job Types
+ADD_NOTE = 1
+SUGGEST_CATEGORY = 2
+BEST_CATEGORY = 3
+MATCH_CATEGORY = 4
+VERIFY_CATEGORY = 5
 
 # Cascade 
 SKIP_VERIFY_CATEGORY = True

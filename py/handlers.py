@@ -37,6 +37,8 @@ from db import *
 # Page Handlers
 #####################
 
+# TODO: no longer using taskqueue to init steps - ok or will some jobs takes to long to save/create?
+
 class BaseHandler(webapp2.RequestHandler):
     def init(self, initUser=True, adminRequired=False, initSession=True, loggingOut=False):                    
         # Get the current browser session, if any
@@ -486,8 +488,8 @@ class EditQuestionHandler(BaseHandler):
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
         
-        elif len(title) < 5 or len(questionText) < 5:
-            data = { "status" : 0, "msg" : "Title and question must must be at least 5 characters" }
+        elif len(title) < 4 or len(questionText) < 4:
+            data = { "status" : 0, "msg" : "Title and question must must be at least 4 characters" }
 
         else:            
             properties = {
@@ -707,69 +709,35 @@ class ActiveHandler(BaseHandler):
 
         self.writeResponseAsJson(data)            
         self.destroy()
-        
-class PhaseHandler(BaseHandler):
-    def post(self):
-        self.init(adminRequired=True)
-        clientId = self.request.get('client_id')
-        try:
-            phase = int(self.request.get('phase'))
-        except ValueError:
-            phase = None
-            
-        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
-        if not ok:
-            data = { "status" : 0, "msg" : self.session.pop("msg") }
-          
-        elif phase == None:
-            data = { "status" : 0, "msg" : "Invalid phase requested" }   
-                                                                                    
-        else:
-            # update cascade settings
-            if phase == constants.PHASE_CASCADE:
-                properties = {
-                    "cascade_k" :  int(self.request.get('cascade_k')),
-                    "cascade_k2" : int(self.request.get('cascade_k2')),
-                    "cascade_m" :  int(self.request.get('cascade_m')),
-                    "cascade_p" :  int(self.request.get('cascade_p')),
-                    "cascade_t" :  int(self.request.get('cascade_t')),
-                    "id" : self.question.id
-                }
-                self.question.update(self.dbConnection, properties)            
-        
-            self.question.setPhase(self.dbConnection, phase)
-            data = { "status" : 1, "question" : self.question.toDict() }
-            sendMessage(self.dbConnection, clientId, self.question, { "op" : "phase", "phase" : phase, "cascade_step" : self.question.cascade_step })
-
-        self.writeResponseAsJson(data)            
-        self.destroy()
                             
 class CascadeJobHandler(BaseHandler):
     def post(self):
         self.init()
         clientId = self.request.get("client_id")
-
+        
         ok = self.checkRequirements(userRequired=True, questionRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
         
-        elif self.question.phase != constants.PHASE_CASCADE:
-            data = { "status" : 0, "msg" : "Cascade not enabled currently" }
+        # TODO: what does phase=0 really mean? no ideas added yet?
+        elif self.question.phase == 0:
+            data = { "status" : 0, "msg" : "Cascade not enabled" }
              
         else:
+            # TODO / WEDNEDAY: notify waiting clients that more jobs are available (if they are!)
+            
             # save job (if any)
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
-                isStepComplete = self.question.saveCascadeJob(self.dbConnection, jobToSave, person=self.person)
-                if isStepComplete:
-                    taskqueue.add(url="/cascade_init_step", params={ 'question_id' : self.question.id })
-               
-            # return new job (if any available)
-            newJob = None
-            if (jobToSave and not isStepComplete) or not self.question.cascade_complete:
-                newJob = self.question.getCascadeJob(self.dbConnection, self.person)
-            data = { "status" : 1, "step" : self.question.cascade_step, "job": [task.toDict() for task in newJob] if newJob else [], "complete" : 1 if self.question.cascade_complete else 0 }
-                   
+                self.question.saveCascadeJob(self.dbConnection, jobToSave, person=self.person)
+                # if cascade complete, notify any waiting clients that categories are ready
+                if self.question.cascade_complete:
+                    stats = self.question.getCascadeStats(self.dbConnection)
+                    sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })
+          
+            job = self.question.getCascadeJob(self.dbConnection, self.person)
+            data = { "status" : 1, "job" : { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None, "cascade_complete" : self.question.cascade_complete }
+                
         self.writeResponseAsJson(data)
         self.destroy()
 
@@ -785,20 +753,10 @@ class CancelCascadeJobHandler(BaseHandler):
                 sendMessage(self.dbConnection, None, self.question, { "op" : "morejobs" })
         self.destroy()
         
-class CascadeInitStepHandler(BaseHandler):
-    def post(self):
-        self.init()
-        # userRequired=True does not seem to work within taskqueue so cannot check
-        ok = self.checkRequirements(questionRequired=True)
-        if ok:
-            self.question.continueCascade(self.dbConnection)
-            if self.question.cascade_complete:
-                # notify any waiting clients that categories are ready
-                stats = self.question.getCascadeStats(self.dbConnection)
-                sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })
-            else:                    
-                # notify any waiting clients that next step that is ready
-                sendMessage(self.dbConnection, None, self.question, { "op": "step", "question_id" : self.question.id, "step": self.question.cascade_step, "iteration" : self.question.cascade_iteration })
+
+# TODO: notify any waiting clients that categories are ready
+#stats = self.question.getCascadeStats(self.dbConnection)
+#sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })
                          
 #####################
 # Channel support

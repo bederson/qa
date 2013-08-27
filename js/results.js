@@ -64,7 +64,7 @@ function loadQuestion() {
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
 		
-		updatePhase();
+		updateStatus();
 		
 		if (OFFLINE) {
 			displayIdeas();
@@ -76,21 +76,13 @@ function loadQuestion() {
 	});
 }
 
-function updatePhase() {
+function updateStatus() {
 	$("#inactive").html(!question.active ? "INACTIVE" : "");
 	if (!question.active) {
 		$("#idea_link_area").hide();
 		$("#cascade_link_area").hide();
 	}
-	else if (question.phase == PHASE_NOTES) {
-		$("#idea_link_area").show();
-		$("#idea_link").attr("href", getPhaseUrl(question.id, question.phase));
-	}
-	else if (question.phase == PHASE_CASCADE && !question.cascade_complete) {
-		$("#cascade_link_area").show();
-		$("#cascade_link").attr("href", getPhaseUrl(question.id, question.phase));
-	}
-	else if (question.cascade_complete) {
+	if (question.cascade_complete) {
 		$("#idea_link_area").hide();
 		$("#cascade_link_area").hide();		
 	}
@@ -124,8 +116,8 @@ function displayIdeas() {
 		$("#display_control_area").show();
 	}
 		
-	// BEHAVIOR: only display tag clouds when notes no longer being added
-	if (SHOW_TAGCLOUDS && question.phase != PHASE_NOTES && !jQuery.browser.mobile) {
+	// BEHAVIOR: only display tag clouds when cascade is complete
+	if (SHOW_TAGCLOUDS && question.cascade_complete && !jQuery.browser.mobile) {
 		for (var i in categorizedIdeas) {
 			displayCloud(categorizedIdeas[i].ideas, i+1);
 		}
@@ -289,17 +281,12 @@ function handleIdea(data) {
 
 function handleEnable(data) {
 	question.active = 1;
-	updatePhase();
+	updateStatus();
 }
 
 function handleDisable(data) {
 	question.active = 0;
-	updatePhase();
-}
-
-function handlePhase(data) {
-	// TODO: currently refreshes entire page instead of calling updatePhase since tag clouds only shown when note input disabled
-	window.location.reload();
+	updateStats();
 }
 
 function handleNickname(data) {

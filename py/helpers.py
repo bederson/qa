@@ -28,6 +28,9 @@ def isRunningLocally():
     import os
     return not os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine')
 
+def allowDuplicateJobs():
+    return constants.ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY and isRunningLocally();
+    
 def toJson(data):        
     import json
     return json.dumps(data, default=_jsonHandler)

@@ -28,12 +28,6 @@ $(function() {
 		onResize();
 		return;
 	}
-	
-	// TODO/REMOVE - no longer needed?
-	//if (phase != PHASE_NOTES) {
-	//	redirectToPhase(question_id, phase);
-	//	return;
-	//}
 
 	initChannel();
 	initEventHandlers();	
@@ -102,7 +96,7 @@ function initEventHandlers() {
 	});
 
 	$("#done_button").click(function() {
-		redirectToPhase(question_id, PHASE_CASCADE);
+		redirectToCascadePage(question_id);
 	});
 	
 	$("#admin_button").click(function() {	
@@ -237,10 +231,6 @@ function handleEnable(data) {
 function handleDisable(data) {
 	$("#msg").html("Question has been disabled");
 	disableInput();
-}
-
-function handlePhase(data) {
-	window.location.reload();
 }
 
 function handleLogout(data) {

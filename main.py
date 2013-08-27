@@ -43,8 +43,6 @@ app = webapp2.WSGIApplication([
     ('/delete_question', DeleteQuestionHandler),
     ('/download_question', DownloadQuestionHandler),
     ('/set_active', ActiveHandler),
-    ('/set_phase', PhaseHandler),
-    ('/cascade_init_step', CascadeInitStepHandler),
 	('/cascade_job', CascadeJobHandler),
     ('/cancel_cascade_job', CancelCascadeJobHandler),
     ('/new_idea', NewIdeaHandler),

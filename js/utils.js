@@ -2,12 +2,15 @@
 // Constants
 //===================================================
 
-var PHASE_NOTES = 1;
-var PHASE_CASCADE = 2;
+var ADD_NOTE = 1;
+var SUGGEST_CATEGORY = 2;
+var BEST_CATEGORY = 3;
+var MATCH_CATEGORY = 4;
+var VERIFY_CATEGORY = 5;
+
 var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
 
 var MAX_CHARS = 125;
-
 
 /**
  * jQuery.browser.mobile (http://detectmobilebrowser.com/)
@@ -51,12 +54,6 @@ onMessage = function(message) {
 	else if (dataObj.op == "disable" && typeof window.handleDisable == 'function') {
 		handleDisable(dataObj); 
 	}
-	else if (dataObj.op == "phase" && typeof window.handlePhase == 'function') {
-		handlePhase(dataObj);
-	}
-	else if (dataObj.op == "step" && typeof window.handleStep == 'function') {
-		handleStep(dataObj);
-	}
 	else if (dataObj.op == "morejobs" && typeof window.handleMoreJobs == 'function') {
 		handleMoreJobs(dataObj);
 	}
@@ -93,22 +90,20 @@ function redirectToHome() {
 	window.location.href = "/";
 }
 
-function getPhaseUrl(question_id, phase) {
-    url = "/";
-    if (isDefined(question_id)) {
-	    switch(phase) {
-			case PHASE_NOTES:
-				url = "/idea?question_id=" + question_id;
-				break;
-			case PHASE_CASCADE:
-				url = "/cascade?question_id=" + question_id;
-				break;
-			default:
-				url = "/";
-				break;
-		}
+function getNotesPageUrl(question_id) {
+    var url = "/idea";
+	if (isDefined(question_id)) {
+		url += "?question_id=" + question_id;
 	}
-    return url;
+	return url;
+}
+
+function getCascadePageUrl(question_id) {
+    var url = "/cascade";
+	if (isDefined(question_id)) {
+		url += "?question_id=" + question_id;
+	}
+	return url;
 }
 
 function getResultsPageUrl(question_id) {
@@ -126,9 +121,9 @@ function getAdminPageUrl(question_id) {
 	}
 	return url;
 }
-   
-function redirectToPhase(question_id, phase) {
-	window.location.href = getPhaseUrl(question_id, phase);
+
+function redirectToCascadePage(question_id) {
+	window.location.href = getCascadePageUrl(question_id);
 }
 
 function redirectToResultsPage(question_id) {
@@ -170,22 +165,6 @@ function isFunction(func) {
 //===================================================
 // Misc
 //===================================================
-
-function phaseToString(phase) {
-	var str = "";
-	switch(phase) {
-		case PHASE_NOTES:
-			str = "Note entry";
-			break;
-		case PHASE_CASCADE:
-			str = "Cascade enabled";
-			break;
-		default:
-			str = "Unknown phase";
-			break;
-	}
-	return str;
-}
 
 function enableDisable(obj, enable) {
 	if (enable) {

@@ -109,11 +109,19 @@ a.warning:hover {
 	margin-top: 20px;
 }
 
-.largespaceafter, .largespacebelow {
+.largespacebelow {
 	margin-bottom: 20px;
 }
 
-.smallspaceafter {
+.nospacebelow {
+	margin-bottom: 0px;
+}
+
+.nospaceabove {
+	margin-top: 0px;
+}
+
+.smallspacebelow {
 	margin-bottom: 5px;
 }
 
@@ -121,7 +129,7 @@ a.warning:hover {
 	margin-top: 10px;
 }
 
-.spaceafter, .spacebelow {
+.spacebelow {
 	margin-bottom: 10px;
 }
 
@@ -185,6 +193,13 @@ input[type="button"]:hover, input[type="submit"]:hover {
 
 input[type="text"][disabled="disabled"] {
 	color: #888;
+}
+
+input[type="radio"], input[type="checkbox"] {
+	height: 1em;
+	width: 1em;
+	margin-left: 0px;
+	margin-right: 5px;
 }
 
 .ui-slider-horizontal {

@@ -40,20 +40,6 @@ $(document).ready(function() {
 		var active = $(this).is(":checked") ? 1 : 0;
 		setActive(active);
 	});
-	
-	$("#p1button").click(function() {
-		setPhase(PHASE_NOTES);
-	});
-	
-	$("#p2button").click(function() {
-		var question = getSelectedQuestion();
-		if (question.idea_count == 0) {
-			alert("Notes must be added before you can enable Cascade");
-		}
-		else {
-			enableCascade();
-		}
-	});
 });
 
 function loadQuestions() {
@@ -103,17 +89,9 @@ function getQuestionItemHtml(question) {
 	if (!question.active) {
 		html += '<span class="note"><em>Inactive</em></span><br/>';
 	}
-	else if (!question.cascade_complete) {
-		html += '<span class="note"><em>'+phaseToString(question.phase)+'</em></span><br/>';
-	}
 	
 	if (question.cascade_complete) {
-		if (question.phase == PHASE_NOTES) {
-			html += "<span class='note'><em>"+phaseToString(question.phase)+' (categories created for previous notes)</em></span>';
-		}
-		else {
-				html += "<span class='note'><em>Categories created</em></span>";
-		}
+		html += "<span class='note'><em>Categories created</em></span>";
 	}
 	return html;
 }
@@ -135,31 +113,17 @@ function displaySelectedQuestion() {
 		return;
 	}
 	
-	var html = "<h2 class='spaceafter'>Selected question:</h2>";
+	var html = "<h2 class='spacebelow'>Selected question:</h2>";
 	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
 	html += question.question + "<br/>";
-	html += "<div id='question_stats' class='small largespaceafter'>&nbsp;</div>";
-	//html += "<div id='question_stats' class='small largespaceafter'>&nbsp;<br/><span class='small'>&nbsp;</span></div>";
+	html += "<div id='question_stats' class='small largespacebelow'>&nbsp;</div>";
 	$("#question").html(html);
 		
 	displayStats(question);
 	
 	$("#active_cb").prop("checked", question.active);
-	$("#notes_link").attr("href", getPhaseUrl(question.id, PHASE_NOTES));
-	$("#cascade_link").attr("href", getPhaseUrl(question.id, PHASE_CASCADE));
-	$("#cascade_k").val(question.cascade_k);
-	$("#cascade_k2").val(question.cascade_k2);
-	$("#cascade_m").val(question.cascade_m);
-	$("#cascade_p").val(question.cascade_p);
-	$("#cascade_t").val(question.cascade_t);
-	$("#results_link").attr("href", "/results?question_id=" + question.id);
-	
-	enableDisable($("#p1button"), question.active && question.phase != PHASE_NOTES);
-	enableDisable($("#p2button"), question.active && question.phase != PHASE_CASCADE);
-
-	$("#p1button").val(question.phase == PHASE_NOTES ? "Note entry enabled" : "Enable note entry");
-	$("#p2button").val(question.phase == PHASE_CASCADE ? "Cascade enabled" : "Enable Cascade");
-		
+	$("#note_link").attr("href", getNotesPageUrl(question.id));
+	$("#results_link").attr("href", getResultsPageUrl(question.id));
 	$("#selected_question").show();
 }
 
@@ -181,7 +145,7 @@ function loadStats() {
 			question.active_user_count = results["active_user_count"];
 			question.cascade_stats = results["cascade_stats"];
 			calculateCascadeOptions(question);
-			
+						
 			if (isSelectedQuestion(question.id)) {
 				displaySelectedQuestion(question);
 			}
@@ -195,17 +159,13 @@ function displayStats(question) {
 }
 
 function displayQuestionStats(question) {
-	var ideaCount = question.idea_count;
-	var userCount = question.user_count;
-	var activeUserCount = question.active_user_count;
+	var ideaCount = isDefined(question.idea_count) ? question.idea_count : 0;
+	var userCount = isDefined(question.user_count) ? question.user_count : 0;
+	var activeUserCount = isDefined(question.active_user_count) ? question.active_user_count : 0;
 	var stats = [];
 	stats.push(ideaCount + (ideaCount!=1 ? " notes" : " note"));
 	stats.push(userCount + (userCount!=1 ? " users" : " user"));
 	stats.push(activeUserCount + (activeUserCount!=1 ? " active users" : " active user"));
-	if (question.phase == PHASE_NOTES) {
-		var doneUserCount = isDefined(question.done_students) ? question.done_students.length : 0;
-		stats.push(doneUserCount + " done w/ notes");
-	}
 	$("#question_stats").html("("+stats.join(", ")+")");
 }
 
@@ -271,13 +231,12 @@ function displayCascadeStats(question) {
 		totalJobCount += jobCount;
 		var stepDuration = cascade_step_durations[i];
 		completionTime += stepDuration;
-		var isCurrentStep = question.phase==PHASE_CASCADE && !question.cascade_complete && step == question.cascade_step;
-		var isStepComplete = question.phase==PHASE_CASCADE && (question.cascade_complete || step < question.cascade_step) && jobCount>0;
 		html += "<tr>";
 		html += "<td>Step&nbsp;" + step + "</td>";
 		html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? "&nbsp;jobs" : "&nbsp;job") : "-") + "</td>";
 		html += "<td>" + toHHMMSS(stepDuration) + "</td>";
-		html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
+		// TODO: update stats w/ new process
+		//html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
 		html += "</tr>";
 	}
 		
@@ -285,14 +244,14 @@ function displayCascadeStats(question) {
 	html += "<td><strong>TOTAL</strong></td>";
 	html += "<td>" + (totalJobCount > 0 ? totalJobCount + "&nbsp;jobs" : "-") + "</td>";
 	html += "<td>" + toHHMMSS(completionTime) + "</td>";
-	html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
+	//html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
 	html += "</tr>";
 		
 	// jobs per user
 	if (workerCount > 1 && totalJobCount > 0) {
 		html += "<tr>";
 		html += "<td>&nbsp;</td>";
-		html += "<td colspan='2'>" + Math.ceil(totalJobCount/workerCount) + " jobs/user</td>";
+		html += "<td>" + Math.ceil(totalJobCount/workerCount) + " jobs/user</td>";
 		html += "</tr>";
 	}
 
@@ -318,7 +277,7 @@ function displayCascadeStats(question) {
 			html += "</div>";
 		}
 	}
-	else {
+	else if (question.cascade_stats != null) {
 		html += "<div class='note'>";
 		html += "Cascade performed";
 		html += " on " + question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note");
@@ -362,55 +321,6 @@ function setActive(active) {
 	}, "json");
 }
 
-function setPhase(phase) {
-	var question = getSelectedQuestion();
-	if (!question) {
-		alert("Phase not changed. Question not found.");
-		return;
-	}
-	
-	var data = {
-		"client_id": client_id,
-		"question_id": question.id,
-		"phase": phase
-	};
-	if (phase == PHASE_CASCADE) {
-		//calculateCascadeOptions(question);
-		data["cascade_k"] = question.cascade_k;
-		data["cascade_k2"] = question.cascade_k2;
-		data["cascade_m"] = question.cascade_m;
-		data["cascade_p"] = question.cascade_p;
-		data["cascade_t"] = question.cascade_t;
-	}
-	
-	$.post("/set_phase", data, function(result) {
-		if (result.status == 0) {
-			$("#msg").html(result.msg);
-			return;
-		}
-
-		var index = getQuestionIndex(result.question.id);		
-		questions[index].phase = result.question.phase;
-
-		if (data.phase == PHASE_NOTES) {
-			questions[index].done_students = [];
-		}
-		else if (data.phase == PHASE_CASCADE) {
-			questions[index].cascade_complete = result.question.cascade_complete;
-			questions[index].cascade_step = result.question.cascade_step;
-		}
-			
-		displayQuestion(result.question.id);				
-	}, "json");
-}
-
-function enableCascade() {
-	var question = getSelectedQuestion();
-	if (question.cascade_step == 0) {
-		setPhase(PHASE_CASCADE);
-	}
-}
-
 function calculateCascadeOptions(question, forceUpdate) {	
 	forceUpdate = isDefined(forceUpdate) ? forceUpdate : false;
 	
@@ -419,10 +329,7 @@ function calculateCascadeOptions(question, forceUpdate) {
 		return;
 	}
 	
-	// use values stored in db if cascade already started
-	if (question.phase == PHASE_CASCADE && !forceUpdate) {
-		return;
-	}
+	// TODO / FIX: set cascade options, send to server, do NOT change once set
 	
 	if (question.idea_count == 0) {
 		return;
@@ -558,9 +465,8 @@ function deleteQuestionData(question_id) {
 						var index = getQuestionIndex(question_id);
 						questions[index] = result.question;
 						if (isSelectedQuestion(question_id)) {
-							selectQuestion(question_id)
+							displaySelectedQuestion();
 						}
-						createQuestionForm();
 					}
 				}, "json");
 				$(this).dialog("close");
@@ -656,27 +562,7 @@ function handleIdea(data) {
 }
 
 function handleIdeasDone(data) {
-	var question = getQuestion(data.question_id);
-	if (question) {
-		if (isUndefined(question.done_students)) {
-			question.done_students = [];
-		}
-		if (question.done_students.indexOf(data.user_id) == -1) {
-			question.done_students.push(data.user_id);
-		}
-		if (isSelectedQuestion(question.id)) {
-			displayQuestionStats(question);
-		}
-	}
-}
-
-function handleStep(data) {
-	var question = getSelectedQuestion();
-	if (question && data.question_id==question.id) {
-		question.cascade_step = data.step;
-		question.cascade_iteration = data.iteration;
-		displayCascadeStats(question);
-	}
+	// ignore
 }
 
 function handleResults(data) {
