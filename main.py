@@ -43,10 +43,10 @@ app = webapp2.WSGIApplication([
     ('/delete_question', DeleteQuestionHandler),
     ('/download_question', DownloadQuestionHandler),
     ('/set_active', ActiveHandler),
+    ('/new_idea', NewIdeaHandler),
 	('/cascade_job', CascadeJobHandler),
     ('/cancel_cascade_job', CancelCascadeJobHandler),
-    ('/new_idea', NewIdeaHandler),
-	('/ideas_done', IdeasDoneHandler),
+    ('/generate_categories', CategoryHandler),
     ('/query', QueryHandler),
 	
 	('/_ah/channel/connected/', ChannelConnectedHandler),

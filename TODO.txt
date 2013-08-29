@@ -73,7 +73,7 @@ Known Bugs
 * Observed instance when GUI did not switch from note input to cascade categorization when testing with group
 * If many users working concurrently, it may be possible for a job to be assigned to multiple users
   Currently the first job submitted is saved in the database
-  Subsequent saved jobs are silently ignored but the count is recorded in the cascade_times table
+  Subsequent saved jobs are silently ignored but the count is recorded in the cascade_stats table
   Would need to use transactions and select..for update to fix
   Not sure how frequently this may happen
   Don't think deadlock errors will occur if updates happen at exactly the same time (will wait until lock released)

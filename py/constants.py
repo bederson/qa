@@ -8,23 +8,17 @@ DATABASE_NAME = "qa"
 LOCAL_DB_USER = "qatest"
 LOCAL_DB_PWD = "qatest"
 
-# Phases
-PHASE_NOTES = 1
-PHASE_CASCADE = 2
+# Cascade Job Types
+SUGGEST_CATEGORY = 1
+BEST_CATEGORY = 2
+FIT_CATEGORY = 3
 
-# Job Types
-ADD_NOTE = 1
-SUGGEST_CATEGORY = 2
-BEST_CATEGORY = 3
-MATCH_CATEGORY = 4
-VERIFY_CATEGORY = 5
-
-# Cascade 
-SKIP_VERIFY_CATEGORY = True
-DEFAULT_VOTING_THRESHOLD = 2
+# Cascade Settings
+CASCADE_P = 80                  # % of overlapping items used to detect duplicate categories
 CASCADE_Q = 1                   # min number of items allowed in a category
-CASCADE_MAX_ITERATIONS = 1      # max number of iterations allowed
-CASCADE_MAX_UNCATEGORIZED = 5   # max number uncategorized items (w/o going over max # iterations)
+CASCADE_INITIAL_ITEM_SET = 0
+CASCADE_SUBSEQUENT_ITEM_SET = 1
+DEFAULT_VOTING_THRESHOLD = 2
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"

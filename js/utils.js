@@ -2,15 +2,13 @@
 // Constants
 //===================================================
 
-var ADD_NOTE = 1;
-var SUGGEST_CATEGORY = 2;
-var BEST_CATEGORY = 3;
-var MATCH_CATEGORY = 4;
-var VERIFY_CATEGORY = 5;
+// job types
+var SUGGEST_CATEGORY = 1;
+var BEST_CATEGORY = 2;
+var FIT_CATEGORY = 3;
 
 var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
-
-var MAX_CHARS = 125;
+var MAX_CHARS = 125; // max characters per response
 
 /**
  * jQuery.browser.mobile (http://detectmobilebrowser.com/)
@@ -44,9 +42,6 @@ onMessage = function(message) {
 	
 	if (dataObj.op == "newidea" && typeof window.handleIdea == 'function') {
 		handleIdea(dataObj);
-	}
-	else if (dataObj.op == "ideasdone" && typeof window.handleIdeasDone == 'function') {
-		handleIdeasDone(dataObj);
 	}
 	else if (dataObj.op == "enable" && typeof window.handleEnable == 'function') {
 		handleEnable(dataObj); 
@@ -122,6 +117,14 @@ function getAdminPageUrl(question_id) {
 	return url;
 }
 
+function getLogoutUrl(question_id) {
+	var url = "/logout";
+	if (isDefined(question_id)) {
+		url += "?question_id=" + question_id;
+	}
+	return url;
+}
+
 function redirectToCascadePage(question_id) {
 	window.location.href = getCascadePageUrl(question_id);
 }
@@ -134,16 +137,12 @@ function redirectToAdminPage(question_id) {
 	window.location.href = getAdminPageUrl(question_id);
 }
 
-function getURLParameter(name) {
-    return decodeURIComponent((new RegExp('[?|&|#]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+function redirectToLogout(question_id) {
+	window.location.href = getLogoutUrl(question_id);
 }
 
-function redirectToLogout(question_id) {
-	var url = "/logout";
-	if (question_id) {
-		url += "?question_id=" + question_id;
-	}
-	window.location.href = url;
+function getURLParameter(name) {
+    return decodeURIComponent((new RegExp('[?|&|#]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
 }
 
 //===================================================

@@ -15,37 +15,35 @@
 // limitations under the License.
 //
 
-// TODO: remove step from variable names
-
-var waiting = false;
 var assignedJob = null;
+var waiting = false;
 
 $(document).ready(function() {
+	onResize();
+	initEventHandlers();
+
 	if ($("#msg").html()) {
 		return;
 	}
 			
-	initChannel();
-	initEventHandlers();
-	
+	initChannel();	
 	$("#page_content").show();
 	saveAndGetNextJob();
 });
 
 function saveAndGetNextJob(tasksToSave) {	
+	$("#loading_icon").show();
+
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id
 	};
-	
 	if (isDefined(tasksToSave)) {
 		data["job"] = $.toJSON({
 			"tasks" : tasksToSave,
 			"type" : assignedJob.type
 		});
 	}
-	
-	$("#loading_icon").show();
 	
 	$.post("/cascade_job", data, function(results) {
 		assignedJob = null;
@@ -60,6 +58,25 @@ function saveAndGetNextJob(tasksToSave) {
 	}, "json");
 }
 
+function cancelJob(redirectUrl) {
+	redirectUrl = isDefined(redirectUrl) ? redirectUrl : null;
+	if (assignedJob) {
+		var data = {
+			"client_id" : client_id,
+			"question_id" : question_id,
+			"job" : $.toJSON(assignedJob)
+		}
+		$.post("/cancel_cascade_job", data, function(results) {
+			if (redirectUrl) {
+				window.location.href = redirectUrl;
+			}
+		}, "json");
+	}
+	else if (redirectUrl) {
+		window.location.href = redirectUrl;
+	}
+}
+
 function updateUI(complete) {
 	waiting = false;
 		
@@ -68,66 +85,30 @@ function updateUI(complete) {
 		resultsReady();
 	}
 	
-	// if no job, wait for next one to become available
+	// if no job, wait for one to become available
 	else if (!assignedJob) {
 		waitForNextJob();
 	}
 		
 	// suggest categories
 	else if (assignedJob.type == SUGGEST_CATEGORY) {
-		updateUIForStep1();
+		suggestCategoryUI();
 	}
 	
 	// select best category
 	else if (assignedJob.type == BEST_CATEGORY) {
-		updateUIForStep2();
+		bestCategoryUI();
 	}
 	
 	// do categories fit
-	// do subsequent categories fit
-	else if (assignedJob.type == MATCH_CATEGORY || assignedJob.type == VERIFY_CATEGORY) {
-		updateUIForStep3();
-	}
-	
-	else {
-		updateTitleArea();
-		$("#task_area").html("Not implemented yet");
+	else if (assignedJob.type == FIT_CATEGORY) {
+		fitCategoryUI();
 	}
 }
 
-function updateTitleArea() {
-	$("#msg").html("");
-
-	if (!assignedJob) {
-		$("#title").html("Create Categories");
-		$("#help").html("");
-	}
-	else if (assignedJob.type == SUGGEST_CATEGORY) {
-		$("#title").html("Suggest Categories");
-		$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");
-	}
-	else if (assignedJob.type == BEST_CATEGORY) {
-		$("#title").html("Select Best Category");
-		$("#help").html("Pick the one category that best fits this note.");
-	}
-	else if (assignedJob.type == MATCH_CATEGORY) {
-		$("#title").html("Match Categories");
-		$("#help").html("Select whether or not each category fits this note.");
-	}
-	else if (assignedJob.type == VERIFY_CATEGORY) {
-		$("#title").html("Verify Categories");
-		$("#help").html("Select whether or not each category fits this note.");
-	}
-	// TODO: make sure additional categories matched (if any)
-	else {
-		$("#title").html("");
-		$("#help").html("");
-	}
-}
-
-// step 1: suggest categories
-function updateUIForStep1() {
-	updateTitleArea();
+function suggestCategoryUI() {
+	$("#title").html("Suggest Categories");
+	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");	
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var taskHtml = "";
@@ -136,26 +117,28 @@ function updateUIForStep1() {
 			taskHtml += "<div class='largespacebelow'>";
 			taskHtml += "<div class='green_highlight smallspacebelow'>" + task.idea + "</div>";
 			taskHtml += "<input class='suggested_category' id='category_"+task.id+"' type='text' value='' size='30'>";
+			taskHtml += "<input type='hidden' id='idea_"+task.id+"' value='"+task.idea_id+"'>";
 			taskHtml += "</div>\n";
 		}
 		taskHtml += "<input id='submit_btn' type='button' value='Submit Categories'> ";
 		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
 		$("#task_area").html(taskHtml);
 		$("#submit_btn").on("click", {}, function(event) {
-			submitStep1();
+			submitSuggestedCategories();
 		});
 	}
 }
 
-function submitStep1() {
+function submitSuggestedCategories() {
 	var tasks = [];
 	var skipCount = 0;
 	$(".suggested_category").each(function() {
 		var textbox = $(this);
 		var textbox_id = textbox.attr("id");
 		var task_id = textbox_id.replace("category_","");
+		var idea_id = $("#idea_"+task_id).val();
 		var suggested_category = textbox.val();
-		tasks.push({ id: task_id, suggested_category: suggested_category });	
+		tasks.push({ id: task_id, idea_id: idea_id, suggested_category: suggested_category });	
 		if (suggested_category == "") {
 			skipCount++;
 		}
@@ -169,9 +152,9 @@ function submitStep1() {
 	saveAndGetNextJob(tasks);
 }
 
-// step 2: select best category
-function updateUIForStep2() {
-	updateTitleArea();
+function bestCategoryUI() {
+	$("#title").html("Select Best Category");
+	$("#help").html("Pick the one category that best fits this note.");
 	var tasks = assignedJob.tasks;
 	if (tasks.length == 1) {
 		var task = tasks[0];
@@ -197,29 +180,27 @@ function updateUIForStep2() {
 		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";		
 		$("#task_area").html(taskHtml);
 		$("#submit_btn").on("click", { task : task }, function(event) {
-			submitStep2(event.data.task);
+			submitBestCategory(event.data.task);
 		});
 	}
 }
 
-function submitStep2(task) {
+function submitBestCategory(task) {
 	var bestCategoryIndex = $("input:radio[name=suggested_category]:checked").val();
 	if (!bestCategoryIndex) {
 		$("#warning").html("Please select the best category");
 		return;
 	}
-	
-	var tasks = [];
+
+	var tasks = [];	
 	var bestCategory = bestCategoryIndex != -1 ? task.suggested_categories[bestCategoryIndex] : ""
-	tasks.push({ id: task.id, best_category: bestCategory });
+	tasks.push({ id: task.id, idea_id: task.idea_id, best_category: bestCategory });
 	saveAndGetNextJob(tasks);
 }
 
-// step 3: match categories (initial set)
-// step 4: verify categories (initial set)
-// step 5: match categories (subsequent set)
-function updateUIForStep3() {
-	updateTitleArea();
+function fitCategoryUI() {
+	$("#title").html("Match Categories");
+	$("#help").html("Select whether or not each category fits this note.");
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var taskHtml = "";
@@ -228,6 +209,7 @@ function updateUIForStep3() {
 			if (i==0) {
 				taskHtml += "<div class='green_highlight largespacebelow'>";
 				taskHtml += task.idea;
+				taskHtml += "<input type='hidden' id='idea_"+task.id+"' value='"+task.idea_id+"'>";
 				taskHtml += "</div>";
 				taskHtml += "<div class='small'>Fits?</div>";
 				taskHtml += "<table class='spacebelow'>";
@@ -248,21 +230,20 @@ function updateUIForStep3() {
 		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
 		$("#task_area").html(taskHtml);
 		$("#submit_btn").on("click", {}, function(event) {
-			submitStep3();
+			submitFitCategories();
 		});
 	}
 }
 
-// TODO: rename functions
-
-function submitStep3() {
+function submitFitCategories() {
 	var tasks = [];	
 	$("input:radio").each(function() {
 		var rb = $(this);
 		if (rb.is(":checked")) {
 			var rb_name = rb.attr("name");
 			var task_id = rb_name.replace("category_fit_","");
-			tasks.push({ id: task_id, fit: rb.val() == "1" ? 1 : 0 });	
+			var idea_id = $("#idea_"+task_id).val();
+			tasks.push({ id: task_id, idea_id: idea_id, fit: rb.val() == "1" ? 1 : 0 });	
 		}
 	});
 
@@ -270,62 +251,42 @@ function submitStep3() {
 		$("#warning").html("Please indicate whether each category fits or not");
 		return;
 	}
-	
 	saveAndGetNextJob(tasks);
 }
 
-function cancelCascadeJob() {
-	if (assignedJob.length > 0) {
-		var data = {
-			"client_id" : client_id,
-			"question_id" : question_id,
-			"job" : $.toJSON(assignedJob)
-		}
-		$.post("/cancel_cascade_job", data);
-	}
-}
-
 function waitForNextJob() {
-	updateTitleArea();
+	waiting = true;
+	$("#title").html("Waiting ...");
+	$("#help").html("");
 	var taskHtml = "Please wait until more jobs become available. ";
 	///taskHtml += "<img id='loading_icon' src='images/loading.gif' />";
 	$("#task_area").html(taskHtml);
-	waiting = true;
 }
 
-// cascade complete
 function resultsReady() {
-	// TODO: automatically go to results page
-	$("#step").html("&nbsp;");
-	$("#title").html("Categories Complete");
-	$("#help").html("");
-	$("#msg").html("");
-	var html = "The categories have been created for this question.</br>";
-	html += "<div class='spaceabove spacebelow'><input id='results_btn' type='button' value='View results'></div>";
-	$("#task_area").html(html);
-	
-	$("#results_btn").click(function() {
-		redirectToResultsPage(question_id);
-	});
+	redirectToResultsPage(question_id);
 }
 
 function initEventHandlers() {
-	onResize();
 	$(window).resize(function() {
 		onResize();
 	});
 
 	$("#admin_button").click(function() {
-		redirectToAdminPage(question_id);
-	});
-	
-	$("#next_task_button").click(function() {
-		saveAndGetNextJob();
-	});
-	
-	$("#login_logout_link").click(function() {
 		if (logged_in) {
-			cancelCascadeJob();
+			cancelJob(getAdminPageUrl(question_id));
+		}
+		else {
+			redirectToAdminPage(question_id);
+		}
+	});
+	
+	$(".qa_link").click(function() {
+		if (logged_in) {
+			cancelJob($(this).attr("href"));
+			return false;
+		}
+		else {
 			return true;
 		}
 	});
@@ -333,7 +294,7 @@ function initEventHandlers() {
 	// if a user closes the window/tab or browses to another url
 	// before they submit their job, notify the server
 	$(window).on('beforeunload', function() {
-		cancelCascadeJob();
+		cancelJob();
 	});
 }
 
@@ -368,14 +329,7 @@ function handleIdea(data) {
 
 function handleMoreJobs(data) {
 	if (waiting) {
-		var html = "A few more tasks have become available for this step.<br/>";
-		html += "Check to see if there are any you can help complete.";
-		html += "<div class='spaceabove spacebelow'><input id='next_task_button' type='button' value='Get task'></div>";
-		$("#task_area").html(html);
-		
-		$('#next_task_button').click(function() {
-			saveAndGetNextJob();
-		});
+		saveAndGetNextJob();
 	}
 }
 
@@ -384,6 +338,5 @@ function handleResults(data) {
 }
 
 function handleLogout(data) {
-	cancelCascadeJob();
-	redirectToLogout(question_id);
+	cancelJob(getLogoutUrl(question_id));
 }

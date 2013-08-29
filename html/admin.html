@@ -25,10 +25,6 @@ limitations under the License.
 {% block scripts %}
 	<script src="http://code.jquery.com/ui/1.10.0/jquery-ui.js"></script>
 	<script type="text/javascript" src="js/admin.js"></script>
-	<script>
-		var max_cascade_steps = parseInt("{{ max_cascade_steps }}");
-		var skip_verify = {{ skip_verify }};
-	</script>
 {% endblock %}
 
 {% block content %}
@@ -42,7 +38,8 @@ limitations under the License.
 	<div id="question"></div>
 	<div class="spacebelow"><input id="active_cb" type="checkbox" name="active_cb">Active</div>
 	<div class="spacebelow"><a id="note_link">Add notes</a></div>
-	<div class="largespacebelow"><a id="results_link">View results</a></div>
+	<div class="spacebelow"><a id="results_link">View results</a></div>
+	<div class="largespacebelow"><input id="category_button" type="button" value="Generate Categories"></div>
 	<div id="cascade_stats" class="white_box small" style="float:left"></div>
 	<div style="clear:both"></div>
 	</div>

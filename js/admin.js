@@ -40,11 +40,19 @@ $(document).ready(function() {
 		var active = $(this).is(":checked") ? 1 : 0;
 		setActive(active);
 	});
+	
+	$("#category_button").click(function() {
+		createCategories();
+	});
+	
 });
 
 function loadQuestions() {
 	$.getJSON("/query", { "request": "questions" }, function(results) {
-		questions = results.questions;
+		questions = [];
+		for (i in results.questions) {
+			addQuestion(results.questions[i]);
+		}
 		displayQuestionsList();
 		var question_id = getURLParameter("question_id");
 		if (question_id) {
@@ -106,6 +114,16 @@ function selectQuestion(question_id) {
 	}
 }
 
+function displayQuestion(question_id) {
+	var index = getQuestionIndex(question_id);
+	if (index != -1) {
+		if (isSelectedQuestion(question_id)) {
+			displaySelectedQuestion();
+		}
+		displayQuestionItem(questions[index])		
+	}
+}
+
 function displaySelectedQuestion() {
 	var question = getSelectedQuestion();
 	if (!question) {
@@ -143,9 +161,7 @@ function loadStats() {
 			question.idea_count = results["idea_count"];
 			question.user_count = results["user_count"];
 			question.active_user_count = results["active_user_count"];
-			question.cascade_stats = results["cascade_stats"];
-			calculateCascadeOptions(question);
-						
+			question.cascade_stats = results["cascade_stats"];						
 			if (isSelectedQuestion(question.id)) {
 				displaySelectedQuestion(question);
 			}
@@ -159,9 +175,9 @@ function displayStats(question) {
 }
 
 function displayQuestionStats(question) {
-	var ideaCount = isDefined(question.idea_count) ? question.idea_count : 0;
-	var userCount = isDefined(question.user_count) ? question.user_count : 0;
-	var activeUserCount = isDefined(question.active_user_count) ? question.active_user_count : 0;
+	var ideaCount = question.idea_count;
+	var userCount = question.user_count;
+	var activeUserCount = question.active_user_count;
 	var stats = [];
 	stats.push(ideaCount + (ideaCount!=1 ? " notes" : " note"));
 	stats.push(userCount + (userCount!=1 ? " users" : " user"));
@@ -179,7 +195,6 @@ function displayCascadeStats(question) {
     
 	var title = "";
     var cascade_job_counts = [];
-    var cascade_step_durations = [];
     
     // if cascade not complete, estimate cascade job info
     if (!question.cascade_complete) {
@@ -198,52 +213,35 @@ function displayCascadeStats(question) {
     	cascade_job_counts.push(count);
 
     	// step 4
-    	count = !skip_verify ? m * k2 : 0;
+    	count = m * k2;
     	cascade_job_counts.push(count);
 
     	// step 5
     	C = Math.ceil(0.33 * m); 		// estimate - smaller than in step 3
     	count = (n-m) * Math.ceil(C/t) * k2;
     	cascade_job_counts.push(count);
-    	
-    	for (var i=0; i<cascade_job_counts.length; i++) {
-    		var stepDuration = workerCount > 0 ? Math.ceil(cascade_job_counts[i] / workerCount) * TIME_REQUIRED_PER_CASCADE_JOB : 0;
-			cascade_step_durations.push(stepDuration);
-    	}
     }
     else {
     	title = "Cascade Stats";
-    	if (question.cascade_stats != null) {
-    		for (var i=0; i<max_cascade_steps; i++) {
-    			cascade_job_counts.push(question.cascade_stats["step"+(i+1)+"_job_count"]);
-    			cascade_step_durations.push(question.cascade_stats["step"+(i+1)+"_duration"]);
-    		}
-    	}
+    	// TODO: no implemented
     }
     
 	var html = "<strong>" + title + "</strong><br/>";
 	html += "<table class='smallpadbottom' style='margin-bottom:0px'>";
 	var totalJobCount = 0;
-	var completionTime = 0;
 	for (var i=0; i<cascade_job_counts.length; i++) {
 		var step = i+1;
 		var jobCount = cascade_job_counts[i];
 		totalJobCount += jobCount;
-		var stepDuration = cascade_step_durations[i];
-		completionTime += stepDuration;
 		html += "<tr>";
 		html += "<td>Step&nbsp;" + step + "</td>";
 		html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? "&nbsp;jobs" : "&nbsp;job") : "-") + "</td>";
-		html += "<td>" + toHHMMSS(stepDuration) + "</td>";
-		// TODO: update stats w/ new process
-		//html += "<td>" + (isStepComplete ? "<img src='/images/check.png'/>" : (isCurrentStep ? "<img src='/images/left-arrow.png'/>" : "&nbsp;")) + "</td>";
 		html += "</tr>";
 	}
 		
 	html += "<tr>";
 	html += "<td><strong>TOTAL</strong></td>";
 	html += "<td>" + (totalJobCount > 0 ? totalJobCount + "&nbsp;jobs" : "-") + "</td>";
-	html += "<td>" + toHHMMSS(completionTime) + "</td>";
 	//html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
 	html += "</tr>";
 		
@@ -256,13 +254,6 @@ function displayCascadeStats(question) {
 	}
 
 	html += "</table>";
-
-	// link to results		
-	if (question.cascade_complete) {
-		html += "<div class='green_highlight'>";
-		html += "<a href='/results?question_id=" + question.id + "'>View results</a>";
-		html += "</div>";
-	}
 		
 	// note about cascade estimates
 	if (!question.cascade_complete) {
@@ -282,9 +273,6 @@ function displayCascadeStats(question) {
 		html += "Cascade performed";
 		html += " on " + question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note");
 		html += " by " + question.cascade_stats["user_count"] + (question.cascade_stats["user_count"] > 1 ? "&nbsp;users" : "&nbsp;user");
-		if (question.cascade_stats["iteration_count"] > 1) {
-			html += " in " + question.cascade_stats["iteration_count"] + "&nbsp;iterations";
-		}
 		html += "; " + question.cascade_stats["category_count"] + (question.cascade_stats["category_count"] > 1 ? "&nbsp;categories" : "&nbsp;category") + " created";
 		if (question.cascade_stats["uncategorized_count"] > 0) {
 			html += " (" + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized)";
@@ -293,80 +281,12 @@ function displayCascadeStats(question) {
 	}
 	
 	if (totalJobCount > 0 || question.cascade_complete) {
-		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=" + question.cascade_m + ", t=" + question.cascade_t + "</div>"; 
+		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%, t=" + question.cascade_t + "</div>"; 
 	}
 	
 	$("#cascade_stats").html(html);	
 }
         
-function setActive(active) {
-	var question = getSelectedQuestion();
-	if (!question) {
-		return;
-	}
-	var data = {
-		"client_id": client_id,
-		"question_id": question.id,
-		"active": active
-	};
-	$.post("/set_active", data, function(result) {
-		if (result.status == 0) {
-			$("#msg").html(result.msg);
-			return;
-		}
-		
-		var index = getQuestionIndex(result.question.id);
-		questions[index].active = result.question.active;
-		displayQuestion(result.question.id);			
-	}, "json");
-}
-
-function calculateCascadeOptions(question, forceUpdate) {	
-	forceUpdate = isDefined(forceUpdate) ? forceUpdate : false;
-	
-	// use values stored in db if cascade complete
-	if (question.cascade_complete) {
-		return;
-	}
-	
-	// TODO / FIX: set cascade options, send to server, do NOT change once set
-	
-	if (question.idea_count == 0) {
-		return;
-	}
-	
-	var cascade_m = Math.ceil(question.idea_count / 2);
-	var cascade_p = 80;
-	var cascade_t = 3;
-
-	var workerCount = getCascadeWorkerCount(question);
-	var ideasPerWorker = question.idea_count / workerCount;
-	
-	if (workerCount == 1) {
-		cascade_k = 1;
-		cascade_k2 = 1;
-	}
-	else if (ideasPerWorker >= 3.5) {
-		cascade_k = 1;
-		cascade_k2 = 1;
-	}
-	
-	else if (ideasPerWorker >= 0.5) {
-		cascade_k = 2;
-		cascade_k2 = 1;
-	}
-	else {
-		cascade_k = 3;
-		cascade_k2 = 2;
-	}
-
-	question.cascade_k = cascade_k;
-	question.cascade_k2 = cascade_k2;
-	question.cascade_m = cascade_m;
-	question.cascade_p = cascade_p;
-	question.cascade_t = cascade_t;
-}
-
 function getCascadeWorkerCount(question) {
 	// assume admin is going to perform Cascade tasks if no active users
 	return question.active_user_count > 0 ? question.active_user_count : 1;
@@ -412,7 +332,7 @@ function createEditQuestion() {
 					$("#newq_info").html(result.msg);
 					return;
 				}
-				questions.push(result.question);
+				addQuestion(result.question);
 				displayQuestionsList();
 				selectQuestion(result.question.id);
 				createQuestionForm();			
@@ -442,6 +362,28 @@ function editQuestionForm(question_id) {
 	}
 }
 
+function setActive(active) {
+	var question = getSelectedQuestion();
+	if (!question) {
+		return;
+	}
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id,
+		"active": active
+	};
+	$.post("/set_active", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		
+		var index = getQuestionIndex(result.question.id);
+		questions[index].active = result.question.active;
+		displayQuestion(result.question.id);			
+	}, "json");
+}
+
 function downloadQuestion(question_id) {
 	window.location = "/download_question?question_id="+question_id+"&utc_offset_minutes="+(new Date()).getTimezoneOffset()
 }
@@ -462,11 +404,11 @@ function deleteQuestionData(question_id) {
 				};
 				$.post("/delete_question", data, function(result) {
 					if (result.status == 1) {
-						var index = getQuestionIndex(question_id);
-						questions[index] = result.question;
+						initQuestion(question_id, result.question);
 						if (isSelectedQuestion(question_id)) {
 							displaySelectedQuestion();
 						}
+						displayQuestionItem(result.question);
 					}
 				}, "json");
 				$(this).dialog("close");
@@ -511,28 +453,47 @@ function deleteQuestion(question_id) {
 	});
 }
 
+function createCategories() {
+	var question = getSelectedQuestion();
+	if (!question) {
+		return;
+	}
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id,
+	};
+	$.post("/generate_categories", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		redirectToResultsPage(result.question_id);		
+	}, "json");
+}
+
 function getQuestion(question_id) {
 	var question = null;
 	var index = getQuestionIndex(question_id);
 	return index != -1 ? questions[index] : null;
 }
 
-function getSelectedQuestion() {
-	return selected_question_id ? getQuestion(selected_question_id) : null;
+function addQuestion(question) {
+	question = initQuestionStats(question);
+	questions.push(question);
 }
 
-function isSelectedQuestion(question_id) {
-	return selected_question_id && selected_question_id == question_id;
-}
-
-function displayQuestion(question_id) {
+function initQuestion(question_id, question) {
+	question = initQuestionStats(question);
 	var index = getQuestionIndex(question_id);
-	if (index != -1) {
-		if (isSelectedQuestion(question_id)) {
-			displaySelectedQuestion();
-		}
-		displayQuestionItem(questions[index])		
-	}
+	questions[index] = question;
+}
+
+function initQuestionStats(question) {
+	question.idea_count = isDefined(question.idea_count) ? question.idea_count : 0;
+	question.user_count = isDefined(question.user_count) ? question.user_count : 0;
+	question.active_user_count = isDefined(question.active_user_count) ? question.active_user_count : 0;
+	question.cascade_stats = isDefined(question.cascade_stats) ? question.cascade_stats : null;
+	return question;
 }
 
 function getQuestionIndex(question_id) {
@@ -548,21 +509,23 @@ function getQuestionIndex(question_id) {
 	return index;	
 }
 
+function getSelectedQuestion() {
+	return selected_question_id ? getQuestion(selected_question_id) : null;
+}
+
+function isSelectedQuestion(question_id) {
+	return selected_question_id && selected_question_id == question_id;
+}
+
 /////////////////////////
 // Channel support
 /////////////////////////
 function handleIdea(data) {
 	var question = getSelectedQuestion();
 	if (question && data.idea.question_id==question.id) {
-		question.idea_count++;
-		
-		calculateCascadeOptions(question);
+		question.idea_count++;		
 		displayStats(question);
 	}
-}
-
-function handleIdeasDone(data) {
-	// ignore
 }
 
 function handleResults(data) {
@@ -581,7 +544,6 @@ function handleStudentLogin(data) {
 		question.active_user_count++;
 		if (data.is_new) {
 			question.user_count++;
-			calculateCascadeOptions(question);
 		}
 		displayStats(question);
 	}	
@@ -591,7 +553,6 @@ function handleStudentLogout(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.active_user_count--;
-		calculateCascadeOptions(question);
 		displayStats(question);
 	}
 }

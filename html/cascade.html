@@ -24,10 +24,6 @@ limitations under the License.
 	<script>
 		var question_id = "{{ question_id }}";
 		var active = parseInt("{{ active }}");
-		var phase = parseInt("{{ phase }}");
-		var step = parseInt("{{ step }}");
-		var num_steps = parseInt("{{ num_steps }}");
-		var skip_verify = {{ skip_verify }};
 	</script>
 {% endblock %}
 
@@ -45,12 +41,11 @@ limitations under the License.
 				<h1 id="question_title" class="smallspacebelow">{{ title }}</h1>
 				<div id="question">{{ question }}</div>
 			</div>
-			<div id="step" class="center step note" style="text-align:right"></div>
 			<div class="white_box">
-				<h2 id="title" class="nospaceabove spacebelow">Cascade</h2>
+				<h2 id="title" class="nospaceabove spacebelow"></h2>
 				<div id="help" class="help spacebelow"></div>
 				<div id="warning" class="warning largespacebelow"></div>
-				<div id="task_area"></div>		
+				<div id="task_area"><img id="loading_icon" src="images/loading.gif" style="display:none"></div>		
 			</div>
 		</div>
 	</div>

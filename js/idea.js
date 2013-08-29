@@ -15,95 +15,86 @@
 // limitations under the License.
 //
 
+var SHOW_IDEA_LIST = false;
 var ideas = [];
-var done = false;
-SHOW_IDEAS_WHEN_DONE = false;
 
-$(function() {
-	$("#title").html(title);
-	$("#question").html(question);
+$(function() {	
+	onResize();
+	initEventHandlers();
 	
 	if ($("#msg").html()) {
-		disableInput();
-		onResize();
+		disableUI();
 		return;
 	}
-
-	initChannel();
-	initEventHandlers();	
 	
-	$("#answer").focus();		
-	if (change_nickname_allowed) {
-		updateNicknameArea();
+	var isCascadeComplete = isDefined(cascade_complete) && cascade_complete == 1;
+	if (isCascadeComplete) {
+		$("#msg").html("This question is complete. <a class='warning' href='"+getResultsPageUrl(question_id)+"'>View results</a>");
+		disableUI();
+		return;
 	}
+	
+	initChannel();
+	updateUI();
 });
 
-// Shouldn't have to enableInput, but Firefox strangely caches state of elements.
-// Without explicitly enabling input, Firefox will remain disabled after phase change - even on reload
-function enableInput() {
-	$("#answer").removeAttr("disabled");
-	$("#submit").removeAttr("disabled");
-	$("#answer").val("");
-	$("#answer").focus();
-	$("#nickname_area").show();
-}
-
-function disableInput(msg) {
-	enableDisable($("#answer"), false);
-	enableDisable($("#submit"), false);
-	$("#answer").val("Not currently accepting new submissions");
-	$("#nickname_area").hide();
-}
-
-function initEventHandlers() {
-	onResize();
-	$(window).resize(function() {
-		onResize();
-	});
+function updateUI(enable) {
+	var isActive = isDefined(enable) ? enable : (isDefined(active) && active == 1);
+	enableDisable($("#answer"), isActive);
+	enableDisable($("#submit"), isActive);
+	enableDisable($("#done"), isActive);
+	if (!$("#msg").html()) {
+		$("#msg").html(!isActive ? "Question has been disabled" : "");
+	}
+	$("#answer").val(!isActive ? "Not currently accepting new submissions" : "");	
 	
-	$("#submit").click(function() {
-		enableDisable($("#submit"), false);
-		var idea = $("#answer").val();		
-		if (idea.length == "") {
-			enableDisable($("#submit"), true);
+	if (isActive) {		
+		$("#answer").focus();
+		if (change_nickname_allowed) {
+			displayNicknameArea();
+		}
+		if (SHOW_IDEA_LIST) {
+			displayIdeas();
+		}
+	}
+	else {
+		$("#nickname_area").hide();
+		$("#ideas").hide();
+	}	
+}
+
+function disableUI() {
+	updateUI(false);
+}
+
+function submitIdea() {
+	var idea = $("#answer").val();
+	if (idea.length == "") {
+		return;		
+	}
+
+	enableDisable($("#submit"), false);
+	$("#loading_icon").show();
+	
+	var data = {
+		"client_id": client_id,
+		"idea": idea,
+		"question_id": question_id
+	};
+	$.post("/new_idea", data, function(result) {
+		$("#loading_icon").hide();
+		enableDisable($("#submit"), true);
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
 			return;
 		}
-		
-		var data = {
-			"client_id": client_id,
-			"idea": idea,
-			"question_id": question_id
-		};
-		$.post("/new_idea", data, function(result) {
-			if (result.status == 0) {
-				$("#msg").html(result.msg);
-				return;
-			}
-			enableDisable($("#submit"), true);
-			$("#thankyou").show();
-			if (SHOW_IDEAS_WHEN_DONE) {
-				$("#results_link").attr("href", "/results?question_id=" + question_id);
-				$("#show_results_text").show();
-			}
-			$("#answer").val("");
-			$("#answer").focus();
-			updateRemainingChars();
-		}, "json");
-	});
-	
-	$("#answer").keyup(function() {
+		$("#thankyou").show();
+		$("#answer").val("");
+		$("#answer").focus();
 		updateRemainingChars();
-	});
-
-	$("#done_button").click(function() {
-		redirectToCascadePage(question_id);
-	});
-	
-	$("#admin_button").click(function() {	
-		redirectToAdminPage(question_id);
-	});
+	}, "json");
 }
-
+		
 function updateRemainingChars() {
 	var text = $("#answer").val();
 	if (text.length > MAX_CHARS) {
@@ -114,69 +105,53 @@ function updateRemainingChars() {
 	$("#charlimit").html(msg);
 }
 
-function onResize() {
-	var padding = 40;
-
-	if (jQuery.browser.mobile) {
-		var width = $(window).width() - padding;
-	} else {
-		var targetWidth = 600;
-		var width = targetWidth;
-		if ($(window).width() < (targetWidth + padding)) {
-			width = $(window).width() - padding;
-		}
-	}
-
-	$("#box_area").width(width);
-}
-
-function updateNicknameArea() {
-	if (phase == 1) {
-		var html = '<div class="header spacebelow">Nickname</div>';
-		html += user_nickname + " " + '<input id="change_nickname1" type="submit" value="Change">';
-		html += '<div class="help">';
-	    html += 'Nickname displayed with all your entries for this question';
-	    html += '</div>';
-		$("#nickname_area").html(html);
-			
-		$("#change_nickname1").click(function() {
-			var html = '<div class="header spacebelow">Nickname</div>';
-			html +=  '<input id="nickname" value="' + user_nickname + '"> <input id="change_nickname2" type="submit" value="Change">';
-			html += '<div class="help">';
-	    	html += 'Nickname displayed with all your entries for this question';
-	    	html += '<div id="nickname_msg" class="warning"></div>';
-	    	html += '</div>';
-			$("#nickname_area").html(html);
-			$("#change_nickname2").prop("disabled", true);
-			
+function displayNicknameArea(editableNickname) {
+	editableNickname = isDefined(editableNickname) ? editableNickname : false;
+	var submitId = !editableNickname ? "change_nickname1" : "change_nickname2";
+	var html = '<div class="header spacebelow">Nickname</div>';
+	html += editableNickname ? '<input id="nickname" value="' + user_nickname + '"> ' : user_nickname + ' ';
+	html += '<input id="' + submitId + '" type="submit" value="Change">';
+	html += '<div class="help">';
+	html += 'Nickname displayed with all your entries for this question';
+	html += '<div id="nickname_msg" class="warning"></div>';
+	html += '</div>';
+	$("#nickname_area").html(html);
+	
+	if (!editableNickname) {
+		$("#"+submitId).click(function() {
+			var submitId2 = displayNicknameArea(true);
+			enableDisable($("#"+submitId2), false);
+				
 			$("#nickname").keyup(function() {
-				$("#change_nickname2").prop("disabled", false);
-			});
-			
-			$("#change_nickname2").click(function() {
-				var nickname = $("#nickname").val();
-				var data = {
-					"client_id": client_id,
-					"question_id": question_id,
-					"nickname": nickname
-				};
-				$.post("/nickname", data, function(result) {
-					if (result.status == 0) {
-						$("#nickname_msg").html(result.msg);
-						return;
-					}
-					user_nickname = result.user.nickname;
-					updateNicknameArea();
-				}, "json");
+				enableDisable($("#"+submitId2), true);
 			});
 		});
-
-		$("#nickname_area").show();
 	}
+		
+	else {	
+		$("#"+submitId).click(function() {
+			var nickname = $("#nickname").val();
+			var data = {
+				"client_id": client_id,
+				"question_id": question_id,
+				"nickname": nickname
+			};
+			$.post("/nickname", data, function(result) {
+				if (result.status == 0) {
+					$("#nickname_msg").html(result.msg);
+					return;
+				}
+				user_nickname = result.user.nickname;
+				displayNicknameArea();
+			}, "json");
+		});  
+	} 
+
+	$("#nickname_area").show();
+	return submitId;
 }
 
-function loadIdeas() {	
-	// TODO/FIX: request all ideas in single array (not separated by categories!)
+function displayIdeas() {	
 	var data = {
 		"request": "ideas",
 		"question_id": question_id
@@ -184,20 +159,17 @@ function loadIdeas() {
 	$.getJSON("/query", data, function(results) {
 		question = results.question;
 		ideas = results.ideas;
-		var html = "<ul id='idea_list'>";
+		var html = "<h2>Responses</h2>";
+		html += "<ul id='idea_list'>";
 		for (var i in ideas) {
 			var idea = ideas[i];
 			html += ideaAsHtml(idea);
 		}
 		html += "</ul>"
 		$("#ideas").html(html);
+		$("#ideas").show();
+		$(document).tooltip({position:{my: "left+15 center", at:"right center"}});
 	});
-}
-
-function addIdea(idea) {
-	ideas.push(idea);
-	var html = ideaAsHtml(idea);
-	$("#idea_list").prepend(html);
 }
 
 function ideaAsHtml(idea) {
@@ -214,23 +186,65 @@ function ideaAsHtml(idea) {
 	return html;	
 }
 
+function displayNewIdea(idea) {
+	ideas.push(idea);
+	var html = ideaAsHtml(idea);
+	$("#idea_list").prepend(html);
+}
+
+function initEventHandlers() {
+	$(window).resize(function() {
+		onResize();
+	});
+	
+	$("#submit").click(function() {
+		submitIdea();
+	});
+	
+	$("#answer").keyup(function() {
+		updateRemainingChars();
+	});
+
+	$("#done").click(function() {
+		redirectToCascadePage(question_id);
+	});
+	
+	$("#admin_button").click(function() {	
+		redirectToAdminPage(question_id);
+	});
+}
+
+function onResize() {
+	var padding = 40;
+	if (jQuery.browser.mobile) {
+		var width = $(window).width() - padding;
+	} else {
+		var targetWidth = 600;
+		var width = targetWidth;
+		if ($(window).width() < (targetWidth + padding)) {
+			width = $(window).width() - padding;
+		}
+	}
+	$("#box_area").width(width);
+}
+
 /////////////////////////
 // Channel support
 /////////////////////////
 function handleIdea(data) {
-	if (SHOW_IDEAS_WHEN_DONE && done) {
-		addIdea(data.idea);
+	if (SHOW_IDEA_LIST) {
+		displayNewIdea(data.idea);
 	}
 }
 
 function handleEnable(data) {
-	$("#msg").html("");
-	enableInput();
+	active = 1;
+	updateUI();
 }
 
 function handleDisable(data) {
-	$("#msg").html("Question has been disabled");
-	disableInput();
+	active = 0;
+	updateUI();
 }
 
 function handleLogout(data) {

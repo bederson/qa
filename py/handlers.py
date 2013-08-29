@@ -135,7 +135,7 @@ class BaseHandler(webapp2.RequestHandler):
             template_values["title"] = self.question.title
             template_values["question"] = self.question.question
             template_values["active"] = self.question.active
-            template_values["phase"] = self.question.phase
+            template_values["cascade_complete"] = self.question.cascade_complete
                 
         return template_values
     
@@ -191,7 +191,7 @@ class BaseHandler(webapp2.RequestHandler):
             self.session['msg'] = "Invalid question code"
             ok = False
         elif activeQuestionRequired and not self.question.active:
-            self.session['msg'] = "Question not active"
+            self.session['msg'] = "Question inactive"
             ok = False
         return ok
           
@@ -256,8 +256,6 @@ class CascadePageHandler(BaseHandler):
         self.init() 
         self.checkRequirements(userRequired=True, questionRequired=True)
         templateValues = self.getDefaultTemplateValues()
-        templateValues["num_steps"] = self.question.cascade_step_count if self.question else 0
-        templateValues["skip_verify"] = json.dumps(constants.SKIP_VERIFY_CATEGORY)
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -279,8 +277,6 @@ class AdminPageHandler(BaseHandler):
         # but if one passed in, it has already been checked for validity
         self.question = None
         templateValues = self.getDefaultTemplateValues()
-        templateValues["max_cascade_steps"] = len(CASCADE_CLASSES)
-        templateValues["skip_verify"] = json.dumps(constants.SKIP_VERIFY_CATEGORY)
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -302,7 +298,7 @@ class LoginHandler(BaseHandler):
             self.person.login(self.dbConnection)
 
         self.destroy()
-        self.redirect(str(page) if page else (getPhaseUrl(self.question) if self.question else "/"))
+        self.redirect(str(page) if page else (getIdeaPageUrl(self.question) if self.question else getHomePageUrl()))
                 
 class NicknameLoginHandler(BaseHandler):    
     def post(self):
@@ -338,7 +334,7 @@ class NicknameLoginHandler(BaseHandler):
                     self.person.login(self.dbConnection)
 
                 self.session[self.question.id] = { "nickname": nickname }
-                data = { "status" : 1, "url" : str(page) if page else (getPhaseUrl(self.question) if self.question else "/") }
+                data = { "status" : 1, "url" : str(page) if page else (getIdeaPageUrl(self.question) if self.question else getHomePageUrl()) }
 
         self.writeResponseAsJson(data)       
         self.destroy()
@@ -346,7 +342,7 @@ class NicknameLoginHandler(BaseHandler):
 class QuestionLoginHandler(BaseHandler):
     # log user in to question
     # if user not logged in yet, return url to login
-    # otherwise, return url for current phase of question
+    # otherwise, return url to start adding ideas
     def post(self):
         self.init()
         ok = self.checkRequirements(questionRequired=True)
@@ -357,10 +353,10 @@ class QuestionLoginHandler(BaseHandler):
             if self.person is not None and not self.person.is_logged_in:
                 self.person.login(self.dbConnection)
                             
-            data = { 
+            data = {
                 "status" : 1, 
                 "question" : self.question.toDict(), 
-                "url" : getPhaseUrl(self.question) if self.person is not None else getLoginUrl(self.request.uri, self.question) 
+                "url" : getIdeaPageUrl(self.question) if self.person is not None else getLoginUrl(self.request.uri, self.question) 
             }
         
         self.writeResponseAsJson(data)
@@ -516,7 +512,7 @@ class DeleteQuestionHandler(BaseHandler):
             data = { "status" : 0, "msg" : self.session.pop("msg") }
         
         else:
-            self.question.delete(self.dbConnection, dataOnly=dataOnly)
+            self.question.delete(self.dbConnection, dataOnly=dataOnly, onDeleteStudents=onDeleteStudents)
             data = { "status" : 1, "question" : self.question.toDict() if dataOnly else {} }                
             sendMessage(self.dbConnection, clientId, self.question, { "op": "delete" })
             
@@ -556,18 +552,7 @@ class DownloadQuestionHandler(BaseHandler):
                 excelWriter.writerow(("# categories", cascadeStats["category_count"]))
                 excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
                 excelWriter.writerow(())   
-                    
-                excelWriter.writerow(("Cascade Times (h:mm:ss)",))
-                for i in range(len(CASCADE_CLASSES)):
-                    step = i + 1
-                    duration = cascadeStats["step{0}_duration".format(step)]
-                    durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
-                    excelWriter.writerow(("Step {0}".format(step), durationFormatted))
-                duration = cascadeStats["total_duration"]
-                durationFormatted = str(datetime.timedelta(seconds=duration)) if duration else "-"
-                excelWriter.writerow(("TOTAL", durationFormatted, "({0} {1})".format(cascadeStats["iteration_count"], "iterations" if cascadeStats["iteration_count"]>1 else "iteration")))
-                excelWriter.writerow(())   
-                
+                                
                 # write out cascade parameters
                 excelWriter.writerow(("Cascade Settings",))
                 excelWriter.writerow(("k", self.question.cascade_k))
@@ -663,28 +648,14 @@ class NewIdeaHandler(BaseHandler):
             ideaText = self.request.get('idea')                
             if ideaText and ideaText != "":
                 idea = Idea.create(self.dbConnection, self.question, self.person.id, ideaText)
-                data = { "status" : 1 }            
                 author = { 
                     "nickname" : self.person.nickname, 
                     "authenticated_nickname" : self.person.authenticated_nickname if not self.question.nickname_authentication else None 
                 }
-                msg = { "op": "newidea", "idea": idea.toDict(author=author, admin=False) }
+                msg = { "op": "newidea", "idea": idea.toDict(author=author) }
                 adminMsg = { "op": "newidea", "idea": idea.toDict(author=author, admin=True) }
-                sendMessage(self.dbConnection, clientId, self.question, msg, adminMsg)
-        
-        self.writeResponseAsJson(data) 
-        self.destroy()
-
-class IdeasDoneHandler(BaseHandler):
-    def post(self):
-        self.init()
-        ok = self.checkRequirements(userRequired=True, questionRequired=True)
-        if not ok:
-            data = { "status" : 0, "msg" : self.session.pop("msg") }
-        else:
-            clientId = self.request.get('client_id')
-            sendMessageToAdmin(self.dbConnection, self.question.id, { "op" : "ideasdone", "question_id" : self.question.id, "user_id" : self.person.id })
-            data = { "status" : 1 }
+                sendMessage(self.dbConnection, None, self.question, msg, adminMsg)
+                data = { "status" : 1 }
         
         self.writeResponseAsJson(data) 
         self.destroy()
@@ -718,18 +689,14 @@ class CascadeJobHandler(BaseHandler):
         ok = self.checkRequirements(userRequired=True, questionRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
-        
-        # TODO: what does phase=0 really mean? no ideas added yet?
-        elif self.question.phase == 0:
-            data = { "status" : 0, "msg" : "Cascade not enabled" }
              
         else:
-            # TODO / WEDNEDAY: notify waiting clients that more jobs are available (if they are!)
+            # TODO: notify waiting clients that more jobs are available (if they are!)
             
             # save job (if any)
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
-                self.question.saveCascadeJob(self.dbConnection, jobToSave, person=self.person)
+                self.question.saveCascadeJob(self.dbConnection, jobToSave, self.person)
                 # if cascade complete, notify any waiting clients that categories are ready
                 if self.question.cascade_complete:
                     stats = self.question.getCascadeStats(self.dbConnection)
@@ -751,12 +718,30 @@ class CancelCascadeJobHandler(BaseHandler):
                 # TODO/FIX: only notify users who haven't done the new jobs yet
                 # currently all users are notified and they have to check to see if any jobs available for them
                 sendMessage(self.dbConnection, None, self.question, { "op" : "morejobs" })
-        self.destroy()
-        
 
-# TODO: notify any waiting clients that categories are ready
-#stats = self.question.getCascadeStats(self.dbConnection)
-#sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })
+        self.writeResponseAsJson({ "status" : 1 })
+        self.destroy()
+   
+class CategoryHandler(BaseHandler):
+    def post(self):
+        self.init()
+        clientId = self.request.get("client_id")
+        
+        ok = self.checkRequirements(userRequired=True, questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+             
+        else:
+            GenerateCascadeHierarchy(self.dbConnection, self.question)
+            stats = self.question.getCascadeStats(self.dbConnection)
+            sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })          
+            data = { "status" : 1, "question_id" : self.question.id, "cascade_stats" : stats }
+                
+        self.writeResponseAsJson(data)
+        self.destroy()
+         
+# TODO: remember teacher dashboard
+# TODO: allow teacher to continue cascade after generating categories by force
                          
 #####################
 # Channel support
@@ -841,7 +826,7 @@ def sendMessageToAdmin(dbConnection, questionId, message):
     for row in rows:
         toClientId = row["client_id"]
         channel.send_message(toClientId, json.dumps(message))
-                           
+                                
 def onCreatePerson(person, dbConnection):
     if person and person.question_id:
         sendMessageToAdmin(dbConnection, person.question_id, { "op": "student_login", "question_id" : person.question_id, "user": person.toDict(), "is_new" : True })
@@ -853,10 +838,19 @@ def onLoginPerson(person, dbConnection):
 def onLogoutPerson(person, dbConnection):
     if person and person.question_id:
         sendMessageToAdmin(dbConnection, person.question_id, { "op": "student_logout", "question_id" : person.question_id, "user": person.toDict() })
-     
+
 Person.onCreate = onCreatePerson
 Person.onLogin = onLoginPerson
 Person.onLogout = onLogoutPerson
+
+def onDeleteStudents(dbConnection, questionId):
+    sql = "select client_id, user_id from users,user_clients where users.id=user_clients.user_id and question_id=%s"
+    dbConnection.cursor.execute(sql, (questionId))    
+    rows = dbConnection.cursor.fetchall()
+    for row in rows:
+        toClientId = row["client_id"]
+        message =  { "op": "logout", "question_id" : questionId }
+        channel.send_message(toClientId, json.dumps(message))
       
 #####################
 # URL routines
@@ -868,7 +862,7 @@ def getLoginUrl(page=None, question=None):
         if question.nickname_authentication:
             url = "/nickname_page?question_id=" + str(question.id)            
         else:
-            url = users.create_login_url("/login?page=" + getPhaseUrl(question) + ("&question_id="+str(question.id) if question else ""))
+            url = users.create_login_url("/login?page=" + getIdeaPageUrl(question) + ("&question_id="+str(question.id) if question else ""))
     return url
 
 def getLogoutUrl(question=None):
@@ -876,15 +870,24 @@ def getLogoutUrl(question=None):
     if question:
         url += "?question_id=" + str(question.id)
     return url
-        
-def getPhaseUrl(question=None):
-    url = "/"
+  
+def getHomePageUrl():
+    return "/"
+
+def getIdeaPageUrl(question=None):
+    url = "/idea"
     if question:
-        if question.phase <= constants.PHASE_NOTES:
-            url = "/idea?question_id=" + str(question.id)
-        elif question.phase == constants.PHASE_CASCADE:
-            if not question.cascade_complete:
-                url = "/cascade?question_id=" + str(question.id)
-            else:
-                url = "/results?question_id=" + str(question.id)
+        url += "?question_id=" + str(question.id)
+    return url
+
+def getCascadePageUrl(question=None):
+    url = "/cascade"
+    if question:
+        url += "?question_id=" + str(question.id)
+    return url
+
+def getResultsPageUrl(question=None):
+    url = "/results"
+    if question:
+        url += "?question_id=" + str(question.id)
     return url
