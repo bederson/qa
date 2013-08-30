@@ -96,7 +96,7 @@ class BaseHandler(webapp2.RequestHandler):
         return self.person is not None and self.person.is_logged_in
     
     def isAdminLoggedIn(self):
-        return Person.isAdmin() or (self.question is not None and self.question.isAuthor())
+        return Person.isAdmin() or (self.question is not None and Person.isAuthor(self.question))
     
     def getDefaultTemplateValues(self, connect=True):
         """Return a dictionary of default template values""" 
@@ -113,7 +113,7 @@ class BaseHandler(webapp2.RequestHandler):
         
         # otherwise, user not logged in
         else:
-            nicknameAuthenticationAllowed = self.question is not None and self.question.nickname_authentication and not self.question.isAuthor()
+            nicknameAuthenticationAllowed = self.question is not None and self.question.nickname_authentication and not Person.isAuthor(self.question)
             url = getLoginUrl(self.request.uri, self.question)
             urlLink = "Login w/ Nickname" if nicknameAuthenticationAllowed else "Login w/ Google Account"
                     
@@ -685,29 +685,52 @@ class CascadeJobHandler(BaseHandler):
     def post(self):
         self.init()
         clientId = self.request.get("client_id")
-        
+        job = self.request.get("job")
+        waiting = self.request.get("waiting")
+                
         ok = self.checkRequirements(userRequired=True, questionRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
              
         else:
-            # TODO: notify waiting clients that more jobs are available (if they are!)
-            
-            # save job (if any)
-            jobToSave = helpers.fromJson(self.request.get("job", None))
-            if jobToSave:
-                self.question.saveCascadeJob(self.dbConnection, jobToSave, self.person)
-                # if cascade complete, notify any waiting clients that categories are ready
-                if self.question.cascade_complete:
-                    stats = self.question.getCascadeStats(self.dbConnection)
-                    sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })
-          
-            job = self.question.getCascadeJob(self.dbConnection, self.person)
-            data = { "status" : 1, "job" : { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None, "cascade_complete" : self.question.cascade_complete }
+            # TODO: notify waiting clients that more jobs are available (if they are!)            
+            taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "job": job, "waiting": waiting })
+            data = { "status" : 1 }
                 
         self.writeResponseAsJson(data)
         self.destroy()
+        
+class CascadeSaveAndGetNextJobHandler(BaseHandler):
+    def post(self):
+        self.init()
+        clientId = self.request.get("client_id")
+        waiting = self.request.get("waiting", "0") == "1"
 
+        # get person
+        questionId, personId, isAdmin = getInfoFromClient(clientId)
+        person = Person.getById(self.dbConnection, personId)
+            
+        # userRequired=True does not seem to work within taskqueue so cannot check
+        ok = self.checkRequirements(questionRequired=True) and person is not None        
+        if ok:          
+            # save job (if any)
+            jobToSave = helpers.fromJson(self.request.get("job", None))
+            if jobToSave:
+                self.question.saveCascadeJob(self.dbConnection, jobToSave, person)
+                # if cascade complete, notify any waiting clients that categories are ready
+                if self.question.cascade_complete:
+                    stats = self.question.getCascadeStats(self.dbConnection)
+                    sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id": self.question.id, "cascade_stats" : stats })
+          
+            job = self.question.getCascadeJob(self.dbConnection, person)
+            sendMessageToClient(clientId, { "op": "job", "question_id" : self.question.id, "job": { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None })
+            
+            if job and waiting:
+                Person.working(self.dbConnection, clientId)
+                
+            if not job:
+                Person.waiting(self.dbConnection, clientId)
+                
 class CancelCascadeJobHandler(BaseHandler):
     def post(self):
         self.init()
@@ -732,8 +755,7 @@ class CategoryHandler(BaseHandler):
             data = { "status" : 0, "msg" : self.session.pop("msg") }
              
         else:
-            GenerateCascadeHierarchy(self.dbConnection, self.question)
-            stats = self.question.getCascadeStats(self.dbConnection)
+            stats = GenerateCascadeHierarchy(self.dbConnection, self.question)
             sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })          
             data = { "status" : 1, "question_id" : self.question.id, "cascade_stats" : stats }
                 
@@ -776,7 +798,7 @@ def createChannel(question, person):
     clientId += "_" + (str(question.id) if question else constants.EMPTY_CLIENT_TOKEN)
     clientId += "_" + (str(person.id) if person else constants.EMPTY_CLIENT_TOKEN)
     # question authors are marked with a "_a" in the clientId
-    if question is not None and question.isAuthor():
+    if question is not None and Person.isAuthor(question):
         clientId += "_a"                                     
     token = channel.create_channel(clientId)
     return clientId, token
@@ -826,7 +848,10 @@ def sendMessageToAdmin(dbConnection, questionId, message):
     for row in rows:
         toClientId = row["client_id"]
         channel.send_message(toClientId, json.dumps(message))
-                                
+        
+def sendMessageToClient(clientId, message):
+    channel.send_message(clientId, json.dumps(message))
+                            
 def onCreatePerson(person, dbConnection):
     if person and person.question_id:
         sendMessageToAdmin(dbConnection, person.question_id, { "op": "student_login", "question_id" : person.question_id, "user": person.toDict(), "is_new" : True })
@@ -851,7 +876,31 @@ def onDeleteStudents(dbConnection, questionId):
         toClientId = row["client_id"]
         message =  { "op": "logout", "question_id" : questionId }
         channel.send_message(toClientId, json.dumps(message))
-      
+
+def onMoreJobs(question, dbConnection):
+    # notify waiting clients about more jobs
+    # only mark as working again if job assigned to them (after they request one)
+    sql = "select * from users,user_clients where users.id=user_clients.user_id and question_id=%s and waiting_since is not null order by waiting_since desc"
+    dbConnection.cursor.execute(sql, (question.id))
+    rows = dbConnection.cursor.fetchall()
+    for row in rows:
+        clientId = row["client_id"]
+        sendMessageToClient(clientId, { "op": "morejobs", "question_id": question.id })
+
+def onCascadeSettingsChanged(question, dbConnection):
+    sendMessageToAdmin(dbConnection, question.id, { "op": "cascadesettings", "question_id": question.id, "cascade_k": question.cascade_k, "cascade_k2": question.cascade_k2, "cascade_m": "50%", "cascade_t": question.cascade_t } )
+    
+def onNewCategory(question, dbConnection, category):
+    sendMessageToAdmin(dbConnection, question.id, { "op": "newcategory", "question_id": question.id } )
+
+def onFitComplete(question, dbConnection, count):
+    sendMessageToAdmin(dbConnection, question.id, { "op": "fitcomplete", "question_id": question.id, "count": count } )
+    
+Question.onCascadeSettingsChanged = onCascadeSettingsChanged    
+Question.onMoreJobs = onMoreJobs
+Question.onNewCategory = onNewCategory
+Question.onFitComplete = onFitComplete
+          
 #####################
 # URL routines
 #####################

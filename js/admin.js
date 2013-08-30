@@ -15,6 +15,14 @@
 // limitations under the License.
 // 
 
+// Cascade Job Count Estimates
+// (no longer using all steps but good for reference)
+// Step 1 (suggest categories): 		Math.ceil(m/t) * k
+// Step 2 (best categories): 			m * k
+// Step 3 (fit categories):	 			m * Math.ceil(C/t) * k2; C = Math.ceil(1.5 * m)	(estimate)
+// Step 4 (verify categories):  		m * k2
+// Step 5 (fit categories subsequent)	(n-m) * Math.ceil(C/t) * k2; C = Math.ceil(0.33 * m) (estimate)
+
 var questions = [];
 var selected_question_id = null;
 
@@ -41,7 +49,7 @@ $(document).ready(function() {
 		setActive(active);
 	});
 	
-	$("#category_button").click(function() {
+	$("#create_categories_button").click(function() {
 		createCategories();
 	});
 	
@@ -161,7 +169,7 @@ function loadStats() {
 			question.idea_count = results["idea_count"];
 			question.user_count = results["user_count"];
 			question.active_user_count = results["active_user_count"];
-			question.cascade_stats = results["cascade_stats"];						
+			question.cascade_stats = results["cascade_stats"];
 			if (isSelectedQuestion(question.id)) {
 				displaySelectedQuestion(question);
 			}
@@ -171,7 +179,7 @@ function loadStats() {
 
 function displayStats(question) {
 	displayQuestionStats(question);
-	displayCascadeStats(question);
+	displayCascadeProgress(question);
 }
 
 function displayQuestionStats(question) {
@@ -185,113 +193,50 @@ function displayQuestionStats(question) {
 	$("#question_stats").html("("+stats.join(", ")+")");
 }
 
-function displayCascadeStats(question) {
-    var m = Math.min(question.idea_count, question.cascade_m);
-    var n = question.idea_count;
-    var k = question.cascade_k;
-    var k2 = question.cascade_k2;
-    var t = question.cascade_t;
-    var workerCount = getCascadeWorkerCount(question);
-    
-	var title = "";
-    var cascade_job_counts = [];
-    
-    // if cascade not complete, estimate cascade job info
-    if (!question.cascade_complete) {
-    	title = "Cascade Estimates";
-    	// step 1
-    	var count = Math.ceil(m/t) * k;
-    	cascade_job_counts.push(count);
-    
-    	// step 2
-    	count = m * k;
-    	cascade_job_counts.push(m * k);
-    
-    	// step 3
-    	var C = Math.ceil(1.5 * m); 	// estimate
-    	count = m * Math.ceil(C/t) * k2;
-    	cascade_job_counts.push(count);
+function displayCascadeProgress(question) {        
+	var html = "<div class='smallspacebelow'><strong>Category Progress</strong></div>";
+	html += "<div style='font-size:24px;text-align:center'><span id='percent_complete'></span>%</div>";
+	html += "<div style='font-size:11px;text-align:center' class='spacebelow'>COMPLETE</div>";
 
-    	// step 4
-    	count = m * k2;
-    	cascade_job_counts.push(count);
+	if (question.idea_count > 0) {		
+		if (question.cascade_complete) {
+			html += question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note") + "<br/>";
+			html += question.cascade_stats["category_count"] + (question.cascade_stats["category_count"] > 1 ? "&nbsp;categories" : "&nbsp;category") + "<br/>";
+			if (question.cascade_stats["uncategorized_count"] > 0) {
+				html += question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized";
+			}
+		}
+		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%, t=" + question.cascade_t + "</div>";
+	}
+	else {
+		html += "<div class='note' style='text-align:center'>NO NOTES ADDED YET</div>";		
+	}
+	$("#cascade_progress").html(html);	
+	updatePercentComplete(question)
+	
+	if (!question.cascade_complete) {
+		enableDisable($("#create_categories_button"), question.idea_count > 0);
+		$("#create_categories_button").show();
+	}
+	else {
+		$("#create_categories_button").hide();
+	}
+}
 
-    	// step 5
-    	C = Math.ceil(0.33 * m); 		// estimate - smaller than in step 3
-    	count = (n-m) * Math.ceil(C/t) * k2;
-    	cascade_job_counts.push(count);
+function updatePercentComplete(question) {
+    // calculate percentage complete
+    var percentComplete = 0;
+    if (question.cascade_complete) {
+    	percentComplete = 100;
     }
     else {
-    	title = "Cascade Stats";
-    	// TODO: no implemented
+    	var jobsCompleted = question.cascade_stats["completed_fit_count"];
+    	var totalJobCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
+    	percentComplete = totalJobCount > 0 ? Math.floor((jobsCompleted / totalJobCount)*100) : 0;
     }
+    $("#percent_complete").html(percentComplete);
+}
     
-	var html = "<strong>" + title + "</strong><br/>";
-	html += "<table class='smallpadbottom' style='margin-bottom:0px'>";
-	var totalJobCount = 0;
-	for (var i=0; i<cascade_job_counts.length; i++) {
-		var step = i+1;
-		var jobCount = cascade_job_counts[i];
-		totalJobCount += jobCount;
-		html += "<tr>";
-		html += "<td>Step&nbsp;" + step + "</td>";
-		html += "<td>" + (jobCount > 0 ? jobCount + (jobCount > 1 ? "&nbsp;jobs" : "&nbsp;job") : "-") + "</td>";
-		html += "</tr>";
-	}
-		
-	html += "<tr>";
-	html += "<td><strong>TOTAL</strong></td>";
-	html += "<td>" + (totalJobCount > 0 ? totalJobCount + "&nbsp;jobs" : "-") + "</td>";
-	//html += "<td>" + (question.cascade_complete ? "<img src='/images/check.png'/>" : "&nbsp;") + "</td>";
-	html += "</tr>";
-		
-	// jobs per user
-	if (workerCount > 1 && totalJobCount > 0) {
-		html += "<tr>";
-		html += "<td>&nbsp;</td>";
-		html += "<td>" + Math.ceil(totalJobCount/workerCount) + " jobs/user</td>";
-		html += "</tr>";
-	}
-
-	html += "</table>";
-		
-	// note about cascade estimates
-	if (!question.cascade_complete) {
-		if (question.idea_count > 0) {
-			html += "<div class='note'>";
-			html += "Estimates assume " + question.idea_count + (question.idea_count > 1 ? "&nbsp;notes" : "&nbsp;note");
-			html += ", " + Math.ceil(Math.min(question.idea_count,question.cascade_m) * 1.5) + "&nbsp;best&nbsp;categories";
-			if (workerCount > 0) {
-				html += ", " + workerCount + (workerCount > 1 ? "&nbsp;users" : "&nbsp;user");
-				html += ", " + TIME_REQUIRED_PER_CASCADE_JOB + "&nbsp;seconds per job"; 
-			}
-			html += "</div>";
-		}
-	}
-	else if (question.cascade_stats != null) {
-		html += "<div class='note'>";
-		html += "Cascade performed";
-		html += " on " + question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note");
-		html += " by " + question.cascade_stats["user_count"] + (question.cascade_stats["user_count"] > 1 ? "&nbsp;users" : "&nbsp;user");
-		html += "; " + question.cascade_stats["category_count"] + (question.cascade_stats["category_count"] > 1 ? "&nbsp;categories" : "&nbsp;category") + " created";
-		if (question.cascade_stats["uncategorized_count"] > 0) {
-			html += " (" + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized)";
-		}
-		html += "</div>";
-	}
-	
-	if (totalJobCount > 0 || question.cascade_complete) {
-		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%, t=" + question.cascade_t + "</div>"; 
-	}
-	
-	$("#cascade_stats").html(html);	
-}
-        
-function getCascadeWorkerCount(question) {
-	// assume admin is going to perform Cascade tasks if no active users
-	return question.active_user_count > 0 ? question.active_user_count : 1;
-}
-
 function createEditQuestion() {
 	var title = $("#newq_title").val();
 	var questionText = $("#newq_question").val();
@@ -404,7 +349,10 @@ function deleteQuestionData(question_id) {
 				};
 				$.post("/delete_question", data, function(result) {
 					if (result.status == 1) {
-						initQuestion(question_id, result.question);
+						question = initQuestionStats(result.question);
+						question.cascade_complete = 0;
+						var index = getQuestionIndex(question_id);
+						questions[index] = question;
 						if (isSelectedQuestion(question_id)) {
 							displaySelectedQuestion();
 						}
@@ -482,17 +430,13 @@ function addQuestion(question) {
 	questions.push(question);
 }
 
-function initQuestion(question_id, question) {
-	question = initQuestionStats(question);
-	var index = getQuestionIndex(question_id);
-	questions[index] = question;
-}
-
 function initQuestionStats(question) {
 	question.idea_count = isDefined(question.idea_count) ? question.idea_count : 0;
 	question.user_count = isDefined(question.user_count) ? question.user_count : 0;
 	question.active_user_count = isDefined(question.active_user_count) ? question.active_user_count : 0;
-	question.cascade_stats = isDefined(question.cascade_stats) ? question.cascade_stats : null;
+	question.cascade_stats = isDefined(question.cascade_stats) ? question.cascade_stats : {};
+	question.cascade_stats["category_count"] = 0;
+	question.cascade_stats["completed_fit_count"] = 0;
 	return question;
 }
 
@@ -528,12 +472,39 @@ function handleIdea(data) {
 	}
 }
 
+function handleCategory(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_stats["category_count"]++;	
+		updatePercentComplete(question);
+	}
+}
+
+function handleFitComplete(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_stats["completed_fit_count"] += data.count;	
+		updatePercentComplete(question);
+	}
+}
+
+function handleCascadeSettings(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_k = data.cascade_k;
+		question.cascade_k2 = data.cascade_k2;
+		question.cascade_m = data.cascade_m;
+		question.cascade_t = data.cascade_t;
+		displayCascadeProgress(question);
+	}
+}
+
 function handleResults(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.cascade_complete = 1;
 		question.cascade_stats = data.cascade_stats;
-		displayCascadeStats(question);
+		displayCascadeProgress(question);
 		displayQuestionItem(question);
 	}
 }

@@ -16,6 +16,7 @@
 //
 
 var assignedJob = null;
+var loading = false;
 var waiting = false;
 
 $(document).ready(function() {
@@ -28,15 +29,16 @@ $(document).ready(function() {
 			
 	initChannel();	
 	$("#page_content").show();
-	saveAndGetNextJob();
+	saveAndRequestNewJob();
 });
 
-function saveAndGetNextJob(tasksToSave) {	
+function saveAndRequestNewJob(tasksToSave) {	
 	$("#loading_icon").show();
 
 	var data = {
 		"client_id" : client_id,
-		"question_id" : question_id
+		"question_id" : question_id,
+		"waiting" : waiting ? "1" : "0"
 	};
 	if (isDefined(tasksToSave)) {
 		data["job"] = $.toJSON({
@@ -46,15 +48,9 @@ function saveAndGetNextJob(tasksToSave) {
 	}
 	
 	$.post("/cascade_job", data, function(results) {
-		assignedJob = null;
-		if (results.status == 0) {
-			$("#warning").html(results.msg);
-		}
-		else {
-			$("#warning").html("");
-			assignedJob = results.job;
-			updateUI(results.cascade_complete);
-		}
+		// new job (if any) sent via "job" message
+		loading = true;
+		$("#warning").html(results.status == 0 ? result.msg : "");
 	}, "json");
 }
 
@@ -77,17 +73,20 @@ function cancelJob(redirectUrl) {
 	}
 }
 
-function updateUI(complete) {
-	waiting = false;
-		
+function updateUI(complete) {		
 	// show results
 	if (complete == 1) {
 		resultsReady();
 	}
 	
 	// if no job, wait for one to become available
-	else if (!assignedJob) {
+	else if (waiting) {
 		waitForNextJob();
+	}
+	
+	// if waiting for requested job
+	else if (loading) {
+		waitForJobToLoad();
 	}
 		
 	// suggest categories
@@ -149,7 +148,7 @@ function submitSuggestedCategories() {
 		return;
 	}
 	
-	saveAndGetNextJob(tasks);
+	saveAndRequestNewJob(tasks);
 }
 
 function bestCategoryUI() {
@@ -195,7 +194,7 @@ function submitBestCategory(task) {
 	var tasks = [];	
 	var bestCategory = bestCategoryIndex != -1 ? task.suggested_categories[bestCategoryIndex] : ""
 	tasks.push({ id: task.id, idea_id: task.idea_id, best_category: bestCategory });
-	saveAndGetNextJob(tasks);
+	saveAndRequestNewJob(tasks);
 }
 
 function fitCategoryUI() {
@@ -251,15 +250,19 @@ function submitFitCategories() {
 		$("#warning").html("Please indicate whether each category fits or not");
 		return;
 	}
-	saveAndGetNextJob(tasks);
+	saveAndRequestNewJob(tasks);
+}
+
+function waitForJobToLoad() {
+	$("#title").html("Loading ...");
+	$("#help").html("");
+	$("#task_area").html("<img id='loading_icon' src='images/loading.gif' />");
 }
 
 function waitForNextJob() {
-	waiting = true;
 	$("#title").html("Waiting ...");
 	$("#help").html("");
 	var taskHtml = "Please wait until more jobs become available. ";
-	///taskHtml += "<img id='loading_icon' src='images/loading.gif' />";
 	$("#task_area").html(taskHtml);
 }
 
@@ -321,15 +324,18 @@ function handleDisable(data) {
 	$("#page_content").hide();
 }
 
-function handleIdea(data) {
-	if (waiting) {
-		saveAndGetNextJob();
+function handleJob(data) {
+	if (loading) {
+		assignedJob = data.job;
+		loading = false;
+		waiting = !assignedJob;
+		updateUI(0);
 	}
 }
 
 function handleMoreJobs(data) {
 	if (waiting) {
-		saveAndGetNextJob();
+		saveAndRequestNewJob();
 	}
 }
 

@@ -45,6 +45,7 @@ app = webapp2.WSGIApplication([
     ('/set_active', ActiveHandler),
     ('/new_idea', NewIdeaHandler),
 	('/cascade_job', CascadeJobHandler),
+    ('/cascade_save_and_get_next_job', CascadeSaveAndGetNextJobHandler),
     ('/cancel_cascade_job', CancelCascadeJobHandler),
     ('/generate_categories', CategoryHandler),
     ('/query', QueryHandler),

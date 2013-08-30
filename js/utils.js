@@ -49,8 +49,20 @@ onMessage = function(message) {
 	else if (dataObj.op == "disable" && typeof window.handleDisable == 'function') {
 		handleDisable(dataObj); 
 	}
+	else if (dataObj.op == "job" && typeof window.handleJob == 'function') {
+		handleJob(dataObj)
+	}
 	else if (dataObj.op == "morejobs" && typeof window.handleMoreJobs == 'function') {
 		handleMoreJobs(dataObj);
+	}
+	else if (dataObj.op == "newcategory" && typeof window.handleCategory == 'function') {
+		handleCategory(dataObj);
+	}
+	else if (dataObj.op == "fitcomplete" && typeof window.handleCategory == 'function') {
+		handleFitComplete(dataObj);
+	}
+	else if (dataObj.op == "cascadesettings" && typeof window.handleCascadeSettings == 'function') {
+		handleCascadeSettings(dataObj);
 	}
 	else if (dataObj.op == "categories" && typeof window.handleResults == 'function') {
 		handleResults(dataObj);
