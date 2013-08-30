@@ -323,12 +323,11 @@ class Question(DBObject):
             sql = "select * from cascade_stats where question_id=%s"
             dbConnection.cursor.execute(sql, (self.id))
             row = dbConnection.cursor.fetchone()
-            if row:
-                stats = {}
-                stats["user_count"] = row["user_count"]
-                stats["idea_count"] = row["idea_count"]
-                stats["category_count"] = row["category_count"]
-                stats["uncategorized_count"] = row["uncategorized_count"]
+            stats = {}
+            stats["user_count"] = row["user_count"] if row else 0
+            stats["idea_count"] = row["idea_count"] if row else 0
+            stats["category_count"] = row["category_count"] if row else 0
+            stats["uncategorized_count"] = row["uncategorized_count"] if row else 0
         else:
             stats = {}
             # category count while cascade in progress
@@ -1390,11 +1389,6 @@ def getCascadeClass(type):
 
 CASCADE_CLASSES = [ CascadeSuggestCategory, CascadeBestCategory, CascadeFitCategory ]
 
-# TODO / PUBLISH: added column item_set to question_ideas table in db
-# TODO / PUBLISH: change db defaults for cascade settings to 0
-# TODO / PUBLISH: create index question_idea_index on cascade_best_categories (question_id,idea_id);
-# TODO / PUBLISH: alter table user_clients add waiting_since timestamp null default null;
-# TODO: update database structure sql
 # TODO: no longer using cascade_times table in db
 # TODO: no longer using  iteration_count, stepX_duration, total_duration in cascade_stats table in db
 # TODO: no longer using cascade_iteration or subsequent fileds in cascade_suggested_categories, cascade_best_categories, cascade_fit_categories_phase1

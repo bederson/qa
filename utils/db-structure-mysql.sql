@@ -31,27 +31,9 @@ CREATE TABLE `cascade_best_categories` (
   `none_of_the_above` tinyint(4) DEFAULT '0',
   `cascade_iteration` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY `question_index` (`question_id`)
+  KEY `question_index` (`question_id`),
+  KEY `question_idea_index` (`question_id`,`idea_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `cascade_fit_categories`
---
-
-DROP TABLE IF EXISTS `cascade_fit_categories`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `cascade_fit_categories` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `question_id` int(11) DEFAULT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `idea_id` int(11) DEFAULT NULL,
-  `category` varchar(255) DEFAULT NULL,
-  `fit` int(11) DEFAULT '-1',
-  PRIMARY KEY (`id`),
-  KEY `question_index` (`question_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -94,7 +76,7 @@ CREATE TABLE `cascade_fit_categories_phase2` (
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`),
   KEY `question_user_index` (`question_id`,`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -220,6 +202,7 @@ CREATE TABLE `question_ideas` (
   `question_id` int(11) DEFAULT NULL,
   `user_id` int(11) DEFAULT NULL,
   `idea` varchar(255) DEFAULT NULL,
+  `item_set` int(11) DEFAULT '0',
   `created_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
@@ -246,11 +229,11 @@ CREATE TABLE `questions` (
   `cascade_step_count` int(11) DEFAULT '0',
   `cascade_iteration` int(11) DEFAULT '0',
   `cascade_complete` tinyint(4) DEFAULT '0',
-  `cascade_k` int(11) DEFAULT '5',
-  `cascade_k2` int(11) DEFAULT '2',
-  `cascade_m` int(11) DEFAULT '32',
-  `cascade_t` int(11) DEFAULT '8',
-  `cascade_p` int(11) DEFAULT '80',
+  `cascade_k` int(11) DEFAULT '0',
+  `cascade_k2` int(11) DEFAULT '0',
+  `cascade_m` int(11) DEFAULT '0',
+  `cascade_t` int(11) DEFAULT '0',
+  `cascade_p` int(11) DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -265,6 +248,7 @@ DROP TABLE IF EXISTS `user_clients`;
 CREATE TABLE `user_clients` (
   `user_id` int(11) DEFAULT NULL,
   `client_id` varchar(255) DEFAULT NULL,
+  `waiting_since` timestamp NULL DEFAULT NULL,
   KEY `user_index` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -299,4 +283,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-20 13:37:10
+-- Dump completed on 2013-08-30 17:46:49

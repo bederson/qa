@@ -29,7 +29,11 @@ $(document).ready(function() {
 			
 	initChannel();	
 	$("#page_content").show();
-	saveAndRequestNewJob();
+	
+	// TODO / HACK - TUESDAY!
+	setTimeout(function() {
+		saveAndRequestNewJob();
+	}, 5000);
 });
 
 function saveAndRequestNewJob(tasksToSave) {	
@@ -46,10 +50,10 @@ function saveAndRequestNewJob(tasksToSave) {
 			"type" : assignedJob.type
 		});
 	}
-	
+
+	loading = true;
 	$.post("/cascade_job", data, function(results) {
 		// new job (if any) sent via "job" message
-		loading = true;
 		$("#warning").html(results.status == 0 ? result.msg : "");
 	}, "json");
 }

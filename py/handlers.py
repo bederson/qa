@@ -724,6 +724,7 @@ class CascadeSaveAndGetNextJobHandler(BaseHandler):
           
             job = self.question.getCascadeJob(self.dbConnection, person)
             sendMessageToClient(clientId, { "op": "job", "question_id" : self.question.id, "job": { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None })
+            helpers.log("SEND JOB {0} TO {1}".format(job, clientId))
             
             if job and waiting:
                 Person.working(self.dbConnection, clientId)
@@ -738,7 +739,7 @@ class CancelCascadeJobHandler(BaseHandler):
         if self.question and job:
             count = self.question.cancelCascadeJob(self.dbConnection, job)
             if count > 0:    
-                # TODO/FIX: only notify users who haven't done the new jobs yet
+                # TODO/FIX: only notify users who are waiting
                 # currently all users are notified and they have to check to see if any jobs available for them
                 sendMessage(self.dbConnection, None, self.question, { "op" : "morejobs" })
 
@@ -762,7 +763,6 @@ class CategoryHandler(BaseHandler):
         self.writeResponseAsJson(data)
         self.destroy()
          
-# TODO: remember teacher dashboard
 # TODO: allow teacher to continue cascade after generating categories by force
                          
 #####################
