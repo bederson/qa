@@ -33,7 +33,7 @@ $(document).ready(function() {
 });
 
 function onChannelOpen() {
-	// new job sent via message so much
+	// new job sent via message so must
 	// waiting for channel to open before
 	// requesting first job	
 	saveAndRequestNewJob();
@@ -270,8 +270,7 @@ function waitForJobToLoad() {
 function waitForNextJob() {
 	$("#title").html("Waiting ...");
 	$("#help").html("");
-	var taskHtml = "Please wait until more jobs become available.";
-	$("#task_area").html(taskHtml);
+	$("#task_area").html("Please wait until more jobs become available.");
 }
 
 function resultsReady() {

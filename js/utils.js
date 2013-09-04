@@ -177,6 +177,24 @@ function isFunction(func) {
 // Misc
 //===================================================
 
+function sortTuplesAscending(tuples) {		
+	tuples.sort(function(tuple1, tuple2) {
+		value1 = tuple1[1];
+		value2 = tuple2[1];
+		return value1 < value2 ? -1 : (value1 > value2 ? 1 : 0);
+	});
+	return tuples;
+}
+
+function sortTuplesDescending(tuples) {		
+	tuples.sort(function(tuple1, tuple2) {
+		value1 = tuple1[1];
+		value2 = tuple2[1];
+		return value1 > value2 ? -1 : (value1 < value2 ? 1 : 0);
+	});
+	return tuples;
+}
+
 function enableDisable(obj, enable) {
 	if (enable) {
 		obj.removeAttr("disabled");

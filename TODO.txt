@@ -25,11 +25,11 @@ Suggestions
 * Categorize: Need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
 * Categorize: Instead of pushing first cascade job to users, change gui to say ready to being categorizing 
               (and require user to request job assignment)
+* Categorize: Flag categories that are created before cascade is complete (by instructor)
                                       
 * Results: if note in multiple categories, list "also in" categories
 * Results: add "discuss" button to categories and items and show counts
 * Results: allow users to expand/collapse individual categories
-* Results: sort by category item count
 * Results: only show tag clouds when category has >= 10 notes
 * Results: consider showing categories suggested by not used
 * Results: display categories like a network where shared notes are the edges

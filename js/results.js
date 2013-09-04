@@ -16,8 +16,13 @@
 // 
 
 var SHOW_TAGCLOUDS = true;
+var MIN_TAGCLOUD_ITEM_COUNT = 8;
 var MAX_CLOUD_HEIGHT = 800;
 var OFFLINE = false;				// For offline debugging
+
+var SORT_BY_NAME = "name";
+var SORT_BY_COUNT = "count";
+var sortIndices = {};
 
 var question = null;
 var categorizedIdeas = [];
@@ -45,6 +50,10 @@ $(document).ready(function() {
 		redirectToAdminPage(question_id);
 	});
 	
+	$("#sort_by").change(function() {
+		displayIdeas();
+	});
+	
 	$("#expand_categories_cb").click(function() {
 		expandCategories = $(this).is(":checked");
 		displayIdeas();
@@ -63,7 +72,7 @@ function loadQuestion() {
 		categorizedIdeas = results.categorized;
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
-		
+		createSortIndices();
 		updateStatus();
 		
 		if (OFFLINE) {
@@ -74,6 +83,65 @@ function loadQuestion() {
 			google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': displayIdeas });
 		}
 	});
+}
+
+function sortBy(categoryGroups, sort) {	
+	sort = isDefined(sort) ? sort : "category";
+	var sortedGroups = [];
+	if (sort == "frequency") {
+		var categoryCounts = [];
+		for (var i in categoryGroups) {
+			categoryCounts.push([i, categoryGroups[i].ideas.length]);
+		}
+		
+		// sort from largest to smallest
+		categoryCounts.sort(function(group1, group2) {
+			count1 = group1[1];
+			count2 = group2[1];
+			return count1 > count2 ? -1 : (count1 < count2 ? 1 : 0);
+		});
+			
+		for (i in categoryCounts) {
+			var categoryIndex = categoryCounts[i][0];
+			sortedGroups.push(categoryGroups[categoryIndex]);
+		}
+	}
+	else {
+		var categoryNames = [];
+		for (var i in categoryGroups) {
+			categoryNames.push([i, categoryGroups[i].category]);
+		}
+		
+		categoryNames.sort(function(group1,  group2) {
+			name1 = group1[1];
+			name2 = group2[1];
+			return name1 < name2 ? -1 : (name1 > name2 ? 1 : 0);
+		});
+			
+		for (i in categoryNames) {
+			var categoryIndex = categoryNames[i][0];
+			sortedGroups.push(categoryGroups[categoryIndex]);
+		}
+	}
+	return sortedGroups;
+}
+
+function createSortIndices() {
+	var categoryTuples = [];
+	var frequencyTuples = [];
+	for (var i in categorizedIdeas) {
+		categoryTuples.push([i, categorizedIdeas[i].category]);
+		frequencyTuples.push([i, categorizedIdeas[i].ideas.length]);
+	}
+	sortTuplesAscending(categoryTuples);
+	sortTuplesDescending(frequencyTuples);
+	
+	sortIndices[SORT_BY_NAME] = [];
+	sortIndices[SORT_BY_COUNT] = [];
+	for (var i in categorizedIdeas) {
+		sortIndices[SORT_BY_NAME].push(categoryTuples[i][0]);
+		sortIndices[SORT_BY_COUNT].push(frequencyTuples[i][0]);
+	}
 }
 
 function updateStatus() {
@@ -90,7 +158,9 @@ function updateStatus() {
 
 function displayIdeas() {
 	var html = "";
-	for (var i in categorizedIdeas) {
+	var sortBy = $("#sort_by").val();
+	for (var j in sortIndices[sortBy]) {
+		var i = sortIndices[sortBy][j];
 		var category = categorizedIdeas[i].category;
 		var categoryIdeas = categorizedIdeas[i].ideas;
 		var sameAs = categorizedIdeas[i].same_as ? "Similar to: "+categorizedIdeas[i].same_as : "";
@@ -198,6 +268,13 @@ function updateStats() {
 // TODO: improve css for div.jqcloud
 function displayCloud(group, id) {
 	var div = $("#cloud"+id);
+	
+	// do not show tag clouds for groups with < MIN_TAGCLOUD_ITEM_COUNT items
+	if (group.length < MIN_TAGCLOUD_ITEM_COUNT) {
+		div.html("");
+		return;
+	}
+	
 	var height = div.parent().height();
 	if (height > MAX_CLOUD_HEIGHT) {
 		height = MAX_CLOUD_HEIGHT;

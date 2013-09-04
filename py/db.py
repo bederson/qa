@@ -721,19 +721,13 @@ class Idea(DBObject):
         categoryIdeas = []
         uncategorizedIdeas = []
         if question:
-            # sorts categories alphabetically unless sortByFrequency is true
-            # if sortByFrequency is true, return categories in order of largest to smallest
-            # TODO: add option to GUI to specify sort type
-            sortByFrequency = False
+            # group alphabetically by category name
             sql = "select {0},{1},question_ideas.created_on as idea_created_on,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
             sql += "left join question_categories on question_ideas.id=question_categories.idea_id "
-            if sortByFrequency:
-                sql += "left join (select id,category,same_as,count(*) as ct from categories,question_categories where categories.id=question_categories.category_id group by id) cat1 on question_categories.category_id=cat1.id "
-            else:
-                sql += "left join categories on question_categories.category_id=categories.id "
+            sql += "left join categories on question_categories.category_id=categories.id "
             sql += "left join users on question_ideas.user_id=users.id where "
             sql += "question_ideas.question_id=%s "
-            sql += "order by ct desc,category,idea" if sortByFrequency else "order by category,idea"
+            sql += "order by category,idea"
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
             for row in rows:

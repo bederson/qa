@@ -290,7 +290,7 @@ function createEditQuestion() {
 					$("#newq_info").html(result.msg);
 					return;
 				}
-				addQuestion(result.question);
+				addQuestion(result.question, true);
 				displayQuestionsList();
 				selectQuestion(result.question.id);
 				createQuestionForm();			
@@ -438,9 +438,15 @@ function getQuestion(question_id) {
 	return index != -1 ? questions[index] : null;
 }
 
-function addQuestion(question) {
+function addQuestion(question, addToFront) {
+	addToFront = isDefined(addToFront) ? addToFront : false;
 	question = initQuestionStats(question);
-	questions.push(question);
+	if (addToFront) {
+		questions.unshift(question);
+	}
+	else {
+		questions.push(question);
+	}
 }
 
 function initQuestionStats(question) {
