@@ -142,7 +142,7 @@ function displaySelectedQuestion() {
 	var html = "<h2 class='spacebelow'>Selected question:</h2>";
 	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
 	html += question.question + "<br/>";
-	html += "<div id='question_stats' class='small largespacebelow'>&nbsp;</div>";
+	html += "<div id='user_stats' class='small largespacebelow'>&nbsp;</div>";
 	$("#question").html(html);
 		
 	displayStats(question);
@@ -178,49 +178,52 @@ function loadStats() {
 }
 
 function displayStats(question) {
-	displayQuestionStats(question);
-	displayCascadeProgress(question);
-}
-
-function displayQuestionStats(question) {
-	var ideaCount = question.idea_count;
-	var userCount = question.user_count;
-	var activeUserCount = question.active_user_count;
-	var stats = [];
-	stats.push(ideaCount + (ideaCount!=1 ? " notes" : " note"));
-	stats.push(userCount + (userCount!=1 ? " users" : " user"));
-	stats.push(activeUserCount + (activeUserCount!=1 ? " active users" : " active user"));
-	$("#question_stats").html("("+stats.join(", ")+")");
-}
-
-function displayCascadeProgress(question) {        
-	var html = "<div class='smallspacebelow'><strong>Category Progress</strong></div>";
+	var html = "<div id='idea_count' style='font-size:24px;text-align:center'></div>";
+	html += "<div id='idea_count_label' style='font-size:11px;text-align:center' class='spacebelow'></div>";      
+	html += "<div id='category_count' style='font-size:24px;text-align:center'></div>";
+	html += "<div id='category_count_label' style='font-size:11px;text-align:center' class='spacebelow'></div>"; 
 	html += "<div style='font-size:24px;text-align:center'><span id='percent_complete'></span>%</div>";
 	html += "<div style='font-size:11px;text-align:center' class='spacebelow'>COMPLETE</div>";
-
-	if (question.idea_count > 0) {		
-		if (question.cascade_complete) {
-			html += question.cascade_stats["idea_count"] + (question.cascade_stats["idea_count"] > 1 ? "&nbsp;notes" : "&nbsp;note") + "<br/>";
-			html += question.cascade_stats["category_count"] + (question.cascade_stats["category_count"] > 1 ? "&nbsp;categories" : "&nbsp;category") + "<br/>";
-			if (question.cascade_stats["uncategorized_count"] > 0) {
-				html += question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized";
-			}
-		}
-		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%, s=" + question.cascade_s + ", t=" + question.cascade_t + "</div>";
-	}
-	else {
-		html += "<div class='note' style='text-align:center'>NO NOTES ADDED YET</div>";		
-	}
-	$("#cascade_progress").html(html);	
-	updatePercentComplete(question)
+	html += "<div id='cascade_notes'></div>";
+	$("#status").html(html);
 	
-	if (!question.cascade_complete) {
-		enableDisable($("#create_categories_button"), question.idea_count > 0);
-		$("#create_categories_button").show();
+	updateUserCount(question);
+	updateIdeaCount(question);
+	updateCategoryCount(question);
+	updateCategoryStatus(question);
+}
+
+function updateUserCount(question) {
+	var activeUserCount = question.active_user_count;
+	$("#user_stats").html("("+activeUserCount + (activeUserCount!=1 ? " active users" : " active user")+")");
+}
+
+function updateIdeaCount(question) {
+    $("#idea_count").html(question.idea_count);
+    $("#idea_count_label").html(question.idea_count != 1 ? "NOTES" : "NOTE");
+    showHideCreateCategoryButton(question);
+}
+
+function updateCategoryCount(question) {
+	var categoryCount = question.cascade_complete ? question.cascade_stats["category_count"] : 0;
+    $("#category_count").html(categoryCount);
+    $("#category_count_label").html(categoryCount != 1 ? "CATEGORIES" : "CATEGORY");
+}
+
+function updateCategoryStatus(question) {
+	updatePercentComplete(question);	
+	showHideCreateCategoryButton(question);
+
+	var html = "";
+	if (question.cascade_complete) {
+		if (question.cascade_stats["uncategorized_count"] > 0) {
+			html += "<div class='note' style='text-align:center'>" + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized</div>";
+		}
+		if (question.idea_count > 0) {
+			html += "<div class='note' style='text-align:center'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%</div>";
+		}
 	}
-	else {
-		$("#create_categories_button").hide();
-	}
+	$("#cascade_notes").html(html);	
 }
 
 function updatePercentComplete(question) {
@@ -237,6 +240,16 @@ function updatePercentComplete(question) {
     $("#percent_complete").html(percentComplete);
 }
     
+function showHideCreateCategoryButton(question) {
+	if (!question.cascade_complete) {
+		enableDisable($("#create_categories_button"), question.idea_count > 0);
+		$("#create_categories_button").show();
+	}
+	else {
+		$("#create_categories_button").hide();
+	}
+}
+
 function createEditQuestion() {
 	var title = $("#newq_title").val();
 	var questionText = $("#newq_question").val();
@@ -467,8 +480,8 @@ function isSelectedQuestion(question_id) {
 function handleIdea(data) {
 	var question = getSelectedQuestion();
 	if (question && data.idea.question_id==question.id) {
-		question.idea_count++;		
-		displayStats(question);
+		question.idea_count++;
+		updateIdeaCount(question);		
 	}
 }
 
@@ -496,7 +509,7 @@ function handleCascadeSettings(data) {
 		question.cascade_m = data.cascade_m;
 		question.cascade_s = data.cascade_s;
 		question.cascade_t = data.cascade_t;
-		displayCascadeProgress(question);
+		updateCategoryStatus(question);
 	}
 }
 
@@ -505,7 +518,7 @@ function handleResults(data) {
 	if (question && data.question_id==question.id) {
 		question.cascade_complete = 1;
 		question.cascade_stats = data.cascade_stats;
-		displayCascadeProgress(question);
+		updateCategoryStatus(question);
 		displayQuestionItem(question);
 	}
 }
@@ -517,7 +530,7 @@ function handleStudentLogin(data) {
 		if (data.is_new) {
 			question.user_count++;
 		}
-		displayStats(question);
+		updateUserCount(question);
 	}	
 }
 
@@ -525,7 +538,7 @@ function handleStudentLogout(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.active_user_count--;
-		displayStats(question);
+		updateUserCount(question);
 	}
 }
 

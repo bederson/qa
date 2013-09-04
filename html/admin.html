@@ -36,8 +36,10 @@ limitations under the License.
 
 	<div id="selected_question" style="display:none">
 	<div id="question"></div>
+	<!--
 	<div class="spacebelow"><input id="active_cb" type="checkbox" name="active_cb">Active</div>
-	<div id="cascade_progress" class="white_box small smallspacebelow" style="float:left"></div>
+	-->
+	<div id="status" class="white_box small spacebelow" style="width:150px; float:left"></div>
 	<div style="clear:both"></div>
 	<div class="largespacebelow"><input id="create_categories_button" type="button" value="Generate Categories" style="display:none"></div>
 	<div class="spacebelow">=> <a id="note_link">Add notes</a></div>
@@ -47,25 +49,15 @@ limitations under the License.
 	<h2 class="spacebelow">Create a new question:</h2>
 	<table class="padright largespacebelow">
 		<tr>
-			<td>
-				Title
-			</td>
-			<td width="100%">
-				<input id="newq_title" type="text" name="title" size="60">
-			</td>
+			<td>Title</td>
+			<td width="100%"><input id="newq_title" type="text" name="title" size="60"></td>
 		</tr>
 		<tr>
-			<td>
-				Question
-			</td>
-			<td>
-				<input id="newq_question" type="text" name="question" size="60">
-			</td>
+			<td>Question</td>
+			<td><input id="newq_question" type="text" name="question" size="60"></td>
 		</tr>
 		<tr>
-			<td valign="top">
-				Options
-			</td>
+			<td valign="top">Options</td>
 			<td class="padbottom">
 				<input id="newq_nickname_authentication" type="checkbox" name="nickname_authentication">Nickname authentication<br>
 				<span class="note">Google authentication required by default</span>

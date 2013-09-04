@@ -537,19 +537,22 @@ class DownloadQuestionHandler(BaseHandler):
             excelWriter.writerow(())
             
             stats = self.question.getQuestionStats(self.dbConnection)
-            cascadeStats = stats["cascade_stats"]                 
-             
+            cascadeStats = stats["cascade_stats"] 
+            totalDuration = cascadeStats["total_duration"]  
+            totalDurationFormatted = str(datetime.timedelta(seconds=totalDuration)) if totalDuration else "-"
+              
             # write out ideas with categories
             if self.question.cascade_complete:
                 categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
 
                 # write out stats                
-                excelWriter.writerow(("Counts",))
+                excelWriter.writerow(("Statistics",))
                 excelWriter.writerow(("# users", stats["user_count"]))
                 excelWriter.writerow(("# ideas", stats["idea_count"]))
                 excelWriter.writerow(("# categories", cascadeStats["category_count"]))
                 excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
-                excelWriter.writerow(())   
+                excelWriter.writerow(("Total duration", totalDurationFormatted, "(h:mm:ss)"))
+                excelWriter.writerow(())
                                 
                 # write out cascade parameters
                 excelWriter.writerow(("Cascade Settings",))
