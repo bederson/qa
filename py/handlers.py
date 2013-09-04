@@ -37,8 +37,6 @@ from db import *
 # Page Handlers
 #####################
 
-# TODO: no longer using taskqueue to init steps - ok or will some jobs takes to long to save/create?
-
 class BaseHandler(webapp2.RequestHandler):
     def init(self, initUser=True, adminRequired=False, initSession=True, loggingOut=False):                    
         # Get the current browser session, if any
@@ -559,6 +557,7 @@ class DownloadQuestionHandler(BaseHandler):
                 excelWriter.writerow(("k2", self.question.cascade_k2))
                 excelWriter.writerow(("m", self.question.cascade_m))
                 excelWriter.writerow(("p", self.question.cascade_p))
+                excelWriter.writerow(("s", self.question.cascade_s))
                 excelWriter.writerow(("t", self.question.cascade_t))
                 excelWriter.writerow(())                
                 
@@ -693,7 +692,9 @@ class CascadeJobHandler(BaseHandler):
             data = { "status" : 0, "msg" : self.session.pop("msg") }
              
         else:
-            # TODO: notify waiting clients that more jobs are available (if they are!)            
+            # queue the request to save and get a new cascade job
+            # (requests will timeout if not responded to within roughly 30 seconds, 
+            #  but added to a taskqueue do not have this time deadline)
             taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "job": job, "waiting": waiting })
             data = { "status" : 1 }
                 
@@ -724,7 +725,6 @@ class CascadeSaveAndGetNextJobHandler(BaseHandler):
           
             job = self.question.getCascadeJob(self.dbConnection, person)
             sendMessageToClient(clientId, { "op": "job", "question_id" : self.question.id, "job": { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None })
-            helpers.log("SEND JOB {0} TO {1}".format(job, clientId))
             
             if job and waiting:
                 Person.working(self.dbConnection, clientId)
@@ -737,11 +737,10 @@ class CancelCascadeJobHandler(BaseHandler):
         self.init()
         job = helpers.fromJson(self.request.get("job", None))
         if self.question and job:
-            count = self.question.cancelCascadeJob(self.dbConnection, job)
-            if count > 0:    
-                # TODO/FIX: only notify users who are waiting
-                # currently all users are notified and they have to check to see if any jobs available for them
-                sendMessage(self.dbConnection, None, self.question, { "op" : "morejobs" })
+            count = self.question.unassignCascadeJob(self.dbConnection, job)
+            if count > 0:
+                # notify users who are waiting that more jobs are available
+                onMoreJobs(self.question, self.dbConnection)
 
         self.writeResponseAsJson({ "status" : 1 })
         self.destroy()
@@ -757,14 +756,14 @@ class CategoryHandler(BaseHandler):
              
         else:
             stats = GenerateCascadeHierarchy(self.dbConnection, self.question)
+            self.question.unassignIncompleteCascadeJobs(self.dbConnection)
+            self.question.clearWaiting(self.dbConnection)            
             sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })          
             data = { "status" : 1, "question_id" : self.question.id, "cascade_stats" : stats }
                 
         self.writeResponseAsJson(data)
         self.destroy()
-         
-# TODO: allow teacher to continue cascade after generating categories by force
-                         
+                                  
 #####################
 # Channel support
 #####################
@@ -888,7 +887,7 @@ def onMoreJobs(question, dbConnection):
         sendMessageToClient(clientId, { "op": "morejobs", "question_id": question.id })
 
 def onCascadeSettingsChanged(question, dbConnection):
-    sendMessageToAdmin(dbConnection, question.id, { "op": "cascadesettings", "question_id": question.id, "cascade_k": question.cascade_k, "cascade_k2": question.cascade_k2, "cascade_m": "50%", "cascade_t": question.cascade_t } )
+    sendMessageToAdmin(dbConnection, question.id, { "op": "cascadesettings", "question_id": question.id, "cascade_k": question.cascade_k, "cascade_k2": question.cascade_k2, "cascade_m": "50%", "cascade_s" : question.cascade_s, "cascade_t": question.cascade_t } )
     
 def onNewCategory(question, dbConnection, category):
     sendMessageToAdmin(dbConnection, question.id, { "op": "newcategory", "question_id": question.id } )

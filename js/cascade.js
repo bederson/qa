@@ -27,14 +27,17 @@ $(document).ready(function() {
 		return;
 	}
 			
-	initChannel();	
+	initChannel(onChannelOpen);	
 	$("#page_content").show();
-	
-	// TODO / HACK - TUESDAY!
-	setTimeout(function() {
-		saveAndRequestNewJob();
-	}, 5000);
+
 });
+
+function onChannelOpen() {
+	// new job sent via message so much
+	// waiting for channel to open before
+	// requesting first job	
+	saveAndRequestNewJob();
+}
 
 function saveAndRequestNewJob(tasksToSave) {	
 	$("#loading_icon").show();
@@ -58,8 +61,9 @@ function saveAndRequestNewJob(tasksToSave) {
 	}, "json");
 }
 
-function cancelJob(redirectUrl) {
+function unloadPage(redirectUrl) {
 	redirectUrl = isDefined(redirectUrl) ? redirectUrl : null;
+	// if assigned job, cancel it before unloading page
 	if (assignedJob) {
 		var data = {
 			"client_id" : client_id,
@@ -258,7 +262,7 @@ function submitFitCategories() {
 }
 
 function waitForJobToLoad() {
-	$("#title").html("Loading ...");
+	$("#title").html("Loading next job ...");
 	$("#help").html("");
 	$("#task_area").html("<img id='loading_icon' src='images/loading.gif' />");
 }
@@ -266,7 +270,7 @@ function waitForJobToLoad() {
 function waitForNextJob() {
 	$("#title").html("Waiting ...");
 	$("#help").html("");
-	var taskHtml = "Please wait until more jobs become available. ";
+	var taskHtml = "Please wait until more jobs become available.";
 	$("#task_area").html(taskHtml);
 }
 
@@ -281,7 +285,7 @@ function initEventHandlers() {
 
 	$("#admin_button").click(function() {
 		if (logged_in) {
-			cancelJob(getAdminPageUrl(question_id));
+			unloadPage(getAdminPageUrl(question_id));
 		}
 		else {
 			redirectToAdminPage(question_id);
@@ -290,7 +294,7 @@ function initEventHandlers() {
 	
 	$(".qa_link").click(function() {
 		if (logged_in) {
-			cancelJob($(this).attr("href"));
+			unloadPage($(this).attr("href"));
 			return false;
 		}
 		else {
@@ -301,7 +305,7 @@ function initEventHandlers() {
 	// if a user closes the window/tab or browses to another url
 	// before they submit their job, notify the server
 	$(window).on('beforeunload', function() {
-		cancelJob();
+		unloadPage();
 	});
 }
 
@@ -348,5 +352,5 @@ function handleResults(data) {
 }
 
 function handleLogout(data) {
-	cancelJob(getLogoutUrl(question_id));
+	unloadPage(getLogoutUrl(question_id));
 }

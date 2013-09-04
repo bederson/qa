@@ -237,7 +237,7 @@ function displayCloud(group, id) {
 // Language and Stemming
 //=================================================================================
 
-var STOP_WORDS = [ "a", "all", "am", "an", "and", "been", "by", "for", "has", "in", "is", "or", "said", "the", "that", "was", "were", "with" ];
+var STOP_WORDS = [ "a", "all", "am", "an", "and", "are", "as", "at", "be", "been", "by", "did", "for", "from", "get", "had", "has", "he", "here", "his", "how", "if", "in", "into", "is", "it", "its", "of", "on", "only", "or", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "to", "was", "we", "went", "were", "where", "which", "who", "will", "with", "you", "your" ];
 
 function isStopWord(word) {
 	var stopWordsSet = isStopWord._stopWordsSet;

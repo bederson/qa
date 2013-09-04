@@ -18,6 +18,7 @@
 #
 import constants
 import StringIO
+from google.appengine.api import memcache
 
 def log(msg):
     import logging
@@ -59,6 +60,22 @@ def isStopWord(word):
 def intersect(a, b):
     return list(set(a) & set(b))
 
+def saveToMemcache(key, value):
+    client = memcache.Client()
+    MAX_RETRIES = 10    
+    i = 0
+    while i <= MAX_RETRIES: # Retry loop
+        keyValue = client.gets(key)
+        if keyValue is None:
+            client.add(key, value)
+            break
+        else:
+            if client.cas(key, value):
+                break
+        i += 1
+        if i > MAX_RETRIES:
+            log("WARNING: Unable to save value to memcache")
+        
 # UnicodeWriter class was taken directly from Python documentation for the csv module.
 # (c) Copyright 1990-2011, Python Software Foundation
 # Licensed under same license as Python itself.

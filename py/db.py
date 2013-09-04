@@ -22,6 +22,7 @@ import helpers
 import datetime
 import math
 import random
+import time
 from google.appengine.api import memcache
 from google.appengine.api import rdbms
 from google.appengine.api import users
@@ -136,7 +137,7 @@ class DBObject(object):
            
 class Question(DBObject):
     table = "questions"
-    fields = [ "id", "title", "question", "nickname_authentication", "user_id", "active", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_t", "cascade_complete" ]  
+    fields = [ "id", "title", "question", "nickname_authentication", "user_id", "active", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_s", "cascade_t", "cascade_complete" ]  
     onCascadeSettingsChanged = None
     onNewCategory = None
     onFitComplete = None
@@ -154,6 +155,7 @@ class Question(DBObject):
         self.cascade_k2 = 0
         self.cascade_m = 0
         self.cascade_p = 0
+        self.cascade_s = 0
         self.cascade_t = 0
         self.cascade_complete = 0
         
@@ -203,9 +205,6 @@ class Question(DBObject):
             self.update(dbConnection, { "active" : active, "id" : self.id })
     
     def setCascadeSettings(self, dbConnection):
-        # TODO: check if cascade options have been initialized yet
-        # TODO: options calculated based on # of active users so options will be *wrong* if first idea submitted before most people are logged in
-        # TODO: what happens if k adjusted as things progress?
         userCount = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)
         if userCount > 1:
             cascade_k = 2
@@ -218,6 +217,7 @@ class Question(DBObject):
             "cascade_k" : cascade_k,
             "cascade_k2" : cascade_k2,
             "cascade_p" : constants.CASCADE_P,
+            "cascade_s" : 4,
             "cascade_t" : 3,
             "id" : self.id
         }
@@ -249,16 +249,28 @@ class Question(DBObject):
             # TODO: record stop / start time (from first idea to cascade complete)
             # TODO: check how to update counts/times concurrently
             
-    def cancelCascadeJob(self, dbConnection, job):
+    def unassignCascadeJob(self, dbConnection, job):
         count = 0
         if job:
             cls = getCascadeClass(job["type"])
             for task in job["tasks"]:
                 count += cls.unassign(dbConnection, self.id, task["id"])
         return count
-        
+    
+    def unassignIncompleteCascadeJobs(self, dbConnection):
+        dbConnection.cursor.execute("update cascade_suggested_categories set user_id=null where question_id={0} and {1}".format(self.id, CascadeSuggestCategory.incompleteCondition))
+        dbConnection.cursor.execute("update cascade_best_categories set user_id=null where question_id={0} and {1}".format(self.id, CascadeBestCategory.incompleteCondition))
+        dbConnection.cursor.execute("update cascade_fit_categories_phase1 set user_id=null where question_id={0} and {1}".format(self.id, CascadeFitCategory.incompleteCondition))
+        dbConnection.conn.commit()
+    
+    def clearWaiting(self, dbConnection):
+        sql = "update user_clients,users set waiting_since=null where user_clients.user_id=users.id and question_id=%s"
+        dbConnection.cursor.execute(sql, (self.id))
+        dbConnection.conn.commit()
+                    
     def cascadeComplete(self, dbConnection):
         self.update(dbConnection, { "cascade_complete" : 1, "id" : self.id })
+        recordCascadeEndTime(self) 
         stats = self.recordCascadeStats(dbConnection)
         return stats
                         
@@ -284,9 +296,12 @@ class Question(DBObject):
             dbConnection.cursor.execute(sql, (self.id))
             row = dbConnection.cursor.fetchone()
             uncategorizedCount = row["ct"] if row else 0
+            
+            # total duration
+            totalDuration = getCascadeDuration(self)
 
-            sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s where question_id=%s"
-            dbConnection.cursor.execute(sql, (userCount, categoryCount, ideaCount, uncategorizedCount, self.id))
+            sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s, total_duration=%s where question_id=%s"
+            dbConnection.cursor.execute(sql, (userCount, categoryCount, ideaCount, uncategorizedCount, totalDuration, self.id))
             dbConnection.conn.commit()
             
             stats = {}
@@ -294,6 +309,7 @@ class Question(DBObject):
             stats["idea_count"] = ideaCount
             stats["category_count"] = categoryCount
             stats["uncategorized_count"] = uncategorizedCount
+            stats["total_duration"] = totalDuration
             return stats
    
     def recordCascadeUnsavedTask(self, dbConnection, step, unsavedCount):
@@ -328,6 +344,7 @@ class Question(DBObject):
             stats["idea_count"] = row["idea_count"] if row else 0
             stats["category_count"] = row["category_count"] if row else 0
             stats["uncategorized_count"] = row["uncategorized_count"] if row else 0
+            stats["total_duration"] = row["total_duration"] if row else 0
         else:
             stats = {}
             # category count while cascade in progress
@@ -360,7 +377,7 @@ class Question(DBObject):
         return self
     
     def deleteCascade(self, dbConnection, commit=True):
-        self.update(dbConnection, { "cascade_k" : 0, "cascade_k2" : 0, "cascade_m" : 0, "cascade_p" : 0, "cascade_t" : 0, "cascade_complete" : 0, "id" : self.id }, commit=False)
+        self.update(dbConnection, { "cascade_k" : 0, "cascade_k2" : 0, "cascade_m" : 0, "cascade_p" : 0, "cascade_s" : 0, "cascade_t" : 0, "cascade_complete" : 0, "id" : self.id }, commit=False)
         dbConnection.cursor.execute("update user_clients,users set waiting_since=null where user_clients.user_id=users.id and question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_suggested_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_best_categories where question_id={0}".format(self.id))
@@ -371,9 +388,7 @@ class Question(DBObject):
         if commit:
             dbConnection.conn.commit()
 
-        client = memcache.Client()
-        key = "cascade_item_set_{0}".format(self.id)
-        client.delete(key)
+        clearMemcache(self)
                                         
     @staticmethod
     def getById(dbConnection, questionId):
@@ -387,7 +402,7 @@ class Question(DBObject):
         questions = []
         user = users.get_current_user()
         if user:
-            sql = "select {0}, users.authenticated_user_id from questions,users where questions.user_id=users.id and authenticated_user_id=%s".format(Question.fieldsSql())
+            sql = "select {0}, users.authenticated_user_id from questions,users where questions.user_id=users.id and authenticated_user_id=%s order by last_update desc".format(Question.fieldsSql())
             dbConnection.cursor.execute(sql, (user.user_id()))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
@@ -543,7 +558,7 @@ class Person(DBObject):
         sql = "update user_clients set waiting_since=null where client_id=%s"
         dbConnection.cursor.execute(sql, (clientId))
         dbConnection.conn.commit()
-                         
+                             
     @staticmethod
     def isAdmin():
         return users.is_current_user_admin()
@@ -646,9 +661,11 @@ class Idea(DBObject):
             question.setCascadeSettings(dbConnection)
             sql = "insert into cascade_stats (question_id) values (%s)"
             dbConnection.cursor.execute(sql, (question.id))            
-            dbConnection.conn.commit()       
-        Idea.createCascadeJobs(dbConnection, question, idea)
-                         
+            dbConnection.conn.commit()   
+            recordCascadeStartTime(question) 
+
+        # create any new cascade jobs
+        Idea.createCascadeJobs(dbConnection, question, idea)                         
         return idea
      
     @staticmethod
@@ -783,12 +800,9 @@ class Idea(DBObject):
 ##### CASCADE #####
 ###################
 
-# TODO: update comments
-# BEHAVIOR: cascade jobs for step 1 are created when cascade is enabled, and for subsequent jobs whenever the previous job is completed
-# BEHAVIOR: currently any existing cascade data is deleted if cascade is disabled and then re-enabled
-# BEHAVIOR: users are restricted to unique tasks when running on GAE; >= k users required to complete cascade 
-# BEHAVIOR: users can can do as many jobs as they can when running locally, but are restricted to unique tasks on GAE
-# BEHAVIOR: introduced cascade_k2 to use for steps 3-5 (category fit tasks) since step 3/5 can be very expensive in terms of # of tasks
+# BEHAVIOR: new cascade jobs are created when new ideas are submitted submitted and existing cascade jobs are completed
+# BEHAVIOR: users are restricted to unique cascade jobs when running on GAE which means >= k users required to complete cascade 
+# BEHAVIOR: introduced cascade_k2 to use for category fit jobs since large number of fit jobs required to complete cascade
 # BEHAVIOR: categories with fewer than CASCADE_Q items removed
 # BEHAVIOR: duplicate categories merged (the % of overlapping items used to detect duplicates is defined by cascade_p)
 # BEHAVIOR: nested categories not generated
@@ -890,6 +904,7 @@ class CascadeSuggestCategory(DBObject):
             if rowsUpdated is None or rowsUpdated <= 0:
                 unsavedTasks.append(str(taskId))
             
+            # create any new cascade jobs
             CascadeSuggestCategory.createCascadeJobs(dbConnection, question, task)
 
         if len(unsavedTasks) > 0:
@@ -1030,7 +1045,8 @@ class CascadeBestCategory(DBObject):
             rowsUpdated = dbConnection.cursor.rowcount
             if rowsUpdated is None or rowsUpdated <= 0:
                 unsavedTasks.append(str(taskId))
-                
+            
+            # create any new cascade jobs
             CascadeBestCategory.createCascadeJobs(dbConnection, question, task)
                                 
         if len(unsavedTasks) > 0:
@@ -1215,7 +1231,7 @@ class CascadeFitCategory(DBObject):
                 sql += "and cascade_fit_categories_phase1.idea_id=%s "
                 sql += "and cascade_fit_categories_phase1.user_id is null "
                 sql += "and (cascade_fit_categories_phase1.idea_id,category) not in (select idea_id,category from cascade_fit_categories_phase1 where question_id=%s and user_id=%s) " if not helpers.allowDuplicateJobs() else ""
-                sql += "group by category order by rand() limit {0}".format(question.cascade_t)                    
+                sql += "group by category order by rand() limit {0}".format(question.cascade_s)                    
                 if helpers.allowDuplicateJobs():
                     dbConnection.cursor.execute(sql, (question.id, ideaId))
                 else:
@@ -1359,6 +1375,25 @@ def GenerateCascadeHierarchy(dbConnection, question):
     stats = question.cascadeComplete(dbConnection)
     return stats
 
+def clearMemcache(question):
+    client = memcache.Client() 
+    client.delete("cascade_start_time_{0}".format(question.id))
+    client.delete("cascade_end_time_{0}".format(question.id))
+    client.delete("cascade_item_set_{0}".format(question.id))
+    
+def recordCascadeStartTime(question):
+    helpers.saveToMemcache("cascade_start_time_{0}".format(question.id), datetime.datetime.now())
+    
+def recordCascadeEndTime(question):
+    helpers.saveToMemcache("cascade_end_time_{0}".format(question.id), datetime.datetime.now())
+    
+def getCascadeDuration(question):
+    client = memcache.Client()
+    startTime = client.get("cascade_start_time_{0}".format(question.id))
+    endTime = client.get("cascade_end_time_{0}".format(question.id))
+    duration = time.mktime(endTime.timetuple())-time.mktime(startTime.timetuple()) if startTime and endTime else 0
+    return duration
+
 def toggleCascadeItemSet(question):
     client = memcache.Client()
     key = "cascade_item_set_{0}".format(question.id)
@@ -1389,19 +1424,21 @@ def getCascadeClass(type):
 
 CASCADE_CLASSES = [ CascadeSuggestCategory, CascadeBestCategory, CascadeFitCategory ]
 
-# TODO: no longer using cascade_times table in db
-# TODO: no longer using  iteration_count, stepX_duration, total_duration in cascade_stats table in db
-# TODO: no longer using cascade_iteration or subsequent fileds in cascade_suggested_categories, cascade_best_categories, cascade_fit_categories_phase1
-# TODO: no longer using cascade_fit_categores_phase2 table
-# TODO: no longer using phase, cascade_iteration, cascade_step_count in questions table
-# TODO: changes to db make it harder to revert back to previous versions of QA
+# TODO / DB: no longer using the following db fields (not deleted from public database):
+#    questions: phase, cascade_iteration, cascade_step, cascade_step_count
+#    cascade_stats: iteration_count, step[1-5]_job_count, step[1-5]_duration, step[4-5]_unsaved_count
+#    cascade_times: delete table
+#    cascade_suggested_categories: cascade_iteration
+#    cascade_best_categories: cascade_iteration
+#    cascade_fit_categories_phase1: cascade_iteration, subsequent
+#    cascade_fit_categories_phase2: delete table
 
-# TODO: add getJob/saveJob to taskqueue? taskqueue.add(url="/cascade_init_step", params={ 'question_id' : self.question.id })
-# TODO: notify any waiting users when new jobs available
-# TODO: ideas may be added concurrently so its possible some might get missed or tasks duplicated when creating new cascade task as result of adding new idea?
-# TODO: cascade_m is currently 50%; better results if higher percentage?
-
+# TODO: cascade_m is currently 50%; might get better results if higher percentage used but then more jobs required; consider recording x first items to guarantee minimum cascade_m value
 # TODO: fix waiting ui on cascade page (shown between jobs); change to loading
-# TODO: consider saving dups instead of recording unsaved count
-# TODO: change best category to checkboxes?
-
+# TODO: consider saving dups instead of just recording unsaved count
+# TODO: consider changing best category to checkboxes; would require more jobs
+# TODO: remove duplicate ideas (common problem for questions w/ short answers)
+# TODO: users often must wait between cascade step 1-2 (esp. if there are not many users)
+# TODO: very small ks used; when should they be larger? use larger ks when > x students? what happens if ks adjusted as things progress? reconsider how voting threshold is calculated
+# TODO: allow teacher to continue cascade after generating categories by force
+# BEHAVIOR / BUG: options calculated based on # of active users so options will be *wrong* if first idea submitted before most people are logged in

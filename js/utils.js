@@ -20,12 +20,12 @@ var MAX_CHARS = 125; // max characters per response
 // Channels
 //===================================================
 
-function initChannel() {
+function initChannel(onCustomOpened) {
 	// console.log("initChannel - token: '" + token + "'");
 	if (token != "") {
 		channel = new goog.appengine.Channel(token);
 		socket = channel.open();
-		socket.onopen = onOpened;
+		socket.onopen = isDefined(onCustomOpened) ? onCustomOpened : onOpened;
 		socket.onmessage = onMessage;
 		socket.onerror = onError;
 		socket.onclose = onClose;

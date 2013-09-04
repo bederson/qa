@@ -206,7 +206,7 @@ function displayCascadeProgress(question) {
 				html += question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized";
 			}
 		}
-		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%, t=" + question.cascade_t + "</div>";
+		html += "<div class='note'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%, s=" + question.cascade_s + ", t=" + question.cascade_t + "</div>";
 	}
 	else {
 		html += "<div class='note' style='text-align:center'>NO NOTES ADDED YET</div>";		
@@ -494,6 +494,7 @@ function handleCascadeSettings(data) {
 		question.cascade_k = data.cascade_k;
 		question.cascade_k2 = data.cascade_k2;
 		question.cascade_m = data.cascade_m;
+		question.cascade_s = data.cascade_s;
 		question.cascade_t = data.cascade_t;
 		displayCascadeProgress(question);
 	}
