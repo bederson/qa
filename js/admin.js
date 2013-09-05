@@ -31,15 +31,8 @@ $(document).ready(function() {
 		return;
 	}
 
-	initChannel();
-	
-	if (jQuery.browser.mobile) {
-		$(".stats").hide();
-	}
+	initChannel(onChannelOpen);
 		
-	$("#page_content").show();	
-	loadQuestions();
-
 	$("#newq_button").click(function() {
 		createEditQuestion();
 	});
@@ -52,8 +45,26 @@ $(document).ready(function() {
 	$("#create_categories_button").click(function() {
 		createCategories();
 	});
-	
 });
+
+function onChannelOpen() {
+	$("#page_content").show();	
+	loadQuestions();
+}
+
+function updateQuestionUI(question_id) {
+	var index = getQuestionIndex(question_id);
+	if (index != -1) {
+		if (isSelectedQuestion(question_id)) {
+			displaySelectedQuestion();
+		}
+		displayQuestionItem(questions[index])		
+	}
+}
+
+//==============================================================
+// Question List UI
+//==============================================================
 
 function loadQuestions() {
 	$.getJSON("/query", { "request": "questions" }, function(results) {
@@ -112,236 +123,6 @@ function getQuestionItemHtml(question) {
 	return html;
 }
 
-function selectQuestion(question_id) {
-	selected_question_id = question_id;
-	if (question_id) {
-		loadStats();
-	}
-	else {
-		$("#selected_question").hide();
-	}
-}
-
-function displayQuestion(question_id) {
-	var index = getQuestionIndex(question_id);
-	if (index != -1) {
-		if (isSelectedQuestion(question_id)) {
-			displaySelectedQuestion();
-		}
-		displayQuestionItem(questions[index])		
-	}
-}
-
-function displaySelectedQuestion() {
-	var question = getSelectedQuestion();
-	if (!question) {
-		$("#selected_question").hide();
-		return;
-	}
-	
-	var html = "<h2 class='spacebelow'>Selected question:</h2>";
-	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
-	html += question.question + "<br/>";
-	html += "<div id='user_stats' class='small largespacebelow'>&nbsp;</div>";
-	$("#question").html(html);
-		
-	displayStats(question);
-	
-	$("#active_cb").prop("checked", question.active);
-	$("#note_link").attr("href", getNotesPageUrl(question.id));
-	$("#results_link").attr("href", getResultsPageUrl(question.id));
-	$("#selected_question").show();
-}
-
-function loadStats() {
-	var question = getSelectedQuestion();
-	if (!question) {
-		return;
-	}
-	
-	var data = {
-		"request": "stats",
-		"question_id": question.id
-	}
-	$.getJSON("/query", data, function(results) {
-		var question = getQuestion(results.question_id);
-		if (question) {
-			question.idea_count = results["idea_count"];
-			question.user_count = results["user_count"];
-			question.active_user_count = results["active_user_count"];
-			question.cascade_stats = results["cascade_stats"];
-			if (isSelectedQuestion(question.id)) {
-				displaySelectedQuestion(question);
-			}
-		}
-	});
-}
-
-function displayStats(question) {
-	var html = "<div id='idea_count' style='font-size:24px;text-align:center'></div>";
-	html += "<div id='idea_count_label' style='font-size:11px;text-align:center' class='spacebelow'></div>";      
-	html += "<div id='category_count' style='font-size:24px;text-align:center'></div>";
-	html += "<div id='category_count_label' style='font-size:11px;text-align:center' class='spacebelow'></div>"; 
-	html += "<div style='font-size:24px;text-align:center'><span id='percent_complete'></span>%</div>";
-	html += "<div style='font-size:11px;text-align:center' class='spacebelow'>COMPLETE</div>";
-	html += "<div id='cascade_notes'></div>";
-	$("#status").html(html);
-	
-	updateUserCount(question);
-	updateIdeaCount(question);
-	updateCategoryCount(question);
-	updateCategoryStatus(question);
-}
-
-function updateUserCount(question) {
-	var activeUserCount = question.active_user_count;
-	$("#user_stats").html("("+activeUserCount + (activeUserCount!=1 ? " active users" : " active user")+")");
-}
-
-function updateIdeaCount(question) {
-    $("#idea_count").html(question.idea_count);
-    $("#idea_count_label").html(question.idea_count != 1 ? "NOTES" : "NOTE");
-    showHideCreateCategoryButton(question);
-}
-
-function updateCategoryCount(question) {
-	var categoryCount = question.cascade_complete ? question.cascade_stats["category_count"] : 0;
-    $("#category_count").html(categoryCount);
-    $("#category_count_label").html(categoryCount != 1 ? "CATEGORIES" : "CATEGORY");
-}
-
-function updateCategoryStatus(question) {
-	updatePercentComplete(question);	
-	showHideCreateCategoryButton(question);
-
-	var html = "";
-	if (question.cascade_complete) {
-		if (question.cascade_stats["uncategorized_count"] > 0) {
-			html += "<div class='note' style='text-align:center'>" + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized</div>";
-		}
-		if (question.idea_count > 0) {
-			html += "<div class='note' style='text-align:center'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%</div>";
-		}
-	}
-	$("#cascade_notes").html(html);	
-}
-
-function updatePercentComplete(question) {
-    // calculate percentage complete
-    var percentComplete = 0;
-    if (question.cascade_complete) {
-    	percentComplete = 100;
-    }
-    else {
-    	var jobsCompleted = question.cascade_stats["completed_fit_count"];
-    	var totalJobCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
-    	percentComplete = totalJobCount > 0 ? Math.floor((jobsCompleted / totalJobCount)*100) : 0;
-    }
-    $("#percent_complete").html(percentComplete);
-}
-    
-function showHideCreateCategoryButton(question) {
-	if (!question.cascade_complete) {
-		enableDisable($("#create_categories_button"), question.idea_count > 0);
-		$("#create_categories_button").show();
-	}
-	else {
-		$("#create_categories_button").hide();
-	}
-}
-
-function createEditQuestion() {
-	var title = $("#newq_title").val();
-	var questionText = $("#newq_question").val();
-	
-	if (!title || !questionText) {
-		$("#newq_info").html("Title and question required");
-	}
-	
-	else {
-		var data = {
-			"client_id": client_id,
-			"title": title,
-			"question": questionText,
-			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
-		};
-			
-		// edit existing question
-		if (isDefined($("#newq_button").data("question_id"))) {
-			data["question_id"] = $("#newq_button").data("question_id");
-			$.post("/edit_question", data, function(result) {
-				if (result.status == 0) {
-					$("#newq_info").html(result.msg);
-					return;
-				}
-				var index = getQuestionIndex(result.question.id);
-				questions[index].title = result.question.title;
-				questions[index].question = result.question.question;
-				questions[index].nickname_authentication = result.question.nickname_authentication;
-				displayQuestion(result.question.id);
-				createQuestionForm();
-			}, "json");
-		}
-		
-		// create new question
-		else {
-			$.post("/new_question", data, function(result) {
-				if (result.status == 0) {
-					$("#newq_info").html(result.msg);
-					return;
-				}
-				addQuestion(result.question, true);
-				displayQuestionsList();
-				selectQuestion(result.question.id);
-				createQuestionForm();			
-			}, "json");
-		}
-	}
-}
-
-function createQuestionForm() {
-	$("#newq_info").html("");
-	$("#newq_title").val("");
-	$("#newq_question").val("");
-	$("#newq_nickname_authentication").prop("checked", false);
-	$("#newq_button").val("Create new question");
-	$("#newq_button").removeData("question_id");
-}
-
-function editQuestionForm(question_id) {
-	var question = getQuestion(question_id);
-	if (question) {
-		$("#newq_info").html("");
-		$("#newq_title").val(question.title);
-		$("#newq_question").val(question.question);
-		$("#newq_nickname_authentication").prop("checked", question.nickname_authentication);
-		$("#newq_button").val("Update question");
-		$("#newq_button").data("question_id", question.id);
-	}
-}
-
-function setActive(active) {
-	var question = getSelectedQuestion();
-	if (!question) {
-		return;
-	}
-	var data = {
-		"client_id": client_id,
-		"question_id": question.id,
-		"active": active
-	};
-	$.post("/set_active", data, function(result) {
-		if (result.status == 0) {
-			$("#msg").html(result.msg);
-			return;
-		}
-		
-		var index = getQuestionIndex(result.question.id);
-		questions[index].active = result.question.active;
-		displayQuestion(result.question.id);			
-	}, "json");
-}
-
 function downloadQuestion(question_id) {
 	window.location = "/download_question?question_id="+question_id+"&utc_offset_minutes="+(new Date()).getTimezoneOffset()
 }
@@ -366,10 +147,7 @@ function deleteQuestionData(question_id) {
 						question.cascade_complete = 0;
 						var index = getQuestionIndex(question_id);
 						questions[index] = question;
-						if (isSelectedQuestion(question_id)) {
-							displaySelectedQuestion();
-						}
-						displayQuestionItem(result.question);
+						updateQuestionUI(question.id);
 					}
 				}, "json");
 				$(this).dialog("close");
@@ -414,6 +192,135 @@ function deleteQuestion(question_id) {
 	});
 }
 
+//==============================================================
+// Selected Question UI
+//==============================================================
+
+function selectQuestion(question_id) {
+	selected_question_id = question_id;
+	if (selected_question_id) {
+		displaySelectedQuestion();
+	}
+	else {
+		$("#selected_question").hide();
+	}
+}
+
+function displaySelectedQuestion() {
+	var question = getSelectedQuestion();
+	if (!question) {
+		$("#selected_question").hide();
+		return;
+	}
+	
+	var html = "<h2 class='spacebelow'>Selected question:</h2>";
+	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
+	html += question.question + "<br/>";
+	html += "<div id='user_stats' class='small largespacebelow'>&nbsp;</div>";
+	$("#question").html(html);
+		
+	loadStats(question);
+	
+	$("#active_cb").prop("checked", question.active);
+	$("#note_link").attr("href", getNotesPageUrl(question.id));
+	$("#results_link").attr("href", getResultsPageUrl(question.id));
+	$("#selected_question").show();
+}
+
+function loadStats() {
+	var question = getSelectedQuestion();
+	if (!question) {
+		return;
+	}
+	
+	var data = {
+		"request": "stats",
+		"question_id": question.id
+	}
+	$.getJSON("/query", data, function(results) {
+		var question = getQuestion(results.question_id);
+		if (question) {
+			question.idea_count = results["idea_count"];
+			question.user_count = results["user_count"];
+			question.active_user_count = results["active_user_count"];
+			question.cascade_stats = results["cascade_stats"];
+			onStatsLoaded(question);
+		}
+	});
+}
+
+function onStatsLoaded(question) {
+	if (isSelectedQuestion(question.id)) {
+		displayStats(question);
+	}
+}
+
+function displayStats(question) {
+	var html = "<div id='idea_count' style='font-size:24px;text-align:center'></div>";
+	html += "<div id='idea_count_label' style='font-size:11px;text-align:center' class='spacebelow'></div>";      
+	html += "<div id='category_count' style='font-size:24px;text-align:center'></div>";
+	html += "<div id='category_count_label' style='font-size:11px;text-align:center' class='spacebelow'></div>"; 
+	html += "<div style='font-size:24px;text-align:center'><span id='percent_complete'></span>%</div>";
+	html += "<div style='font-size:11px;text-align:center' class='spacebelow'>COMPLETE</div>";
+	html += "<div id='cascade_notes'></div>";
+	$("#status").html(html);
+	
+	updateUserCount(question);
+	updateIdeaCount(question);
+	updateCategoryCount(question);
+	updateCategoryStatus(question);
+}
+
+function updateUserCount(question) {
+	var activeUserCount = question.active_user_count;
+	$("#user_stats").html("("+activeUserCount + (activeUserCount!=1 ? " active users" : " active user")+")");
+}
+
+function updateIdeaCount(question) {
+    $("#idea_count").html(question.idea_count);
+    $("#idea_count_label").html(question.idea_count != 1 ? "NOTES" : "NOTE");
+    showHideCreateCategoryButton(question);
+}
+
+function updateCategoryCount(question) {
+	var categoryCount = question.cascade_complete ? question.cascade_stats["category_count"] : 0;
+    $("#category_count").html(categoryCount);
+    $("#category_count_label").html(categoryCount != 1 ? "CATEGORIES" : "CATEGORY");
+}
+
+function updateCategoryStatus(question) {
+	updatePercentComplete(question);	
+	showHideCreateCategoryButton(question);
+
+	var html = "";
+	if (question.cascade_complete) {
+		html += "<div class='note' style='text-align:center'>";
+		html += question.cascade_stats["user_count"] + (question.cascade_stats["user_count"]==1 ? "&nbsp;user" : "&nbsp;users");
+		if (question.cascade_stats["uncategorized_count"] > 0) {
+			html += ", " + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized";
+		}
+		html += "</div>";
+	}
+	if (question.cascade_k != 0) {
+		html += "<div class='note' style='text-align:center'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%</div>";
+	}
+	$("#cascade_notes").html(html);	
+}
+
+function updatePercentComplete(question) {
+    // calculate percentage complete
+    var percentComplete = 0;
+    if (question.cascade_complete) {
+    	percentComplete = 100;
+    }
+    else {
+    	var jobsCompleted = question.cascade_stats["completed_fit_count"];
+    	var totalJobCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
+    	percentComplete = totalJobCount > 0 ? Math.floor((jobsCompleted / totalJobCount)*100) : 0;
+    }
+    $("#percent_complete").html(percentComplete);
+}
+
 function createCategories() {
 	var question = getSelectedQuestion();
 	if (!question) {
@@ -431,11 +338,142 @@ function createCategories() {
 		redirectToResultsPage(result.question_id);		
 	}, "json");
 }
+    
+function showHideCreateCategoryButton(question) {
+	if (!question.cascade_complete) {
+		enableDisable($("#create_categories_button"), question.idea_count > 0);
+		$("#create_categories_button").show();
+	}
+	else {
+		$("#create_categories_button").hide();
+	}
+}
+
+function setActive(active) {
+	var question = getSelectedQuestion();
+	if (!question) {
+		return;
+	}
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id,
+		"active": active
+	};
+	$.post("/set_active", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		
+		var index = getQuestionIndex(result.question.id);
+		questions[index].active = result.question.active;
+		updateQuestionUI(result.question.id);			
+	}, "json");
+}
+
+//==============================================================
+// Create / Edit Question Form
+//==============================================================
+
+function createEditQuestion() {
+	var title = $("#newq_title").val();
+	var questionText = $("#newq_question").val();
+	
+	if (!title || !questionText) {
+		$("#newq_info").html("Title and question required");
+	}
+	
+	else {
+		var data = {
+			"client_id": client_id,
+			"title": title,
+			"question": questionText,
+			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
+		};
+			
+		// edit existing question
+		if (isDefined($("#newq_button").data("question_id"))) {
+			data["question_id"] = $("#newq_button").data("question_id");
+			$.post("/edit_question", data, function(result) {
+				if (result.status == 0) {
+					$("#newq_info").html(result.msg);
+					return;
+				}
+				var index = getQuestionIndex(result.question.id);
+				questions[index].title = result.question.title;
+				questions[index].question = result.question.question;
+				questions[index].nickname_authentication = result.question.nickname_authentication;
+				updateQuestionUI(result.question.id);
+				createQuestionForm();
+			}, "json");
+		}
+		
+		// create new question
+		else {
+			$.post("/new_question", data, function(result) {
+				if (result.status == 0) {
+					$("#newq_info").html(result.msg);
+					return;
+				}
+				addQuestion(result.question, true);
+				displayQuestionsList();
+				selectQuestion(result.question.id);
+				createQuestionForm();			
+			}, "json");
+		}
+	}
+}
+
+function createQuestionForm() {
+	$("#newq_info").html("");
+	$("#newq_title").val("");
+	$("#newq_question").val("");
+	$("#newq_nickname_authentication").prop("checked", false);
+	$("#newq_button").val("Create new question");
+	$("#newq_button").removeData("question_id");
+}
+
+function editQuestionForm(question_id) {
+	var question = getQuestion(question_id);
+	if (question) {
+		$("#newq_info").html("");
+		$("#newq_title").val(question.title);
+		$("#newq_question").val(question.question);
+		$("#newq_nickname_authentication").prop("checked", question.nickname_authentication);
+		$("#newq_button").val("Update question");
+		$("#newq_button").data("question_id", question.id);
+	}
+}
+
+//==============================================================
+// Questions
+//==============================================================
+
+function getQuestionIndex(question_id) {
+	var index = -1;
+	if (question_id) {
+		for (var i in questions) {
+			if (questions[i].id == question_id) {
+				index = i;
+				break;
+			}
+		}
+	}
+	return index;	
+}
 
 function getQuestion(question_id) {
 	var question = null;
 	var index = getQuestionIndex(question_id);
 	return index != -1 ? questions[index] : null;
+}
+
+function getSelectedQuestion() {
+	return selected_question_id ? getQuestion(selected_question_id) : null;
+}
+
+function isSelectedQuestion(question_id) {
+	return selected_question_id && selected_question_id == question_id;
 }
 
 function addQuestion(question, addToFront) {
@@ -459,30 +497,10 @@ function initQuestionStats(question) {
 	return question;
 }
 
-function getQuestionIndex(question_id) {
-	var index = -1;
-	if (question_id) {
-		for (var i in questions) {
-			if (questions[i].id == question_id) {
-				index = i;
-				break;
-			}
-		}
-	}
-	return index;	
-}
-
-function getSelectedQuestion() {
-	return selected_question_id ? getQuestion(selected_question_id) : null;
-}
-
-function isSelectedQuestion(question_id) {
-	return selected_question_id && selected_question_id == question_id;
-}
-
-/////////////////////////
+//==============================================================
 // Channel support
-/////////////////////////
+//==============================================================
+
 function handleIdea(data) {
 	var question = getSelectedQuestion();
 	if (question && data.idea.question_id==question.id) {

@@ -230,7 +230,7 @@ function ideaAsHtml(idea) {
 	var html = "<li>";
 	html += idea.idea;
 	if (idea.also_in) {
-		html += " <span class='note'>Also in: " + idea.also_in + "</span>";
+		html += "<br/><span class='note'>Also in: " + idea.also_in + "</span>";
 	}
 	html += "<br/>";
 	html += "<span class='author'";
@@ -318,7 +318,7 @@ function displayCloud(group, id) {
 // Language and Stemming
 //=================================================================================
 
-var STOP_WORDS = [ "a", "all", "am", "an", "and", "are", "as", "at", "be", "been", "by", "did", "for", "from", "get", "had", "has", "he", "here", "his", "how", "if", "in", "into", "is", "it", "its", "of", "on", "only", "or", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "to", "was", "we", "went", "were", "where", "which", "who", "will", "with", "you", "your" ];
+var STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "here", "his", "how", "if", "in", "into", "is", "it", "its", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];
 
 function isStopWord(word) {
 	var stopWordsSet = isStopWord._stopWordsSet;
