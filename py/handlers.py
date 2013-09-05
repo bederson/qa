@@ -437,7 +437,7 @@ class QueryHandler(BaseHandler):
             elif request == "ideas" and self.question:
                 groupBy = self.request.get("group_by", None)
                 if groupBy == "category":
-                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True)
+                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, asDict=True, includeAlsoIn=True)
                     data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }
                 else:
                     ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)

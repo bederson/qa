@@ -714,12 +714,14 @@ class Idea(DBObject):
         return ideas
         
     @staticmethod
-    def getByCategories(dbConnection, question, asDict=False, includeCreatedOn=False):
+    def getByCategories(dbConnection, question, asDict=False, includeCreatedOn=False, includeAlsoIn=False):
         ideaIds = []
         categorizedIdeas = []
         category = None
         categoryIdeas = []
         uncategorizedIdeas = []
+        allIdeaCategories = {}
+        
         if question:
             # group alphabetically by category name
             sql = "select {0},{1},question_ideas.created_on as idea_created_on,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
@@ -763,9 +765,23 @@ class Idea(DBObject):
                     uncategorizedIdeas.append(idea)
         
                 ideaIds.append(ideaId)
-                           
+                
+                if includeAlsoIn:
+                    if ideaId not in allIdeaCategories:
+                        allIdeaCategories[ideaId] = []
+                    allIdeaCategories[ideaId].append(ideaCategory)
+                                               
             if len(categoryIdeas) > 0:
                 categorizedIdeas.append({ "category" : category, "same_as" : sameAs, "ideas" : categoryIdeas })
+               
+        if includeAlsoIn:
+            for i, group in enumerate(categorizedIdeas):
+                for j, idea in enumerate(group["ideas"]):
+                    ideaId = idea["id"]
+                    if len(allIdeaCategories[ideaId]) > 0:
+                        listCopy = allIdeaCategories[ideaId][:]
+                        listCopy.remove(group["category"])
+                        categorizedIdeas[i]["ideas"][j]["also_in"] = ", ".join(listCopy)
                 
         return categorizedIdeas, uncategorizedIdeas, len(set(ideaIds))
     
@@ -1290,7 +1306,6 @@ def GenerateCascadeHierarchy(dbConnection, question):
     categories = {}
     ideas = {}
 
-    # if step 4 skipped, check for any categories that passed step 3 (this includes any subsequent items)      
     sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories_phase1,question_ideas where "
     sql += "cascade_fit_categories_phase1.idea_id=question_ideas.id "
     sql += "and cascade_fit_categories_phase1.question_id=%s "
@@ -1309,7 +1324,7 @@ def GenerateCascadeHierarchy(dbConnection, question):
             categories[category] = []
         categories[category].append(ideaId)
         ideas[ideaId] = idea
-    
+            
     # remove any categories with less than q items
     categoriesToRemove = []
     for category in categories:
@@ -1363,7 +1378,7 @@ def GenerateCascadeHierarchy(dbConnection, question):
         for ideaId in ideaIds:
             sql = "insert into question_categories (question_id, idea_id, category_id) values(%s, %s, %s)"
             dbConnection.cursor.execute(sql, (question.id, ideaId, categoryId))
-
+                    
     dbConnection.conn.commit()
     
     stats = question.cascadeComplete(dbConnection)

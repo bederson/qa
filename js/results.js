@@ -16,7 +16,7 @@
 // 
 
 var SHOW_TAGCLOUDS = true;
-var MIN_TAGCLOUD_ITEM_COUNT = 8;
+var MIN_TAGCLOUD_ITEM_COUNT = 7;
 var MAX_CLOUD_HEIGHT = 800;
 var OFFLINE = false;				// For offline debugging
 
@@ -228,7 +228,11 @@ function addIdea(idea) {
 
 function ideaAsHtml(idea) {
 	var html = "<li>";
-	html += idea.idea + "<br/>";
+	html += idea.idea;
+	if (idea.also_in) {
+		html += " <span class='note'>Also in: " + idea.also_in + "</span>";
+	}
+	html += "<br/>";
 	html += "<span class='author'";
 	var realIdentity = isDefined(idea.author_identity) ? idea.author_identity : "";
 	var isIdentityHidden = realIdentity != "" && realIdentity != idea.author;
