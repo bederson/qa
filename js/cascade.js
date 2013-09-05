@@ -26,10 +26,9 @@ $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
 	}
-			
+		
 	initChannel(onChannelOpen);	
 	$("#page_content").show();
-
 });
 
 function onChannelOpen() {
@@ -39,9 +38,7 @@ function onChannelOpen() {
 	saveAndRequestNewJob();
 }
 
-function saveAndRequestNewJob(tasksToSave) {	
-	$("#loading_icon").show();
-
+function saveAndRequestNewJob(tasksToSave) {
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id,
@@ -55,6 +52,7 @@ function saveAndRequestNewJob(tasksToSave) {
 	}
 
 	loading = true;
+	waitForJobToLoad();
 	$.post("/cascade_job", data, function(results) {
 		// new job (if any) sent via "job" message
 		$("#warning").html(results.status == 0 ? result.msg : "");

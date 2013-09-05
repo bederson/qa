@@ -30,9 +30,14 @@ $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
 	}
-
+	
 	initChannel(onChannelOpen);
-		
+	$("#page_content").show();
+});
+
+function onChannelOpen() {
+	loadQuestions();
+	
 	$("#newq_button").click(function() {
 		createEditQuestion();
 	});
@@ -45,11 +50,6 @@ $(document).ready(function() {
 	$("#create_categories_button").click(function() {
 		createCategories();
 	});
-});
-
-function onChannelOpen() {
-	$("#page_content").show();	
-	loadQuestions();
 }
 
 function updateQuestionUI(question_id) {

@@ -15,30 +15,13 @@
 // limitations under the License.
 //
 
-$(function() {	
+$(function() {
+	enableDisable($("#admin_button"), logged_in);
+	initEventHandlers();
+	
 	if (!logged_in) {
-		enableDisable($("#admin_button"), false);
 		$("#admin_help").show();
 	}
-	else {
-		initChannel();
-	}
-	
-	$("#code_box").on("keydown", function(evt) {
-		if (evt.keyCode == 13) {		// Return key
-			loginToQuestion();
-		}
-	});
-	
-	$("#go_button").click(function() {
-		loginToQuestion();
-	});
-
-	$("#admin_button").click(function() {
-		redirectToAdminPage();
-	});
-	
-	$("#code_box").focus();
 });
 
 function loginToQuestion() {
@@ -69,6 +52,27 @@ function loginToQuestion() {
 function showInfoMessage(msg) {
 	$("#info").html(msg);
 	$("#info").show();
+}
+
+function initEventHandlers() {
+	// called when page is first loaded
+	// do not add any event handlers for objects that are created/destroyed dynamically
+	
+	$("#code_box").on("keydown", function(evt) {
+		if (evt.keyCode == 13) {	// Return key
+			loginToQuestion();
+		}
+	});
+	
+	$("#go_button").click(function() {
+		loginToQuestion();
+	});
+
+	$("#admin_button").click(function() {
+		redirectToAdminPage();
+	});
+	
+	$("#code_box").focus();
 }
 
 /////////////////////////

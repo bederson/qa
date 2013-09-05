@@ -907,13 +907,13 @@ Question.onFitComplete = onFitComplete
 # URL routines
 #####################
 
-def getLoginUrl(page=None, question=None):
-    url = users.create_login_url("/login?page=" + page) if page else ""
+def getLoginUrl(page, question=None):
+    url = users.create_login_url("/login" + ("?page=" + page if page else getHomePageUrl()))
     if question:
         if question.nickname_authentication:
             url = "/nickname_page?question_id=" + str(question.id)            
         else:
-            url = users.create_login_url("/login?page=" + getIdeaPageUrl(question) + ("&question_id="+str(question.id) if question else ""))
+            url = users.create_login_url("/login?page=" + page if page else getIdeaPageUrl(question) + ("&question_id="+str(question.id) if question else ""))
     return url
 
 def getLogoutUrl(question=None):

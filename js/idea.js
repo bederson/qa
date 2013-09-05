@@ -21,22 +21,25 @@ var ideas = [];
 $(function() {	
 	onResize();
 	initEventHandlers();
-	
+		
 	if ($("#msg").html()) {
 		disableUI();
 		return;
 	}
 	
+	initChannel(onChannelOpen);
+});
+
+function onChannelOpen() {
 	var isCascadeComplete = isDefined(cascade_complete) && cascade_complete == 1;
 	if (isCascadeComplete) {
 		$("#msg").html("This question is complete. <a class='warning' href='"+getResultsPageUrl(question_id)+"'>View results</a>");
 		disableUI();
-		return;
+	}	
+	else {
+		updateUI();
 	}
-	
-	initChannel();
-	updateUI();
-});
+}
 
 function updateUI(enable) {
 	var isActive = isDefined(enable) ? enable : (isDefined(active) && active == 1);
@@ -193,6 +196,9 @@ function displayNewIdea(idea) {
 }
 
 function initEventHandlers() {
+	// called when page is first loaded
+	// do not add any event handlers for objects that are created/destroyed dynamically
+	
 	$(window).resize(function() {
 		onResize();
 	});

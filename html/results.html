@@ -37,8 +37,11 @@ limitations under the License.
 	</div>
 	<div style="clear:both"></div>	
 	{% endif %}	
+	{% if not admin %}
+	<br/>
+	{% endif %}
 	<h1>Results</h1>
-	<div id="msg" class="warning spacebelow">{{ msg }}</div>
+	<div id="msg" class="warning spacebelow" style="text-align:center">{{ msg }}</div>
 	<div id="page_content" style="display:none">
 	<hr>
 	<div class="spacebelow">

@@ -36,9 +36,11 @@ $(document).ready(function() {
 		return;
 	}
 
-	initChannel();
-		
+	initChannel(onChannelOpen);
 	$("#page_content").show();
+});
+
+function onChannelOpen() {
 	loadQuestion();
 	
 	if (!jQuery.browser.mobile) {
@@ -58,7 +60,7 @@ $(document).ready(function() {
 		expandCategories = $(this).is(":checked");
 		displayIdeas();
 	});
-});
+}
 
 function loadQuestion() {	
 	var question_id = getURLParameter("question_id");

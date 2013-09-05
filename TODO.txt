@@ -4,6 +4,7 @@ GAE Deployment
 * download and install gsutil to make importing data easier:
   https://developers.google.com/cloud-sql/docs/import_export#migrate
 * create Google Cloud SQL database user to use instead of root
+* GAE taskqueue very slow sometimes; check status at https://code.google.com/status/appengine
   
 Suggestions
 * Login: make login process easier
@@ -19,6 +20,8 @@ Suggestions
 * Categorize: flag questions whose categories are created before cascade is complete (by instructor)
 * Categorize: allow users to cancel all jobs (how to distinguish between cancelled jobs that are re-assigned and skipped jobs that are recorded)
 * Categorize: check if job that is holding things up can be assigned to another user (might get more than k/k2 results)
+* Categorize: consider unassigning jobs that a user has not finished in some period of time (warn user)
+* Categorize: should never wait if only 1 user; if so then user has hit a deadend (e.g., no categories available to fit tasks)
                                       
 * Results: add "discuss" button to categories and items and show counts
 * Results: allow users to expand/collapse individual categories
