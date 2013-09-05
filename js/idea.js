@@ -82,16 +82,16 @@ function submitIdea() {
 		"question_id": question_id
 	};
 	$.post("/new_idea", data, function(result) {
-		$("#loading_icon").hide();
 		enableDisable($("#submit"), true);
 		if (result.status == 0) {
 			$("#msg").html(result.msg);
 			return;
 		}
-		$("#thankyou").show();
 		$("#answer").val("");
 		$("#answer").focus();
 		updateRemainingChars();
+		$("#loading_icon").hide();
+		$("#thankyou").show();
 	}, "json");
 }
 		
@@ -112,7 +112,7 @@ function displayNicknameArea(editableNickname) {
 	html += editableNickname ? '<input id="nickname" value="' + user_nickname + '"> ' : user_nickname + ' ';
 	html += '<input id="' + submitId + '" type="submit" value="Change">';
 	html += '<div class="help">';
-	html += 'Nickname displayed with all your entries for this question';
+	html += 'Your nickname will be displayed with your responses';
 	html += '<div id="nickname_msg" class="warning"></div>';
 	html += '</div>';
 	$("#nickname_area").html(html);

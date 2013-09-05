@@ -875,13 +875,12 @@ class CascadeSuggestCategory(DBObject):
             sql += "and cascade_suggested_categories.user_id is null "
             sql += "and idea_id not in (select distinct idea_id from cascade_suggested_categories where question_id=%s and user_id=%s) " if not helpers.allowDuplicateJobs() else ""
             sql += "group by idea_id order by rand() limit {0} ".format(question.cascade_t)
-
             if helpers.allowDuplicateJobs():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
                 dbConnection.cursor.execute(sql, (question.id, question.id, person.id))
+                                
             rows = dbConnection.cursor.fetchall()
-
             for row in rows:
                 task = CascadeSuggestCategory.createFromData(row)
                 task.assignTo(dbConnection, person, commit=False)
@@ -926,24 +925,30 @@ class CascadeSuggestCategory(DBObject):
         # create CascadeBestCategory jobs for task idea if CascadeSuggestCategory job complete
         moreJobs = False
         if question.cascade_k > 1:
-            sql = "select idea_id, count(*) as ct from cascade_suggested_categories where question_id=%s and cascade_suggested_categories.idea_id=(select idea_id from cascade_suggested_categories where id=%s) and {0}".format(CascadeSuggestCategory.completeCondition)
+            sql = "select idea_id, suggested_category from cascade_suggested_categories where question_id=%s and cascade_suggested_categories.idea_id=(select idea_id from cascade_suggested_categories where id=%s) and {0}".format(CascadeSuggestCategory.completeCondition)
             dbConnection.cursor.execute(sql, (question.id, task["id"]))
-            row = dbConnection.cursor.fetchone()
-            if row["ct"] >= question.cascade_k:
+            rows = dbConnection.cursor.fetchall()
+            
+            # make sure at least one category was suggested (could have just skipped them all)
+            atLeastOneSuggestedCategory = False
+            for row in rows:
+                if row["suggested_category"]:
+                    atLeastOneSuggestedCategory = True
+                    break
+                
+            if len(rows) >= question.cascade_k and atLeastOneSuggestedCategory:
                 CascadeBestCategory.create(dbConnection, question, row["idea_id"])
                 moreJobs = True
-        else:
+                
+        elif task["suggested_category"]:
             CascadeBestCategory.create(dbConnection, question, task["idea_id"])
             moreJobs = True
             
         if moreJobs and Question.onMoreJobs:
             question.onMoreJobs(dbConnection)
                 
-    def assignTo(self, dbConnection, person, commit=True):   
-        sql = "update cascade_suggested_categories set user_id=%s where id=%s"
-        dbConnection.cursor.execute(sql, (person.id, self.id))
-        if commit:
-            dbConnection.conn.commit()
+    def assignTo(self, dbConnection, person, commit=True):  
+        self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
 
     @staticmethod
     def unassign(dbConnection, questionId, taskId):
@@ -995,7 +1000,7 @@ class CascadeBestCategory(DBObject):
         return task
 
     @staticmethod
-    def getJob(dbConnection, question, person):     
+    def getJob(dbConnection, question, person): 
         tasks = []
         # check if job already assigned
         sql = "select * from cascade_best_categories where "
@@ -1007,7 +1012,7 @@ class CascadeBestCategory(DBObject):
         for row in rows:
             task = CascadeBestCategory.createFromData(row, dbConnection)
             tasks.append(task)
-             
+                     
         # if not, assign new tasks
         # do not check if user already performed task on idea when running locally
         if len(tasks) == 0:
@@ -1103,10 +1108,7 @@ class CascadeBestCategory(DBObject):
             question.onMoreJobs(dbConnection)
             
     def assignTo(self, dbConnection, person, commit=True):
-        sql = "update cascade_best_categories set user_id=%s where id=%s"
-        dbConnection.cursor.execute(sql, (person.id, self.id))
-        if commit:
-            dbConnection.conn.commit()
+        self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
     
     @staticmethod
     def unassign(dbConnection, questionId, taskId):
@@ -1282,10 +1284,7 @@ class CascadeFitCategory(DBObject):
             GenerateCascadeHierarchy(dbConnection, question)
     
     def assignTo(self, dbConnection, person, commit=True):
-        sql = "update cascade_fit_categories_phase1 set user_id=%s where id=%s"
-        dbConnection.cursor.execute(sql, (person.id, self.id))
-        if commit:
-            dbConnection.conn.commit()
+        self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
     
     @staticmethod
     def unassign(dbConnection, questionId, taskId):

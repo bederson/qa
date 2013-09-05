@@ -7,30 +7,19 @@ GAE Deployment
   
 Suggestions
 * Login: make login process easier
-* Login: add note when you login that your name/id will be displayed
 * Login: authenticated_user_id will always stay the same but authenticated_nickname can change
          check and update if needed when user logs in
 
 * Notes: consider asking users to suggest categories when ideas created
-* Notes: add done button to note entry and notify instructor
-         (implemented but not stored so if admin refreshes admin page or browses away count will be lost)
-         (if student refreshes page and starts adding more notes, admin not notified)
 * Notes: inform users how many ideas have been contributed so far
 
-* Categorize: change waiting text to something like "Done - wait until others are finished"; hide step x of y text
-* Categorize: word "task" confusing
-* Categorize: add question outside white box
 * Categorize: use stemming when comparing categories for equality
-* Categorize: consider when it would speed things up to check for duplicate categories/ideas before step 3
 * Categorize: remove/merge any duplicate ideas before starting cascade
 * Categorize: need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
-* Categorize: instead of pushing first cascade job to users, change gui to say ready to being categorizing 
-              (and require user to request job assignment)
-* Categorize: flag categories that are created before cascade is complete (by instructor)
+* Categorize: flag questions whose categories are created before cascade is complete (by instructor)
 * Categorize: allow users to cancel all jobs (how to distinguish between cancelled jobs that are re-assigned and skipped jobs that are recorded)
 * Categorize: check if job that is holding things up can be assigned to another user (might get more than k/k2 results)
                                       
-* Results: if note in multiple categories, list "also in" categories
 * Results: add "discuss" button to categories and items and show counts
 * Results: allow users to expand/collapse individual categories
 * Results: consider showing categories suggested but not used
@@ -43,19 +32,17 @@ Suggestions
 * Admin: Allow question author to release incomplete cascade assignments after some period of inactivity
 * Admin: add option to hide names completely for a question
 * Admin: Allow admins to logout students
-* Admin: Suggest cascade settings based on # of users, etc.
+* Admin: Improve how cascade settings and voting thresholds are calculated
 * Admin: Need better way to create unique question id
-* Admin: Do not allow Cascade to be enabled until notes exist
 
-* Misc: Need consistent terminology (e.g., submission/note/response/idea, person/user/author)
+* Misc: Need consistent terminology (e.g., submission/note/response/idea, person/user/author/instructor/admin)
 * Misc: Create/check database indexes
 * Misc: Destroy channels after some specified period (or does that happen automatically?)
-* Misc: Consider what can be stored in datastore and/or memcache to improve performance (categories, etc.)
+* Misc: Consider what can be stored in datastore and/or memcache to improve performance
 * Misc: Need to better understand what reasonable defaults should be set in queue.yaml
 * Misc: Reduce usage of Google Cloud Sql where possible to reduce cost
 * Misc: Design GUI to work on mobile devices
 * Misc: Reduce page reloads to reduce unnecessary server calls and # of channels created
-* Misc: Notify active users when question disabled or deleted
 * Misc: Create cronjob to clean up any users who have been logged in for a long time (remember to unassign jobs)
         Consider what needs to be done when channels expire
 * Misc: Consider whether or not to delete tmp cascade data once categories have been generated 
@@ -85,7 +72,6 @@ Testing
 
 Design Issues
 * General tension between student individual focus and how much they see of collective activity
-* What are implications of having students wait until others finish before moving to next step
 * Is it better to make users explicitly select Y or N for category fit tasks or is it ok to default to N to reduce clicks
 
 Google Cloud SQL

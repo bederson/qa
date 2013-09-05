@@ -146,13 +146,12 @@ function createSortIndices() {
 
 function updateStatus() {
 	$("#inactive").html(!question.active ? "INACTIVE" : "");
-	if (!question.active) {
-		$("#idea_link_area").hide();
-		$("#cascade_link_area").hide();
+	if (question.active && !question.cascade_complete) {
+		$("#idea_link").attr("href", getNotesPageUrl(question.id));
+		$("#idea_link_area").show();
 	}
-	if (question.cascade_complete) {
+	else {
 		$("#idea_link_area").hide();
-		$("#cascade_link_area").hide();		
 	}
 }
 
