@@ -28,15 +28,16 @@ Suggestions
 * Results: consider showing categories suggested but not used
 * Results: display categories like a network where shared notes are the edges
 * Results: use Whiz to display results
-* Results: When should singletons be removed or included in results
-* Results: Create hierarchical categories (look at results of #89507 on qa-umd.appspot.com)
-* Results: Make word clouds clickable (show ideas & categories where word appears)
+* Results: when should singletons be removed or included in results
+* Results: create hierarchical categories (look at results of #89507 on qa-umd.appspot.com)
+* Results: make word clouds clickable (show ideas & categories where word appears)
 
-* Admin: Allow question author to release incomplete cascade assignments after some period of inactivity
+* Admin: allow question author to release incomplete cascade assignments after some period of inactivity
 * Admin: add option to hide names completely for a question
-* Admin: Allow admins to logout students
-* Admin: Improve how cascade settings and voting thresholds are calculated
-* Admin: Need better way to create unique question id
+* Admin: allow admins to logout students
+* Admin: improve how cascade settings and voting thresholds are calculated
+* Admin: need better way to create unique question id
+* Admin: if multiple admin pages open, update messaages not sent for delete question, delete data, etc.
 
 * Misc: Need consistent terminology (e.g., submission/note/response/idea, person/user/author/instructor/admin)
 * Misc: Create/check database indexes
