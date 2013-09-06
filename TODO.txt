@@ -22,6 +22,7 @@ Suggestions
 * Categorize: check if job that is holding things up can be assigned to another user (might get more than k/k2 results)
 * Categorize: consider unassigning jobs that a user has not finished in some period of time (warn user)
 * Categorize: should never wait if only 1 user; if so then user has hit a deadend (e.g., no categories available to fit tasks)
+* Categorize: skip best category tasks if k=1
                                       
 * Results: add "discuss" button to categories and items and show counts
 * Results: allow users to expand/collapse individual categories
