@@ -25,9 +25,11 @@ var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
 var sortIndices = {};
 
+var DISPLAY_NESTED_CATEGORIES = true;
+var subcategories = [];
+
 var question = null;
 var categorizedIdeas = [];
-var subcategories = [];
 var uncategorizedIdeas = [];
 var numIdeas = 0;
 var expandCategories = true;
@@ -78,14 +80,16 @@ function loadQuestion() {
 		numIdeas = results.count;
 		
 		// flag subcategories
-		subcategories = [];
-		for (var i in categorizedIdeas) {
-			subcategoriesForCategory = categorizedIdeas[i].subcategories;
-			for (var j in subcategoriesForCategory) {
-				var subcategory = subcategoriesForCategory[j];
-				if ($.inArray(subcategory, subcategories) == -1) {
-					subcategories.push(subcategory);
-				} 
+		if (DISPLAY_NESTED_CATEGORIES) {
+			subcategories = [];
+			for (var i in categorizedIdeas) {
+				subcategoriesForCategory = categorizedIdeas[i].subcategories;
+				for (var j in subcategoriesForCategory) {
+					var subcategory = subcategoriesForCategory[j];
+					if ($.inArray(subcategory, subcategories) == -1) {
+						subcategories.push(subcategory);
+					} 
+				}
 			}
 		}
 		
@@ -147,7 +151,7 @@ function createSortIndices() {
 	var categoryTuples = [];
 	var frequencyTuples = [];
 	for (var i in categorizedIdeas) {
-		var isSubcategory = $.inArray(categorizedIdeas[i].category, subcategories) != -1;
+		var isSubcategory = DISPLAY_NESTED_CATEGORIES && $.inArray(categorizedIdeas[i].category, subcategories) != -1;
 		if (!isSubcategory) {
 			categoryTuples.push([i, categorizedIdeas[i].category]);
 			frequencyTuples.push([i, categorizedIdeas[i].ideas.length]);
@@ -207,7 +211,7 @@ function displayIdeas() {
 			var j = sortIndices[sortBy][i];
 			var category = categorizedIdeas[j].category;
 			var ideas = categorizedIdeas[j].ideas;
-			var isSubcategory = $.inArray(category, subcategories) != -1;
+			var isSubcategory = DISPLAY_NESTED_CATEGORIES && $.inArray(category, subcategories) != -1;
 			if (!isSubcategory) {
 				displayCloud(ideas, i+1);
 			}
@@ -233,7 +237,7 @@ function categoryGroupAsHtml(categoryGroup, id, showExpanded) {
 		skip = false;
 		var idea = ideas[i];
 		var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
-		if (alsoIn.length > 0 && subcategories.length > 0) {
+		if (DISPLAY_NESTED_CATEGORIES && alsoIn.length > 0 && subcategories.length > 0) {
 			isIdeaInSubcategory = intersection(alsoIn, subcategories).length > 0;
 			skip = isIdeaInSubcategory;
 		}
@@ -244,22 +248,24 @@ function categoryGroupAsHtml(categoryGroup, id, showExpanded) {
 	}
 	
 	var subcategoryHtml = "";	
-	for (var i in subcategories) {
-		var subcategoryGroup = getCategory(subcategories[i]);
-		var subcategory = subcategoryGroup.category;
-		var subcategoryIdeas = subcategoryGroup.ideas;
-		var subcategorySameAs = subcategoryGroup.same_as ? "Similar to: "+subcategoryGroup.same_as : "";
-		subcategoryHtml += "<li>";
-		subcategoryHtml += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>("+subcategoryIdeas.length+") " + subcategorySameAs + "</span><br/>";		
-		if (showExpanded) {
-			subcategoryHtml += "<ul class='subcategory_list'>";
-			for (var j in subcategoryGroup.ideas) {
-				var subcategoryIdea = subcategoryIdeas[j];
-				subcategoryHtml += ideaAsHtml(subcategoryIdea, category);
+	if (DISPLAY_NESTED_CATEGORIES) {
+		for (var i in subcategories) {
+			var subcategoryGroup = getCategory(subcategories[i]);
+			var subcategory = subcategoryGroup.category;
+			var subcategoryIdeas = subcategoryGroup.ideas;
+			var subcategorySameAs = subcategoryGroup.same_as ? "Similar to: "+subcategoryGroup.same_as : "";
+			subcategoryHtml += "<li>";
+			subcategoryHtml += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>("+subcategoryIdeas.length+") " + subcategorySameAs + "</span><br/>";		
+			if (showExpanded) {
+				subcategoryHtml += "<ul class='subcategory_list'>";
+				for (var j in subcategoryGroup.ideas) {
+					var subcategoryIdea = subcategoryIdeas[j];
+					subcategoryHtml += ideaAsHtml(subcategoryIdea, category);
+				}
+				subcategoryHtml += "</ul>";
 			}
-			subcategoryHtml += "</ul>";
+			subcategoryHtml += "</li>";
 		}
-		subcategoryHtml += "</li>";
 	}
 	
 	var html = "<table style='width: 100%'><tr>";
