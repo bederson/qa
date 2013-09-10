@@ -1,6 +1,7 @@
 ENABLE_DEBUG_LOGGING = True
 USE_LOCAL_DATABASE_WHEN_RUNNING_LOCALLY = True # Does not work to use Google SQL instance when running locally yet
 ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = False
+FIND_SUBCATEGORIES = True
 
 # Database
 CLOUDSQL_INSTANCE = "qa-umd-test:qadb"

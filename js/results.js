@@ -15,10 +15,11 @@
 // limitations under the License.
 // 
 
+var OFFLINE = false;				// For offline debugging
+
 var SHOW_TAGCLOUDS = true;
 var MIN_TAGCLOUD_ITEM_COUNT = 7;
 var MAX_CLOUD_HEIGHT = 800;
-var OFFLINE = false;				// For offline debugging
 
 var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
@@ -26,6 +27,7 @@ var sortIndices = {};
 
 var question = null;
 var categorizedIdeas = [];
+var subcategories = [];
 var uncategorizedIdeas = [];
 var numIdeas = 0;
 var expandCategories = true;
@@ -74,6 +76,19 @@ function loadQuestion() {
 		categorizedIdeas = results.categorized;
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
+		
+		// flag subcategories
+		subcategories = [];
+		for (var i in categorizedIdeas) {
+			subcategoriesForCategory = categorizedIdeas[i].subcategories;
+			for (var j in subcategoriesForCategory) {
+				var subcategory = subcategoriesForCategory[j];
+				if ($.inArray(subcategory, subcategories) == -1) {
+					subcategories.push(subcategory);
+				} 
+			}
+		}
+		
 		createSortIndices();
 		updateStatus();
 		
@@ -132,15 +147,18 @@ function createSortIndices() {
 	var categoryTuples = [];
 	var frequencyTuples = [];
 	for (var i in categorizedIdeas) {
-		categoryTuples.push([i, categorizedIdeas[i].category]);
-		frequencyTuples.push([i, categorizedIdeas[i].ideas.length]);
+		var isSubcategory = $.inArray(categorizedIdeas[i].category, subcategories) != -1;
+		if (!isSubcategory) {
+			categoryTuples.push([i, categorizedIdeas[i].category]);
+			frequencyTuples.push([i, categorizedIdeas[i].ideas.length]);
+		}
 	}
 	sortTuplesAscending(categoryTuples);
 	sortTuplesDescending(frequencyTuples);
 	
 	sortIndices[SORT_BY_NAME] = [];
 	sortIndices[SORT_BY_COUNT] = [];
-	for (var i in categorizedIdeas) {
+	for (var i in categoryTuples) {
 		sortIndices[SORT_BY_NAME].push(categoryTuples[i][0]);
 		sortIndices[SORT_BY_COUNT].push(frequencyTuples[i][0]);
 	}
@@ -162,25 +180,21 @@ function displayIdeas() {
 	var sortBy = $("#sort_by").val();
 	for (var j in sortIndices[sortBy]) {
 		var i = sortIndices[sortBy][j];
-		var category = categorizedIdeas[i].category;
-		var categoryIdeas = categorizedIdeas[i].ideas;
-		var sameAs = categorizedIdeas[i].same_as ? "Similar to: "+categorizedIdeas[i].same_as : "";
-		html += "<strong>" + category + "</strong> <span class='note'>("+categoryIdeas.length+") " + sameAs + "</span><br/>";
-		if (expandCategories) {
-			html += ideaGroupAsHtml(categoryIdeas, i+1);
-		}
+		html += categoryGroupAsHtml(categorizedIdeas[i], i+1, expandCategories);
 	}
 	
 	if (uncategorizedIdeas.length > 0) {
-		if (question.cascade_complete) {
-			html += "<strong>NONE</strong> <span class='note'>("+uncategorizedIdeas.length+")</span><br/>";
-		}
-		if (expandCategories) {
-			html += ideaGroupAsHtml(uncategorizedIdeas, categorizedIdeas.length+1);
-		}
+		html += categoryGroupAsHtml({ category: "NONE", ideas: uncategorizedIdeas }, categorizedIdeas.length+1, expandCategories);
 	}
 	
-	$("#ideas").html(html);
+	var newIdeaHtml = "<table style='width:100%'>";
+	newIdeaHtml += "<tr>";
+	newIdeaHtml += "<td style='width:50%'>";
+	newIdeaHtml += "<ul id='new_ideas'></ul>";
+	newIdeaHtml += "</td>";
+	newIdeaHtml += "</tr>";
+	newIdeaHtml += "</table>";
+	$("#ideas").html(newIdeaHtml + html);
 	updateStats();
 	
 	if (categorizedIdeas.length>0) {
@@ -189,8 +203,14 @@ function displayIdeas() {
 		
 	// BEHAVIOR: only display tag clouds when cascade is complete
 	if (SHOW_TAGCLOUDS && question.cascade_complete && !jQuery.browser.mobile) {
-		for (var i in categorizedIdeas) {
-			displayCloud(categorizedIdeas[i].ideas, i+1);
+		for (var i in sortIndices[sortBy]) {
+			var j = sortIndices[sortBy][i];
+			var category = categorizedIdeas[j].category;
+			var ideas = categorizedIdeas[j].ideas;
+			var isSubcategory = $.inArray(category, subcategories) != -1;
+			if (!isSubcategory) {
+				displayCloud(ideas, i+1);
+			}
 		}
 		
 		if (uncategorizedIdeas.length > 0) {
@@ -201,15 +221,62 @@ function displayIdeas() {
 	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
 }
 
-function ideaGroupAsHtml(group, id) {
+function categoryGroupAsHtml(categoryGroup, id, showExpanded) {
+
+	var category = categoryGroup.category;
+	var ideas = categoryGroup.ideas;
+	var subcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
+	var sameAs = categoryGroup.same_as ? "Similar to: "+categoryGroup.same_as : "";
+
+	var ideaHtml = "";
+	for (var i in ideas) {
+		skip = false;
+		var idea = ideas[i];
+		var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
+		if (alsoIn.length > 0 && subcategories.length > 0) {
+			isIdeaInSubcategory = intersection(alsoIn, subcategories).length > 0;
+			skip = isIdeaInSubcategory;
+		}
+			
+		if (!skip) {
+			ideaHtml += ideaAsHtml(idea);
+		}
+	}
+	
+	var subcategoryHtml = "";	
+	for (var i in subcategories) {
+		var subcategoryGroup = getCategory(subcategories[i]);
+		var subcategory = subcategoryGroup.category;
+		var subcategoryIdeas = subcategoryGroup.ideas;
+		var subcategorySameAs = subcategoryGroup.same_as ? "Similar to: "+subcategoryGroup.same_as : "";
+		subcategoryHtml += "<li>";
+		subcategoryHtml += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>("+subcategoryIdeas.length+") " + subcategorySameAs + "</span><br/>";		
+		if (showExpanded) {
+			subcategoryHtml += "<ul class='subcategory_list'>";
+			for (var j in subcategoryGroup.ideas) {
+				var subcategoryIdea = subcategoryIdeas[j];
+				subcategoryHtml += ideaAsHtml(subcategoryIdea, category);
+			}
+			subcategoryHtml += "</ul>";
+		}
+		subcategoryHtml += "</li>";
+	}
+	
 	var html = "<table style='width: 100%'><tr>";
 	html += "<td style='width: 50%'>";
-	html += "<ul id=\"idea_list\">";
-	for (var i in group) {
-		var idea = group[i];
-		html += ideaAsHtml(idea);
+	html += "<strong>" + category + "</strong>&nbsp;<span class='note'>("+ideas.length+") " + sameAs + "</span><br/>";
+	if (showExpanded) {
+		html += "<ul class='category_list'>";
+		html += ideaHtml;
+		html += subcategoryHtml;
+		html += "</ul>";
 	}
-	html += "</ul>"
+	else if (subcategoryHtml != "") {
+		html += "<ul class='category_list'>";
+		html += subcategoryHtml;
+		html += "</ul>";
+	}
+
 	html += "</td>";
 	
 	if (!jQuery.browser.mobile) {
@@ -219,19 +286,39 @@ function ideaGroupAsHtml(group, id) {
 	return html;
 }
 
+function getCategory(category) {
+	var match = null;
+	for (var i in categorizedIdeas) {
+		if (categorizedIdeas[i].category == category) {
+			match = categorizedIdeas[i];
+			break;
+		}
+	}
+	return match;
+}
+
 function addIdea(idea) {
 	uncategorizedIdeas.push(idea);
 	numIdeas++;
 	var html = ideaAsHtml(idea);
-	$("#idea_list").prepend(html);
+	$("#new_ideas").prepend(html);
 	updateStats();
 }
 
-function ideaAsHtml(idea) {
+function ideaAsHtml(idea, parent) {
+	var alsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
+	var parent = isDefined(parent) ? parent : null;
+	if (alsoIn.length>0) {
+		var alsoInIndex = alsoIn.indexOf(parent);
+		if (alsoInIndex != -1) {
+			alsoIn.splice(alsoInIndex, 1);
+		}
+	}
+		
 	var html = "<li>";
 	html += idea.idea;
-	if (idea.also_in) {
-		html += "<br/><span class='note'>Also in: " + idea.also_in + "</span>";
+	if (alsoIn.length>0) {
+		html += "<br/><span class='note'>Also in: " + alsoIn.join(", ") + "</span>";
 	}
 	html += "<br/>";
 	html += "<span class='author'";

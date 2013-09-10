@@ -177,6 +177,16 @@ function isFunction(func) {
 // Misc
 //===================================================
 
+function intersection(a1, a2) {
+	var intersect = [];
+	for (var i = 0; i < a1.length; i++) {
+    	if (a2.indexOf(a1[i]) !== -1) {
+        	intersect.push(a1[i]);
+    	}
+	}
+	return intersect;
+}
+
 function sortTuplesAscending(tuples) {		
 	tuples.sort(function(tuple1, tuple2) {
 		value1 = tuple1[1];

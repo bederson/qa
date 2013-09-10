@@ -323,6 +323,7 @@ class Question(DBObject):
             dbConnection.conn.commit()
         except:
             dbConnection.conn.rollback()
+            # TODO: reissue task
                 
     def getQuestionStats(self, dbConnection):
         stats = {}
@@ -714,17 +715,18 @@ class Idea(DBObject):
         return ideas
         
     @staticmethod
-    def getByCategories(dbConnection, question, asDict=False, includeCreatedOn=False, includeAlsoIn=False):
+    def getByCategories(dbConnection, question, includeCreatedOn=False, includeAlsoIn=False):
         ideaIds = []
         categorizedIdeas = []
         category = None
         categoryIdeas = []
         uncategorizedIdeas = []
         allIdeaCategories = {}
+        categorySizes = {}
         
         if question:
             # group alphabetically by category name
-            sql = "select {0},{1},question_ideas.created_on as idea_created_on,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},question_ideas.created_on as idea_created_on,subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
             sql += "left join question_categories on question_ideas.id=question_categories.idea_id "
             sql += "left join categories on question_categories.category_id=categories.id "
             sql += "left join users on question_ideas.user_id=users.id where "
@@ -735,28 +737,30 @@ class Idea(DBObject):
             for row in rows:
                 ideaCategory = row["category"]
                 ideaSameAs = row["same_as"]
+                categorySubcategories = row["subcategories"].split(":::") if row["subcategories"] else []
                 idea = Idea.createFromData(row)
                 ideaId = idea.id
-                if asDict:
-                    # include author info with idea
-                    author = {
-                        "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
-                        "nickname" : row[Person.tableField("nickname")]
-                    }
-                    idea = idea.toDict(author=author, admin=Person.isAdmin() or Person.isAuthor(question))
-                    if includeCreatedOn:
-                        idea["created_on"] = row["idea_created_on"]
+                ideaAuthor = {
+                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
+                    "nickname" : row[Person.tableField("nickname")]
+                }
+                idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin() or Person.isAuthor(question))
+                if includeCreatedOn:
+                    idea["created_on"] = row["idea_created_on"]
                     
                 if ideaCategory: 
                     if not category:
                         category = ideaCategory
                         sameAs = ideaSameAs
+                        subcategories = categorySubcategories
                                         
                     if category != ideaCategory:
                         if len(categoryIdeas) > 0:
-                            categorizedIdeas.append({ "category" : category , "same_as" : sameAs, "ideas" : categoryIdeas })
+                            categorizedIdeas.append({ "category" : category , "subcategories" : subcategories, "same_as" : sameAs, "ideas" : categoryIdeas })
+                            categorySizes[category] = len(categoryIdeas);
                         category = ideaCategory
                         sameAs = ideaSameAs
+                        subcategories = categorySubcategories
                         categoryIdeas = []
                         
                     categoryIdeas.append(idea)
@@ -772,16 +776,17 @@ class Idea(DBObject):
                     allIdeaCategories[ideaId].append(ideaCategory)
                                                
             if len(categoryIdeas) > 0:
-                categorizedIdeas.append({ "category" : category, "same_as" : sameAs, "ideas" : categoryIdeas })
+                categorizedIdeas.append({ "category" : category, "subcategories" : subcategories, "same_as" : sameAs, "ideas" : categoryIdeas })
                
         if includeAlsoIn:
             for i, group in enumerate(categorizedIdeas):
                 for j, idea in enumerate(group["ideas"]):
                     ideaId = idea["id"]
+                    alsoIn = []
                     if len(allIdeaCategories[ideaId]) > 0:
-                        listCopy = allIdeaCategories[ideaId][:]
-                        listCopy.remove(group["category"])
-                        categorizedIdeas[i]["ideas"][j]["also_in"] = ", ".join(listCopy)
+                        alsoIn = allIdeaCategories[ideaId][:]
+                        alsoIn.remove(group["category"])
+                    categorizedIdeas[i]["ideas"][j]["also_in"] = alsoIn
                 
         return categorizedIdeas, uncategorizedIdeas, len(set(ideaIds))
     
@@ -1333,10 +1338,10 @@ def GenerateCascadeHierarchy(dbConnection, question):
     for category in categoriesToRemove:
         del categories[category]
     
-    # remove any duplicate categories (that have more than p % of overlapping items)
-    # TODO/FIX: consider whether not duplicate categories should only be removed last time it is called in case subsequent categories change things?
     duplicateCategories = {}
-    if question.cascade_p > 0:
+    nestedCategories = {}
+    
+    if question.cascade_p > 0 or constants.FIND_SUBCATEGORIES:
         categoriesToRemove = []
         categoryKeys = categories.keys()
         for x in range(len(categoryKeys)):
@@ -1347,20 +1352,32 @@ def GenerateCascadeHierarchy(dbConnection, question):
                     ideaIds1 = categories[category1]
                     ideaIds2 = categories[category2]
                     sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
-                    if len(sharedIdeaIds) >= max(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0):
-                        duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
-                        primaryCategory = category1 if duplicateCategory != category1 else category2
-                        if duplicateCategory not in categoriesToRemove:
-                            categoriesToRemove.append(duplicateCategory)
-                        if primaryCategory not in duplicateCategories:
-                            duplicateCategories[primaryCategory] = []
-                        duplicateCategories[primaryCategory].append(duplicateCategory)
-                        
+
+                    # find duplicate categories (that have more than p % of overlapping items)
+                    if question.cascade_p > 0:
+                        if len(sharedIdeaIds) >= max(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0):
+                            duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
+                            primaryCategory = category1 if duplicateCategory != category1 else category2
+                            if duplicateCategory not in categoriesToRemove:
+                                categoriesToRemove.append(duplicateCategory)
+                            if primaryCategory not in duplicateCategories:
+                                duplicateCategories[primaryCategory] = []
+                            duplicateCategories[primaryCategory].append(duplicateCategory)
+
+                    # find any nested categories (make sure they aren't flagged to be removed)   
+                    if constants.FIND_SUBCATEGORIES:
+                        if len(sharedIdeaIds) == min(len(ideaIds1),len(ideaIds2)):
+                            primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
+                            subCategory = category2 if primaryCategory == category1 else category1
+                            if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
+                                if primaryCategory not in nestedCategories:
+                                    nestedCategories[primaryCategory] = []
+                                nestedCategories[primaryCategory].append(subCategory)
+        
+        # remove duplicate categories               
         for category in categoriesToRemove:
             del categories[category]
-    
-    # BEHAVIOR: nested categories not created
-    
+        
     sql = "delete from question_categories where question_id=%s"
     dbConnection.cursor.execute(sql, (question.id))
  
@@ -1371,8 +1388,9 @@ def GenerateCascadeHierarchy(dbConnection, question):
     for category in categories:
         ideaIds = categories[category]
         sameAs = ", ".join(duplicateCategories[category]) if category in duplicateCategories else None
-        sql = "insert into categories (question_id, category, same_as) values(%s, %s, %s)"
-        dbConnection.cursor.execute(sql, (question.id, category, sameAs))
+        subcategories = ":::".join(nestedCategories[category]) if category in nestedCategories else None
+        sql = "insert into categories (question_id, category, same_as, subcategories) values(%s, %s, %s, %s)"
+        dbConnection.cursor.execute(sql, (question.id, category, sameAs, subcategories))
         categoryId = dbConnection.cursor.lastrowid
         for ideaId in ideaIds:
             sql = "insert into question_categories (question_id, idea_id, category_id) values(%s, %s, %s)"
