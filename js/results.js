@@ -28,6 +28,7 @@ var sortIndices = {};
 var DISPLAY_SUBCATEGORIES = true;
 var showSubcategories = false;
 var subcategories = [];
+var hasSubcategories = false;
 
 var DISPLAY_ITEM_IN_SINGLE_CATEGORY = true;
 var singleCategoryOnly = true;
@@ -109,6 +110,9 @@ function loadResults() {
 			subcategories = [];
 			for (var i in categorizedIdeas) {
 				subcategoriesForCategory = categorizedIdeas[i].subcategories;
+				if (subcategories.length > 0) {
+					hasSubcategories = true;
+				}
 				for (var j in subcategoriesForCategory) {
 					var subcategory = subcategoriesForCategory[j];
 					if ($.inArray(subcategory, subcategories) == -1) {
@@ -147,23 +151,31 @@ function loadResults() {
 							var showInCategory = null;
 							if (ideaSubcategories.length > 0) {
 								var smallestSubcategory = null;
+								var largestSubcategory = null;
 								for (var k in ideaSubcategories) {
 									var subcategory = ideaSubcategories[k];
 									if (!smallestSubcategory || (categoryCounts[subcategory] < categoryCounts[smallestSubcategory])) {
 										smallestSubcategory = subcategory;
-									}									
+									}	
+									if (!largestSubcategory || (categoryCounts[subcategory] > categoryCounts[largestSubcategory])) {
+										largestSubcategory = subcategory;
+									}								
 								}
-								showInCategory = smallestSubcategory;
+								showInCategory =  smallestSubcategory;
 							}
 							else {
 								var smallestRootCategory = null;
+								var largestRootCategory = null;
 								for (var k in ideaRootCategories) {
 									var rootCategory = ideaRootCategories[k];
 									if (!smallestRootCategory || (categoryCounts[rootCategory] < categoryCounts[smallestRootCategory])) {
 										smallestRootCategory = rootCategory;
-									}									
+									}
+									if (!largestRootCategory || (categoryCounts[rootCategory] > categoryCounts[largestRootCategory])) {
+										largestRootCategory = rootCategory;
+									}										
 								}
-								showInCategory = smallestRootCategory;
+								showInCategory =  smallestRootCategory;
 							}
 							multipleIdeaLocations[idea.id] = { "subcategories": ideaSubcategories, "rootcategories": ideaRootCategories, "showin": showInCategory };
 						}
@@ -183,47 +195,6 @@ function loadResults() {
 			google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': displayIdeas });
 		}
 	});
-}
-
-function sortBy(categoryGroups, sort) {	
-	sort = isDefined(sort) ? sort : "category";
-	var sortedGroups = [];
-	if (sort == "frequency") {
-		var categoryCounts = [];
-		for (var i in categoryGroups) {
-			categoryCounts.push([i, categoryGroups[i].ideas.length]);
-		}
-		
-		// sort from largest to smallest
-		categoryCounts.sort(function(group1, group2) {
-			count1 = group1[1];
-			count2 = group2[1];
-			return count1 > count2 ? -1 : (count1 < count2 ? 1 : 0);
-		});
-			
-		for (i in categoryCounts) {
-			var categoryIndex = categoryCounts[i][0];
-			sortedGroups.push(categoryGroups[categoryIndex]);
-		}
-	}
-	else {
-		var categoryNames = [];
-		for (var i in categoryGroups) {
-			categoryNames.push([i, categoryGroups[i].category]);
-		}
-		
-		categoryNames.sort(function(group1,  group2) {
-			name1 = group1[1];
-			name2 = group2[1];
-			return name1 < name2 ? -1 : (name1 > name2 ? 1 : 0);
-		});
-			
-		for (i in categoryNames) {
-			var categoryIndex = categoryNames[i][0];
-			sortedGroups.push(categoryGroups[categoryIndex]);
-		}
-	}
-	return sortedGroups;
 }
 
 function createSortIndices() {
@@ -290,6 +261,12 @@ function displayIdeas() {
 			$("#also_in_control").hide();
 			$("#single_category_control").hide();
 		}
+		if (hasSubcategories) {
+			$("#nest_categories_control").show();
+		}
+		else {
+			$("#nest_categories_control").hide();
+		}
 		$("#display_control_area").show();
 	}	
 		
@@ -301,7 +278,6 @@ function displayIdeas() {
 			var ideas = categorizedIdeas[j].ideas;
 			var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(category, subcategories) != -1;
 			if (!isSubcategory) {
-				//displayCloud(ideas, j+1);
 				displayCloud(displayedCategoryIdeas[j+1], j+1);
 			}
 		}

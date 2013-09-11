@@ -274,7 +274,7 @@ class Question(DBObject):
         stats = self.recordCascadeStats(dbConnection)
         return stats
     
-    def getCascadeStats(self, dbConnection):
+    def calculateCascadeStats(self, dbConnection):
         stats = {}                 
         if self.cascade_complete:              
             # user count updated (based on how many people category fit tasks)
@@ -312,7 +312,7 @@ class Question(DBObject):
     def recordCascadeStats(self, dbConnection): 
         stats = {}                  
         if self.cascade_complete:      
-            stats = self.getCascadeStats(dbConnection)        
+            stats = self.calculateCascadeStats(dbConnection)        
             sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s, total_duration=%s where question_id=%s"
             dbConnection.cursor.execute(sql, (stats["user_count"], stats["category_count"], stats["idea_count"], stats["uncategorized_count"], stats["total_duration"], self.id))
             dbConnection.conn.commit()
