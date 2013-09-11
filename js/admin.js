@@ -50,6 +50,10 @@ function onChannelOpen() {
 	$("#create_categories_button").click(function() {
 		createCategories();
 	});
+	
+	$("#create_categories2_button").click(function() {
+		createTestCategories();
+	});
 }
 
 function updateQuestionUI(question_id) {
@@ -338,14 +342,37 @@ function createCategories() {
 		redirectToResultsPage(result.question_id);		
 	}, "json");
 }
+
+function createTestCategories() {
+	var question = getSelectedQuestion();
+	if (!question) {
+		return;
+	}
+	var data = {
+		"client_id": client_id,
+		"question_id": question.id,
+	};
+	$.post("/generate_test_categories", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		redirectToTestResultsPage(result.question_id);		
+	}, "json");
+}
     
 function showHideCreateCategoryButton(question) {
 	if (!question.cascade_complete) {
 		enableDisable($("#create_categories_button"), question.idea_count > 0);
 		$("#create_categories_button").show();
+		$("#create_categories2_button").hide();
 	}
 	else {
 		$("#create_categories_button").hide();
+		// FOR TESTING ONLY: allows categories to be regenerated to a secondary set of tables
+		//if (isRunningOnTestServer() && user_login=="xx") {
+		//	$("#create_categories2_button").show();
+		//}
 	}
 }
 

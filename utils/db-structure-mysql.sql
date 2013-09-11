@@ -107,6 +107,7 @@ CREATE TABLE `categories` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `category` varchar(255) DEFAULT NULL,
   `same_as` text,
+  `subcategories` text,
   `question_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
@@ -218,4 +219,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-09-04  9:18:07
+-- Dump completed on 2013-09-10 16:36:48

@@ -93,6 +93,11 @@ onClose = function() {
 // Page Urls
 //===================================================
 
+function isRunningOnTestServer() {
+	var url = ""+window.location.href;
+	return url.indexOf("http://localhost:8080") != -1 || url.indexOf("http://qa-umd-test.appspot.com") != -1;
+}
+
 function redirectToHome() {
 	window.location.href = "/";
 }
@@ -120,6 +125,15 @@ function getResultsPageUrl(question_id) {
 	}
 	return url;
 }
+
+function getTestResultsPageUrl(question_id) {
+	var url = "/results";
+	if (isDefined(question_id)) {
+		url += "?question_id=" + question_id;
+		url += "&test=1"
+	}
+	return url;
+}
  
 function getAdminPageUrl(question_id) {
 	var url = "/admin";
@@ -143,6 +157,10 @@ function redirectToCascadePage(question_id) {
 
 function redirectToResultsPage(question_id) {
 	window.location.href = getResultsPageUrl(question_id);
+}
+
+function redirectToTestResultsPage(question_id) {
+	window.location.href = getTestResultsPageUrl(question_id);
 }
 
 function redirectToAdminPage(question_id) {
@@ -185,6 +203,11 @@ function intersection(a1, a2) {
     	}
 	}
 	return intersect;
+}
+
+function difference(a1, a2) {
+	// assumes a2 is subset of a1
+	var diff = $(a1).not(a1).get();
 }
 
 function sortTuplesAscending(tuples) {		

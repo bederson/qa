@@ -273,8 +273,9 @@ class Question(DBObject):
         recordCascadeEndTime(self) 
         stats = self.recordCascadeStats(dbConnection)
         return stats
-                        
-    def recordCascadeStats(self, dbConnection):                    
+    
+    def getCascadeStats(self, dbConnection):
+        stats = {}                 
         if self.cascade_complete:              
             # user count updated (based on how many people category fit tasks)
             sql = "select count(distinct user_id) as ct from cascade_fit_categories_phase1 where question_id=%s and user_id is not null"
@@ -299,19 +300,24 @@ class Question(DBObject):
             
             # total duration
             totalDuration = getCascadeDuration(self)
-
-            sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s, total_duration=%s where question_id=%s"
-            dbConnection.cursor.execute(sql, (userCount, categoryCount, ideaCount, uncategorizedCount, totalDuration, self.id))
-            dbConnection.conn.commit()
             
-            stats = {}
             stats["user_count"] = userCount
             stats["idea_count"] = ideaCount
             stats["category_count"] = categoryCount
             stats["uncategorized_count"] = uncategorizedCount
             stats["total_duration"] = totalDuration
-            return stats
-   
+            
+        return stats
+                            
+    def recordCascadeStats(self, dbConnection): 
+        stats = {}                  
+        if self.cascade_complete:      
+            stats = self.getCascadeStats(dbConnection)        
+            sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s, total_duration=%s where question_id=%s"
+            dbConnection.cursor.execute(sql, (stats["user_count"], stats["category_count"], stats["idea_count"], stats["uncategorized_count"], stats["total_duration"], self.id))
+            dbConnection.conn.commit()
+        return stats
+        
     def recordCascadeUnsavedTask(self, dbConnection, step, unsavedCount):
         # TODO: consider saving to memcache, and then save to db when cascade is complete
         try:
@@ -410,6 +416,17 @@ class Question(DBObject):
                 question = Question.createFromData(row)
                 questionDict = question.toDict()
                 questions.append(questionDict)
+                
+            # FOR TESTING ONLY: allows question(s) not authored by user to displayed for selected user
+#             if user.nickname() == "xx":
+#                 sql = "select {0}, users.authenticated_user_id from questions,users where questions.user_id=users.id and questions.id=%s order by last_update desc".format(Question.fieldsSql())
+#                 dbConnection.cursor.execute(sql, (32350))
+#                 rows = dbConnection.cursor.fetchall()
+#                 for row in rows:
+#                     question = Question.createFromData(row)
+#                     questionDict = question.toDict()
+#                     questions.append(questionDict)
+                
         return questions
     
 class Person(DBObject):               
@@ -715,7 +732,7 @@ class Idea(DBObject):
         return ideas
         
     @staticmethod
-    def getByCategories(dbConnection, question, includeCreatedOn=False, includeAlsoIn=False):
+    def getByCategories(dbConnection, question, includeCreatedOn=False, includeAlsoIn=False, useTestCategories=False):
         ideaIds = []
         categorizedIdeas = []
         category = None
@@ -724,11 +741,14 @@ class Idea(DBObject):
         allIdeaCategories = {}
         categorySizes = {}
         
+        categoriesTable = "categories" if not useTestCategories else "categories2"
+        questionCategoriesTable = "question_categories" if not useTestCategories else "question_categories2"
+        
         if question:
             # group alphabetically by category name
             sql = "select {0},{1},question_ideas.created_on as idea_created_on,subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
-            sql += "left join question_categories on question_ideas.id=question_categories.idea_id "
-            sql += "left join categories on question_categories.category_id=categories.id "
+            sql += "left join {0} on question_ideas.id={0}.idea_id ".format(questionCategoriesTable)
+            sql += "left join {0} on {1}.category_id={0}.id ".format(categoriesTable, questionCategoriesTable)
             sql += "left join users on question_ideas.user_id=users.id where "
             sql += "question_ideas.question_id=%s "
             sql += "order by category,idea"
@@ -899,7 +919,7 @@ class CascadeSuggestCategory(DBObject):
         unsavedTasks = []
         for task in job:
             taskId = task["id"]
-            suggestedCategory = task["suggested_category"]
+            suggestedCategory = task["suggested_category"].strip() if task["suggested_category"] is not None else ""
             # save suggested category
             if suggestedCategory != "":
                 sql = "update cascade_suggested_categories set suggested_category=%s"
@@ -1306,10 +1326,12 @@ class CascadeFitCategory(DBObject):
         row = dbConnection.cursor.fetchone()
         return row["ct"] == 0
               
-def GenerateCascadeHierarchy(dbConnection, question):
+def GenerateCascadeHierarchy(dbConnection, question, forTesting=False): 
+    categoriesTable = "categories" if not forTesting else "categories2"
+    questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"
+
     categories = {}
     ideas = {}
-
     sql = "select idea_id,idea,category,count(*) as ct from cascade_fit_categories_phase1,question_ideas where "
     sql += "cascade_fit_categories_phase1.idea_id=question_ideas.id "
     sql += "and cascade_fit_categories_phase1.question_id=%s "
@@ -1351,11 +1373,16 @@ def GenerateCascadeHierarchy(dbConnection, question):
                     category2 = categoryKeys[y]
                     ideaIds1 = categories[category1]
                     ideaIds2 = categories[category2]
-                    sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
 
-                    # find duplicate categories (that have more than p % of overlapping items)
-                    if question.cascade_p > 0:
-                        if len(sharedIdeaIds) >= max(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0):
+                    if question.cascade_p > 0:                            
+                        sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
+                        sizePercentage = (min(len(ideaIds1),len(ideaIds2)) / float(max(len(ideaIds1),len(ideaIds2))))*100
+                        duplicateThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
+                        nestedThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
+                        
+                        # find duplicate categories (that have more than p % of overlapping items)
+                        duplicateFound = False
+                        if sizePercentage >= constants.MIN_DUPLICATE_CATEGORY_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
                             duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
                             primaryCategory = category1 if duplicateCategory != category1 else category2
                             if duplicateCategory not in categoriesToRemove:
@@ -1363,10 +1390,10 @@ def GenerateCascadeHierarchy(dbConnection, question):
                             if primaryCategory not in duplicateCategories:
                                 duplicateCategories[primaryCategory] = []
                             duplicateCategories[primaryCategory].append(duplicateCategory)
+                            duplicateFound = True
 
-                    # find any nested categories (make sure they aren't flagged to be removed)   
-                    if constants.FIND_SUBCATEGORIES:
-                        if len(sharedIdeaIds) == min(len(ideaIds1),len(ideaIds2)):
+                        # find any nested categories (make sure they aren't flagged to be removed)   
+                        if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_CATEGORY_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
                             primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
                             subCategory = category2 if primaryCategory == category1 else category1
                             if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
@@ -1378,10 +1405,10 @@ def GenerateCascadeHierarchy(dbConnection, question):
         for category in categoriesToRemove:
             del categories[category]
         
-    sql = "delete from question_categories where question_id=%s"
+    sql = "delete from {0} where question_id=%s".format(questionCategoriesTable)
     dbConnection.cursor.execute(sql, (question.id))
  
-    sql = "delete from categories where question_id=%s"
+    sql = "delete from {0} where question_id=%s".format(categoriesTable)
     dbConnection.cursor.execute(sql, (question.id))
     
     # TODO: inserts are faster if done as a group
@@ -1389,16 +1416,16 @@ def GenerateCascadeHierarchy(dbConnection, question):
         ideaIds = categories[category]
         sameAs = ", ".join(duplicateCategories[category]) if category in duplicateCategories else None
         subcategories = ":::".join(nestedCategories[category]) if category in nestedCategories else None
-        sql = "insert into categories (question_id, category, same_as, subcategories) values(%s, %s, %s, %s)"
+        sql = "insert into {0} (question_id, category, same_as, subcategories) values(%s, %s, %s, %s)".format(categoriesTable)
         dbConnection.cursor.execute(sql, (question.id, category, sameAs, subcategories))
         categoryId = dbConnection.cursor.lastrowid
         for ideaId in ideaIds:
-            sql = "insert into question_categories (question_id, idea_id, category_id) values(%s, %s, %s)"
+            sql = "insert into {0} (question_id, idea_id, category_id) values(%s, %s, %s)".format(questionCategoriesTable)
             dbConnection.cursor.execute(sql, (question.id, ideaId, categoryId))
                     
     dbConnection.conn.commit()
     
-    stats = question.cascadeComplete(dbConnection)
+    stats = question.cascadeComplete(dbConnection) if not forTesting else question.getCascadeStats(dbConnection)
     return stats
 
 def clearMemcache(question):

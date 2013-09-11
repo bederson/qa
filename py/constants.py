@@ -15,11 +15,12 @@ BEST_CATEGORY = 2
 FIT_CATEGORY = 3
 
 # Cascade Settings
-CASCADE_P = 80                  # % of overlapping items used to detect duplicate categories
+CASCADE_P = 80                  # % of overlapping items used to detect duplicate and nested categories
 CASCADE_Q = 1                   # min number of items allowed in a category
 CASCADE_INITIAL_ITEM_SET = 0
 CASCADE_SUBSEQUENT_ITEM_SET = 1
 DEFAULT_VOTING_THRESHOLD = 2
+MIN_DUPLICATE_CATEGORY_PERCENTAGE = 50  # a duplicate category must be this % or greater in size than the category being kept
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"

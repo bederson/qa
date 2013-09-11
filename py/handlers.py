@@ -426,7 +426,7 @@ class QueryHandler(BaseHandler):
             
             # questions created by user
             if request == "questions":
-                questions = Question.getByUser(self.dbConnection)                        
+                questions = Question.getByUser(self.dbConnection)                                            
                 data = { "questions": questions }
                         
             # stats for question (# ideas, cascade stats if complete, etc.)
@@ -437,7 +437,8 @@ class QueryHandler(BaseHandler):
             elif request == "ideas" and self.question:
                 groupBy = self.request.get("group_by", None)
                 if groupBy == "category":
-                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, includeAlsoIn=True)
+                    useTestCategories = self.request.get("test", "0") == "1"
+                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, includeAlsoIn=True, useTestCategories=useTestCategories)
                     data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }        
                 else:
                     ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)
@@ -766,7 +767,23 @@ class CategoryHandler(BaseHandler):
                 
         self.writeResponseAsJson(data)
         self.destroy()
-                                  
+
+class TestCategoryHandler(BaseHandler):
+    def post(self):
+        self.init()
+        clientId = self.request.get("client_id")
+        
+        ok = self.checkRequirements(userRequired=True, questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+             
+        else:
+            stats = GenerateCascadeHierarchy(self.dbConnection, self.question, forTesting=True)          
+            data = { "status" : 1, "question_id" : self.question.id, "cascade_stats" : stats }
+                
+        self.writeResponseAsJson(data)
+        self.destroy()
+                                          
 #####################
 # Channel support
 #####################
@@ -908,12 +925,12 @@ Question.onFitComplete = onFitComplete
 #####################
 
 def getLoginUrl(page, question=None):
-    url = users.create_login_url("/login" + ("?page=" + page if page else getHomePageUrl()))
+    url = users.create_login_url(dest_url="/login" + ("?page=" + page if page else getHomePageUrl()))
     if question:
         if question.nickname_authentication:
             url = "/nickname_page?question_id=" + str(question.id)            
         else:
-            url = users.create_login_url("/login?page=" + page if page else getIdeaPageUrl(question) + ("&question_id="+str(question.id) if question else ""))
+            url = users.create_login_url(dest_url="/login?page=" + getIdeaPageUrl(question))
     return url
 
 def getLogoutUrl(question=None):
