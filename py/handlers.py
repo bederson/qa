@@ -82,7 +82,7 @@ class BaseHandler(webapp2.RequestHandler):
             
         # get person, and update login status if needed
         self.person = Person.getPerson(self.dbConnection, question, nickname)
-            
+
         # only allow nickname authenticated user to login to one session
         if self.person is not None and nickname is not None and self.person.session_sid is not None and self.person.session_sid != self.session.sid:
             self.person = None
@@ -289,12 +289,12 @@ class LoginHandler(BaseHandler):
         self.init(initUser=False)
         page = self.request.get("page")
 
-        self.person = Person.getPerson(self.dbConnection, self.question)    
+        self.person = Person.getPerson(self.dbConnection, self.question)  
         if not self.person:
             self.person = Person.create(self.dbConnection, question=self.question)
         elif not self.person.is_logged_in:
             self.person.login(self.dbConnection)
-
+        
         self.destroy()
         self.redirect(str(page) if page else (getIdeaPageUrl(self.question) if self.question else getHomePageUrl()))
                 
@@ -925,12 +925,12 @@ Question.onFitComplete = onFitComplete
 #####################
 
 def getLoginUrl(page, question=None):
-    url = users.create_login_url(dest_url="/login" + ("?page=" + page if page else getHomePageUrl()))
+    url = users.create_login_url(dest_url="/login" + ("?page="+page if page else getHomePageUrl()))
     if question:
         if question.nickname_authentication:
             url = "/nickname_page?question_id=" + str(question.id)            
         else:
-            url = users.create_login_url(dest_url="/login?page=" + getIdeaPageUrl(question))
+            url = users.create_login_url(dest_url="/login?page=" + getIdeaPageUrl(question) + "&question_id=" + str(question.id))
     return url
 
 def getLogoutUrl(question=None):
