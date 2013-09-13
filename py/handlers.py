@@ -25,6 +25,7 @@ import re
 import string
 import StringIO
 import time
+import urllib
 import webapp2
 from google.appengine.api import users
 from google.appengine.api import taskqueue
@@ -925,12 +926,12 @@ Question.onFitComplete = onFitComplete
 #####################
 
 def getLoginUrl(page, question=None):
-    url = users.create_login_url(dest_url="/login" + ("?page="+page if page else getHomePageUrl()))
+    url = users.create_login_url("/login" + ("?page="+page if page else getHomePageUrl()))
     if question:
         if question.nickname_authentication:
             url = "/nickname_page?question_id=" + str(question.id)            
         else:
-            url = users.create_login_url(dest_url="/login?page=" + getIdeaPageUrl(question) + "&question_id=" + str(question.id))
+            url = users.create_login_url("/login?page=" + urllib.quote(getIdeaPageUrl(question)) + "&question_id=" + str(question.id))
     return url
 
 def getLogoutUrl(question=None):
