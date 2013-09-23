@@ -35,7 +35,6 @@ Suggestions
 * Results: make word clouds clickable (show ideas & categories where word appears)
 * Results: hide word clouds when categories not expanded
 * Results: suggested sorts: count (default), same as nested (but without nesting), name
-* Results: fix - #s to sort by are wrong when categories change (#s displayed are correct)
 
 * Admin: allow question author to release incomplete cascade assignments after some period of inactivity
 * Admin: add option to hide names completely for a question

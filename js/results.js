@@ -74,7 +74,6 @@ function onChannelOpen() {
 	
 	$("#nest_categories_cb").click(function() {
 		showSubcategories = $(this).is(":checked");
-		createSortIndices();
 		displayIdeas();
 	});
 	
@@ -84,7 +83,6 @@ function onChannelOpen() {
 	
 	$("#single_category_cb").click(function() {
 		singleCategoryOnly = $(this).is(":checked");
-		createSortIndices();
 		displayIdeas();
 	});
 }
@@ -184,7 +182,6 @@ function loadResults() {
 			}
 		}
 		
-		createSortIndices();
 		updateStatus();
 		
 		if (OFFLINE) {
@@ -204,7 +201,8 @@ function createSortIndices() {
 		var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(categorizedIdeas[i].category, subcategories) != -1;
 		if (!isSubcategory) {
 			categoryTuples.push([i, categorizedIdeas[i].category]);
-			frequencyTuples.push([i, categorizedIdeas[i].ideas.length]);
+			//frequencyTuples.push([i, categorizedIdeas[i].ideas.length]);
+			frequencyTuples.push([i, displayedCategoryIdeas[i+1].length]);
 		}
 	}
 	sortTuplesAscending(categoryTuples);
@@ -229,12 +227,25 @@ function updateStatus() {
 	}
 }
 
-function displayIdeas() {
+function displayIdeas() {	
+	var categoryHtml = {};	
+	for (var i in categorizedIdeas) {
+		var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(categorizedIdeas[i].category, subcategories) != -1;
+		if (!isSubcategory) {
+			categoryHtml[i+1] = categoryGroupAsHtml(categorizedIdeas[i], i+1);
+		}
+	}
+	
+	// create sort indices after creating the category html 
+	// since the # of items displayed can change based on the
+	// options selected
+	createSortIndices();
+	
 	var html = "";
 	var sortBy = $("#sort_by").val();
-	for (var j in sortIndices[sortBy]) {
-		var i = sortIndices[sortBy][j];
-		html += categoryGroupAsHtml(categorizedIdeas[i], i+1);
+	for (var i in sortIndices[sortBy]) {
+		var j = sortIndices[sortBy][i];
+		html += categoryHtml[j+1];
 	}
 	
 	if (uncategorizedIdeas.length > 0) {
@@ -251,6 +262,7 @@ function displayIdeas() {
 	$("#ideas").html(newIdeaHtml + html);
 	updateStats();
 	
+	// show/hide controls
 	if (categorizedIdeas.length>0) {
 		if (hasAlsoIn) {
 			$("#also_in_control").show();
@@ -261,12 +273,14 @@ function displayIdeas() {
 			$("#also_in_control").hide();
 			$("#single_category_control").hide();
 		}
+		
 		if (hasSubcategories) {
 			$("#nest_categories_control").show();
 		}
 		else {
 			$("#nest_categories_control").hide();
 		}
+		
 		$("#display_control_area").show();
 	}	
 		

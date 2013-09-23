@@ -1399,12 +1399,11 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                                     nestedCategories[primaryCategory] = []
                                 nestedCategories[primaryCategory].append(subCategory)
         
-        # merge any items in duplicate categories with primary (larger) category
+        # merge items in duplicate categories with primary (larger) category
         for primaryCategory in duplicateCategories: 
             for duplicateCategory in duplicateCategories[primaryCategory]:
                 duplicateIdeaIds = categories[duplicateCategory]
                 categories[primaryCategory] = helpers.union(categories[primaryCategory], duplicateIdeaIds)
-                helpers.log("MERGE DUPLICATES: {0} => {1}".format(duplicateCategory, primaryCategory))
                 
         # remove duplicate categories               
         for category in categoriesToRemove:
