@@ -614,10 +614,8 @@ class Person(DBObject):
             row = dbConnection.cursor.fetchone()
             person = Person.createFromData(row)
 
-            # if user not found, check if question author is logging into the 
-            # question for the first time (i.e., entering ideas, helping categorize, etc.)
-            # and if so, create user   
-            if not person and question is not None and Person.isAuthor(question):
+            # if authenticated user is logging in to question for the first time, create user for question
+            if not person and question is not None:
                 person = Person.create(dbConnection, question=question)
                 
         return person
@@ -1382,7 +1380,7 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                         
                         # find duplicate categories (that have more than p % of overlapping items)
                         duplicateFound = False
-                        if sizePercentage >= constants.MIN_DUPLICATE_CATEGORY_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
+                        if sizePercentage >= constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
                             duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
                             primaryCategory = category1 if duplicateCategory != category1 else category2
                             if duplicateCategory not in categoriesToRemove:
@@ -1393,7 +1391,7 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                             duplicateFound = True
 
                         # find any nested categories (make sure they aren't flagged to be removed)   
-                        if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_CATEGORY_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
+                        if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
                             primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
                             subCategory = category2 if primaryCategory == category1 else category1
                             if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
@@ -1401,6 +1399,13 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                                     nestedCategories[primaryCategory] = []
                                 nestedCategories[primaryCategory].append(subCategory)
         
+        # merge any items in duplicate categories with primary (larger) category
+        for primaryCategory in duplicateCategories: 
+            for duplicateCategory in duplicateCategories[primaryCategory]:
+                duplicateIdeaIds = categories[duplicateCategory]
+                categories[primaryCategory] = helpers.union(categories[primaryCategory], duplicateIdeaIds)
+                helpers.log("MERGE DUPLICATES: {0} => {1}".format(duplicateCategory, primaryCategory))
+                
         # remove duplicate categories               
         for category in categoriesToRemove:
             del categories[category]

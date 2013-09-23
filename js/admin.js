@@ -128,7 +128,7 @@ function getQuestionItemHtml(question) {
 }
 
 function downloadQuestion(question_id) {
-	window.location = "/download_question?question_id="+question_id+"&utc_offset_minutes="+(new Date()).getTimezoneOffset()
+	window.location.href = "/download_question?question_id="+question_id+"&utc_offset_minutes="+(new Date()).getTimezoneOffset()
 }
 
 function deleteQuestionData(question_id) {

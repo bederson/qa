@@ -20,7 +20,7 @@ CASCADE_Q = 1                   # min number of items allowed in a category
 CASCADE_INITIAL_ITEM_SET = 0
 CASCADE_SUBSEQUENT_ITEM_SET = 1
 DEFAULT_VOTING_THRESHOLD = 2
-MIN_DUPLICATE_CATEGORY_PERCENTAGE = 50  # a duplicate category must be this % or greater in size than the category being kept
+MIN_DUPLICATE_SIZE_PERCENTAGE = 50  # a duplicate category must be this % or greater in size than the category being kept
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"

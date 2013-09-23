@@ -60,6 +60,9 @@ def isStopWord(word):
 def intersect(a, b):
     return list(set(a) & set(b))
 
+def union(a, b):
+    return list(set(a) | set(b))
+
 def saveToMemcache(key, value):
     client = memcache.Client()
     MAX_RETRIES = 10    

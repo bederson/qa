@@ -355,7 +355,7 @@ class QuestionLoginHandler(BaseHandler):
             data = {
                 "status" : 1, 
                 "question" : self.question.toDict(), 
-                "url" : getIdeaPageUrl(self.question) if self.person is not None else getLoginUrl(self.request.uri, self.question) 
+                "url" : getIdeaPageUrl(self.question) if self.person is not None else getLoginUrl(getIdeaPageUrl(self.question), self.question) 
             }
         
         self.writeResponseAsJson(data)
@@ -926,12 +926,16 @@ Question.onFitComplete = onFitComplete
 #####################
 
 def getLoginUrl(page, question=None):
-    url = users.create_login_url("/login" + ("?page="+page if page else getHomePageUrl()))
     if question:
         if question.nickname_authentication:
             url = "/nickname_page?question_id=" + str(question.id)            
         else:
-            url = users.create_login_url("/login?page=" + urllib.quote(getIdeaPageUrl(question)) + "&question_id=" + str(question.id))
+            page = page if page else getIdeaPageUrl(question)
+            url = users.create_login_url("/login?page=" + urllib.quote(page) + "&question_id=" + str(question.id))
+    else:
+        page = page if page else getHomePageUrl()
+        url = users.create_login_url("/login?page=" + urllib.quote(page))
+
     return url
 
 def getLogoutUrl(question=None):
