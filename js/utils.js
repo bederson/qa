@@ -195,6 +195,14 @@ function isFunction(func) {
 // Misc
 //===================================================
 
+function numKeys(a1) {
+	var count = 0;
+	for (var key in a1) {
+		count++;
+	}
+	return count;
+}
+
 function intersection(a1, a2) {
 	var intersect = [];
 	for (var i = 0; i < a1.length; i++) {

@@ -35,8 +35,8 @@ var singleCategoryOnly = true;
 var multipleIdeaLocations = {};
 
 var question = null;
+var displayedCategories = {};
 var categorizedIdeas = [];
-var displayedCategoryIdeas = {};
 var numIdeas = 0;
 var showExpanded = true;
 var hasAlsoIn = false;
@@ -201,8 +201,7 @@ function createSortIndices() {
 		var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(categorizedIdeas[i].category, subcategories) != -1;
 		if (!isSubcategory) {
 			categoryTuples.push([i, categorizedIdeas[i].category]);
-			//frequencyTuples.push([i, categorizedIdeas[i].ideas.length]);
-			frequencyTuples.push([i, displayedCategoryIdeas[i+1].length]);
+			frequencyTuples.push([i, displayedCategories[i+1]["count"]]);
 		}
 	}
 	sortTuplesAscending(categoryTuples);
@@ -227,7 +226,10 @@ function updateStatus() {
 	}
 }
 
-function displayIdeas() {	
+function displayIdeas() {
+	// get html for each category
+	// displayedCategories is defined by categoryGroupAsHtml
+	displayedCategories = {};	
 	var categoryHtml = {};	
 	for (var i in categorizedIdeas) {
 		var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(categorizedIdeas[i].category, subcategories) != -1;
@@ -240,7 +242,10 @@ function displayIdeas() {
 	// since the # of items displayed can change based on the
 	// options selected
 	createSortIndices();
-	
+
+	// update question stats: # items, # categories, # uncategorized
+	updateStats();
+		
 	var html = "";
 	var sortBy = $("#sort_by").val();
 	for (var i in sortIndices[sortBy]) {
@@ -260,7 +265,7 @@ function displayIdeas() {
 	newIdeaHtml += "</tr>";
 	newIdeaHtml += "</table>";
 	$("#ideas").html(newIdeaHtml + html);
-	updateStats();
+
 	
 	// show/hide controls
 	if (categorizedIdeas.length>0) {
@@ -292,7 +297,7 @@ function displayIdeas() {
 			var ideas = categorizedIdeas[j].ideas;
 			var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(category, subcategories) != -1;
 			if (!isSubcategory) {
-				displayCloud(displayedCategoryIdeas[j+1], j+1);
+				displayCloud(displayedCategories[j+1]["ideas"], j+1);
 			}
 		}
 		
@@ -309,12 +314,8 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	var ideas = categoryGroup.ideas;
 	var subcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
 	var sameAs = categoryGroup.same_as ? "Similar to: "+categoryGroup.same_as : "";
-	
-	// if a category has subcategories, the count needs to be adjusted since
-	// some items in subcategories might not be marked as "fitting" the parent category
-	var categoryCount = 0; 
-	
-	displayedCategoryIdeas[id] = [];
+		
+	displayedCategories[id] = { "category":category, "ideas":[], "subcategories":[], "count":0 };
 	var ideaHtml = "";
 	for (var i in ideas) {
 		var skip = false;
@@ -330,9 +331,9 @@ function categoryGroupAsHtml(categoryGroup, id) {
 		}
 			
 		if (!skip) {
-			displayedCategoryIdeas[id].push(idea);
+			displayedCategories[id]["ideas"].push(idea);
+			displayedCategories[id]["count"]++;
 			ideaHtml += ideaAsHtml(idea);
-			categoryCount++;
 		}
 	}
 
@@ -343,7 +344,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 			var subcategory = subcategoryGroup.category;
 			var subcategoryIdeas = subcategoryGroup.ideas;
 			var subcategorySameAs = subcategoryGroup.same_as ? "Similar to: "+subcategoryGroup.same_as : "";	
-			var subcategoryCount = 0;
+			displayedCategories[id]["subcategories"].push({ "subcategory":subcategory, "ideas":[], "count":0 })
 
 			var subcategoryItemHtml = "";		
 			for (var j in subcategoryGroup.ideas) {
@@ -355,22 +356,24 @@ function categoryGroupAsHtml(categoryGroup, id) {
 		
 				if (!skip) {
 					if (!singleCategoryOnly && i>0) {
-						if (!doesIdeaListContain(displayedCategoryIdeas[id], subcategoryIdea)) {
-							displayedCategoryIdeas[id].push(subcategoryIdea);
+						if (!doesIdeaListContain(displayedCategories[id]["ideas"], subcategoryIdea)) {
+							displayedCategories[id]["ideas"].push(subcategoryIdea);
 						}
 					}
 					else {
-						displayedCategoryIdeas[id].push(subcategoryIdea);
+						displayedCategories[id]["ideas"].push(subcategoryIdea);						
 					}
+					displayedCategories[id]["subcategories"][i]["ideas"].push(subcategoryIdea);
+					displayedCategories[id]["subcategories"][i]["count"]++;
+					displayedCategories[id]["count"]++;
 					subcategoryItemHtml += ideaAsHtml(subcategoryIdea, category);
-					subcategoryCount++;
 				}
 			}
-			categoryCount += subcategoryCount;
 
+			var subcategoryCount = displayedCategories[id]["subcategories"][i]["count"];
 			if (subcategoryCount > 0) {
 				subcategoryHtml += "<li style='margin-top:3px'>";
-				subcategoryHtml += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>("+subcategoryCount+") " + subcategorySameAs + "</span><br/>";
+				subcategoryHtml += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span><br/>";
 				if (showExpanded) {
 					subcategoryHtml += "<ul class='subcategory_list'>";
 					subcategoryHtml += subcategoryItemHtml;
@@ -382,10 +385,11 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	}
 	
 	var html = "";
+	var categoryCount = displayedCategories[id]["count"];
 	if (categoryCount > 0) {
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
-		html += "<strong>" + category + "</strong>&nbsp;<span class='note'>("+categoryCount+") " + sameAs + "</span><br/>";
+		html += "<strong>" + category + "</strong>&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span><br/>";
 		if (showExpanded) {
 			html += "<ul class='category_list'>";
 			html += ideaHtml;
@@ -484,8 +488,18 @@ function updateStats() {
 	stats.push(stat);
 	
 	// number of categories (if any)
-	if (categorizedIdeas.length>0) {
-		stats.push(categorizedIdeas.length + (categorizedIdeas.length == 1 ? " category" : " categories"));
+	var numCategories = 0;
+	var numSubcategories = 0;
+	for (var i in displayedCategories) {
+		numCategories++;
+		for (var j in displayedCategories[i]["subcategories"]) {
+			numSubcategories++;
+		}
+	}
+	numCategories += numSubcategories;
+	
+	if (numCategories>0) {
+		stats.push(numCategories + (numCategories == 1 ? " category" : " categories"));
 	}
 	
 	// number of uncategorized ideas (if any)
@@ -599,7 +613,7 @@ function handleEnable(data) {
 
 function handleDisable(data) {
 	question.active = 0;
-	updateStats();
+	updateStatus();
 }
 
 function handleNickname(data) {

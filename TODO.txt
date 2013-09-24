@@ -31,10 +31,9 @@ Suggestions
 * Results: display categories like a network where shared notes are the edges
 * Results: use Whiz to display results
 * Results: when should singletons be removed or included in results
-* Results: create hierarchical categories (look at results of #89507 on qa-umd.appspot.com)
 * Results: make word clouds clickable (show ideas & categories where word appears)
-* Results: hide word clouds when categories not expanded
 * Results: suggested sorts: count (default), same as nested (but without nesting), name
+* Results: consider where idea should be displayed if only shown once (currently shown in smallest category)
 
 * Admin: allow question author to release incomplete cascade assignments after some period of inactivity
 * Admin: add option to hide names completely for a question
