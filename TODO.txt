@@ -34,6 +34,7 @@ Suggestions
 * Results: make word clouds clickable (show ideas & categories where word appears)
 * Results: suggested sorts: count (default), same as nested (but without nesting), name
 * Results: consider where idea should be displayed if only shown once (currently shown in smallest category)
+* Results: should instructor changes to results page be pushed to students (e.g., nest categories, etc.)
 
 * Admin: allow question author to release incomplete cascade assignments after some period of inactivity
 * Admin: add option to hide names completely for a question

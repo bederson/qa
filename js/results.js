@@ -23,23 +23,25 @@ var MAX_CLOUD_HEIGHT = 800;
 
 var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
-var sortIndices = {};
 
 var DISPLAY_SUBCATEGORIES = true;
-var showSubcategories = false;
 var subcategories = [];
+var showSubcategories = false;
 var hasSubcategories = false;
 
 var DISPLAY_ITEM_IN_SINGLE_CATEGORY = true;
 var singleCategoryOnly = true;
-var multipleIdeaLocations = {};
+var showOnlyInCategories = {};
+
+var showExpanded = true;
+var showAlsoIn = false;
+var hasAlsoIn = false;
 
 var question = null;
-var displayedCategories = {};
 var categorizedIdeas = [];
+var displayedCategories = {};
+var categoryCounts = {};
 var numIdeas = 0;
-var showExpanded = true;
-var hasAlsoIn = false;
 var adminStats = null;
    
 $(document).ready(function() {
@@ -64,6 +66,7 @@ function onChannelOpen() {
 	});
 	
 	$("#sort_by").change(function() {
+		updateDisplayCategories();
 		displayIdeas();
 	});
 	
@@ -73,16 +76,19 @@ function onChannelOpen() {
 	});
 	
 	$("#nest_categories_cb").click(function() {
-		showSubcategories = $(this).is(":checked");
+		showSubcategories = DISPLAY_SUBCATEGORIES && $(this).is(":checked");
+		updateDisplayCategories();
 		displayIdeas();
 	});
 	
 	$("#also_in_cb").click(function() {
-		showHideAlsoIn();
+		showAlsoIn = $(this).is(":checked");
+		showHide($(".also_in"), showAlsoIn);
 	});
 	
 	$("#single_category_cb").click(function() {
 		singleCategoryOnly = $(this).is(":checked");
+		updateDisplayCategories();
 		displayIdeas();
 	});
 }
@@ -102,15 +108,20 @@ function loadResults() {
 		categorizedIdeas = results.categorized;
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
+		updateStatus();
 		
+		categoryCounts = {};
+		for (var i in categorizedIdeas) {
+			var category = categorizedIdeas[i].category;
+			var ideas = categorizedIdeas[i].ideas;
+			categoryCounts[category] = ideas.length;
+		}
+			
 		// create list of subcategories
 		if (DISPLAY_SUBCATEGORIES) {
 			subcategories = [];
 			for (var i in categorizedIdeas) {
 				subcategoriesForCategory = categorizedIdeas[i].subcategories;
-				if (subcategories.length > 0) {
-					hasSubcategories = true;
-				}
 				for (var j in subcategoriesForCategory) {
 					var subcategory = subcategoriesForCategory[j];
 					if ($.inArray(subcategory, subcategories) == -1) {
@@ -118,72 +129,47 @@ function loadResults() {
 					} 
 				}
 			}
+			hasSubcategories = subcategories.length > 0;
 		}
 		
-		// flag single category that item should be displayed in
-		if (DISPLAY_ITEM_IN_SINGLE_CATEGORY) {
-			var categoryCounts = {};
-			for (var i in categorizedIdeas) {
-				var category = categorizedIdeas[i].category;
-				var ideas = categorizedIdeas[i].ideas;
-				categoryCounts[category] = ideas.length;
-			}
-		
-			multipleIdeaLocations = {};
+		// find category that item should be displayed in if only displayed in a *single* category
+		if (DISPLAY_ITEM_IN_SINGLE_CATEGORY) {		
+			showOnlyInCategories = {};
 			for (var i in categorizedIdeas) {
 				var category = categorizedIdeas[i].category;
 				var ideas = categorizedIdeas[i].ideas;
 				for (var j in ideas) {
 					var idea = ideas[j];
-					if (isUndefined(multipleIdeaLocations[idea.id])) {
+					if (isUndefined(showOnlyInCategories[idea.id])) {
 						var ideaSubcategories = [];
-						var ideaRootCategories = [];
-					    var alsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
-						if (alsoIn.length > 0) {
-							alsoIn.push(category);
+					    var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
+						if (ideaAlsoIn.length > 0) {
+							ideaAlsoIn.push(category);
 							if (subcategories.length > 0) {
-								ideaSubcategories = intersection(alsoIn, subcategories);
+								ideaSubcategories = intersection(ideaAlsoIn, subcategories);
 							}
-							ideaRootCategories = ideaSubcategories.length > 0 ? difference(alsoIn, ideaSubcategories) : alsoIn;
 							
-							var showInCategory = null;
+							var showInCategory = null;							
 							if (ideaSubcategories.length > 0) {
-								var smallestSubcategory = null;
-								var largestSubcategory = null;
-								for (var k in ideaSubcategories) {
-									var subcategory = ideaSubcategories[k];
-									if (!smallestSubcategory || (categoryCounts[subcategory] < categoryCounts[smallestSubcategory])) {
-										smallestSubcategory = subcategory;
-									}	
-									if (!largestSubcategory || (categoryCounts[subcategory] > categoryCounts[largestSubcategory])) {
-										largestSubcategory = subcategory;
-									}								
-								}
-								showInCategory =  smallestSubcategory;
+								var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
+								// TODO/FIX: consider whether single category should be smallest or largest
+								showInCategory = minMaxSubcategories.min;
 							}
 							else {
-								var smallestRootCategory = null;
-								var largestRootCategory = null;
-								for (var k in ideaRootCategories) {
-									var rootCategory = ideaRootCategories[k];
-									if (!smallestRootCategory || (categoryCounts[rootCategory] < categoryCounts[smallestRootCategory])) {
-										smallestRootCategory = rootCategory;
-									}
-									if (!largestRootCategory || (categoryCounts[rootCategory] > categoryCounts[largestRootCategory])) {
-										largestRootCategory = rootCategory;
-									}										
-								}
-								showInCategory =  smallestRootCategory;
+								var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
+								var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
+								showInCategory =  minMaxRootCategories.min;
 							}
-							multipleIdeaLocations[idea.id] = { "subcategories": ideaSubcategories, "rootcategories": ideaRootCategories, "showin": showInCategory };
+							showOnlyInCategories[idea.id] = showInCategory;
 						}
 					}			
 				}
 			}
 		}
 		
-		updateStatus();
-		
+		// update data structure used to display results
+		updateDisplayCategories();
+			
 		if (OFFLINE) {
 			displayIdeas();
 		}
@@ -194,25 +180,100 @@ function loadResults() {
 	});
 }
 
-function createSortIndices() {
-	var categoryTuples = [];
-	var frequencyTuples = [];
+function updateDisplayCategories() {
+	displayedCategories = {};
 	for (var i in categorizedIdeas) {
-		var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(categorizedIdeas[i].category, subcategories) != -1;
-		if (!isSubcategory) {
-			categoryTuples.push([i, categorizedIdeas[i].category]);
-			frequencyTuples.push([i, displayedCategories[i+1]["count"]]);
+		var categoryGroup = categorizedIdeas[i];
+		var category = categoryGroup.category;
+		var categoryIdeas = categoryGroup.ideas;
+		var categorySubcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
+		var categorySameAs = categoryGroup.same_as;
+		
+		var isRootCategory = !showSubcategories || ($.inArray(category, subcategories) == -1);
+		if (isRootCategory) {
+			var count = 0;
+			for (var j in categoryIdeas) {
+				var skip = false;
+				var idea = categoryIdeas[j];
+				var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
+				if (showSubcategories && alsoIn.length > 0 && categorySubcategories.length > 0) {
+					isIdeaInSubcategory = intersection(alsoIn, categorySubcategories).length > 0;
+					skip = isIdeaInSubcategory;
+				}
+			
+				if (singleCategoryOnly && isDefined(showOnlyInCategories[idea.id]) && showOnlyInCategories[idea.id] != category) {
+					skip = true;
+				}
+					
+				if (!skip) {
+					// initialize root category in displayedCategories
+					// ideas + moreideas = unique list of ideas contained in root category
+					if (isUndefined(displayedCategories[i])) {
+						displayedCategories[i] = { "category":category, "ideas":[], "moreideas":[], "subcategories":[], "sameas":categorySameAs, "count":0 };
+					}
+					
+					// update root category
+					displayedCategories[i]["ideas"].push(idea);
+					displayedCategories[i]["count"]++;
+					count++;
+				}
+			}
+		}
+
+		if (showSubcategories) {
+			for (var j in categorySubcategories) {
+				var subcategoryGroup = getCategory(categorySubcategories[j]);
+				var subcategory = subcategoryGroup.category;
+				var subcategoryIdeas = subcategoryGroup.ideas;
+				var subcategorySameAs = subcategoryGroup.same_as;
+				var count = 0;
+				for (var k in subcategoryIdeas) {
+					var subcategoryIdea = subcategoryIdeas[k];
+					var skip = singleCategoryOnly && isDefined(showOnlyInCategories[subcategoryIdea.id]) && (showOnlyInCategories[subcategoryIdea.id] != subcategory);
+					if (!skip) {
+						// update root category	associated with subcategory										
+						if (singleCategoryOnly || j==0 || !doesIdeaListContain(displayedCategories[i]["ideas"], subcategoryIdea)) {
+							displayedCategories[i]["moreideas"].push(subcategoryIdea);	
+						}
+						displayedCategories[i]["count"]++;
+
+						// initialize subcategory
+						if (count == 0) {	
+							displayedCategories[i]["subcategories"].push({ "category":subcategory, "ideas":[], "sameas":subcategorySameAs, "count":0 })
+						}
+						
+						// update subcategory
+						displayedCategories[i]["subcategories"][j]["ideas"].push(subcategoryIdea);
+						displayedCategories[i]["subcategories"][j]["count"]++;
+						count++;
+					}
+				}
+			}
 		}
 	}
-	sortTuplesAscending(categoryTuples);
-	sortTuplesDescending(frequencyTuples);
-	
-	sortIndices[SORT_BY_NAME] = [];
-	sortIndices[SORT_BY_COUNT] = [];
-	for (var i in categoryTuples) {
-		sortIndices[SORT_BY_NAME].push(categoryTuples[i][0]);
-		sortIndices[SORT_BY_COUNT].push(frequencyTuples[i][0]);
+}
+
+function getSortIndices(categoriesToSort) {
+	var categoriesToSort = isDefined(categoriesToSort) ? categoriesToSort : displayedCategories;
+	var sortBy = $("#sort_by").val();
+	var sortTuples = [];
+	for (var i in categoriesToSort) {
+		var sortValue = sortBy == SORT_BY_NAME ? categoriesToSort[i].category : categoriesToSort[i].count;
+		sortTuples.push([i, sortValue]);
 	}
+	
+	if (sortBy == SORT_BY_COUNT) {
+		sortTuplesDescending(sortTuples);
+	}
+	else {
+		sortTuplesAscending(sortTuples);
+	}
+	
+	var sortIndices = [];
+	for (var i in sortTuples) {
+		sortIndices.push(sortTuples[i][0]);
+	}
+	return sortIndices;
 }
 
 function updateStatus() {
@@ -226,37 +287,25 @@ function updateStatus() {
 	}
 }
 
-function displayIdeas() {
-	// get html for each category
-	// displayedCategories is defined by categoryGroupAsHtml
-	displayedCategories = {};	
-	var categoryHtml = {};	
-	for (var i in categorizedIdeas) {
-		var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(categorizedIdeas[i].category, subcategories) != -1;
-		if (!isSubcategory) {
-			categoryHtml[i+1] = categoryGroupAsHtml(categorizedIdeas[i], i+1);
-		}
-	}
-	
-	// create sort indices after creating the category html 
-	// since the # of items displayed can change based on the
-	// options selected
-	createSortIndices();
-
+function displayIdeas() {	
 	// update question stats: # items, # categories, # uncategorized
 	updateStats();
-		
+	
+	// categorized html
+	// TODO: sort subcategories
 	var html = "";
-	var sortBy = $("#sort_by").val();
-	for (var i in sortIndices[sortBy]) {
-		var j = sortIndices[sortBy][i];
-		html += categoryHtml[j+1];
+	var sortIndices = getSortIndices();
+	for (var i in sortIndices) {
+		var index = sortIndices[i];
+		html += categoryGroupAsHtml(displayedCategories[index], index);
 	}
 	
+	// uncategorized html
 	if (uncategorizedIdeas.length > 0) {
-		html += categoryGroupAsHtml({ category: "NONE", ideas: uncategorizedIdeas }, categorizedIdeas.length+1);
+		html += categoryGroupAsHtml({ category: "NONE", ideas: uncategorizedIdeas, count: uncategorizedIdeas.length }, categorizedIdeas.length+1);
 	}
 	
+	// new idea html
 	var newIdeaHtml = "<table style='width:100%'>";
 	newIdeaHtml += "<tr>";
 	newIdeaHtml += "<td style='width:50%'>";
@@ -265,39 +314,25 @@ function displayIdeas() {
 	newIdeaHtml += "</tr>";
 	newIdeaHtml += "</table>";
 	$("#ideas").html(newIdeaHtml + html);
-
 	
 	// show/hide controls
 	if (categorizedIdeas.length>0) {
-		if (hasAlsoIn) {
-			$("#also_in_control").show();
-			$("#single_category_control").show();
-			showHideAlsoIn();
-		}
-		else {
-			$("#also_in_control").hide();
-			$("#single_category_control").hide();
-		}
-		
-		if (hasSubcategories) {
-			$("#nest_categories_control").show();
-		}
-		else {
-			$("#nest_categories_control").hide();
-		}
-		
+		showHide($("#also_in_control"), hasAlsoIn);
+		showHide($("#single_category_control"), hasAlsoIn);
+		showHide($("#nest_categories_control"), hasSubcategories);
+		showHide($(".also_in"), showAlsoIn);
 		$("#display_control_area").show();
 	}	
 		
 	// BEHAVIOR: only display tag clouds when cascade is complete and categories expanded
 	if (SHOW_TAGCLOUDS && showExpanded && question.cascade_complete && !jQuery.browser.mobile) {
-		for (var i in sortIndices[sortBy]) {
-			var j = sortIndices[sortBy][i];
-			var category = categorizedIdeas[j].category;
-			var ideas = categorizedIdeas[j].ideas;
-			var isSubcategory = DISPLAY_SUBCATEGORIES && showSubcategories && $.inArray(category, subcategories) != -1;
-			if (!isSubcategory) {
-				displayCloud(displayedCategories[j+1]["ideas"], j+1);
+		for (var i in sortIndices) {
+			var j = sortIndices[i];
+			var category = displayedCategories[j].category;
+			var ideas = displayedCategories[j].ideas;
+			var isRootCategory = !showSubcategories || ($.inArray(category, subcategories) == -1);			
+			if (isRootCategory) {
+				displayCloud(displayedCategories[j].ideas.concat(displayedCategories[j].moreideas), j);
 			}
 		}
 		
@@ -312,103 +347,57 @@ function displayIdeas() {
 function categoryGroupAsHtml(categoryGroup, id) {
 	var category = categoryGroup.category;
 	var ideas = categoryGroup.ideas;
-	var subcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
-	var sameAs = categoryGroup.same_as ? "Similar to: "+categoryGroup.same_as : "";
-		
-	displayedCategories[id] = { "category":category, "ideas":[], "subcategories":[], "count":0 };
-	var ideaHtml = "";
-	for (var i in ideas) {
-		var skip = false;
-		var idea = ideas[i];
-		var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
-		if (DISPLAY_SUBCATEGORIES && showSubcategories && alsoIn.length > 0 && subcategories.length > 0) {
-			isIdeaInSubcategory = intersection(alsoIn, subcategories).length > 0;
-			skip = isIdeaInSubcategory;
-		}
-	
-		if (singleCategoryOnly && isDefined(multipleIdeaLocations[idea.id]) && multipleIdeaLocations[idea.id].showin != category) {
-			skip = true;
-		}
-			
-		if (!skip) {
-			displayedCategories[id]["ideas"].push(idea);
-			displayedCategories[id]["count"]++;
-			ideaHtml += ideaAsHtml(idea);
-		}
-	}
-
-	var subcategoryHtml = "";	
-	if (DISPLAY_SUBCATEGORIES && showSubcategories) {
-		for (var i in subcategories) {
-			var subcategoryGroup = getCategory(subcategories[i]);
-			var subcategory = subcategoryGroup.category;
-			var subcategoryIdeas = subcategoryGroup.ideas;
-			var subcategorySameAs = subcategoryGroup.same_as ? "Similar to: "+subcategoryGroup.same_as : "";	
-			displayedCategories[id]["subcategories"].push({ "subcategory":subcategory, "ideas":[], "count":0 })
-
-			var subcategoryItemHtml = "";		
-			for (var j in subcategoryGroup.ideas) {
-				var skip = false;
-				var subcategoryIdea = subcategoryIdeas[j];
-				if (singleCategoryOnly && isDefined(multipleIdeaLocations[subcategoryIdea.id]) && multipleIdeaLocations[subcategoryIdea.id].showin != subcategory) {
-					skip = true;
-				}
-		
-				if (!skip) {
-					if (!singleCategoryOnly && i>0) {
-						if (!doesIdeaListContain(displayedCategories[id]["ideas"], subcategoryIdea)) {
-							displayedCategories[id]["ideas"].push(subcategoryIdea);
-						}
-					}
-					else {
-						displayedCategories[id]["ideas"].push(subcategoryIdea);						
-					}
-					displayedCategories[id]["subcategories"][i]["ideas"].push(subcategoryIdea);
-					displayedCategories[id]["subcategories"][i]["count"]++;
-					displayedCategories[id]["count"]++;
-					subcategoryItemHtml += ideaAsHtml(subcategoryIdea, category);
-				}
-			}
-
-			var subcategoryCount = displayedCategories[id]["subcategories"][i]["count"];
-			if (subcategoryCount > 0) {
-				subcategoryHtml += "<li style='margin-top:3px'>";
-				subcategoryHtml += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span><br/>";
-				if (showExpanded) {
-					subcategoryHtml += "<ul class='subcategory_list'>";
-					subcategoryHtml += subcategoryItemHtml;
-					subcategoryHtml += "</ul>";
-				}
-				subcategoryHtml += "</li>";
-			}
-		}
-	}
+	var sameAs = isDefined(categoryGroup.sameas) ? "Similar to: "+categoryGroup.sameas : "";
+	var categoryCount = categoryGroup.count;
 	
 	var html = "";
-	var categoryCount = displayedCategories[id]["count"];
 	if (categoryCount > 0) {
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
-		html += "<strong>" + category + "</strong>&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span><br/>";
+		html += "<strong>" + category + "</strong>&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span><br/>";		
 		if (showExpanded) {
-			html += "<ul class='category_list'>";
-			html += ideaHtml;
-			html += subcategoryHtml;
+			html += "<ul>";
+			for (var i in ideas) {
+				html += ideaAsHtml(ideas[i]);
+			}
+		}
+		
+		if (showSubcategories && categoryGroup.subcategories.length > 0) {
+			html += !showExpanded ? "<ul style='margin-top:5px'>" : "";
+			for (var i in categoryGroup.subcategories) {
+				var subcategoryGroup = categoryGroup.subcategories[i];
+				var subcategory = subcategoryGroup.category;
+				var subcategoryIdeas = subcategoryGroup.ideas;
+				var subcategorySameAs = subcategoryGroup.sameas ? "Similar to: "+subcategoryGroup.sameas : "";	
+				var subcategoryCount = subcategoryGroup.count;
+		
+				html += "<li style='margin-top:8px'>";
+				html += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span><br/>";
+				if (showExpanded) {
+					html += "<ul style='margin-top:15px'>";
+					for (var j in subcategoryIdeas) {
+						html += ideaAsHtml(subcategoryIdeas[j], category);
+					}
+					html += "</ul>";
+				}
+				html += "</li>";
+			}
+			html += !showExpanded ? "</ul>" : "";
+		}
+
+		if (showExpanded) {
 			html += "</ul>";
 		}
-		else if (subcategoryHtml != "") {
-			html += "<ul class='category_list'>";
-			html += subcategoryHtml;
-			html += "</ul>";
-		}
-	
 		html += "</td>";
 		
 		if (!jQuery.browser.mobile) {
 			html += "<td style='width: 50%' valign='top'><div id='cloud"+id+"' class='cloud'></div></td>";
 		}
-		html += "</tr></table>";
+		
+		html += "</tr>";
+		html += "</table>";
 	}
+	
 	return html;
 }
 
@@ -421,16 +410,6 @@ function doesIdeaListContain(ideaList, idea) {
 		}
 	}
 	return found;
-}
-
-function showHideAlsoIn() {
-	var showAlsoIn = $("#also_in_cb").is(":checked");
-	if (showAlsoIn) {
-		$(".also_in").show();
-	}
-	else {
-		$(".also_in").hide();
-	}
 }
 
 function getCategory(category) {
@@ -509,6 +488,21 @@ function updateStats() {
 		
 	var html = stats.length > 0 ? "(" + stats.join(", ") + ")" : ""
 	$("#question_stats").html(html);
+}
+
+function getMinMaxCategories(categories) {
+	var minCategory = null;
+	var maxCategory = null;
+	for (var i in categories) {
+		var category = categories[i];
+		if (!minCategory || (categoryCounts[category] < categoryCounts[minCategory])) {
+			minCategory = category;
+		}
+		if (!maxCategory || (categoryCounts[category] > categoryCounts[maxCategory])) {
+			maxCategory = category;
+		}										
+	}
+	return { "min":minCategory, "max":maxCategory };
 }
 
 //=================================================================================

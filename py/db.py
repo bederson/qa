@@ -217,8 +217,8 @@ class Question(DBObject):
             "cascade_k" : cascade_k,
             "cascade_k2" : cascade_k2,
             "cascade_p" : constants.CASCADE_P,
-            "cascade_s" : 4,
-            "cascade_t" : 3,
+            "cascade_s" : constants.CASCADE_S,
+            "cascade_t" : constants.CASCADE_T,
             "id" : self.id
         }
         self.update(dbConnection, properties)
@@ -399,7 +399,7 @@ class Question(DBObject):
                                         
     @staticmethod
     def getById(dbConnection, questionId):
-        sql = "select {0}, users.authenticated_user_id from questions,users where questions.user_id=users.id and questions.id=%s".format(Question.fieldsSql())
+        sql = "select {0}, authenticated_user_id from questions,users where questions.user_id=users.id and questions.id=%s".format(Question.fieldsSql())
         dbConnection.cursor.execute(sql, (questionId))
         row = dbConnection.cursor.fetchone()
         return Question.createFromData(row)
@@ -409,22 +409,27 @@ class Question(DBObject):
         questions = []
         user = users.get_current_user()
         if user:
-            sql = "select {0}, users.authenticated_user_id from questions,users where questions.user_id=users.id and authenticated_user_id=%s order by last_update desc".format(Question.fieldsSql())
+            sql = "select {0}, authenticated_user_id, authenticated_nickname from questions,users where questions.user_id=users.id and authenticated_user_id=%s order by last_update desc".format(Question.fieldsSql())
             dbConnection.cursor.execute(sql, (user.user_id()))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 question = Question.createFromData(row)
                 questionDict = question.toDict()
+                # FOR TESTING ONLY
+#                 if user.nickname() == "xx":
+#                     questionDict["author"] = row["authenticated_nickname"]
                 questions.append(questionDict)
                 
             # FOR TESTING ONLY: allows question(s) not authored by user to displayed for selected user
+            # TODO: display question author in question list
 #             if user.nickname() == "xx":
-#                 sql = "select {0}, users.authenticated_user_id from questions,users where questions.user_id=users.id and questions.id=%s order by last_update desc".format(Question.fieldsSql())
-#                 dbConnection.cursor.execute(sql, (32350))
+#                 sql = "select {0}, authenticated_user_id, authenticated_nickname from questions,users where questions.user_id=users.id and authenticated_user_id!=%s order by last_update desc".format(Question.fieldsSql())
+#                 dbConnection.cursor.execute(sql, (user.user_id()))
 #                 rows = dbConnection.cursor.fetchall()
 #                 for row in rows:
 #                     question = Question.createFromData(row)
 #                     questionDict = question.toDict()
+#                     questionDict["author"] = row["authenticated_nickname"]
 #                     questions.append(questionDict)
                 
         return questions

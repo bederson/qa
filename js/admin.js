@@ -114,6 +114,7 @@ function getQuestionItemHtml(question) {
 	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a><br/>";
 	html += question.question + "<br/>";
+	html += isDefined(question.author) ? "<em>" + question.author + "</em><br/>" : "";
 	if (question.nickname_authentication) {
 		html += '<span class="note"><em>Nickname authentication</em></span><br/>';
 	}

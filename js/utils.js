@@ -236,6 +236,15 @@ function sortTuplesDescending(tuples) {
 	return tuples;
 }
 
+function showHide(obj, show) {
+	if (show) {
+		obj.show();
+	}
+	else {
+		obj.hide();
+	}
+}
+
 function enableDisable(obj, enable) {
 	if (enable) {
 		obj.removeAttr("disabled");
