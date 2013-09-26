@@ -742,6 +742,7 @@ class CancelCascadeJobHandler(BaseHandler):
         self.init()
         job = helpers.fromJson(self.request.get("job", None))
         if self.question and job:
+            helpers.log("CANCEL CASCADE JOB")
             count = self.question.unassignCascadeJob(self.dbConnection, job)
             if count > 0:
                 # notify users who are waiting that more jobs are available

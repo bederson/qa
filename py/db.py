@@ -422,15 +422,15 @@ class Question(DBObject):
                 
             # FOR TESTING ONLY: allows question(s) not authored by user to displayed for selected user
             # TODO: display question author in question list
-#             if user.nickname() == "xx":
-#                 sql = "select {0}, authenticated_user_id, authenticated_nickname from questions,users where questions.user_id=users.id and authenticated_user_id!=%s order by last_update desc".format(Question.fieldsSql())
-#                 dbConnection.cursor.execute(sql, (user.user_id()))
-#                 rows = dbConnection.cursor.fetchall()
-#                 for row in rows:
-#                     question = Question.createFromData(row)
-#                     questionDict = question.toDict()
-#                     questionDict["author"] = row["authenticated_nickname"]
-#                     questions.append(questionDict)
+            if user.nickname() == "anne.bobrose":
+                sql = "select {0}, authenticated_user_id, authenticated_nickname from questions,users where questions.user_id=users.id and authenticated_user_id!=%s order by last_update desc".format(Question.fieldsSql())
+                dbConnection.cursor.execute(sql, (user.user_id()))
+                rows = dbConnection.cursor.fetchall()
+                for row in rows:
+                    question = Question.createFromData(row)
+                    questionDict = question.toDict()
+                    questionDict["author"] = row["authenticated_nickname"]
+                    questions.append(questionDict)
                 
         return questions
     
@@ -1295,6 +1295,7 @@ class CascadeFitCategory(DBObject):
             sql = "update cascade_fit_categories_phase1 set fit=%s"
             sql += ", user_id={0} ".format(person.id) if person else " "
             sql += "where id=%s and {0}".format(CascadeFitCategory.incompleteCondition)
+            helpers.log("SAVE JOB: {0}, {1}, {2}".format(sql, fit, taskId))
             dbConnection.cursor.execute(sql, (fit, taskId))
             rowsUpdated = dbConnection.cursor.rowcount
             if rowsUpdated is None or rowsUpdated <= 0:
@@ -1312,10 +1313,12 @@ class CascadeFitCategory(DBObject):
             GenerateCascadeHierarchy(dbConnection, question)
     
     def assignTo(self, dbConnection, person, commit=True):
+        helpers.log("ASSIGN JOB {0} to PERSON {1}".format(self.id, person.id))
         self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
     
     @staticmethod
     def unassign(dbConnection, questionId, taskId):
+        helpers.log("UNASSIGN JOB {0}".format(taskId))
         sql = "update cascade_fit_categories_phase1 set user_id=null where question_id=%s and id=%s"
         dbConnection.cursor.execute(sql, (questionId, taskId))
         rowsUpdated = dbConnection.cursor.rowcount
@@ -1327,6 +1330,8 @@ class CascadeFitCategory(DBObject):
         sql = "select count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and {0}".format(CascadeFitCategory.incompleteCondition)
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
+        # TODO/FIX: but not all tasks may have been created yet!
+        helpers.log("STEP COMPLETE: {0}".format(row["ct"]))
         return row["ct"] == 0
               
 def GenerateCascadeHierarchy(dbConnection, question, forTesting=False): 

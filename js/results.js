@@ -302,14 +302,14 @@ function displayIdeas() {
 	
 	// uncategorized html
 	if (uncategorizedIdeas.length > 0) {
-		html += categoryGroupAsHtml({ category: "NONE", ideas: uncategorizedIdeas, count: uncategorizedIdeas.length }, categorizedIdeas.length+1);
+		html += categoryGroupAsHtml({ category: categorizedIdeas.length > 0 ? "NONE" : "", ideas: uncategorizedIdeas, count: uncategorizedIdeas.length }, categorizedIdeas.length+1);
 	}
 	
 	// new idea html
 	var newIdeaHtml = "<table style='width:100%'>";
 	newIdeaHtml += "<tr>";
 	newIdeaHtml += "<td style='width:50%'>";
-	newIdeaHtml += "<ul id='new_ideas'></ul>";
+	newIdeaHtml += "<ul id='new_ideas' style='margin-bottom:0'></ul>";
 	newIdeaHtml += "</td>";
 	newIdeaHtml += "</tr>";
 	newIdeaHtml += "</table>";
@@ -354,9 +354,12 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	if (categoryCount > 0) {
 		html += "<table style='width: 100%'><tr>";
 		html += "<td style='width: 50%'>";
-		html += "<strong>" + category + "</strong>&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span><br/>";		
+		// an empty category means the items have not been categorized yet
+		if (category != "") {
+			html += "<strong>" + category + "</strong>&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span><br/>";		
+		}
 		if (showExpanded) {
-			html += "<ul>";
+			html += "<ul" + (category == "" ? " style='margin-top:0px'" : "") + ">";
 			for (var i in ideas) {
 				html += ideaAsHtml(ideas[i]);
 			}

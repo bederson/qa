@@ -52,10 +52,17 @@ function saveAndRequestNewJob(tasksToSave) {
 	}
 
 	loading = true;
+	assignedJob = null;
 	waitForJobToLoad();
+	
 	$.post("/cascade_job", data, function(results) {
-		// new job (if any) sent via "job" message
-		$("#warning").html(results.status == 0 ? result.msg : "");
+		if (results.status == 0) {
+			$("#warning").html(results.msg);
+			return;
+		}
+
+		// new job (if any) sent via "job" message		
+		$("#warning").html("");
 	}, "json");
 }
 
