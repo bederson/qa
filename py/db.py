@@ -422,15 +422,15 @@ class Question(DBObject):
                 
             # FOR TESTING ONLY: allows question(s) not authored by user to displayed for selected user
             # TODO: display question author in question list
-            if user.nickname() == "anne.bobrose":
-                sql = "select {0}, authenticated_user_id, authenticated_nickname from questions,users where questions.user_id=users.id and authenticated_user_id!=%s order by last_update desc".format(Question.fieldsSql())
-                dbConnection.cursor.execute(sql, (user.user_id()))
-                rows = dbConnection.cursor.fetchall()
-                for row in rows:
-                    question = Question.createFromData(row)
-                    questionDict = question.toDict()
-                    questionDict["author"] = row["authenticated_nickname"]
-                    questions.append(questionDict)
+#             if user.nickname() == "xx":
+#                 sql = "select {0}, authenticated_user_id, authenticated_nickname from questions,users where questions.user_id=users.id and authenticated_user_id!=%s order by last_update desc".format(Question.fieldsSql())
+#                 dbConnection.cursor.execute(sql, (user.user_id()))
+#                 rows = dbConnection.cursor.fetchall()
+#                 for row in rows:
+#                     question = Question.createFromData(row)
+#                     questionDict = question.toDict()
+#                     questionDict["author"] = row["authenticated_nickname"]
+#                     questions.append(questionDict)
                 
         return questions
     
