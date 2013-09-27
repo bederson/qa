@@ -73,7 +73,8 @@ Known Bugs
   (but they should still have unique id)
 * Sometimes user and channel not deleted from database
   (if user still logged in from before, can they get job assigned if client still exists?)
-  
+  (check if logout works as expected when using cellphone)
+    
 Testing
 * Nickname authentication needs to be tested more completely (see known bugs)
 * Build test harness

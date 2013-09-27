@@ -115,6 +115,24 @@ CREATE TABLE `categories` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `categories2`
+--
+
+DROP TABLE IF EXISTS `categories2`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `categories2` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `category` varchar(255) DEFAULT NULL,
+  `same_as` text,
+  `subcategories` text,
+  `question_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `question_index` (`question_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `question_categories`
 --
 
@@ -122,6 +140,21 @@ DROP TABLE IF EXISTS `question_categories`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `question_categories` (
+  `question_id` int(11) DEFAULT NULL,
+  `idea_id` int(11) DEFAULT NULL,
+  `category_id` int(11) DEFAULT NULL,
+  KEY `question_index` (`question_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `question_categories2`
+--
+
+DROP TABLE IF EXISTS `question_categories2`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `question_categories2` (
   `question_id` int(11) DEFAULT NULL,
   `idea_id` int(11) DEFAULT NULL,
   `category_id` int(11) DEFAULT NULL,
@@ -141,6 +174,7 @@ CREATE TABLE `question_ideas` (
   `question_id` int(11) DEFAULT NULL,
   `user_id` int(11) DEFAULT NULL,
   `idea` varchar(255) DEFAULT NULL,
+  `discuss` int(11) DEFAULT '0',
   `item_set` int(11) DEFAULT '0',
   `created_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -171,6 +205,18 @@ CREATE TABLE `questions` (
   `cascade_t` int(11) DEFAULT '0',
   `cascade_p` int(11) DEFAULT '0',
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `test`
+--
+
+DROP TABLE IF EXISTS `test`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `test` (
+  `foo` int(11) DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -219,4 +265,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-09-10 16:36:48
+-- Dump completed on 2013-09-27 16:22:19

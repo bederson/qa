@@ -742,7 +742,6 @@ class CancelCascadeJobHandler(BaseHandler):
         self.init()
         job = helpers.fromJson(self.request.get("job", None))
         if self.question and job:
-            helpers.log("CANCEL CASCADE JOB")
             count = self.question.unassignCascadeJob(self.dbConnection, job)
             if count > 0:
                 # notify users who are waiting that more jobs are available
@@ -785,7 +784,24 @@ class TestCategoryHandler(BaseHandler):
                 
         self.writeResponseAsJson(data)
         self.destroy()
-                                          
+
+class DiscussIdeaHandler(BaseHandler):
+    def post(self):
+        self.init()
+        clientId = self.request.get("client_id")
+        ideaId = self.request.get("idea_id")
+        
+        ok = self.checkRequirements(userRequired=True, questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+             
+        else:
+            idea = Idea.getById(self.dbConnection, ideaId)
+            idea.flagToDiscuss(self.dbConnection)          
+            data = { "status" : 1 }
+                
+        self.writeResponseAsJson(data)
+        self.destroy()                                          
 #####################
 # Channel support
 #####################

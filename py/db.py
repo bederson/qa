@@ -655,13 +655,14 @@ class Person(DBObject):
  
 class Idea(DBObject):
     table = "question_ideas"
-    fields = [ "id", "question_id", "user_id", "idea", "item_set" ]
+    fields = [ "id", "question_id", "user_id", "idea", "discuss", "item_set" ]
         
     def __init__(self):
         self.id = None
         self.question_id = None
         self.user_id = None
         self.idea = None
+        self.discuss = 0
         self.item_set = constants.CASCADE_INITIAL_ITEM_SET
     
     @staticmethod
@@ -704,7 +705,17 @@ class Idea(DBObject):
         
         if moreJobs and Question.onMoreJobs:
             question.onMoreJobs(dbConnection)
-            
+     
+    def flagToDiscuss(self, dbConnection):
+        sql = "update question_ideas set discuss = last_insert_id(discuss + 1) where id=%s"
+        dbConnection.cursor.execute(sql, (self.id))
+        dbConnection.conn.commit()
+        
+        sql = "select last_insert_id() as discuss"
+        dbConnection.cursor.execute(sql)
+        row = dbConnection.cursor.fetchone()
+        return row["discuss"] + 1
+               
     @staticmethod
     def getById(dbConnection, ideaId):
         sql = "select {0} from question_ideas where id=%s".format(Idea.fieldsSql())
@@ -1295,7 +1306,6 @@ class CascadeFitCategory(DBObject):
             sql = "update cascade_fit_categories_phase1 set fit=%s"
             sql += ", user_id={0} ".format(person.id) if person else " "
             sql += "where id=%s and {0}".format(CascadeFitCategory.incompleteCondition)
-            helpers.log("SAVE JOB: {0}, {1}, {2}".format(sql, fit, taskId))
             dbConnection.cursor.execute(sql, (fit, taskId))
             rowsUpdated = dbConnection.cursor.rowcount
             if rowsUpdated is None or rowsUpdated <= 0:
@@ -1313,12 +1323,10 @@ class CascadeFitCategory(DBObject):
             GenerateCascadeHierarchy(dbConnection, question)
     
     def assignTo(self, dbConnection, person, commit=True):
-        helpers.log("ASSIGN JOB {0} to PERSON {1}".format(self.id, person.id))
         self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
     
     @staticmethod
     def unassign(dbConnection, questionId, taskId):
-        helpers.log("UNASSIGN JOB {0}".format(taskId))
         sql = "update cascade_fit_categories_phase1 set user_id=null where question_id=%s and id=%s"
         dbConnection.cursor.execute(sql, (questionId, taskId))
         rowsUpdated = dbConnection.cursor.rowcount
@@ -1330,8 +1338,6 @@ class CascadeFitCategory(DBObject):
         sql = "select count(*) as ct from cascade_fit_categories_phase1 where question_id=%s and {0}".format(CascadeFitCategory.incompleteCondition)
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
-        # TODO/FIX: but not all tasks may have been created yet!
-        helpers.log("STEP COMPLETE: {0}".format(row["ct"]))
         return row["ct"] == 0
               
 def GenerateCascadeHierarchy(dbConnection, question, forTesting=False): 

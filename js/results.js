@@ -315,6 +315,13 @@ function displayIdeas() {
 	newIdeaHtml += "</table>";
 	$("#ideas").html(newIdeaHtml + html);
 	
+	$(".discuss_idea_button").click(function() {
+		var buttonId = $(this).attr("id");
+		var tokens = buttonId.split("_");
+		var ideaId = tokens[2];
+		alert("discuss idea " + ideaId);
+	});
+	
 	// show/hide controls
 	if (categorizedIdeas.length>0) {
 		showHide($("#also_in_control"), hasAlsoIn);
@@ -445,6 +452,7 @@ function ideaAsHtml(idea, parent) {
 	}
 		
 	var html = "<li>";
+	//html += "<button id='discuss_idea_"+idea.id+"_button' class='discuss_idea_button'>Discuss</button> ";
 	html += idea.idea;
 	if (alsoIn.length>0) {
 		hasAlsoIn = true;
