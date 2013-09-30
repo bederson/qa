@@ -714,7 +714,7 @@ class Idea(DBObject):
         sql = "select last_insert_id() as discuss"
         dbConnection.cursor.execute(sql)
         row = dbConnection.cursor.fetchone()
-        return row["discuss"] + 1
+        return row["discuss"]
                
     @staticmethod
     def getById(dbConnection, ideaId):
@@ -727,7 +727,7 @@ class Idea(DBObject):
     def getByQuestion(dbConnection, question, asDict=False, includeCreatedOn=False):
         ideas = []
         if question:
-            sql = "select {0},{1},question_ideas.created_on as idea_created_on from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},question_ideas.created_on as idea_created_on, question_ideas.discuss as idea_discuss from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
@@ -739,6 +739,7 @@ class Idea(DBObject):
                         "nickname" : row[Person.tableField("nickname")]
                     }
                     idea = idea.toDict(author=author, admin=Person.isAdmin() or Person.isAuthor(question))
+                    idea["discuss"] = row["idea_discuss"]
                     if includeCreatedOn:
                         idea["created_on"] = row["idea_created_on"]
                                            
@@ -760,7 +761,7 @@ class Idea(DBObject):
         
         if question:
             # group alphabetically by category name
-            sql = "select {0},{1},question_ideas.created_on as idea_created_on,subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},question_ideas.created_on as idea_created_on,question_ideas.discuss as idea_discuss, subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
             sql += "left join {0} on question_ideas.id={0}.idea_id ".format(questionCategoriesTable)
             sql += "left join {0} on {1}.category_id={0}.id ".format(categoriesTable, questionCategoriesTable)
             sql += "left join users on question_ideas.user_id=users.id where "
@@ -779,6 +780,7 @@ class Idea(DBObject):
                     "nickname" : row[Person.tableField("nickname")]
                 }
                 idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin() or Person.isAuthor(question))
+                idea["discuss"] = row["idea_discuss"]
                 if includeCreatedOn:
                     idea["created_on"] = row["idea_created_on"]
                     

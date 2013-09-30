@@ -17,6 +17,7 @@
 
 var OFFLINE = false;				// For offline debugging
 
+var SHOW_DISCUSS_BUTTONS = false;
 var SHOW_TAGCLOUDS = true;
 var MIN_TAGCLOUD_ITEM_COUNT = 7;
 var MAX_CLOUD_HEIGHT = 800;
@@ -316,10 +317,21 @@ function displayIdeas() {
 	$("#ideas").html(newIdeaHtml + html);
 	
 	$(".discuss_idea_button").click(function() {
-		var buttonId = $(this).attr("id");
+		var buttonId = $(this).attr("name");
 		var tokens = buttonId.split("_");
 		var ideaId = tokens[2];
-		alert("discuss idea " + ideaId);
+		
+		var data = {
+			"client_id": client_id,
+			"question_id": question.id,
+			"idea_id" : ideaId
+		};
+		$.post("/discuss_idea", data, function(result) {
+			if (result.status == 1) {
+				// TODO/FIX: keep track of who marked to discuss vs. simple count
+				$(".discuss_idea_"+ideaId+"_count").html(result.count + "+");
+			}
+		}, "json");
 	});
 	
 	// show/hide controls
@@ -452,12 +464,16 @@ function ideaAsHtml(idea, parent) {
 	}
 		
 	var html = "<li>";
-	//html += "<button id='discuss_idea_"+idea.id+"_button' class='discuss_idea_button'>Discuss</button> ";
 	html += idea.idea;
+	if (SHOW_DISCUSS_BUTTONS) {
+		html += " <button name='discuss_idea_"+idea.id+"_button' class='discuss_idea_button'>Discuss</button> ";
+		html += "<span class='discuss_idea_"+idea.id+"_count note'>" + (idea.discuss > 0 ? idea.discuss + "+" : "") + "</span> ";
+	}
 	if (alsoIn.length>0) {
 		hasAlsoIn = true;
 		html += "<span class='note also_in' style='display:none'><br/>Also in: " + alsoIn.join(", ") + "</span>";
 	}
+	
 	html += "<br/>";
 	html += "<span class='author'";
 	var realIdentity = isDefined(idea.author_identity) ? idea.author_identity : "";

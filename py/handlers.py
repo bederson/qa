@@ -797,8 +797,8 @@ class DiscussIdeaHandler(BaseHandler):
              
         else:
             idea = Idea.getById(self.dbConnection, ideaId)
-            idea.flagToDiscuss(self.dbConnection)          
-            data = { "status" : 1 }
+            count = idea.flagToDiscuss(self.dbConnection)          
+            data = { "status" : 1, "count" : count }
                 
         self.writeResponseAsJson(data)
         self.destroy()                                          
