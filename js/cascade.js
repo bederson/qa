@@ -111,7 +111,12 @@ function updateUI(complete) {
 	else if (assignedJob.type == BEST_CATEGORY) {
 		bestCategoryUI();
 	}
-	
+
+	// indicate if categories are equal to each other
+	else if (assignedJob.type == EQUAL_CATEGORY) {
+		equalCategoryUI();
+	}
+		
 	// do categories fit
 	else if (assignedJob.type == FIT_CATEGORY) {
 		fitCategoryUI();
@@ -207,6 +212,61 @@ function submitBestCategory(task) {
 	var tasks = [];	
 	var bestCategory = bestCategoryIndex != -1 ? task.suggested_categories[bestCategoryIndex] : ""
 	tasks.push({ id: task.id, idea_id: task.idea_id, best_category: bestCategory });
+	saveAndRequestNewJob(tasks);
+}
+
+function equalCategoryUI() {
+	$("#title").html("Find Equal Categories");
+	$("#help").html("Indicate whether or not each pair categories are equal.");
+	var tasks = assignedJob.tasks;
+	if (tasks.length > 0) {
+		var taskHtml = "";
+		for (var i=0; i<tasks.length; i++) {
+			var task = tasks[i];
+			if (i==0) {
+				taskHtml += "<div class='small'>Equal?</div>";
+				taskHtml += "<table class='spacebelow'>";
+				taskHtml += "<tr>";
+				taskHtml += "<td class='note' style='text-align:center'>Y</td>";
+				taskHtml += "<td class='note' style='text-align:center'>N</td>";
+				taskHtml += "<td>&nbsp;</td>";
+				taskHtml += "<td>&nbsp;</td>";
+				taskHtml += "<td>&nbsp;</td>";
+				taskHtml += "</tr>\n";
+			}
+			taskHtml += "<tr>";
+			taskHtml += "<td><input type='radio' class='categories_equal' name='category_equal_"+task.id+"' value='1'></td>";
+			taskHtml += "<td><input type='radio' class='categories_equal' name='category_equal_"+task.id+"' value='0' checked='checked'></td>";
+			taskHtml += "<td>" + task.category1 + "</td>";
+			taskHtml += "<td>=</td>";
+			taskHtml += "<td>" + task.category2 + "</td>";
+			taskHtml += "</tr>\n";
+		}
+		taskHtml += "</table>";
+		taskHtml += "<input id='submit_btn' type='button' value='Submit'> ";
+		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
+		$("#task_area").html(taskHtml);
+		$("#submit_btn").on("click", {}, function(event) {
+			submitEqualCategories();
+		});
+	}
+}
+
+function submitEqualCategories() {
+	var tasks = [];	
+	$("input:radio").each(function() {
+		var rb = $(this);
+		if (rb.is(":checked")) {
+			var rb_name = rb.attr("name");
+			var task_id = rb_name.replace("category_equal_","");
+			tasks.push({ id: task_id, equal: rb.val() == "1" ? 1 : 0 });	
+		}
+	});
+
+	if (tasks.length!=assignedJob.tasks.length) {
+		$("#warning").html("Please indicate whether or not each pair of categories are equal");
+		return;
+	}
 	saveAndRequestNewJob(tasks);
 }
 

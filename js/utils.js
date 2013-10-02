@@ -5,7 +5,8 @@
 // job types
 var SUGGEST_CATEGORY = 1;
 var BEST_CATEGORY = 2;
-var FIT_CATEGORY = 3;
+var EQUAL_CATEGORY = 3;
+var FIT_CATEGORY = 4;
 
 var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
 var MAX_CHARS = 125; // max characters per response

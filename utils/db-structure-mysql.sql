@@ -36,6 +36,25 @@ CREATE TABLE `cascade_best_categories` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `cascade_equal_categories`
+--
+
+DROP TABLE IF EXISTS `cascade_equal_categories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `cascade_equal_categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `question_id` int(11) DEFAULT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `category1` varchar(255) DEFAULT NULL,
+  `category2` varchar(255) DEFAULT NULL,
+  `equal` tinyint(4) DEFAULT '-1',
+  PRIMARY KEY (`id`),
+  KEY `question_index` (`question_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `cascade_fit_categories_phase1`
 --
 
@@ -109,6 +128,7 @@ CREATE TABLE `categories` (
   `same_as` text,
   `subcategories` text,
   `question_id` int(11) DEFAULT NULL,
+  `skip` tinyint(4) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
@@ -265,4 +285,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-09-27 16:22:19
+-- Dump completed on 2013-10-02 10:15:45

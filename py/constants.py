@@ -2,6 +2,7 @@ ENABLE_DEBUG_LOGGING = True
 USE_LOCAL_DATABASE_WHEN_RUNNING_LOCALLY = True # Does not work to use Google SQL instance when running locally yet
 ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = False
 FIND_SUBCATEGORIES = True
+FIND_EQUAL_CATEGORIES = False
 
 # Database
 CLOUDSQL_INSTANCE = "qa-umd-test:qadb"
@@ -12,7 +13,8 @@ LOCAL_DB_PWD = "qatest"
 # Cascade Job Types
 SUGGEST_CATEGORY = 1
 BEST_CATEGORY = 2
-FIT_CATEGORY = 3
+EQUAL_CATEGORY = 3
+FIT_CATEGORY = 4
 
 # Cascade Settings
 CASCADE_P = 80                  # % of overlapping items used to detect duplicate and nested categories
