@@ -356,7 +356,7 @@ function initEventHandlers() {
 		}
 	});
 	
-	$(".qa_link").click(function() {
+	$(".xparty_link").click(function() {
 		if (logged_in) {
 			unloadPage($(this).attr("href"));
 			return false;

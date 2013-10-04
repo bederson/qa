@@ -967,7 +967,7 @@ class CascadeSuggestCategory(DBObject):
                 if row["suggested_category"]:
                     atLeastOneSuggestedCategory = True
                     break
-                
+
             if len(rows) >= question.cascade_k and atLeastOneSuggestedCategory:
                 CascadeBestCategory.create(dbConnection, question, row["idea_id"])
                 moreJobs = True
@@ -1094,21 +1094,21 @@ class CascadeBestCategory(DBObject):
     @staticmethod
     def createCascadeJobs(dbConnection, question, task):    
         # create cascade jobs if CascadeBestCategory job is complete
-        sql = "select * from cascade_best_categories where question_id={0} and ".format(question.id)
+        sql = "select *, (best_category not in (select category from categories where question_id={0})) as is_new_category ".format(question.id)
+        sql += "from cascade_best_categories where question_id={0} and ".format(question.id)
         sql += "idea_id=(select idea_id from cascade_best_categories where id={0}) and ".format(task["id"])
-        sql += "{0} and ".format(CascadeBestCategory.completeCondition)
-        sql += "(best_category not in (select category from categories where question_id={0}))".format(question.id)
-        
+        sql += "{0}".format(CascadeBestCategory.completeCondition)
         dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()
+        
         jobCount = 0
         if len(rows) >= question.cascade_k:
-        
             categoryVotes = {}
             for row in rows:
                 ideaId = row["idea_id"]
                 category = row["best_category"]
-                if category:
+                isNewCategory = row["is_new_category"] == 1
+                if category and isNewCategory:
                     if category not in categoryVotes:
                         categoryVotes[category] = []
                     categoryVotes[category].append(row)
@@ -1134,6 +1134,8 @@ class CascadeBestCategory(DBObject):
                     # create CategoryFitCategory jobs
                     # category may be a duplicate of but hasn't been flagged as such yet
                     # TODO/FIX: can we find out if this is a duplicate category earlier?
+                    # TODO/FIX: CascadeFitCategory tasks may get created more than k2 times for this category
+                    # if more than k CascadeBestCategory tasks are performed for this category
                     jobCount += CascadeFitCategory.createForAllIdeas(dbConnection, question, category)
                                         
         if jobCount>0 and Question.onMoreJobs:
@@ -1202,7 +1204,7 @@ class CascadeEqualCategory(DBObject):
                     
         count = 0
         if len(categories) > 1:
-            categoryPairs = [];
+            categoryPairs = []
             sql = "select distinct category1, category2 from cascade_equal_categories where question_id=%s"
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
@@ -1289,6 +1291,8 @@ class CascadeEqualCategory(DBObject):
         sql += "{0}".format(CascadeEqualCategory.completeCondition)
         dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()
+        
+        # TODO/FIX/FRIDAY: check order of category1/category2 if it causing problems with select!
         if len(rows) >= question.cascade_k:
             equalVoteCount = 0
             for row in rows:
@@ -1299,6 +1303,8 @@ class CascadeEqualCategory(DBObject):
                     
             # check if any equal votes pass the voting threshold
             # if so, flag category2 as category to skip creating jobs for in future
+            # TODO/THURSDAY: check if either category being compared has already been skipped?
+            # if so, delete any pending equal jobs?
             votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
             if equalVoteCount >= votingThreshold:
                 sql = "update categories set skip=1 where question_id=%s and category=%s"

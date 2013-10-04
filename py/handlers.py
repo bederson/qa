@@ -636,7 +636,7 @@ class DownloadQuestionHandler(BaseHandler):
             reportBuffer.close()
     
             contentType = "text/tab-separated-values"
-            filename = "qa_question_{0}_as_of_{1}.txt".format(self.question.id, (datetime.datetime.now()-utcOffset).strftime("%Y%m%d-%H%M%S"))
+            filename = "xparty_question_{0}_as_of_{1}.txt".format(self.question.id, (datetime.datetime.now()-utcOffset).strftime("%Y%m%d-%H%M%S"))
             self.writeResponseAsFile(encodedContent=reportText, contentType=contentType, filename=filename, encoding="UTF-8")
             
         self.destroy()

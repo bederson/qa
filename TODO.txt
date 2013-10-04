@@ -24,6 +24,7 @@ Suggestions
 * Categorize: skip best category tasks if k=1
 * Categorize: add user task to find equal categories
 * Categorize: more jobs created than needed (question 32350 check cascade_fit_categories_phase1)
+* Categorize: would it be better to group more categories together in fit tasks when larger number of categories to check
                                       
 * Results: add "discuss" button to categories and items and show counts
 * Results: allow users to expand/collapse individual categories

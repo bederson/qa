@@ -1,5 +1,8 @@
 #application: qa-umd
-#version: 6
+#version: 7
+
+#application: xparty-umd
+#version: 7
 
 application: qa-umd-test
 version: dev

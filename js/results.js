@@ -222,32 +222,39 @@ function updateDisplayCategories() {
 		}
 
 		if (showSubcategories) {
+			var subcategoryIndex = 0;
 			for (var j in categorySubcategories) {
 				var subcategoryGroup = getCategory(categorySubcategories[j]);
-				var subcategory = subcategoryGroup.category;
-				var subcategoryIdeas = subcategoryGroup.ideas;
-				var subcategorySameAs = subcategoryGroup.same_as;
-				var count = 0;
-				for (var k in subcategoryIdeas) {
-					var subcategoryIdea = subcategoryIdeas[k];
-					var skip = singleCategoryOnly && isDefined(showOnlyInCategories[subcategoryIdea.id]) && (showOnlyInCategories[subcategoryIdea.id] != subcategory);
-					if (!skip) {
-						// update root category	associated with subcategory										
-						if (singleCategoryOnly || j==0 || !doesIdeaListContain(displayedCategories[i]["ideas"], subcategoryIdea)) {
-							displayedCategories[i]["moreideas"].push(subcategoryIdea);	
+				// check if subcategory found
+				// if not, it may have already been merged with another category (if it is a duplicate)
+				// if not, the category it was merged with will only be checked if it is also a subcategory of this category
+				if (subcategoryGroup) {
+					var subcategory = subcategoryGroup.category;
+					var subcategoryIdeas = subcategoryGroup.ideas;
+					var subcategorySameAs = subcategoryGroup.same_as;
+					var count = 0;
+					for (var k in subcategoryIdeas) {
+						var subcategoryIdea = subcategoryIdeas[k];
+						var skip = singleCategoryOnly && isDefined(showOnlyInCategories[subcategoryIdea.id]) && (showOnlyInCategories[subcategoryIdea.id] != subcategory);
+						if (!skip) {
+							// update root category	associated with subcategory										
+							if (singleCategoryOnly || subcategoryIndex==0 || !doesIdeaListContain(displayedCategories[i]["ideas"], subcategoryIdea)) {
+								displayedCategories[i]["moreideas"].push(subcategoryIdea);	
+							}
+							displayedCategories[i]["count"]++;
+	
+							// initialize subcategory
+							if (count == 0) {	
+								displayedCategories[i]["subcategories"].push({ "category":subcategory, "ideas":[], "sameas":subcategorySameAs, "count":0 })
+							}
+							
+							// update subcategory
+							displayedCategories[i]["subcategories"][subcategoryIndex]["ideas"].push(subcategoryIdea);
+							displayedCategories[i]["subcategories"][subcategoryIndex]["count"]++;
+							count++;
 						}
-						displayedCategories[i]["count"]++;
-
-						// initialize subcategory
-						if (count == 0) {	
-							displayedCategories[i]["subcategories"].push({ "category":subcategory, "ideas":[], "sameas":subcategorySameAs, "count":0 })
-						}
-						
-						// update subcategory
-						displayedCategories[i]["subcategories"][j]["ideas"].push(subcategoryIdea);
-						displayedCategories[i]["subcategories"][j]["count"]++;
-						count++;
 					}
+					subcategoryIndex++;
 				}
 			}
 		}
@@ -316,6 +323,15 @@ function displayIdeas() {
 	newIdeaHtml += "</table>";
 	$("#ideas").html(newIdeaHtml + html);
 	
+	// TODO: need to highlight image on mouseover
+	//$(".discuss_idea_button").mouseover(function() {
+	//	$(this).css('border', 'solid 1px black');
+	//});
+
+	//$(".discuss_idea_button").mouseout(function() {
+	//	$(this).css('border', 'none');
+	//});
+		
 	$(".discuss_idea_button").click(function() {
 		var buttonId = $(this).attr("name");
 		var tokens = buttonId.split("_");
@@ -329,7 +345,7 @@ function displayIdeas() {
 		$.post("/discuss_idea", data, function(result) {
 			if (result.status == 1) {
 				// TODO/FIX: keep track of who marked to discuss vs. simple count
-				$(".discuss_idea_"+ideaId+"_count").html(result.count + "+");
+				$(".discuss_idea_"+ideaId+"_count").html("+" + result.count);
 			}
 		}, "json");
 	});
@@ -464,11 +480,13 @@ function ideaAsHtml(idea, parent) {
 	}
 		
 	var html = "<li>";
-	html += idea.idea;
 	if (SHOW_DISCUSS_BUTTONS) {
-		html += " <button name='discuss_idea_"+idea.id+"_button' class='discuss_idea_button'>Discuss</button> ";
-		html += "<span class='discuss_idea_"+idea.id+"_count note'>" + (idea.discuss > 0 ? idea.discuss + "+" : "") + "</span> ";
+		html += "<img name='discuss_idea_"+idea.id+"_button' class='discuss_idea_button' src='/images/discuss.png' style='vertical-align:middle' /> ";
+		html += "<span class='discuss_idea_"+idea.id+"_count note'>" + (idea.discuss > 0 ? "+" + idea.discuss : "") + "</span> ";
+		html += " ";
 	}
+	html += idea.idea;
+
 	if (alsoIn.length>0) {
 		hasAlsoIn = true;
 		html += "<span class='note also_in' style='display:none'><br/>Also in: " + alsoIn.join(", ") + "</span>";
