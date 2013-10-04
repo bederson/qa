@@ -40,9 +40,10 @@ var hasAlsoIn = false;
 
 var question = null;
 var categorizedIdeas = [];
+var uncategorizedIdeas = [];
+var numIdeas = 0;
 var displayedCategories = {};
 var categoryCounts = {};
-var numIdeas = 0;
 var adminStats = null;
    
 $(document).ready(function() {
