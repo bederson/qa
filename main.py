@@ -31,6 +31,7 @@ app = webapp2.WSGIApplication([
     ('/idea', IdeaPageHandler),
     ('/cascade', CascadePageHandler),
     ('/results', ResultsPageHandler),
+    ('/results_test', ResultsTestPageHandler),
     ('/admin', AdminPageHandler),
 
     ('/login', LoginHandler),

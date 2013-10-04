@@ -268,6 +268,15 @@ class ResultsPageHandler(BaseHandler):
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
 
+class ResultsTestPageHandler(BaseHandler):
+    def get(self):
+        self.init()    
+        self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False)
+        templateValues = self.getDefaultTemplateValues()
+        path = os.path.join(os.path.dirname(__file__), '../html/results-keshif.html')
+        self.response.out.write(template.render(path, templateValues))        
+        self.destroy()
+        
 class AdminPageHandler(BaseHandler):
     def get(self):
         self.init(adminRequired=True)
