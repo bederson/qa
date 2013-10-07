@@ -48,21 +48,15 @@ function onChannelOpen() {
 
 function loadResults() {	
 	var question_id = getURLParameter("question_id");
-	var test = getURLParameter("test");
 
 	var data = {
-		"request": "ideas",
-		"group_by": "category",
+		"request": "ideas_test",
 		"question_id": question_id,
-		"test": test!=null && test=="1" ? "1" : "0"
 	};
 	$.getJSON("/query", data, function(results) {
 		question = results.question;
-		categorizedIdeas = results.categorized;
-		uncategorizedIdeas = results.uncategorized;
-		numIdeas = results.count;
-		
-		initKeshif();
+		ideas = results.ideas;
+		initKeshif(results);
 		
 		// FIX!
 		//updateStatus();
@@ -78,18 +72,17 @@ function loadResults() {
 	});
 }
 
-function initKeshif() {
+function initKeshif(data) {
 	kshf.init({
 	    facetTitle: question.question,
 	    domID : "#ideas",
-	    itemName : " answers",
-	    categoryTextWidth:186,
+	    itemName : " responses",
+	    categoryTextWidth:150,
 	    source : {
-	    	gdocId : '0Ai6LdDWgaqgNdGEyX1BNOHlJS0hobmJaaHJfMGxSb0E',
             sheets : [ 
-                {name:"ideas"},
-                {name:"fits"},
-                {name:"users"} 
+                { name: "ideas", data: data.ideas },
+                { name: "fits", data: data.fits },
+                { name: "users", data: data.users } 
             ]
 	    },
 	    loadedCb: function(){
@@ -116,23 +109,22 @@ function initKeshif() {
                 },
                 filter: { rowConj: 'of type' },
             },
-            /*
             {
-                facetTitle: "Tags",
+                facetTitle: "Words",
                 itemMapFunc : function(answer){ 
                     var words = answer.data[2].split(" ");
                     var newwords = [];
                     for(var i=0; i<words.length ; i++){
                         var w=words[i].toLowerCase();
-                        if(stopWords[w]===undefined) {
+                        if(!isStopWord(w)) {
                             newwords.push(w);
                         }
                     }
                     return newwords;
                 },
+                catDispCountFix: 15,
                 filter: { rowConj: 'of type' },
             },
-            */
             {
                 facetTitle: "Students",
                 itemMapFunc : function(answer){ 
@@ -141,31 +133,45 @@ function initKeshif() {
                 catDispCountFix: 5,
                 filter: { rowConj: 'of type' },
             }
-
 	    ],
 	    list: {
             sortOpts : [
                 {   name: 'Student ID',
-                    width: 75,
+                    width: 85,
                     value: function(answer){ return answer.data[1]; }
+                    //value: function(answer){ return kshf.dt_id.users[answer.data[1]].data[2]; }
                 }
             ],
             contentFunc : function(d){
-                var j;
-                var str="";
-                str+="<div class=\"iteminfo iteminfo_0\">"+d.data[2]+"</div>";
-                str+="<div class=\"iteminfo iteminfo_1\">Group under: ";
                 var cats = qCats[d.data[0]];
-                if(cats===undefined) str+="none"; else
-                for(var i=0;i<cats.length;i++){
-                    str+=cats[i]+" , ";
-                }
+                var str="";
+                str+="<div class='iteminfo iteminfo_0'>"+d.data[2]+"</div>";
+                str+="<div class='iteminfo iteminfo_1'>Categories: ";
+                str += isUndefined(cats) ? "none" : cats.join(", ");
                 str+="</div";
                return str;
             }
         }
-
 	});
+}
+
+//=================================================================================
+// Language and Stemming
+//=================================================================================
+
+var STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "here", "his", "how", "I", "if", "in", "into", "is", "it", "its", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];
+
+function isStopWord(word) {
+	var stopWordsSet = isStopWord._stopWordsSet;
+	if (isUndefined(stopWordsSet)) {
+		var stopWordsSet = {};
+		var numStopWords = STOP_WORDS.length;
+		for(var i=0; i<numStopWords; i++) {
+			stopWordsSet[STOP_WORDS[i].toLowerCase()] = true;
+		}
+		isStopWord._stopWordsSet = stopWordsSet;
+	}
+	return isDefined(stopWordsSet[word.toLowerCase()]);
 }
 
 /////////////////////////

@@ -454,7 +454,40 @@ class QueryHandler(BaseHandler):
                     ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)
                     data = { "question": self.question.toDict(), "ideas": ideas }
 
-            self.destroy()
+            # for testing Keshif
+            elif request == "ideas_test" and self.question:      
+                ideaData = []      
+                sql = "select id, user_id, idea from question_ideas where question_id=%s order by id"
+                self.dbConnection.cursor.execute(sql, (self.question.id))
+                rows = self.dbConnection.cursor.fetchall()
+                headerRow = ["id", "user_id", "idea"]
+                ideaData.append(headerRow)
+                for row in rows:
+                    dataRow = [ row[colHeader] for colHeader in headerRow ]
+                    ideaData.append(dataRow)
+               
+                userData = []      
+                sql = "select id, authenticated_nickname, nickname from users where question_id=%s order by id"
+                self.dbConnection.cursor.execute(sql, (self.question.id))
+                rows = self.dbConnection.cursor.fetchall()
+                headerRow = ["id", "authenticated_nickname", "nickname"]
+                userData.append(headerRow)
+                for row in rows:
+                    dataRow = [ row[colHeader] for colHeader in headerRow ]
+                    userData.append(dataRow)
+                
+                # TODO/FIX: only works if k2=1
+                fitData = []      
+                sql = "select user_id, idea_id, category from cascade_fit_categories_phase1 where question_id=%s and fit=1 order by id"
+                self.dbConnection.cursor.execute(sql, (self.question.id))
+                rows = self.dbConnection.cursor.fetchall()
+                headerRow = ["user_id", "idea_id", "category"]
+                fitData.append(headerRow)
+                for row in rows:
+                    dataRow = [ row[colHeader] for colHeader in headerRow ]
+                    fitData.append(dataRow)  
+                    
+                data = { "question": self.question.toDict(), "ideas" : ideaData, "users" : userData, "fits" : fitData }
 
         self.writeResponseAsJson(data)
 
@@ -649,7 +682,7 @@ class DownloadQuestionHandler(BaseHandler):
             self.writeResponseAsFile(encodedContent=reportText, contentType=contentType, filename=filename, encoding="UTF-8")
             
         self.destroy()
-          
+                  
 class NewIdeaHandler(BaseHandler):
     def post(self):
         self.init()

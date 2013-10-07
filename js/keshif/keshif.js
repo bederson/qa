@@ -185,6 +185,8 @@ kshf.loadTables = function(){
             this.loadSheet_Google(sheet);
         } else if(this.source.dirPath){
             this.loadSheet_File(sheet);
+        } else if(sheet.data){ // TEST - atr
+        	this.loadSheet_Data(sheet);
         }
 	}
 };
@@ -289,11 +291,12 @@ kshf.loadSheet_File = function(sheet){
                 kshf.items = arr;
                 kshf.itemsSelectedCt = arr.length;
             }
+
             // find the id row, and create the indexed table
             var id_table = {};
             for(j=0; j<arr.length ;j++) {
                 var r=arr[j];
-                id_table[r.id()] = r; 
+                id_table[r.id()] = r;
             }
             kshf.dt_id[tableName] = id_table;
             // finish loading
@@ -303,6 +306,62 @@ kshf.loadSheet_File = function(sheet){
         }
         }
     );
+};
+
+// TEST - atr
+kshf.loadSheet_Data = function(sheet){
+    var tableName = sheet.name;
+    if(sheet.tableName) { tableName = sheet.tableName; }
+    var i,j;
+    kshf.dt_ColNames[tableName] = {};
+    var arr = [];
+    var idIndex = -1;
+    var itemId=0;
+    // for each line, split on , character
+    for(i=0; i<sheet.data.length; i++){
+    	c=sheet.data[i];
+        if(i===0){ // header 
+        	for(j=0; j<c.length;j++){
+            	var colName = c[j];
+                kshf.dt_ColNames[tableName][colName] = j;
+                if(colName===sheet.id){ idIndex = j;}
+            }
+            if(idIndex===-1){ // id column not found, you need to create your own
+                kshf.dt_ColNames[tableName][sheet.id] = j;
+                idIndex = j;
+            }
+        } else { // content
+        	if(idIndex===c.length){// push unique id if necessary
+            	c.push(itemId++);
+            }
+            var item = new kshf.Item(c,idIndex);
+            // 1 true item is added for global search
+            if(sheet.primary){ 
+            	item.filters = [true];
+                item.mappedRows = [true];
+                item.mappedData = [true];
+                item.dots = [];
+                item.cats = [];
+            }
+            arr.push(item);
+        }
+    }
+    kshf.dt[tableName] = arr;
+    if(sheet.primary){
+    	kshf.items = arr;
+        kshf.itemsSelectedCt = arr.length;
+    }
+    // find the id row, and create the indexed table
+    var id_table = {};
+    for(j=0; j<arr.length ;j++) {
+    	var r=arr[j];
+        id_table[r.id()] = r;
+    }
+    kshf.dt_id[tableName] = id_table;
+  	// finish loading
+    if(++kshf.source.loadedTableCount===kshf.source.sheets.length) {
+    	kshf.createCharts();
+    }
 };
 
 // Sends the spreadsheet query, retrieves the result in asynch mode, prepares the data and updates visualization when all data is loaded.
