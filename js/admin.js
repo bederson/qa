@@ -109,10 +109,15 @@ function displayQuestionItem(question) {
 function getQuestionItemHtml(question) {
 	var html = "<a href='javascript:selectQuestion(" + question.id + ")'>" + question.title + "</a> ";
 	html += "<span class='note'>#"+question.id+"</span>&nbsp;&nbsp;&nbsp;&nbsp;";
-	html += "<a class='small' href='javascript:editQuestionForm(" + question.id + ")'>[edit]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
-	html += "<a class='small' href='javascript:deleteQuestionData(" + question.id + ")'>[delete data]</a>&nbsp;&nbsp;&nbsp;";
-	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;&nbsp;&nbsp;";
-	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a><br/>";
+	html += "<a class='small' href='javascript:editQuestionForm(" + question.id + ")'>[edit]</a>&nbsp;&nbsp;";
+	html += "<a class='small' href='javascript:deleteQuestionData(" + question.id + ")'>[delete data]</a>&nbsp;&nbsp;";
+	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;";
+	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a>";
+	if (isRunningOnLocalServer() || (isRunningOnTestServer() && user_login=="anne.bobrose")) {
+		html += "&nbsp;&nbsp;||&nbsp;&nbsp;";
+		html += "<a class='small' href='javascript:copyQuestion(" + question.id + ")'>[duplicate]</a>";
+	}
+	html += "<br/>";
 	html += question.question + "<br/>";
 	html += isDefined(question.author) ? "<em>" + question.author + "</em><br/>" : "";
 	if (question.nickname_authentication) {
@@ -195,6 +200,23 @@ function deleteQuestion(question_id) {
 			}
 		}
 	});
+}
+
+function copyQuestion(question_id) {
+	var data = {
+		"client_id": client_id,
+		"question_id": question_id
+	};
+	$.post("/copy_question", data, function(result) {
+		if (result.status == 0) {
+			$("#msg").html(result.msg);
+			return;
+		}
+		
+		addQuestion(result.new_question, true);
+		displayQuestionsList();
+		selectQuestion(result.new_question.id);
+	}, "json");
 }
 
 //==============================================================

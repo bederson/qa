@@ -94,6 +94,11 @@ onClose = function() {
 // Page Urls
 //===================================================
 
+function isRunningOnLocalServer() {
+	var url = ""+window.location.href;
+	return url.indexOf("http://localhost:8080") != -1;
+}
+
 function isRunningOnTestServer() {
 	var url = ""+window.location.href;
 	return url.indexOf("http://localhost:8080") != -1 || url.indexOf("http://qa-umd-test.appspot.com") != -1 || url.indexOf("http://xparty-test.appspot.com") != -1;

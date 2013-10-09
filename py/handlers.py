@@ -507,7 +507,7 @@ class NewQuestionHandler(BaseHandler):
             data = { "status" : 0, "msg" : "Title and question must must be at least 4 characters" }
                      
         else:
-            self.question = Question.create(self.dbConnection, self.person, title, questionText, nicknameAuthentication)
+            self.question = Question.create(self.dbConnection, self.person.id, title, questionText, nicknameAuthentication)
             data = { "status": 1, "question": self.question.toDict() }
             #sendMessage(self.dbConnection, clientId, self.question, { "op" : "newquestion" })
 
@@ -542,7 +542,21 @@ class EditQuestionHandler(BaseHandler):
             
         self.writeResponseAsJson(data)
         self.destroy()
-            
+
+
+class CopyQuestionHandler(BaseHandler):
+    def post(self):
+        self.init()
+        clientId = self.request.get('client_id')
+
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
+        if ok:
+            new_question = Question.copy(self.dbConnection, self.question)
+            data = { "status": 1, "new_question": new_question.toDict() }
+
+        self.writeResponseAsJson(data)
+        self.destroy()
+                    
 class DeleteQuestionHandler(BaseHandler):
     def post(self):
         self.init(adminRequired=True)

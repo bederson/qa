@@ -41,6 +41,7 @@ app = webapp2.WSGIApplication([
     ('/nickname', NicknameHandler),
 	('/new_question', NewQuestionHandler),
 	('/edit_question', EditQuestionHandler),
+    ('/copy_question', CopyQuestionHandler),
     ('/delete_question', DeleteQuestionHandler),
     ('/download_question', DownloadQuestionHandler),
     ('/set_active', ActiveHandler),

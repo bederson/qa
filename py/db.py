@@ -160,7 +160,7 @@ class Question(DBObject):
         self.cascade_complete = 0
         
     @staticmethod
-    def create(dbConnection, author, title, questionText, nicknameAuthentication=False):
+    def create(dbConnection, authorId, title, questionText, nicknameAuthentication=False):
         # create unique 5 digit id
         # TODO: need better way to generate unique question ids
         idCreated = False
@@ -175,7 +175,7 @@ class Question(DBObject):
         question.title = title
         question.question = questionText
         question.nickname_authentication = nicknameAuthentication
-        question.user_id = author.id
+        question.user_id = authorId
         question.active = 1
             
         sql = "insert into questions (id, title, question, nickname_authentication, user_id, active) values (%s, %s, %s, %s, %s, %s)"
@@ -195,6 +195,32 @@ class Question(DBObject):
                 helpers.log("WARNING: authenticated_user_id not included in question data")            
         return question
 
+    @staticmethod
+    def copy(dbConnection, question):
+        newQuestion = Question.create(dbConnection, question.user_id, "{0} (Copy)".format(question.title), question.question, question.nickname_authentication)
+
+        newUserIds = {}
+        sql = "select * from users where question_id=%s"
+        dbConnection.cursor.execute(sql, (question.id))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            oldUserId = row["id"]                      
+            sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id) values (%s, %s, %s, %s)"
+            dbConnection.cursor.execute(sql, (row["authenticated_user_id"], row["authenticated_nickname"], row["nickname"], newQuestion.id))
+            newUserId = dbConnection.cursor.lastrowid
+            dbConnection.conn.commit()
+            newUserIds[oldUserId] = newUserId
+        
+        sql = "select * from question_ideas where question_id=%s"
+        dbConnection.cursor.execute(sql, (question.id))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            oldUserId = row["user_id"]
+            newUserId = newUserIds[oldUserId]
+            Idea.create(dbConnection, newQuestion, newUserId, row["idea"])
+
+        return newQuestion
+        
     def setActive(self, dbConnection, active):
         if self.active != active:
             if not active and not self.cascade_complete:
@@ -1222,7 +1248,7 @@ class CascadeEqualCategory(DBObject):
                             for i in range(question.cascade_k):
                                 insertValues.append("({0}, %s, %s)".format(question.id))
                                 insertCategories += (category1, category2)
-                            categoryPairs.append("{0}:::{1}".format(category1, category2))
+                            categoryPairs.append(categoryPair1)
             
             if len(insertValues) > 0:            
                 sql = "insert into cascade_equal_categories (question_id, category1, category2) values {0}".format(",".join(insertValues))
@@ -1252,7 +1278,7 @@ class CascadeEqualCategory(DBObject):
             sql += "question_id=%s " 
             sql += "and user_id is null "
             sql += "and (category1, category2) not in (select distinct category1, category2 from cascade_equal_categories where question_id=%s and user_id=%s) " if not helpers.allowDuplicateJobs() else ""
-            sql += "order by rand() limit {0}".format(question.cascade_s)
+            sql += "group by category1, category2 order by rand() limit {0}".format(question.cascade_s)
             if helpers.allowDuplicateJobs():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:
@@ -1292,7 +1318,7 @@ class CascadeEqualCategory(DBObject):
         dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()
         
-        # TODO/FIX/FRIDAY: check order of category1/category2 if it causing problems with select!
+        # TODO/FIX: check order of category1/category2 if it causing problems with select!
         if len(rows) >= question.cascade_k:
             equalVoteCount = 0
             for row in rows:
@@ -1303,7 +1329,7 @@ class CascadeEqualCategory(DBObject):
                     
             # check if any equal votes pass the voting threshold
             # if so, flag category2 as category to skip creating jobs for in future
-            # TODO/THURSDAY: check if either category being compared has already been skipped?
+            # TODO: check if either category being compared has already been skipped?
             # if so, delete any pending equal jobs?
             votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
             if equalVoteCount >= votingThreshold:
