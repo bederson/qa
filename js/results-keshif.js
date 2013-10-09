@@ -59,7 +59,6 @@ function onChannelOpen() {
 	});
 }
 
-// load categorized data w/ duplicate categories merged
 function loadResults() {	
 	var question_id = getURLParameter("question_id");
 	var data = {
@@ -76,8 +75,13 @@ function loadResults() {
 	});
 }	
 
-function displayResults() {	
-	categoryCounts = {};
+function displayResults() {
+	updateResultsForDisplay();
+	initKeshif();
+}
+
+function updateResultsForDisplay() {
+categoryCounts = {};
 	for (var i=0; i<categorizedIdeas.length; i++) {
 		var category = categorizedIdeas[i].category;
 		var ideas = categorizedIdeas[i].ideas;
@@ -148,16 +152,20 @@ function displayResults() {
 			}
 		}
 	}
-
-	initKeshif();
 }
 
 function initKeshif() { 
-	var ideas = {};
-	var users = {};
+	var ideaData = [];
+	ideaData.push([ "id", "idea", "user_id" ]);		
+
+	var userData = [];
+	userData.push([ "id", "authenticated_nickname", "nickname" ]);
+	
 	var fitData = [];
 	fitData.push([ "idea_id", "category", "user_id" ]);
-		
+
+	var ideas = {};
+	var users = {};		
 	for (var i in displayedCategories) {
 		var displayedCategory = displayedCategories[i].category;
 		var displayedIdeas = displayedCategories[i].ideas;
@@ -168,22 +176,18 @@ function initKeshif() {
 			var author = displayedIdeas[j].author;
 			var authorIdentity = isDefined(displayedIdeas[j].author_identity) ? displayedIdeas[j].author : displayedIdeas[j].author;
 				
-			ideas[ideaId] = [ ideaId, idea, userId ];
-			users[userId] = [ userId, authorIdentity, author ];
+			if (!(ideaId in ideas)) { 
+				ideas[ideaId] = [ ideaId, idea, userId ];
+				ideaData.push(ideas[ideaId]);
+			}
+			
+			if (!(userId in users)) {
+				users[userId] = [ userId, authorIdentity, author ];
+				userData.push(users[userId]);
+			}
+			
 			fitData.push([ ideaId, displayedCategory, userId ]);
 		}
-	}
-
-	var ideaData = [];
-	ideaData.push([ "id", "idea", "user_id" ]);		
-	for (ideaId in ideas) {
-		ideaData.push(ideas[ideaId]);
-	}
-
-	var userData = [];
-	userData.push([ "id", "authenticated_nickname", "nickname" ]);
-	for (userId in users) {
-		userData.push(users[userId]);
 	}
 		
 	$("#ideas").html("");	       
