@@ -798,7 +798,7 @@ class Idea(DBObject):
                         sameAs = ideaSameAs
                         subcategories = categorySubcategories
                         categoryIdeas = []
-                        
+                    
                     categoryIdeas.append(idea)
                     
                 else:

@@ -15,27 +15,35 @@
 // limitations under the License.
 // 
 
-var OFFLINE = false;				// For offline debugging
+var OFFLINE = false;
 
 var question = null;
 var categorizedIdeas = [];
 var uncategorizedIdeas = [];
 var numIdeas = 0;
+var categoryCounts = {};
+    		
+var singleCategoryOnly = false;
+var showOnlyInCategories = {};
+var subcategories = [];
 
-var qCats = {};
-   
+// Keshif
+var ideasCol;
+var fitsCol;
+var usersCol;
+
 $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
 	}
-
+	
 	initChannel(onChannelOpen);
 	$("#page_content").show();
 });
 
 function onChannelOpen() {
 	loadResults();
-	
+		
 	if (!jQuery.browser.mobile) {
 		$("#admin_buttons").show();
 	}
@@ -44,108 +52,226 @@ function onChannelOpen() {
 		var question_id = getURLParameter("question_id");
 		redirectToAdminPage(question_id);
 	});
+	
+	$("#single_category_cb").click(function() {
+		singleCategoryOnly = $(this).is(":checked");
+		displayResults();
+	});
 }
 
+// load categorized data w/ duplicate categories merged
 function loadResults() {	
 	var question_id = getURLParameter("question_id");
-
 	var data = {
-		"request": "ideas_test",
+		"request": "ideas",
+		"group_by": "category",
 		"question_id": question_id,
 	};
 	$.getJSON("/query", data, function(results) {
 		question = results.question;
-		ideas = results.ideas;
-		initKeshif(results);
-		
-		// FIX!
-		//updateStatus();
-			
-		// FIX!
-		//if (OFFLINE) {
-		//	displayIdeas();
-		//}
-		//else {
-		//	// http://stackoverflow.com/questions/556406/google-setonloadcallback-with-jquery-document-ready-is-it-ok-to-mix
-		//	google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': displayIdeas });
-		//}
+		categorizedIdeas = results.categorized;
+		uncategorizedIdeas = results.uncategorized;
+		numIdeas = results.count;
+		displayResults();
 	});
+}	
+
+function displayResults() {	
+	categoryCounts = {};
+	for (var i=0; i<categorizedIdeas.length; i++) {
+		var category = categorizedIdeas[i].category;
+		var ideas = categorizedIdeas[i].ideas;
+		categoryCounts[category] = ideas.length;
+	}
+					
+	// find category that item should be displayed in if only displayed in a *single* category
+	showOnlyInCategories = {};
+	for (var i=0; i<categorizedIdeas.length; i++) {
+		var category = categorizedIdeas[i].category;
+		var ideas = categorizedIdeas[i].ideas;
+		for (var j=0; j<ideas.length; j++) {
+			var idea = ideas[j];
+			if (isUndefined(showOnlyInCategories[idea.id])) {
+				var ideaSubcategories = [];
+				var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
+				if (ideaAlsoIn.length > 0) {
+					ideaAlsoIn.push(category);
+					if (subcategories.length > 0) {
+						ideaSubcategories = intersection(ideaAlsoIn, subcategories);
+					}
+							
+					var showInCategory = null;							
+					if (ideaSubcategories.length > 0) {
+						var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
+						// TODO/FIX: consider whether single category should be smallest or largest
+						showInCategory = minMaxSubcategories.min;
+					}
+					else {
+						var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
+						var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
+						showInCategory =  minMaxRootCategories.min;
+					}
+					showOnlyInCategories[idea.id] = showInCategory;
+				}
+			}			
+		}
+	}
+				
+	displayedCategories = {};
+	for (var i=0; i<categorizedIdeas.length; i++) {
+		var categoryGroup = categorizedIdeas[i];
+		var category = categoryGroup.category;
+		var categoryIdeas = categoryGroup.ideas;
+		var categorySubcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
+		var categorySameAs = categoryGroup.same_as;
+			
+		var count = 0;
+		for (var j=0; j<categoryIdeas.length; j++) {
+			var skip = false;
+			var idea = categoryIdeas[j];
+			var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
+			if (singleCategoryOnly && isDefined(showOnlyInCategories[idea.id]) && showOnlyInCategories[idea.id] != category) {
+				skip = true;
+			}
+						
+			if (!skip) {
+				// initialize root category in displayedCategories
+				// ideas + moreideas = unique list of ideas contained in root category
+				if (isUndefined(displayedCategories[i])) {
+					displayedCategories[i] = { "category":category, "ideas":[], "moreideas":[], "subcategories":[], "sameas":categorySameAs, "count":0 };
+				}
+						
+				// update root category
+				displayedCategories[i]["ideas"].push(idea);
+				displayedCategories[i]["count"]++;
+				count++;
+			}
+		}
+	}
+
+	initKeshif();
 }
 
-function initKeshif(data) {
+function initKeshif() { 
+	var ideas = {};
+	var users = {};
+	var fitData = [];
+	fitData.push([ "idea_id", "category", "user_id" ]);
+		
+	for (var i in displayedCategories) {
+		var displayedCategory = displayedCategories[i].category;
+		var displayedIdeas = displayedCategories[i].ideas;
+		for (var j=0; j<displayedIdeas.length; j++) {
+			var userId = displayedIdeas[j].user_id;
+			var ideaId = displayedIdeas[j].id;
+			var idea = displayedIdeas[j].idea;
+			var author = displayedIdeas[j].author;
+			var authorIdentity = isDefined(displayedIdeas[j].author_identity) ? displayedIdeas[j].author : displayedIdeas[j].author;
+				
+			ideas[ideaId] = [ ideaId, idea, userId ];
+			users[userId] = [ userId, authorIdentity, author ];
+			fitData.push([ ideaId, displayedCategory, userId ]);
+		}
+	}
+
+	var ideaData = [];
+	ideaData.push([ "id", "idea", "user_id" ]);		
+	for (ideaId in ideas) {
+		ideaData.push(ideas[ideaId]);
+	}
+
+	var userData = [];
+	userData.push([ "id", "authenticated_nickname", "nickname" ]);
+	for (userId in users) {
+		userData.push(users[userId]);
+	}
+		
+	$("#ideas").html("");	       
 	kshf.init({
 	    facetTitle: question.question,
 	    domID : "#ideas",
 	    itemName : " responses",
-	    categoryTextWidth:150,
+	    categoryTextWidth: 150,
 	    source : {
             sheets : [ 
-                { name: "ideas", data: data.ideas },
-                { name: "fits", data: data.fits },
-                { name: "users", data: data.users } 
+                { name: "ideas", data: ideaData },
+                { name: "fits", data: fitData },
+                { name: "users", data: userData },
             ]
 	    },
-	    loadedCb: function(){
-	        for (var i=0; i<kshf.dt.fits.length; i++){
-                var x=kshf.dt.fits[i];
-                var idea_id= x.data[1];
-                var cat= x.data[2];
-                if(idea_id in qCats){
-                    // if it already in the array, don't put it back
-                    if(qCats[idea_id].indexOf(cat)!==-1) {
-                        continue;
-                    }
-                    qCats[idea_id].push(cat);
-                } else {
-                    qCats[idea_id] = [cat];
+	    loadedCb: function() {  
+	    	ideasCol = kshf.dt_ColNames.ideas;
+	    	ideasCol.words = 4;
+	    	ideasCol.categories = 5;
+    		fitsCol = kshf.dt_ColNames.fits;
+    		usersCol = kshf.dt_ColNames.users;
+    		
+    		for (var i=0; i<kshf.dt.ideas.length; i++) {
+    		 	var ideaId = kshf.dt.ideas[i].data[ideasCol.id];
+    		 	var ideaText = kshf.dt.ideas[i].data[ideasCol.idea];
+    		 	ideaText = ideaText.replace(/[,:;.?]/g, "")
+				var words = ideaText.split(" ");
+    		 	for (var j=0; j<words.length; j++) {
+    		 		var word = words[j];
+    		 		if (word != "" && !isStopWord(word)) {
+				    	if (!kshf.dt_id.ideas[ideaId].data[ideasCol.words]) { 
+				    		kshf.dt_id.ideas[ideaId].data[ideasCol.words] = []; 
+				    	}
+				        kshf.dt_id.ideas[ideaId].data[ideasCol.words].push(word);
+			        }
+		       	}
+            }
+            
+	        for (var i=0; i<kshf.dt.fits.length; i++) {
+                var fit = kshf.dt.fits[i];
+                var ideaId = fit.data[fitsCol.idea_id];
+                var cat = fit.data[fitsCol.category];
+    			if (!kshf.dt_id.ideas[ideaId].data[ideasCol.categories]) { 
+    				kshf.dt_id.ideas[ideaId].data[ideasCol.categories] = []; 
+    			}
+                if (kshf.dt_id.ideas[ideaId].data[ideasCol.categories].indexOf(cat)===-1) {
+                	kshf.dt_id.ideas[ideaId].data[ideasCol.categories].push(cat);
                 }
             }
 	    },
 	    charts: [
 	        {
                 facetTitle: "Categories",
-                itemMapFunc : function(answer){ 
-                    return qCats[answer.data[0]]; 
+                itemMapFunc : function(idea) {
+                    return idea.data[ideasCol.categories];
                 },
-                filter: { rowConj: 'of type' },
+                filter: { rowConj: 'in category' },
             },
             {
                 facetTitle: "Words",
-                itemMapFunc : function(answer){ 
-                    var words = answer.data[2].split(" ");
-                    var newwords = [];
-                    for(var i=0; i<words.length ; i++){
-                        var w=words[i].toLowerCase();
-                        if(!isStopWord(w)) {
-                            newwords.push(w);
-                        }
-                    }
-                    return newwords;
+                itemMapFunc : function(idea) {
+                	return idea.data[ideasCol.words];
                 },
                 catDispCountFix: 15,
-                filter: { rowConj: 'of type' },
+                filter: { rowConj: 'contains word' },
             },
             {
                 facetTitle: "Students",
-                itemMapFunc : function(answer){ 
-                    return kshf.dt_id.users[answer.data[1]].data[2];
+                itemMapFunc : function(idea) {
+                    var userId = idea.data[ideasCol.user_id];
+                    var userData = kshf.dt_id.users[userId].data;
+                    return userData[usersCol.nickname];
                 },
-                catDispCountFix: 5,
-                filter: { rowConj: 'of type' },
+                catDispCountFix: 10,
+                filter: { rowConj: 'by author' },
             }
 	    ],
 	    list: {
             sortOpts : [
                 {   name: 'Student ID',
                     width: 85,
-                    value: function(answer){ return answer.data[1]; }
-                    //value: function(answer){ return kshf.dt_id.users[answer.data[1]].data[2]; }
+                    value: function(idea) { return idea.data[ideasCol.user_id]; }
                 }
             ],
-            contentFunc : function(d){
-                var cats = qCats[d.data[0]];
+            contentFunc : function(idea) {
+                var cats = idea.data[ideasCol.categories];
                 var str="";
-                str+="<div class='iteminfo iteminfo_0'>"+d.data[2]+"</div>";
+                str+="<div class='iteminfo iteminfo_0'>"+idea.data[ideasCol.idea]+"</div>";
                 str+="<div class='iteminfo iteminfo_1'>Categories: ";
                 str += isUndefined(cats) ? "none" : cats.join(", ");
                 str+="</div";
@@ -153,6 +279,21 @@ function initKeshif(data) {
             }
         }
 	});
+}
+
+function getMinMaxCategories(categories) {
+	var minCategory = null;
+	var maxCategory = null;
+	for (var i in categories) {
+		var category = categories[i];
+		if (!minCategory || (categoryCounts[category] < categoryCounts[minCategory])) {
+			minCategory = category;
+		}
+		if (!maxCategory || (categoryCounts[category] > categoryCounts[maxCategory])) {
+			maxCategory = category;
+		}										
+	}
+	return { "min":minCategory, "max":maxCategory };
 }
 
 //=================================================================================
@@ -178,19 +319,19 @@ function isStopWord(word) {
 // Channel support
 /////////////////////////
 function handleIdea(data) {
-	// FIX!
+	// TODO/FIX!
 	//addIdea(data.idea);
 }
 
 function handleEnable(data) {
 	question.active = 1;
-	// FIX!
+	// TODO/FIX!
 	//updateStatus();
 }
 
 function handleDisable(data) {
 	question.active = 0;
-	// FIX!
+	// TODO/FIX!
 	//updateStatus();
 }
 

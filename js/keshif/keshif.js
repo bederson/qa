@@ -2432,6 +2432,7 @@ kshf.BarChart.prototype.filter_removeItems = function(){
             if(Array.isArray(m)){
                 // all mappings should be false
                 for(j=0;j<m.length;j++){
+
                    if(curDtId[m[j]].selected) { j=m.length; }
                 }
                 if(j===m.length){
