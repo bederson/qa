@@ -1685,7 +1685,6 @@ CASCADE_CLASSES = [ CascadeSuggestCategory, CascadeBestCategory, CascadeEqualCat
 #    cascade_suggested_categories: cascade_iteration
 #    cascade_best_categories: cascade_iteration
 #    cascade_fit_categories_phase1: cascade_iteration, subsequent
-#    cascade_fit_categories_phase2: delete table
 
 # TODO: cascade_m is currently 50%; might get better results if higher percentage used but then more jobs required; consider recording x first items to guarantee minimum cascade_m value
 # TODO: fix waiting ui on cascade page (shown between jobs); change to loading

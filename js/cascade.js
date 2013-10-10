@@ -251,15 +251,13 @@ function submitEqualCategories() {
 	var tasks = [];	
 	$("input:radio").each(function() {
 		var rb = $(this);
-		if (rb.is(":checked")) {
-			var rb_name = rb.attr("name");
-			var task_id = rb_name.replace("category_equal_","");
-			tasks.push({ id: task_id, equal: rb.val() == "1" ? 1 : 0 });	
-		}
+		var rb_name = rb.attr("name");
+		var task_id = rb_name.replace("category_equal_","");
+		tasks.push({ id: task_id, equal: rb.is(":checked") ? 1 : 0 });
 	});
 
 	if (tasks.length!=assignedJob.tasks.length) {
-		$("#warning").html("Please indicate whether or not each pair of categories are equal");
+		$("#warning").html("Please indicate whether or not each pair category pair are duplicates");
 		return;
 	}
 	saveAndRequestNewJob(tasks);
