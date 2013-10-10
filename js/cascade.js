@@ -216,29 +216,24 @@ function submitBestCategory(task) {
 }
 
 function equalCategoryUI() {
-	$("#title").html("Find Equal Categories");
-	$("#help").html("Indicate whether or not each pair categories are equal.");
+	$("#title").html("Find Duplicate Categories");
+	$("#help").html("Indicate whether or not each category pair are duplicates (i.e., have the exact same meaning).");
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var taskHtml = "";
 		for (var i=0; i<tasks.length; i++) {
 			var task = tasks[i];
 			if (i==0) {
-				taskHtml += "<div class='small'>Equal?</div>";
 				taskHtml += "<table class='spacebelow'>";
 				taskHtml += "<tr>";
-				taskHtml += "<td class='note' style='text-align:center'>Y</td>";
-				taskHtml += "<td class='note' style='text-align:center'>N</td>";
 				taskHtml += "<td>&nbsp;</td>";
-				taskHtml += "<td>&nbsp;</td>";
+				taskHtml += "<td><span class='small'>Duplicate?</span></td>";
 				taskHtml += "<td>&nbsp;</td>";
 				taskHtml += "</tr>\n";
 			}
 			taskHtml += "<tr>";
-			taskHtml += "<td><input type='radio' class='categories_equal' name='category_equal_"+task.id+"' value='1'></td>";
-			taskHtml += "<td><input type='radio' class='categories_equal' name='category_equal_"+task.id+"' value='0' checked='checked'></td>";
 			taskHtml += "<td>" + task.category1 + "</td>";
-			taskHtml += "<td>=</td>";
+			taskHtml += "<td style='text-align:center'>&nbsp;<input type='radio' class='categories_equal' name='category_equal_"+task.id+"' value='1'>&nbsp;</td>";
 			taskHtml += "<td>" + task.category2 + "</td>";
 			taskHtml += "</tr>\n";
 		}

@@ -304,8 +304,6 @@ function getMinMaxCategories(categories) {
 // Language and Stemming
 //=================================================================================
 
-var STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "here", "his", "how", "I", "if", "in", "into", "is", "it", "its", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];
-
 function isStopWord(word) {
 	var stopWordsSet = isStopWord._stopWordsSet;
 	if (isUndefined(stopWordsSet)) {

@@ -2,7 +2,7 @@ ENABLE_DEBUG_LOGGING = True
 USE_LOCAL_DATABASE_WHEN_RUNNING_LOCALLY = True # Does not work to use Google SQL instance when running locally yet
 ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = False
 FIND_SUBCATEGORIES = True
-FIND_EQUAL_CATEGORIES = False
+FIND_EQUAL_CATEGORIES = True
 
 # Database
 CLOUDSQL_INSTANCE = "qa-umd-test:qadb"
@@ -29,4 +29,4 @@ MIN_DUPLICATE_SIZE_PERCENTAGE = 50  # a duplicate category must be this % or gre
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"
 
-STOP_WORDS = [ "all", "also", "and", "any", "been", "did", "for", "not", "had", "now", "she", "that", "the", "this", "was", "were" ]
+STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "here", "his", "how", "I", "if", "in", "into", "is", "it", "its", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];

@@ -27,6 +27,7 @@ from google.appengine.api import memcache
 from google.appengine.api import rdbms
 from google.appengine.api import users
 from lib import gaesessions
+from lib.stemming.porter2 import stem
 
 class DatabaseConnection():
     def __init__(self):
@@ -1147,22 +1148,48 @@ class CascadeBestCategory(DBObject):
             votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
             for category in categoryVotes:
                 if len(categoryVotes[category]) >= votingThreshold:
-                    sql = "insert into categories (question_id, category) values(%s, %s)"
-                    dbConnection.cursor.execute(sql, (question.id, category))
-                    dbConnection.conn.commit()
-                    if Question.onNewCategory:
-                        question.onNewCategory(dbConnection, category)
-
-                    # create CascadeEqualCategory jobs
-                    if constants.FIND_EQUAL_CATEGORIES:
-                        jobCount += CascadeEqualCategory.createForAllCategories(dbConnection, question, category)
-                                                
-                    # create CategoryFitCategory jobs
-                    # category may be a duplicate of but hasn't been flagged as such yet
-                    # TODO/FIX: can we find out if this is a duplicate category earlier?
-                    # TODO/FIX: CascadeFitCategory tasks may get created more than k2 times for this category
-                    # if more than k CascadeBestCategory tasks are performed for this category
-                    jobCount += CascadeFitCategory.createForAllIdeas(dbConnection, question, category)
+                    categoryStems = [];
+                    categoryWords = category.split(" ")
+                    for i in xrange(len(categoryWords)):
+                        word = helpers.cleanWord(categoryWords[i])
+                        if word != "":
+                            categoryStems.append(stem(word))
+                    categoryStems.sort()
+                                        
+                    # check if category to be added matches any existing categories by stems
+                    # if not, add; otherwise skip (this stem could be better but only one the first one is saved)                    
+                    sql = "select count(*) as ct from categories where question_id=%s and stems=%s"
+                    dbConnection.cursor.execute(sql, (question.id, ":::".join(categoryStems)))
+                    row = dbConnection.cursor.fetchone()
+                    if row["ct"] == 0:   
+                        sql = "insert into categories (question_id, category, stems) values(%s, %s, %s)"
+                        dbConnection.cursor.execute(sql, (question.id, category, ":::".join(categoryStems)))
+                        dbConnection.conn.commit()
+                        if Question.onNewCategory:
+                            question.onNewCategory(dbConnection, category)
+    
+                        # create CascadeEqualCategory jobs for any existing categories that have similar stems
+                        if constants.FIND_EQUAL_CATEGORIES:
+                            similarCategories = []
+                            sql = "select * from categories where question_id=%s and category!=%s and skip=0"
+                            dbConnection.cursor.execute(sql, (question.id, category))
+                            rows = dbConnection.cursor.fetchall()
+                            for row in rows:
+                                category2 = row["category"]
+                                category2Stems = row["stems"].split(":::")
+                                stemMatches = helpers.intersect(categoryStems, category2Stems)
+                                similarPercentage = (float(len(stemMatches)) / min(len(categoryStems), len(category2Stems)))*100
+                                if similarPercentage >= 50:
+                                    similarCategories.append(category2)
+                            
+                            if len(similarCategories) > 0:
+                                jobCount += CascadeEqualCategory.createForCategories(dbConnection, question, category, similarCategories)
+                                                    
+                        # create CategoryFitCategory jobs
+                        # if more than k CascadeBestCategory tasks are performed for this category
+                        # category may be a duplicate but hasn't been flagged as such yet
+                        # TODO/FIX: CascadeFitCategory tasks may get created more than k2 times for this category
+                        jobCount += CascadeFitCategory.createForAllIdeas(dbConnection, question, category)
                                         
         if jobCount>0 and Question.onMoreJobs:
             question.onMoreJobs(dbConnection)
@@ -1222,39 +1249,19 @@ class CascadeEqualCategory(DBObject):
         dbConnection.conn.commit()
     
     @staticmethod
-    def createForAllCategories(dbConnection, question, category):
-        sql = "select * from categories where question_id=%s and skip=0"
-        dbConnection.cursor.execute(sql, (question.id))
-        rows = dbConnection.cursor.fetchall()
-        categories = [row["category"] for row in rows]
+    def createForCategories(dbConnection, question, category, similarCategories=None):
+        if similarCategories is None:
+            sql = "select * from categories where question_id=%s and category!=%s and skip=0"
+            dbConnection.cursor.execute(sql, (question.id, category))
+            rows = dbConnection.cursor.fetchall()
+            similarCategories = [row["category"] for row in rows]
                     
         count = 0
-        if len(categories) > 1:
-            categoryPairs = []
-            sql = "select distinct category1, category2 from cascade_equal_categories where question_id=%s"
-            dbConnection.cursor.execute(sql, (question.id))
-            rows = dbConnection.cursor.fetchall()
-            for row in rows:
-                categoryPairs.append("{0}:::{1}".format(row["category1"], row["category2"]))
-            
-            insertValues = []
-            insertCategories = ()
-            for category1 in categories:
-                for category2 in categories:
-                    if category1 != category2:
-                        categoryPair1 = "{0}:::{1}".format(category1, category2)
-                        categoryPair2 = "{0}:::{1}".format(category2, category1)
-                        if categoryPair1 not in categoryPairs and categoryPair2 not in categoryPairs:
-                            for i in range(question.cascade_k):
-                                insertValues.append("({0}, %s, %s)".format(question.id))
-                                insertCategories += (category1, category2)
-                            categoryPairs.append(categoryPair1)
-            
-            if len(insertValues) > 0:            
-                sql = "insert into cascade_equal_categories (question_id, category1, category2) values {0}".format(",".join(insertValues))
-                dbConnection.cursor.execute(sql, tuple(insertCategories))
-                count = dbConnection.cursor.rowcount
-                dbConnection.conn.commit()
+        for similarCategory in similarCategories:
+            sql = "insert into cascade_equal_categories (question_id, category1, category2) values (%s, %s, %s)"
+            dbConnection.cursor.execute(sql, (question.id, category, similarCategory))
+            dbConnection.conn.commit()
+            count += 1
         return count
         
     @staticmethod
