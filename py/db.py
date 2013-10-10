@@ -955,7 +955,7 @@ class CascadeSuggestCategory(DBObject):
                 tasks.append(task)
             dbConnection.conn.commit()
         
-        return { "tasks" : tasks, "type" : CascadeSuggestCategory.type } if len(tasks) > 0 else None
+        return { "tasks" : tasks, "type" : CascadeSuggestCategory.type, "categories" : getCategories(question) } if len(tasks) > 0 else None
                  
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
@@ -967,7 +967,9 @@ class CascadeSuggestCategory(DBObject):
                 sql = "update cascade_suggested_categories set suggested_category=%s"
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and {0}".format(CascadeSuggestCategory.incompleteCondition)
-                dbConnection.cursor.execute(sql, (suggestedCategory, taskId))                    
+                dbConnection.cursor.execute(sql, (suggestedCategory, taskId))  
+                # TODO/FIX: need to remove categories not used (didn't get selected as best)
+                recordCategory(question, suggestedCategory)   
             # if skipped, mark it so not assigned in future
             else:
                 sql = "update cascade_suggested_categories set skipped=1"
@@ -1343,6 +1345,7 @@ class CascadeEqualCategory(DBObject):
                 sql = "update categories set skip=1 where question_id=%s and category=%s"
                 dbConnection.cursor.execute(sql, (question.id, category2))
                 dbConnection.conn.commit()
+                removeCategory(question, category2)
                 
                 sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category=%s"
                 dbConnection.cursor.execute(sql, (question.id, category2))
@@ -1631,10 +1634,39 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
 
 def clearMemcache(question):
     client = memcache.Client() 
+    client.delete("categories_{0}".format(question.id))
     client.delete("cascade_start_time_{0}".format(question.id))
     client.delete("cascade_end_time_{0}".format(question.id))
     client.delete("cascade_item_set_{0}".format(question.id))
+ 
+def getCategories(question):
+    client = memcache.Client()
+    key = "categories_{0}".format(question.id)
+    categories = client.get(key)
+    return categories if categories else []
     
+def recordCategory(question, category):
+    client = memcache.Client()
+    key = "categories_{0}".format(question.id)
+    categories = client.get(key)
+    if not categories:
+        categories = []
+    category = category.lower()
+    if category not in categories:
+        categories.append(category)
+        categories.sort()
+    helpers.saveToMemcache(key, categories)
+
+def removeCategory(question, category):
+    client = memcache.Client()
+    key = "categories_{0}".format(question.id)
+    categories = client.get(key)
+    if not categories:
+        categories = []
+    if category in categories:
+        categories.remove[category]
+    helpers.saveToMemcache(key, categories)
+        
 def recordCascadeStartTime(question):
     helpers.saveToMemcache("cascade_start_time_{0}".format(question.id), datetime.datetime.now())
     

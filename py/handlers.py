@@ -785,7 +785,11 @@ class CascadeSaveAndGetNextJobHandler(BaseHandler):
                     sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id": self.question.id, "cascade_stats" : stats })
           
             job = self.question.getCascadeJob(self.dbConnection, person)
-            sendMessageToClient(clientId, { "op": "job", "question_id" : self.question.id, "job": { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None })
+            jobDict = { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None
+            if job and "categories" in job:
+                jobDict["categories"] = job["categories"]
+            
+            sendMessageToClient(clientId, { "op": "job", "question_id" : self.question.id, "job": jobDict })
             
             if job and waiting:
                 Person.working(self.dbConnection, clientId)

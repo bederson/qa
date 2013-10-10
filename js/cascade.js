@@ -105,6 +105,9 @@ function updateUI(complete) {
 	// suggest categories
 	else if (assignedJob.type == SUGGEST_CATEGORY) {
 		suggestCategoryUI();
+		//if (assignedJob.categories.length > 0) {
+		//	alert(assignedJob.categories.join(", "));
+		//}
 	}
 	
 	// select best category
