@@ -105,9 +105,6 @@ function updateUI(complete) {
 	// suggest categories
 	else if (assignedJob.type == SUGGEST_CATEGORY) {
 		suggestCategoryUI();
-		//if (assignedJob.categories.length > 0) {
-		//	alert(assignedJob.categories.join(", "));
-		//}
 	}
 	
 	// select best category
@@ -124,6 +121,11 @@ function updateUI(complete) {
 	else if (assignedJob.type == FIT_CATEGORY) {
 		fitCategoryUI();
 	}
+	
+	// verify categories marked as fitting
+	else if (assignedJob.type == VERIFY_CATEGORY) {
+		fitCategoryUI();
+	};
 }
 
 function suggestCategoryUI() {
@@ -277,7 +279,7 @@ function fitCategoryUI() {
 			if (i==0) {
 				taskHtml += "<div class='green_highlight largespacebelow'>";
 				taskHtml += task.idea;
-				taskHtml += "<input type='hidden' id='idea_"+task.id+"' value='"+task.idea_id+"'>";
+				taskHtml += "<input type='hidden' id='idea_id' value='"+task.idea_id+"'>";
 				taskHtml += "</div>";
 				taskHtml += "<div class='small'>Fits?</div>";
 				taskHtml += "<table class='spacebelow'>";
@@ -305,13 +307,14 @@ function fitCategoryUI() {
 
 function submitFitCategories() {
 	var tasks = [];	
+	var idea_id = $("#idea_id").val();
 	$("input:radio").each(function() {
 		var rb = $(this);
 		if (rb.is(":checked")) {
 			var rb_name = rb.attr("name");
 			var task_id = rb_name.replace("category_fit_","");
-			var idea_id = $("#idea_"+task_id).val();
-			tasks.push({ id: task_id, idea_id: idea_id, fit: rb.val() == "1" ? 1 : 0 });	
+			var category = getTaskAttribute(task_id, "category")
+			tasks.push({ id: task_id, idea_id: idea_id, category: category, fit: rb.val() == "1" ? 1 : 0 });
 		}
 	});
 
@@ -320,6 +323,20 @@ function submitFitCategories() {
 		return;
 	}
 	saveAndRequestNewJob(tasks);
+}
+
+function getTaskAttribute(taskId, attribute) {
+	var value = null;
+	if (assignedJob) {
+		for (var i=0; i<assignedJob.tasks.length; i++) {
+			var task = assignedJob.tasks[i];
+			if (task.id == taskId) {
+				value = task[attribute];
+				break;
+			}
+		}
+	}
+	return value;
 }
 
 function waitForJobToLoad() {

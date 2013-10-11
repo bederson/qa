@@ -3,6 +3,7 @@ USE_LOCAL_DATABASE_WHEN_RUNNING_LOCALLY = True # Does not work to use Google SQL
 ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = False
 FIND_SUBCATEGORIES = True
 FIND_EQUAL_CATEGORIES = True
+VERIFY_CATEGORIES = False
 
 # Database
 CLOUDSQL_INSTANCE = "qa-umd-test:qadb"
@@ -15,6 +16,7 @@ SUGGEST_CATEGORY = 1
 BEST_CATEGORY = 2
 EQUAL_CATEGORY = 3
 FIT_CATEGORY = 4
+VERIFY_CATEGORY = 5
 
 # Cascade Settings
 CASCADE_P = 80                  # % of overlapping items used to detect duplicate and nested categories

@@ -993,10 +993,18 @@ def onNewCategory(question, dbConnection, category):
 def onFitComplete(question, dbConnection, count):
     sendMessageToAdmin(dbConnection, question.id, { "op": "fitcomplete", "question_id": question.id, "count": count } )
     
+def onVerifyComplete(question, dbConnection, count):
+    sendMessageToAdmin(dbConnection, question.id, { "op": "verifycomplete", "question_id": question.id, "count": count } )
+    
+def onMoreVerifyJobs(question, dbConnection, count):
+    sendMessageToAdmin(dbConnection, question.id, { "op": "moreverifyjobs", "question_id": question.id, "count": count } )
+        
 Question.onCascadeSettingsChanged = onCascadeSettingsChanged    
 Question.onMoreJobs = onMoreJobs
 Question.onNewCategory = onNewCategory
 Question.onFitComplete = onFitComplete
+Question.onVerifyComplete = onVerifyComplete
+Question.onMoreVerifyJobs = onMoreVerifyJobs
           
 #####################
 # URL routines

@@ -7,6 +7,7 @@ var SUGGEST_CATEGORY = 1;
 var BEST_CATEGORY = 2;
 var EQUAL_CATEGORY = 3;
 var FIT_CATEGORY = 4;
+var VERIFY_CATEGORY = 5;
 
 var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
 var MAX_CHARS = 125; // max characters per response
@@ -61,8 +62,14 @@ onMessage = function(message) {
 	else if (dataObj.op == "newcategory" && typeof window.handleCategory == 'function') {
 		handleCategory(dataObj);
 	}
-	else if (dataObj.op == "fitcomplete" && typeof window.handleCategory == 'function') {
+	else if (dataObj.op == "fitcomplete" && typeof window.handleFitComplete == 'function') {
 		handleFitComplete(dataObj);
+	}
+	else if (dataObj.op == "verifycomplete" && typeof window.handleVerifyComplete == 'function') {
+		handleVerifyComplete(dataObj);
+	}
+	else if (dataObj.op == "moreverifyjobs" && typeof window.handleMoreVerifyJobs == 'function') {
+		handleMoreVerifyJobs(dataObj);
 	}
 	else if (dataObj.op == "cascadesettings" && typeof window.handleCascadeSettings == 'function') {
 		handleCascadeSettings(dataObj);

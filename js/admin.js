@@ -337,13 +337,21 @@ function updateCategoryStatus(question) {
 function updatePercentComplete(question) {
     // calculate percentage complete
     var percentComplete = 0;
+    
     if (question.cascade_complete) {
     	percentComplete = 100;
     }
     else {
-    	var jobsCompleted = question.cascade_stats["completed_fit_count"];
-    	var totalJobCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
-    	percentComplete = totalJobCount > 0 ? Math.floor((jobsCompleted / totalJobCount)*100) : 0;
+    	var completedFitCount = question.cascade_stats["completed_fit_count"];
+    	var totalFitCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
+    	
+    	var completedVerifyCount = question.cascade_stats["completed_verify_count"];
+    	var totalVerifyCount = question.cascade_stats["total_verify_count"];
+
+		var completedCount = completedFitCount + completedVerifyCount;
+		var totalCount = totalFitCount + totalVerifyCount;
+    	percentComplete = totalCount > 0 ? Math.floor((completedCount / totalCount)*100) : 0;
+
     }
     $("#percent_complete").html(percentComplete);
 }
@@ -544,6 +552,8 @@ function initQuestionStats(question) {
 	question.cascade_stats = isDefined(question.cascade_stats) ? question.cascade_stats : {};
 	question.cascade_stats["category_count"] = 0;
 	question.cascade_stats["completed_fit_count"] = 0;
+	question.cascade_stats["completed_verify_count"] = 0;
+	question.cascade_stats["total_verify_count"] = 0;
 	return question;
 }
 
@@ -571,6 +581,22 @@ function handleFitComplete(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.cascade_stats["completed_fit_count"] += data.count;	
+		updatePercentComplete(question);
+	}
+}
+
+function handleVerifyComplete(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_stats["completed_verify_count"] += data.count;	
+		updatePercentComplete(question);
+	}
+}
+
+function handleMoreVerifyJobs(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_stats["total_verify_count"] += data.count;	
 		updatePercentComplete(question);
 	}
 }
