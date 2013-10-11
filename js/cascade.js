@@ -236,7 +236,7 @@ function equalCategoryUI() {
 			}
 			taskHtml += "<tr>";
 			taskHtml += "<td>" + task.category1 + "</td>";
-			taskHtml += "<td style='text-align:center'>&nbsp;<input type='radio' class='categories_equal' name='category_equal_"+task.id+"' value='1'>&nbsp;</td>";
+			taskHtml += "<td style='text-align:center'>&nbsp;<input type='checkbox' class='categories_equal' name='category_equal_"+task.id+"' value='1'>&nbsp;</td>";
 			taskHtml += "<td>" + task.category2 + "</td>";
 			taskHtml += "</tr>\n";
 		}
@@ -252,11 +252,11 @@ function equalCategoryUI() {
 
 function submitEqualCategories() {
 	var tasks = [];	
-	$("input:radio").each(function() {
-		var rb = $(this);
-		var rb_name = rb.attr("name");
-		var task_id = rb_name.replace("category_equal_","");
-		tasks.push({ id: task_id, equal: rb.is(":checked") ? 1 : 0 });
+	$("input:checkbox").each(function() {
+		var cb = $(this);
+		var cb_name = cb.attr("name");
+		var task_id = cb_name.replace("category_equal_","");
+		tasks.push({ id: task_id, equal: cb.is(":checked") ? 1 : 0 });
 	});
 
 	if (tasks.length!=assignedJob.tasks.length) {

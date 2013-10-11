@@ -1327,7 +1327,6 @@ class CascadeEqualCategory(DBObject):
         dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()
         
-        # TODO/FIX: check order of category1/category2 if it causing problems with select!
         if len(rows) >= question.cascade_k:
             equalVoteCount = 0
             for row in rows:
@@ -1337,19 +1336,28 @@ class CascadeEqualCategory(DBObject):
                     equalVoteCount += 1
                     
             # check if any equal votes pass the voting threshold
-            # if so, flag category2 as category to skip creating jobs for in future
-            # TODO: check if either category being compared has already been skipped?
-            # if so, delete any pending equal jobs?
             votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
             if equalVoteCount >= votingThreshold:
-                sql = "update categories set skip=1 where question_id=%s and category=%s"
-                dbConnection.cursor.execute(sql, (question.id, category2))
-                dbConnection.conn.commit()
-                removeCategory(question, category2)
-                
-                sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category=%s"
-                dbConnection.cursor.execute(sql, (question.id, category2))
-                dbConnection.conn.commit()
+                # TODO/FIX: too many categories might get flagged to skip if concurrency issues come up
+                sql = "select * from categories where question_id=%s and (category=%s or category=%s) and skip=1"
+                dbConnection.cursor.execute(sql, (question.id, category1, category2))
+                rows = dbConnection.cursor.fetchall()
+                                    
+                # if neither category has been skipped already:
+                # flag category2 as category to skip creating jobs for in future
+                # delete any pending fit jobs
+                if len(rows) == 0:
+                    sql = "update categories set skip=1 where question_id=%s and category=%s"
+                    dbConnection.cursor.execute(sql, (question.id, category2))
+                    dbConnection.conn.commit()                    
+                    removeCategory(question, category2)
+                    
+                    # TODO/FIX: would it be reasonable to set skip=0 as precaution for category1
+                    # due to potential concurrency issue?
+                    
+                    sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category=%s"
+                    dbConnection.cursor.execute(sql, (question.id, category2))
+                    dbConnection.conn.commit()
 
     def assignTo(self, dbConnection, person, commit=True):
         self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
@@ -1620,6 +1628,7 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
         ideaIds = categories[category]
         sameAs = ", ".join(duplicateCategories[category]) if category in duplicateCategories else None
         subcategories = ":::".join(nestedCategories[category]) if category in nestedCategories else None
+        # NOTE: category stems and skip attributes not maintained in final categories table
         sql = "insert into {0} (question_id, category, same_as, subcategories) values(%s, %s, %s, %s)".format(categoriesTable)
         dbConnection.cursor.execute(sql, (question.id, category, sameAs, subcategories))
         categoryId = dbConnection.cursor.lastrowid
@@ -1664,7 +1673,7 @@ def removeCategory(question, category):
     if not categories:
         categories = []
     if category in categories:
-        categories.remove[category]
+        categories.remove(category)
     helpers.saveToMemcache(key, categories)
         
 def recordCascadeStartTime(question):
