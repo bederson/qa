@@ -16,6 +16,7 @@
 // 
 
 var OFFLINE = false;
+var MIN_RESULTS_WIDTH = 700;
 
 var question = null;
 var categorizedIdeas = [];
@@ -37,11 +38,27 @@ $(document).ready(function() {
 		return;
 	}
 	
-	initChannel(onChannelOpen);
+	initChannel(onChannelOpen);	
 	$("#page_content").show();
 });
 
+function adjustSize() {
+	var top = $("#ideas").position().top;
+	var height = $(window).height()-top-10;
+	var width = $(window).width()-10;
+	if (width < MIN_RESULTS_WIDTH) width = MIN_RESULTS_WIDTH;
+	$("#ideas").height(height);
+	$("#ideas").width(width);
+}
+
 function onChannelOpen() {
+	
+	adjustSize();	
+	$(window).resize(function() {
+		adjustSize();
+		kshf.updateLayout();
+	});
+
 	loadResults();
 		
 	if (!jQuery.browser.mobile) {
@@ -252,7 +269,6 @@ function initKeshif() {
                 catItemMap : function(idea) {
                 	return idea.data[ideasCol.words];
                 },
-                catDispCountFix: 15,
                 filter: { rowConj: 'contains word' },
             },
             {
@@ -262,7 +278,6 @@ function initKeshif() {
                     var userData = kshf.dt_id.users[userId].data;
                     return userData[usersCol.nickname];
                 },
-                catDispCountFix: 10,
                 filter: { rowConj: 'by author' },
             }
 	    ],
@@ -275,12 +290,12 @@ function initKeshif() {
             ],
             contentFunc : function(idea) {
                 var cats = idea.data[ideasCol.categories];
-                var str="";
-                str+="<div class='iteminfo iteminfo_0'>"+idea.data[ideasCol.idea]+"</div>";
-                str+="<div class='iteminfo iteminfo_1'>Categories: ";
+                var str = "";
+                str += "<div class='iteminfo iteminfo_0'>"+idea.data[ideasCol.idea]+"</div>";
+                str += "<div class='iteminfo iteminfo_1'>Categories: ";
                 str += isUndefined(cats) ? "none" : cats.join(", ");
-                str+="</div";
-               return str;
+                str += "</div>";
+                return str;
             }
         }
 	});
