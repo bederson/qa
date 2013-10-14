@@ -172,41 +172,14 @@ categoryCounts = {};
 }
 
 function initKeshif() { 
-	var ideaData = [];
-	ideaData.push([ "id", "idea", "user_id" ]);		
-
-	var userData = [];
-	userData.push([ "id", "authenticated_nickname", "nickname" ]);
-	
-	var fitData = [];
-	fitData.push([ "idea_id", "category", "user_id" ]);
-
-	var ideas = {};
-	var users = {};		
+	var data = {};
 	for (var i in displayedCategories) {
-		var displayedCategory = displayedCategories[i].category;
-		var displayedIdeas = displayedCategories[i].ideas;
-		for (var j=0; j<displayedIdeas.length; j++) {
-			var userId = displayedIdeas[j].user_id;
-			var ideaId = displayedIdeas[j].id;
-			var idea = displayedIdeas[j].idea;
-			var author = displayedIdeas[j].author;
-			var authorIdentity = isDefined(displayedIdeas[j].author_identity) ? displayedIdeas[j].author : displayedIdeas[j].author;
-				
-			if (!(ideaId in ideas)) { 
-				ideas[ideaId] = [ ideaId, idea, userId ];
-				ideaData.push(ideas[ideaId]);
-			}
-			
-			if (!(userId in users)) {
-				users[userId] = [ userId, authorIdentity, author ];
-				userData.push(users[userId]);
-			}
-			
-			fitData.push([ ideaId, displayedCategory, userId ]);
-		}
+		var category = displayedCategories[i].category;
+		var ideas = displayedCategories[i].ideas;
+		addIdeasToCategory(category, ideas, data);
 	}
-		
+	addIdeasToCategory("NONE", uncategorizedIdeas, data);
+				
 	$("#ideas").html("");	       
 	kshf.init({
 	    facetTitle: question.question,
@@ -216,9 +189,9 @@ function initKeshif() {
 	    dirRoot: "/js/keshif/",
 	    source : {
             sheets : [ 
-                { name: "ideas", data: ideaData },
-                { name: "fits", data: fitData },
-                { name: "users", data: userData },
+                { name: "ideas", data: data.ideaData },
+                { name: "fits", data: data.fitData },
+                { name: "users", data: data.userData },
             ]
 	    },
 	    loadedCb: function() {  
@@ -292,13 +265,46 @@ function initKeshif() {
                 var cats = idea.data[ideasCol.categories];
                 var str = "";
                 str += "<div class='iteminfo iteminfo_0'>"+idea.data[ideasCol.idea]+"</div>";
-                str += "<div class='iteminfo iteminfo_1'>Categories: ";
-                str += isUndefined(cats) ? "none" : cats.join(", ");
+                str += "<div class='iteminfo iteminfo_1'>";
+                str += (cats.length==1 && cats[0]=="NONE") ? "Uncategorized" : "Categories: " + cats.join(", ");
                 str += "</div>";
                 return str;
             }
         }
 	});
+}
+
+function addIdeasToCategory(category, ideas, data) {
+	if (!("ideaData" in data)) {
+		data.ideas = {};
+		data.users = {};
+		data.ideaData = [];
+		data.ideaData.push([ "id", "idea", "user_id" ]);
+		data.userData = [];		
+		data.userData.push([ "id", "authenticated_nickname", "nickname" ]);
+		data.fitData = [];
+		data.fitData.push([ "idea_id", "category", "user_id" ]);
+	}
+	
+	for (var i=0; i<ideas.length; i++) {
+		var userId = ideas[i].user_id;
+		var ideaId = ideas[i].id;
+		var idea = ideas[i].idea;
+		var author = ideas[i].author;
+		var authorIdentity = isDefined(ideas[i].author_identity) ? ideas[i].author : ideas[i].author;
+				
+		if (!(ideaId in data.ideas)) { 
+			data.ideas[ideaId] = [ ideaId, idea, userId ];
+			data.ideaData.push(data.ideas[ideaId]);
+		}
+			
+		if (!(userId in data.users)) {
+			data.users[userId] = [ userId, authorIdentity, author ];
+			data.userData.push(data.users[userId]);
+		}
+			
+		data.fitData.push([ ideaId, category, userId ]);
+	}
 }
 
 function getMinMaxCategories(categories) {
