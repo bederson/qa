@@ -359,8 +359,21 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 .kshf g.scrollGroup rect.background_fill{
     opacity: 1;
-    fill:white;
+    fill: white; 
     cursor: pointer;
+    -webkit-transition: all 0.2s ease-in-out;
+    -moz-transition: all 0.2s ease-in-out;
+    -o-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
+}
+.kshf g.scrollGroup rect.background_fill:hover{
+    fill:#EAEAEA;
+    -webkit-transition: all 0.2s ease-in-out;
+    -moz-transition: all 0.2s ease-in-out;
+    -o-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
+/*    animation-duration: 3s;
+    animation-name: background_fill_in; */
 }
 
 .kshf g.scrollGroup rect.handle{
@@ -370,11 +383,28 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	fill-opacity:0.2;
 	stroke-opacity:0.2;
 	cursor: pointer;
+    -webkit-transition: all 0.2s ease-in-out;
+    -moz-transition: all 0.2s ease-in-out;
+    -o-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
 }
 .kshf g.scrollGroup rect.handle[selected=true]{
+    -webkit-transition: all 0.2s ease-in-out;
+    -moz-transition: all 0.2s ease-in-out;
+    -o-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
 	stroke:#444444;
 	stroke-width:1;
 }
+.kshf g.scrollGroup:hover rect.handle{
+    -webkit-transition: all 0.2s ease-in-out;
+    -moz-transition: all 0.2s ease-in-out;
+    -o-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
+    fill-opacity: 1;
+    stroke-opacity: 1;
+}
+
 
 .kshf g.scrollGroup text.row_number{
     font-size: 0.7em;
@@ -427,9 +457,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 .kshf div.kshfChart span.sortOptionSelect_Label{
     float: right;
-    font-size: 0.8em;
-    font-weight: 300;
-    padding-top: 4px;
+    font-size: 0.7em;
+    font-weight: 500;
+    padding-top: 5px;
     cursor: default;
     pointer-events:none;
 }
@@ -740,24 +770,6 @@ div.listHeader span.filter-blocks{
     display: inline-block;
 }
 
-div.listHeader span.filter-block-clear{
-    font-style: italic;
-    background-color: rgba(212, 224, 228,0.7) !important;
-    border-radius: 8px !important;
-}
-div.listHeader span.filter-block-clear span.filter_reset{
-    border-radius: 8px !important;
-    left: 2px;
-    background-color: rgba(107, 120, 124, 1);
-}
-div.listHeader span.filter-block-clear:hover{
-    cursor: pointer;
-}
-div.listHeader span.filter-block-clear:hover span.filter_reset{
-    box-shadow: inset 1px 1px 1px rgb(78, 71, 43);
-    font-weight:500;
-}
-
 div.listHeader span.filter-block{
     display: inline-block;
     cursor:default;
@@ -765,10 +777,11 @@ div.listHeader span.filter-block{
     font-weight: 300;
     border: 1px rgb(104, 91, 43) solid;
     box-shadow: 1px 1px 1px rgb(78, 71, 43);
-    margin-right: 5px;
     background-color: rgba(238, 235, 224,0.1);
     padding: 0px 1px 0px 2px;
     margin-top: 2px;
+    margin-left: 5px;
+    height:16px;
 /*    border-radius: 8px; */
 }
 div.listHeader span.filter-block b{
@@ -783,13 +796,57 @@ div.listHeader span.filter_item{
 }
 div.listHeader span.filter_conj{
 }
-
 div.listHeader span.filter-separator{
 	padding-left:10px;
 	padding-right:5px;
 	display:block;
 	float: left;
 }
+
+div.listHeader span.filter-block.filter-block-clear{
+    font-style: italic;
+    background-color: rgba(212, 224, 228,0.7) !important;
+    border-radius: 8px !important;
+    font-size: 0.8em;
+    margin-left:10px;
+    padding-left:6px;
+}
+div.listHeader span.filter-block.filter-block-clear:hover{
+    cursor: pointer;
+}
+div.listHeader span.filter-block.filter-block-clear span.filter_reset{
+    font-style: normal;
+    border-radius: 8px !important;
+    left: 2px;
+    background-color: rgba(107, 120, 124, 1);
+    margin-left: 3px;
+}
+div.listHeader span.filter_reset{
+    cursor: pointer;
+    font-weight: 300;
+    display: inline-block;
+    width: 16px;
+    height: 17px;
+/*    border-radius: 10px; */
+    box-shadow: 1px 1px 1px rgb(78, 71, 43);
+    text-align: center;
+    font-size: 0.8em;
+    background-color: rgb(124, 122, 113);
+    color: rgb(238, 235, 224);
+    position: relative;
+    left: 1px;
+    float: right;
+    top:-1px;
+    line-height:15px;
+    margin-left:2px;
+}
+div.listHeader span.filter_reset:hover{
+    box-shadow: inset 1px 1px 1px rgb(78, 71, 43);
+    font-weight:500;
+}
+
+
+
 
 div.listHeader span.bigTextSearch_wrap {
     position: relative;
@@ -831,26 +888,9 @@ div.listHeader input.bigTextSearch:hover{
     font-weight: 300;
 }
 
-div.listHeader span.filter_reset{
-	cursor: pointer;
-    font-weight: 300;
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-/*    border-radius: 10px; */
-    box-shadow: 1px 1px 1px rgb(78, 71, 43);
-    text-align: center;
-    font-size: 0.8em;
-    background-color: rgb(124, 122, 113);
-    color: rgb(238, 235, 224);
-    position: relative;
-    left: 1px;
-    float: right;
-}
-div.listHeader span.filter_reset:hover{
-    box-shadow: inset 1px 1px 1px rgb(78, 71, 43);
-    font-weight:500;
-}
+
+
+
 div.listHeader div.listColumnRow{
 	font: 500 100% Arial,sans-serif;
     font-size: 0.9em;
@@ -1253,12 +1293,145 @@ div.listColumnRow div.listcell{
 
 
 
+.kshf.layout_infobox div.infobox_background{
+    width: 100%;
+    height: 100%;
+    z-index: 1042;
+    overflow: hidden;
+    background: #0b0b0b;
+    opacity: 0.8;
+    filter: alpha(opacity=80);
+    position: absolute;
+    transition: all 0.5s;
+}
+
+
+.kshf.layout_infobox div.infobox_close_button{
+    position: absolute;
+    right: 3px;
+    top: 3px;
+    background-color: rgb(151, 151, 151);
+    width: 20px;
+    height: 20px;
+    border-radius: 20px;
+    text-align: center;
+    cursor: pointer;
+    line-height: 20px;
+    color: white;
+}
+.kshf.layout_infobox div.infobox_close_button:hover{
+    background-color: rgb(111, 111, 111);
+}
+
+div.kshf.layout_infobox div.infobox_content{
+    border: 0px double gray;
+    display: block;
+    float: none;
+    overflow: auto;
+    margin: auto;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    box-shadow: 0px 0px 20px gray;
+    border-radius:15px;
+    background-color:white;
+    opacity: 1.0;
+    z-index: 1043;
+}    
+div.kshf.layout_infobox div.infobox_loading{
+    width: 350px;
+    height: 70px;
+}
+
+div.kshf.layout_infobox div.infobox_credit{
+    display:none;
+    padding-top:15px;
+    width: 600px;
+    height: 580px;
+}
+div.kshf.layout_infobox div.infobox_credit div.all-the-credits{
+    margin: auto;
+    top:0px
+    bottom:0px;
+}
+
+div.kshf.layout_infobox div.infobox_datasource{
+    display:none;
+    padding-top:30px;
+    padding-left:20px;
+    width: 300px;
+    height: 200px;
+}
+
+
+.kshf.layout_infobox div.infobox_loading img.status{
+    margin: auto;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 25px;
+}
+
+.kshf.layout_infobox  div.infobox_loading div.status_text{
+    margin: auto;
+    position: absolute;
+    top: 10px;
+    left: 70px;
+    height:20px;
+}
+.kshf.layout_infobox div.infobox_loading div.status_text div{
+    margin-left:5px;
+    margin-top:5px;
+    font-size: 0.8em;
+}
+
+
 
 .project_fund {
     font-size: 0.9em;
     font-style: italic;
 }
+
+div.boxinbox.project_3rdparty{
+    font-size: 0.9em;
+    font-style: italic;
+}
+div.boxinbox.project_3rdparty img{
+    position:relative;
+}
+
 .credits_features {
     margin-top: 4px;
     padding-left: 20px;
 }
+
+div.boxinbox{
+    border: solid 1px lightgray; 
+    box-shadow: 0px 0px 4px gray; 
+    margin-top:10px;
+    margin-left: auto;margin-right: auto;
+    width:450px;    
+}
+div.boxinbox:hover{
+    background-color: #EFEFEF;
+}
+div.boxinbox ul{
+    margin: 5px 0px 5px 0px;
+}
+
+span.libName{
+    font-size: 1.4em;
+    font-weight: 700;
+}
+
+div.boxinbox.features{
+    width:500px; 
+    text-align:left;
+    border: solid 0px lightgray; 
+    box-shadow: 0px 0px 0px gray; 
+}
+
+div.boxinbox.project_credits{
+    font-size: 0.9em;
+    font-style: italic;
+}
+

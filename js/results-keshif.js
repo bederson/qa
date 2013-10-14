@@ -196,6 +196,7 @@ function initKeshif() {
 	    domID : "#ideas",
 	    itemName : " responses",
 	    categoryTextWidth: 150,
+	    dirRoot: "/js/keshif/",
 	    source : {
             sheets : [ 
                 { name: "ideas", data: ideaData },
@@ -241,14 +242,14 @@ function initKeshif() {
 	    charts: [
 	        {
                 facetTitle: "Categories",
-                itemMapFunc : function(idea) {
+                catItemMap : function(idea) {
                     return idea.data[ideasCol.categories];
                 },
                 filter: { rowConj: 'in category' },
             },
             {
                 facetTitle: "Words",
-                itemMapFunc : function(idea) {
+                catItemMap : function(idea) {
                 	return idea.data[ideasCol.words];
                 },
                 catDispCountFix: 15,
@@ -256,7 +257,7 @@ function initKeshif() {
             },
             {
                 facetTitle: "Students",
-                itemMapFunc : function(idea) {
+                catItemMap : function(idea) {
                     var userId = idea.data[ideasCol.user_id];
                     var userData = kshf.dt_id.users[userId].data;
                     return userData[usersCol.nickname];
