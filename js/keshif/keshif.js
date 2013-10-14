@@ -190,8 +190,8 @@ kshf.loadSource = function(){
         } else if(this.source.dirPath){
             this.loadSheet_File(sheet);
         } else if (sheet.data) { // load data from memory - ATR
-	    this.loadSheet_Data(sheet);
-	}
+            this.loadSheet_Data(sheet);
+        }
 	}
 };
 
@@ -364,6 +364,7 @@ kshf.loadSheet_Data = function(sheet){
     kshf.dt_id[tableName] = id_table;
     kshf.incrementLoadedTableCount();
 };
+
 
 kshf.incrementLoadedTableCount = function(){
     var me=this;
