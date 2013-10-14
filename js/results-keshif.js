@@ -341,18 +341,6 @@ function handleIdea(data) {
 	//addIdea(data.idea);
 }
 
-function handleEnable(data) {
-	question.active = 1;
-	// TODO/FIX!
-	//updateStatus();
-}
-
-function handleDisable(data) {
-	question.active = 0;
-	// TODO/FIX!
-	//updateStatus();
-}
-
 function handleNickname(data) {
 	// TODO: would be better to only update data that has changed
 	window.location.reload();

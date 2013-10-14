@@ -1660,32 +1660,58 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
     categoriesTable = "categories" if not forTesting else "categories2"
     questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"
 
-    categories = {}
-    ideas = {}
+    # TODO: how should voting threshold be determined
+    # TODO: is voting threshold different depending on whether or not categories are verified?
+    minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>3 else 1
+        
+    verifiedFits = {}
+    verifyComplete = False    
+    if constants.VERIFY_CATEGORIES:
+        # check if verified tasks are complete
+        # if so, use fit tasks to generate hierarchy and update with completed verify tasks
+        verifyComplete = CascadeVerifyCategory.isStepComplete(dbConnection, question)        
+        if not verifyComplete:
+            sql = "select idea_id,category,sum(fit) as fitvotes, count(*) as ct from {0} where ".format(CascadeVerifyCategory.table)
+            sql += "question_id=%s ".format(CascadeVerifyCategory.table)
+            sql += "and {0}".format(CascadeVerifyCategory.completeCondition)
+            sql += "group by idea_id,category "
+            sql += "having ct>=%s"
+            dbConnection.cursor.execute(sql, (question.id, question.cascade_k2))
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                ideaId = row["idea_id"]
+                category = row["category"]
+                categoryFits = row["fitvotes"] >= minCount
+                verifyKey = "{0}:::{1}".format(ideaId, category)
+                verifiedFits[verifyKey] = categoryFits
 
-    # TODO/FIX!! if verify enabled but not complete, merge fit and verify tasks to generate hierarchy
-    
-    fitCls = CascadeVerifyCategory if constants.VERIFY_CATEGORIES else CascadeVerifyCategory
+    categories = {}
+    ideas = {}      
+    fitCls = CascadeVerifyCategory if constants.VERIFY_CATEGORIES and verifyComplete else CascadeFitCategory      
     sql = "select idea_id,idea,category,count(*) as ct from {0},question_ideas where ".format(fitCls.table)
     sql += "{0}.idea_id=question_ideas.id ".format(fitCls.table)
     sql += "and {0}.question_id=%s ".format(fitCls.table)
     sql += "and fit=1 "
     sql += "group by idea_id,category "
     sql += "having ct>=%s"
-    
-    # TODO: how should voting threshold be determined
-    # TODO: is voting threshold different depending on whether or not categories are verified?
-    minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>3 else 1
     dbConnection.cursor.execute(sql, (question.id, minCount))
-    rows = dbConnection.cursor.fetchall()
+    rows = dbConnection.cursor.fetchall()        
     for row in rows:
         category = row["category"]
         ideaId = row["idea_id"]
         idea = row["idea"]
-        if category not in categories:
-            categories[category] = []
-        categories[category].append(ideaId)
-        ideas[ideaId] = idea
+        
+        addIdeaToCategory = True
+        if constants.VERIFY_CATEGORIES:
+            verifyKey = "{0}:::{1}".format(ideaId, category)
+            if verifyKey in verifiedFits:
+                addIdeaToCategory = verifiedFits[verifyKey]
+        
+        if addIdeaToCategory:        
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(ideaId)
+            ideas[ideaId] = idea
             
     # remove any categories with less than q items
     categoriesToRemove = []
