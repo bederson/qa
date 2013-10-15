@@ -86,7 +86,8 @@ function unloadPage(redirectUrl) {
 	}
 }
 
-function updateUI(complete) {		
+function updateUI(complete) {	
+			
 	// show results
 	if (complete == 1) {
 		resultsReady();
@@ -144,7 +145,24 @@ function suggestCategoryUI() {
 		}
 		taskHtml += "<input id='submit_btn' type='button' value='Submit Categories'> ";
 		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
+		
+		if (assignedJob.categories.length > 0) {
+			taskHtml += "<div class='green_highlight spaceabove'>";
+			taskHtml += "<div class='smallspacebelow'>Suggested By Others</div>";
+			taskHtml += "<ul class='nospaceabove smallspacebelow'>";
+			for (var i=0; i<assignedJob.categories.length; i++) {
+				taskHtml += "<li class='small'>" + assignedJob.categories[i] + "</li>";	
+			}
+			taskHtml += "</ul>";
+			taskHtml += "</div>";
+		}
+		
 		$("#task_area").html(taskHtml);
+		
+		$(".suggested_category").autocomplete({
+			source: assignedJob.categories 
+		});
+		
 		$("#submit_btn").on("click", {}, function(event) {
 			submitSuggestedCategories();
 		});

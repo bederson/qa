@@ -345,19 +345,6 @@ class Question(DBObject):
             dbConnection.cursor.execute(sql, (stats["user_count"], stats["category_count"], stats["idea_count"], stats["uncategorized_count"], stats["total_duration"], self.id))
             dbConnection.conn.commit()
         return stats
-        
-    def recordCascadeUnsavedTask(self, dbConnection, step, unsavedCount):
-        # TODO: consider saving to memcache, and then save to db when cascade is complete
-        try:
-            dbConnection.conn.begin()
-            sql = "select * from cascade_stats where question_id=%s for update"
-            dbConnection.cursor.execute(sql, (self.id))
-            sql = "update cascade_stats set step{0}_unsaved_count = step{0}_unsaved_count + {1} where question_id=%s".format(step, unsavedCount)
-            dbConnection.cursor.execute(sql, (self.id))
-            dbConnection.conn.commit()
-        except:
-            dbConnection.conn.rollback()
-            # TODO: reissue task
                 
     def getQuestionStats(self, dbConnection):
         stats = {}
@@ -982,8 +969,12 @@ class CascadeSuggestCategory(DBObject):
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and {0}".format(CascadeSuggestCategory.incompleteCondition)
                 dbConnection.cursor.execute(sql, (suggestedCategory, taskId))  
-                # TODO/FIX: need to remove categories not used (didn't get selected as best)
-                recordCategory(question, suggestedCategory)   
+                
+                # record category, but may be removed when voting for best category or checking for duplicates
+                # categories removed/skipped because they are equivalent will be removed
+                # categories that don't pass CascadeBestCategory are not removed because they might be ok for another idea
+                recordCategory(question, suggestedCategory)
+                
             # if skipped, mark it so not assigned in future
             else:
                 sql = "update cascade_suggested_categories set skipped=1"
@@ -1120,7 +1111,7 @@ class CascadeBestCategory(DBObject):
                 sql = "update cascade_best_categories set best_category=%s"
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and {0}".format(CascadeBestCategory.incompleteCondition)
-                dbConnection.cursor.execute(sql, (bestCategory, taskId))   
+                dbConnection.cursor.execute(sql, (bestCategory, taskId))  
                                  
             # vote for none of the above
             else:
@@ -1148,14 +1139,13 @@ class CascadeBestCategory(DBObject):
         if len(rows) >= question.cascade_k:
             categoryVotes = {}
             for row in rows:
-                ideaId = row["idea_id"]
                 category = row["best_category"]
-                isNewCategory = row["is_new_category"] == 1
-                if category and isNewCategory:
+                isNewCategory = category and row["is_new_category"] == 1
+                if isNewCategory:
                     if category not in categoryVotes:
                         categoryVotes[category] = []
                     categoryVotes[category].append(row)
-                    
+                
             # check if any "best" categories pass the voting threshold
             # if so ...
             # temporarily save to the categories table, and
@@ -1181,6 +1171,7 @@ class CascadeBestCategory(DBObject):
                         sql = "insert into categories (question_id, category, stems) values(%s, %s, %s)"
                         dbConnection.cursor.execute(sql, (question.id, category, ":::".join(categoryStems)))
                         dbConnection.conn.commit()
+
                         if Question.onNewCategory:
                             question.onNewCategory(dbConnection, category)
     
@@ -1206,6 +1197,11 @@ class CascadeBestCategory(DBObject):
                         # category may be a duplicate but hasn't been flagged as such yet
                         # TODO/FIX: CascadeFitCategory tasks may get created more than k2 times for this category
                         jobCount += CascadeFitCategory.createForAllIdeas(dbConnection, question, category)
+                        
+                    else:
+                        # if category matches existing category by stems
+                        # remember to remove from memcache list
+                        removeCategory(question, category)
                                         
         if jobCount>0 and Question.onMoreJobs:
             question.onMoreJobs(dbConnection)
@@ -1352,7 +1348,8 @@ class CascadeEqualCategory(DBObject):
             # check if any equal votes pass the voting threshold
             votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
             if equalVoteCount >= votingThreshold:
-                # TODO/FIX: too many categories might get flagged to skip if concurrency issues come up
+                # TODO/FIX: could too many categories get flagged to skip if concurrency issues come up?
+                # LUNCH!!
                 sql = "select * from categories where question_id=%s and (category=%s or category=%s) and skip=1"
                 dbConnection.cursor.execute(sql, (question.id, category1, category2))
                 rows = dbConnection.cursor.fetchall()
@@ -1656,11 +1653,110 @@ class CascadeVerifyCategory(CascadeFitCategory):
             GenerateCascadeHierarchy(dbConnection, question)
                                   
 def GenerateCascadeHierarchy(dbConnection, question, forTesting=False): 
-    categoriesTable = "categories" if not forTesting else "categories2"
-    questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"
 
-    # TODO: how should voting threshold be determined
-    # TODO: is voting threshold different depending on whether or not categories are verified?
+    # get category groups based on current CascadeCategoryFit tasks and CascadeVerifyFit tasks
+    categoryGroups = getCategoryGroups(dbConnection, question)
+    ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
+    
+    # remove any categories based on size (too big, too small)        
+    categoriesToRemove = []
+    for category in categoryGroups:
+        # remove any categories with less than q items
+        if len(categoryGroups[category]) < constants.CASCADE_Q:
+            categoriesToRemove.append(category)
+            
+        # remove any loose categories (with >= p % of all items)
+        # TODO/FIX: should # categories be taken into consideration?
+        elif constants.DELETE_LOOSE_CATEGORIES and len(categoryGroups[category]) >= ideaCount * (question.cascade_p/100.0):
+            categoriesToRemove.append(category)
+        
+    for category in categoriesToRemove:
+        del categoryGroups[category]
+    
+    # find duplicate categories and subcategories
+    duplicateCategories = {}
+    nestedCategories = {}
+    findDuplicates = question.cascade_p > 0
+    
+    if findDuplicates or constants.FIND_SUBCATEGORIES:
+        categoriesToRemove = []
+        categoryKeys = categoryGroups.keys()
+        for x in range(len(categoryKeys)):
+            for y in range(x, len(categoryKeys)):
+                if x != y:
+                    category1 = categoryKeys[x]
+                    category2 = categoryKeys[y]
+                    ideaIds1 = categoryGroups[category1]
+                    ideaIds2 = categoryGroups[category2]
+
+                    if question.cascade_p > 0:                            
+                        sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
+                        sizePercentage = (min(len(ideaIds1),len(ideaIds2)) / float(max(len(ideaIds1),len(ideaIds2))))*100
+                        duplicateThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
+                        nestedThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
+                        
+                        # find duplicate categories (that have more than p % of overlapping items)
+                        duplicateFound = False
+                        if sizePercentage >= constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
+                            duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
+                            primaryCategory = category1 if duplicateCategory != category1 else category2
+                            if duplicateCategory not in categoriesToRemove:
+                                categoriesToRemove.append(duplicateCategory)
+                            if primaryCategory not in duplicateCategories:
+                                duplicateCategories[primaryCategory] = []
+                            duplicateCategories[primaryCategory].append(duplicateCategory)
+                            duplicateFound = True
+
+                        # find subcategories (make sure they aren't flagged to be removed)   
+                        if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
+                            primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
+                            subCategory = category2 if primaryCategory == category1 else category1
+                            if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
+                                if primaryCategory not in nestedCategories:
+                                    nestedCategories[primaryCategory] = []
+                                nestedCategories[primaryCategory].append(subCategory)
+        
+        # merge items in duplicate categories with primary (larger) category
+        for primaryCategory in duplicateCategories: 
+            for duplicateCategory in duplicateCategories[primaryCategory]:
+                duplicateIdeaIds = categoryGroups[duplicateCategory]
+                categoryGroups[primaryCategory] = helpers.union(categoryGroups[primaryCategory], duplicateIdeaIds)
+                
+        # remove duplicate categories               
+        for category in categoriesToRemove:
+            del categoryGroups[category]
+        
+    questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"
+    sql = "delete from {0} where question_id=%s".format(questionCategoriesTable)
+    dbConnection.cursor.execute(sql, (question.id))
+
+    categoriesTable = "categories" if not forTesting else "categories2"
+    sql = "delete from {0} where question_id=%s".format(categoriesTable)
+    dbConnection.cursor.execute(sql, (question.id))
+        
+    # TODO: inserts are faster if done as a group
+    for category in categoryGroups:
+        # NOTE: category stems and skip attributes not maintained in final categories table
+        ideaIds = categoryGroups[category]
+        sameAs = ", ".join(duplicateCategories[category]) if category in duplicateCategories else None
+        subcategories = ":::".join(nestedCategories[category]) if category in nestedCategories else None
+        sql = "insert into {0} (question_id, category, same_as, subcategories) values(%s, %s, %s, %s)".format(categoriesTable)
+        dbConnection.cursor.execute(sql, (question.id, category, sameAs, subcategories))
+        categoryId = dbConnection.cursor.lastrowid
+        for ideaId in ideaIds:
+            sql = "insert into {0} (question_id, idea_id, category_id) values(%s, %s, %s)".format(questionCategoriesTable)
+            dbConnection.cursor.execute(sql, (question.id, ideaId, categoryId))
+                    
+    dbConnection.conn.commit()
+    
+    stats = question.cascadeComplete(dbConnection) if not forTesting else question.recordCascadeStats(dbConnection)
+    return stats
+
+# get category groups using the results of CascadeFitCategory tasks and/or CascadeVerifyCategory tasks
+# a category group is a list of idea ids contained in a category, keyed by category name
+def getCategoryGroups(dbConnection, question):
+    
+    # TODO: how should voting threshold be determined; different depending on whether or not categories are verified?
     minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>3 else 1
         
     verifiedFits = {}
@@ -1684,8 +1780,7 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                 verifyKey = "{0}:::{1}".format(ideaId, category)
                 verifiedFits[verifyKey] = categoryFits
 
-    categories = {}
-    ideas = {}      
+    categoryGroups = {}
     fitCls = CascadeVerifyCategory if constants.VERIFY_CATEGORIES and verifyComplete else CascadeFitCategory      
     sql = "select idea_id,idea,category,count(*) as ct from {0},question_ideas where ".format(fitCls.table)
     sql += "{0}.idea_id=question_ideas.id ".format(fitCls.table)
@@ -1698,7 +1793,6 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
     for row in rows:
         category = row["category"]
         ideaId = row["idea_id"]
-        idea = row["idea"]
         
         addIdeaToCategory = True
         if constants.VERIFY_CATEGORIES:
@@ -1707,101 +1801,11 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                 addIdeaToCategory = verifiedFits[verifyKey]
         
         if addIdeaToCategory:        
-            if category not in categories:
-                categories[category] = []
-            categories[category].append(ideaId)
-            ideas[ideaId] = idea
+            if category not in categoryGroups:
+                categoryGroups[category] = []
+            categoryGroups[category].append(ideaId)
 
-    ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
-            
-    categoriesToRemove = []
-    for category in categories:
-        # remove any categories with less than q items
-        if len(categories[category]) < constants.CASCADE_Q:
-            categoriesToRemove.append(category)
-            
-        # remove any loose categories (with >= p % of all items)
-        # TODO/FIX: should # categories be taken into consideration?
-        elif constants.DELETE_LOOSE_CATEGORIES and len(categories[category]) >= ideaCount * (question.cascade_p/100.0):
-            categoriesToRemove.append(category)
-        
-    for category in categoriesToRemove:
-        del categories[category]
-    
-    duplicateCategories = {}
-    nestedCategories = {}
-    
-    if question.cascade_p > 0 or constants.FIND_SUBCATEGORIES:
-        categoriesToRemove = []
-        categoryKeys = categories.keys()
-        for x in range(len(categoryKeys)):
-            for y in range(x, len(categoryKeys)):
-                if x != y:
-                    category1 = categoryKeys[x]
-                    category2 = categoryKeys[y]
-                    ideaIds1 = categories[category1]
-                    ideaIds2 = categories[category2]
-
-                    if question.cascade_p > 0:                            
-                        sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
-                        sizePercentage = (min(len(ideaIds1),len(ideaIds2)) / float(max(len(ideaIds1),len(ideaIds2))))*100
-                        duplicateThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
-                        nestedThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
-                        
-                        # find duplicate categories (that have more than p % of overlapping items)
-                        duplicateFound = False
-                        if sizePercentage >= constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
-                            duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
-                            primaryCategory = category1 if duplicateCategory != category1 else category2
-                            if duplicateCategory not in categoriesToRemove:
-                                categoriesToRemove.append(duplicateCategory)
-                            if primaryCategory not in duplicateCategories:
-                                duplicateCategories[primaryCategory] = []
-                            duplicateCategories[primaryCategory].append(duplicateCategory)
-                            duplicateFound = True
-
-                        # find any nested categories (make sure they aren't flagged to be removed)   
-                        if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
-                            primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
-                            subCategory = category2 if primaryCategory == category1 else category1
-                            if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
-                                if primaryCategory not in nestedCategories:
-                                    nestedCategories[primaryCategory] = []
-                                nestedCategories[primaryCategory].append(subCategory)
-        
-        # merge items in duplicate categories with primary (larger) category
-        for primaryCategory in duplicateCategories: 
-            for duplicateCategory in duplicateCategories[primaryCategory]:
-                duplicateIdeaIds = categories[duplicateCategory]
-                categories[primaryCategory] = helpers.union(categories[primaryCategory], duplicateIdeaIds)
-                
-        # remove duplicate categories               
-        for category in categoriesToRemove:
-            del categories[category]
-        
-    sql = "delete from {0} where question_id=%s".format(questionCategoriesTable)
-    dbConnection.cursor.execute(sql, (question.id))
- 
-    sql = "delete from {0} where question_id=%s".format(categoriesTable)
-    dbConnection.cursor.execute(sql, (question.id))
-        
-    # TODO: inserts are faster if done as a group
-    for category in categories:
-        ideaIds = categories[category]
-        sameAs = ", ".join(duplicateCategories[category]) if category in duplicateCategories else None
-        subcategories = ":::".join(nestedCategories[category]) if category in nestedCategories else None
-        # NOTE: category stems and skip attributes not maintained in final categories table
-        sql = "insert into {0} (question_id, category, same_as, subcategories) values(%s, %s, %s, %s)".format(categoriesTable)
-        dbConnection.cursor.execute(sql, (question.id, category, sameAs, subcategories))
-        categoryId = dbConnection.cursor.lastrowid
-        for ideaId in ideaIds:
-            sql = "insert into {0} (question_id, idea_id, category_id) values(%s, %s, %s)".format(questionCategoriesTable)
-            dbConnection.cursor.execute(sql, (question.id, ideaId, categoryId))
-                    
-    dbConnection.conn.commit()
-    
-    stats = question.cascadeComplete(dbConnection) if not forTesting else question.getCascadeStats(dbConnection)
-    return stats
+    return categoryGroups
 
 def clearMemcache(question):
     client = memcache.Client() 
@@ -1815,6 +1819,7 @@ def getCategories(question):
     key = "categories_{0}".format(question.id)
     categories = client.get(key)
     return categories if categories else []
+    helpers.log("CATEGORIES: {0}".format(", ".join(categories)))
     
 def recordCategory(question, category):
     client = memcache.Client()
@@ -1826,6 +1831,7 @@ def recordCategory(question, category):
     if category not in categories:
         categories.append(category)
         categories.sort()
+    helpers.log("ADD {0}: {1}".format(category, ", ".join(categories)))
     helpers.saveToMemcache(key, categories)
 
 def removeCategory(question, category):
@@ -1836,6 +1842,7 @@ def removeCategory(question, category):
         categories = []
     if category in categories:
         categories.remove(category)
+    helpers.log("REMOVE {0}: {1}".format(category, ", ".join(categories)))
     helpers.saveToMemcache(key, categories)
         
 def recordCascadeStartTime(question):
