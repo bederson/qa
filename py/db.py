@@ -898,7 +898,6 @@ class Idea(DBObject):
 # BEHAVIOR: introduced cascade_k2 to use for category fit jobs since large number of fit jobs required to complete cascade
 # BEHAVIOR: categories with fewer than CASCADE_Q items removed
 # BEHAVIOR: duplicate categories merged (the % of overlapping items used to detect duplicates is defined by cascade_p)
-# BEHAVIOR: nested categories not generated
     
 class CascadeSuggestCategory(DBObject):
     type = constants.SUGGEST_CATEGORY
@@ -1712,11 +1711,18 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                 categories[category] = []
             categories[category].append(ideaId)
             ideas[ideaId] = idea
+
+    ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
             
-    # remove any categories with less than q items
     categoriesToRemove = []
     for category in categories:
+        # remove any categories with less than q items
         if len(categories[category]) < constants.CASCADE_Q:
+            categoriesToRemove.append(category)
+            
+        # remove any loose categories (with >= p % of all items)
+        # TODO/FIX: should # categories be taken into consideration?
+        elif constants.DELETE_LOOSE_CATEGORIES and len(categories[category]) >= ideaCount * (question.cascade_p/100.0):
             categoriesToRemove.append(category)
         
     for category in categoriesToRemove:
