@@ -3,4 +3,4 @@ XParty
 
 A collaborative Question and Answer tool
 
-cascade-mysql is the current branch
+The current version of the code is in the cascade-mysql branch.
