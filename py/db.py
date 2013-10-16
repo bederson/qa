@@ -245,6 +245,7 @@ class Question(DBObject):
         properties = {
             "cascade_k" : cascade_k,
             "cascade_k2" : cascade_k2,
+            "cascade_m" : constants.CASCADE_M,
             "cascade_p" : constants.CASCADE_P,
             "cascade_s" : constants.CASCADE_S,
             "cascade_t" : constants.CASCADE_T,
@@ -1329,7 +1330,7 @@ class CascadeEqualCategory(DBObject):
     @staticmethod
     def createCascadeJobs(dbConnection, question, task):
         # does not create more jobs but marks categories that
-        # jobs do not need to be created for in the future
+        # jobs do not need to be created for in the future because the categories are equivalent
         sql = "select * from cascade_equal_categories where question_id={0} and ".format(question.id)
         sql += "category1=(select category1 from cascade_equal_categories where id={0}) and ".format(task["id"])
         sql += "category2=(select category2 from cascade_equal_categories where id={0}) and ".format(task["id"])
@@ -1348,32 +1349,34 @@ class CascadeEqualCategory(DBObject):
             # check if any equal votes pass the voting threshold
             votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
             if equalVoteCount >= votingThreshold:
-                # TODO/FIX: could too many categories get flagged to skip if concurrency issues come up?
-                # LUNCH!!
-                sql = "select * from categories where question_id=%s and (category=%s or category=%s) and skip=1"
-                dbConnection.cursor.execute(sql, (question.id, category1, category2))
-                rows = dbConnection.cursor.fetchall()
+                
+                try:
+                    # use transaction since too many categories might get flagged to skip if concurrency issues come up
+                    dbConnection.begin()
+                    sql = "select * from categories where question_id=%s and (category=%s or category=%s) and skip=1 on update"
+                    dbConnection.cursor.execute(sql, (question.id, category1, category2))
+                    rows = dbConnection.cursor.fetchall()
                                     
-                # if neither category has been skipped already:
-                # flag category2 as category to skip creating jobs for in future
-                # delete any pending fit jobs
-                if len(rows) == 0:
-                    sql = "update categories set skip=1 where question_id=%s and category=%s"
-                    dbConnection.cursor.execute(sql, (question.id, category2))
-                    dbConnection.conn.commit()                    
-                    removeCategory(question, category2)
-                    
-                    # TODO/FIX: would it be reasonable to set skip=0 as precaution for category1
-                    # due to potential concurrency issue?
-                    
-                    sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category=%s"
-                    dbConnection.cursor.execute(sql, (question.id, category2))
-                    dbConnection.conn.commit()
-
-                    if constants.VERIFY_CATEGORIES:
-                        sql = "delete from cascade_fit_categories_phase2 where question_id=%s and category=%s"
+                    # if neither category has been skipped already:
+                    # flag category2 as category to skip in future, and
+                    # delete any pending fit jobs for category2
+                    if len(rows) == 0:
+                        sql = "update categories set skip=1 where question_id=%s and category=%s"
                         dbConnection.cursor.execute(sql, (question.id, category2))
-                        dbConnection.conn.commit()
+                        removeCategory(question, category2)
+                        
+                        sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category=%s"
+                        dbConnection.cursor.execute(sql, (question.id, category2))
+    
+                        if constants.VERIFY_CATEGORIES:
+                            sql = "delete from cascade_fit_categories_phase2 where question_id=%s and category=%s"
+                            dbConnection.cursor.execute(sql, (question.id, category2))
+                        
+                    dbConnection.conn.commit()
+                                        
+                except:
+                    helpers.log("ERROR: Problem processing completed CascadeEqualCategory tasks ")
+                    dbConnection.rollback()
                     
     def assignTo(self, dbConnection, person, commit=True):
         self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
@@ -1513,7 +1516,7 @@ class CascadeFitCategory(DBObject):
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
         rowsUpdated = 0
-        fitTasks = []
+        fitTasksToVerify = []
         for task in job:
             taskId = task["id"]
             fit = task["fit"]
@@ -1523,14 +1526,14 @@ class CascadeFitCategory(DBObject):
             dbConnection.cursor.execute(sql, (fit, taskId))
             rowsUpdated += dbConnection.cursor.rowcount
             if fit == 1:
-                fitTasks.append(task)
+                fitTasksToVerify.append(task)
         dbConnection.conn.commit()
 
         if Question.onFitComplete:
             question.onFitComplete(dbConnection, rowsUpdated)
                         
         if constants.VERIFY_CATEGORIES:
-            CascadeVerifyCategory.createCascadeJobs(dbConnection, question, fitTasks)
+            CascadeVerifyCategory.createCascadeJobs(dbConnection, question, fitTasksToVerify)
 
         elif CascadeFitCategory.isStepComplete(dbConnection, question):
             GenerateCascadeHierarchy(dbConnection, question)
@@ -1819,7 +1822,6 @@ def getCategories(question):
     key = "categories_{0}".format(question.id)
     categories = client.get(key)
     return categories if categories else []
-    helpers.log("CATEGORIES: {0}".format(", ".join(categories)))
     
 def recordCategory(question, category):
     client = memcache.Client()
@@ -1831,7 +1833,6 @@ def recordCategory(question, category):
     if category not in categories:
         categories.append(category)
         categories.sort()
-    helpers.log("ADD {0}: {1}".format(category, ", ".join(categories)))
     helpers.saveToMemcache(key, categories)
 
 def removeCategory(question, category):
@@ -1842,7 +1843,6 @@ def removeCategory(question, category):
         categories = []
     if category in categories:
         categories.remove(category)
-    helpers.log("REMOVE {0}: {1}".format(category, ", ".join(categories)))
     helpers.saveToMemcache(key, categories)
         
 def recordCascadeStartTime(question):
@@ -1862,6 +1862,11 @@ def toggleCascadeItemSet(question):
     client = memcache.Client()
     key = "cascade_item_set_{0}".format(question.id)
     MAX_RETRIES = 15
+
+    # TODO/FIX: CASCADE_M currently not used when determining if item belongs to initial or subsequent set 
+    # CASCADE_M is currently 50%
+    # might get better results if higher percentage used but then more jobs required
+    # consider recording x first items to guarantee minimum # items in initial item set value
     
     i = 0
     while i <= MAX_RETRIES: # Retry loop
@@ -1896,7 +1901,6 @@ CASCADE_CLASSES = [ CascadeSuggestCategory, CascadeBestCategory, CascadeEqualCat
 #    cascade_best_categories: cascade_iteration
 #    cascade_fit_categories_phase1: cascade_iteration, subsequent
 
-# TODO: cascade_m is currently 50%; might get better results if higher percentage used but then more jobs required; consider recording x first items to guarantee minimum cascade_m value
 # TODO: fix waiting ui on cascade page (shown between jobs); change to loading
 # TODO: consider changing best category to checkboxes; would require more jobs
 # TODO: remove duplicate ideas (common problem for questions w/ short answers)

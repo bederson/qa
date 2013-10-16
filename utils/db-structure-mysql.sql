@@ -90,7 +90,7 @@ CREATE TABLE `cascade_fit_categories_phase2` (
   `fit` int(11) DEFAULT '-1',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -150,7 +150,8 @@ CREATE TABLE `categories` (
   `stems` varchar(255) DEFAULT NULL,
   `skip` tinyint(4) DEFAULT '0',
   PRIMARY KEY (`id`),
-  KEY `question_index` (`question_id`)
+  KEY `question_index` (`question_id`),
+  KEY `question_category_skip_index` (`question_id`,`category`,`skip`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -305,4 +306,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-10-10 16:01:46
+-- Dump completed on 2013-10-16 14:05:44

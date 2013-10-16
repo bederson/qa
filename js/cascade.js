@@ -240,7 +240,7 @@ function submitBestCategory(task) {
 
 function equalCategoryUI() {
 	$("#title").html("Find Duplicate Categories");
-	$("#help").html("Indicate whether or not each category pair are duplicates (i.e., have the exact same meaning).");
+	$("#help").html("Indicate whether or not each category pair are equivalent (i.e., have the exact same meaning).");
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var taskHtml = "";
@@ -250,7 +250,7 @@ function equalCategoryUI() {
 				taskHtml += "<table class='spacebelow'>";
 				taskHtml += "<tr>";
 				taskHtml += "<td>&nbsp;</td>";
-				taskHtml += "<td><span class='small'>Duplicate?</span></td>";
+				taskHtml += "<td><span class='small'>Equivalent?</span></td>";
 				taskHtml += "<td>&nbsp;</td>";
 				taskHtml += "</tr>\n";
 			}

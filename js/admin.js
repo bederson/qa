@@ -329,7 +329,7 @@ function updateCategoryStatus(question) {
 		html += "</div>";
 	}
 	if (question.cascade_k != 0) {
-		html += "<div class='note' style='text-align:center'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=50%</div>";
+		html += "<div class='note' style='text-align:center'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=" + question.cascade_m + "%</div>";
 	}
 	$("#cascade_notes").html(html);	
 }
@@ -606,7 +606,6 @@ function handleCascadeSettings(data) {
 	if (question && data.question_id==question.id) {
 		question.cascade_k = data.cascade_k;
 		question.cascade_k2 = data.cascade_k2;
-		question.cascade_m = data.cascade_m;
 		question.cascade_s = data.cascade_s;
 		question.cascade_t = data.cascade_t;
 		updateCategoryStatus(question);

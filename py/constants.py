@@ -19,6 +19,7 @@ FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (
 VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGORY)
 
 # Cascade Settings
+CASCADE_M = 50                      # % of items placed in initial item set (TODO/FIX: code always assumes 50% currently)
 CASCADE_P = 80                      # % of overlapping items used to detect duplicates and subcategories
 CASCADE_Q = 1                       # min number of items allowed in a category
 CASCADE_S = 4                       # number of categories grouped together in jobs (e.g., # categories to fit to an idea)

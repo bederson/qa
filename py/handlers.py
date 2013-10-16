@@ -580,7 +580,6 @@ class DownloadQuestionHandler(BaseHandler):
                 excelWriter.writerow(("Cascade Settings",))
                 excelWriter.writerow(("k", self.question.cascade_k))
                 excelWriter.writerow(("k2", self.question.cascade_k2))
-                excelWriter.writerow(("m", self.question.cascade_m))
                 excelWriter.writerow(("p", self.question.cascade_p))
                 excelWriter.writerow(("s", self.question.cascade_s))
                 excelWriter.writerow(("t", self.question.cascade_t))
@@ -949,19 +948,22 @@ def onMoreJobs(question, dbConnection):
         sendMessageToClient(clientId, { "op": "morejobs", "question_id": question.id })
 
 def onCascadeSettingsChanged(question, dbConnection):
-    sendMessageToAdmin(dbConnection, question.id, { "op": "cascadesettings", "question_id": question.id, "cascade_k": question.cascade_k, "cascade_k2": question.cascade_k2, "cascade_m": "50%", "cascade_s" : question.cascade_s, "cascade_t": question.cascade_t } )
+    sendMessageToAdmin(dbConnection, question.id, { "op": "cascadesettings", "question_id": question.id, "cascade_k": question.cascade_k, "cascade_k2": question.cascade_k2, "cascade_m":  question.cascade_m, "cascade_s" : question.cascade_s, "cascade_t": question.cascade_t } )
     
 def onNewCategory(question, dbConnection, category):
     sendMessageToAdmin(dbConnection, question.id, { "op": "newcategory", "question_id": question.id } )
 
 def onFitComplete(question, dbConnection, count):
-    sendMessageToAdmin(dbConnection, question.id, { "op": "fitcomplete", "question_id": question.id, "count": count } )
+    if count > 0:
+        sendMessageToAdmin(dbConnection, question.id, { "op": "fitcomplete", "question_id": question.id, "count": count } )
     
 def onVerifyComplete(question, dbConnection, count):
-    sendMessageToAdmin(dbConnection, question.id, { "op": "verifycomplete", "question_id": question.id, "count": count } )
+    if count > 0:
+        sendMessageToAdmin(dbConnection, question.id, { "op": "verifycomplete", "question_id": question.id, "count": count } )
     
 def onMoreVerifyJobs(question, dbConnection, count):
-    sendMessageToAdmin(dbConnection, question.id, { "op": "moreverifyjobs", "question_id": question.id, "count": count } )
+    if count > 0:
+        sendMessageToAdmin(dbConnection, question.id, { "op": "moreverifyjobs", "question_id": question.id, "count": count } )
         
 Question.onCascadeSettingsChanged = onCascadeSettingsChanged    
 Question.onMoreJobs = onMoreJobs
