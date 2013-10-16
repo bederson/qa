@@ -221,8 +221,9 @@ function updateDisplayCategories() {
 				}
 			}
 		}
-
-		if (showSubcategories) {
+		
+		// CHECK: added isRootCategory because subcategories not working correctly
+		if (showSubcategories && isRootCategory) {
 			var subcategoryIndex = 0;
 			for (var j in categorySubcategories) {
 				var subcategoryGroup = getCategory(categorySubcategories[j]);
@@ -304,7 +305,7 @@ function displayIdeas() {
 	// TODO: sort subcategories
 	var html = "";
 	var sortIndices = getSortIndices();
-	for (var i in sortIndices) {
+	for (var i=0; i<sortIndices.length; i++) {
 		var index = sortIndices[i];
 		html += categoryGroupAsHtml(displayedCategories[index], index);
 	}
@@ -362,7 +363,7 @@ function displayIdeas() {
 		
 	// BEHAVIOR: only display tag clouds when cascade is complete and categories expanded
 	if (SHOW_TAGCLOUDS && showExpanded && question.cascade_complete && !jQuery.browser.mobile) {
-		for (var i in sortIndices) {
+		for (var i=0; i<sortIndices.length; i++) {
 			var j = sortIndices[i];
 			var category = displayedCategories[j].category;
 			var ideas = displayedCategories[j].ideas;
@@ -401,7 +402,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 			}
 		}
 		
-		if (showSubcategories && categoryGroup.subcategories.length > 0) {
+		if (showSubcategories && isDefined(categoryGroup.subcategories) && categoryGroup.subcategories.length > 0) {
 			html += !showExpanded ? "<ul style='margin-top:5px'>" : "";
 			for (var i in categoryGroup.subcategories) {
 				var subcategoryGroup = categoryGroup.subcategories[i];
