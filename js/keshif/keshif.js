@@ -573,23 +573,6 @@ kshf.list = function(_kshf, config, root){
                 kshf.update();
             });
     }
-    // insert clear all option
-    var s= listHeaderTopRow.append("html:span")
-        .attr("class","filter-block filter-block-clear")
-        .attr("filtered_row","false")
-        .text("Clear all filters")
-        .on("click",function(){ 
-         log2Console("CLICK: clearAllFilters");
-         kshf.clearAllFilters();
-        });
-    s.append("html:span")
-        .attr("class","filter_reset")
-        .attr("title","Show all")
-        .text("x")
-        .on("click",function(){ 
-         log2Console("CLICK: clearAllFilters");
-         kshf.clearAllFilters();
-        });
 
     // Info & Credits
     var infoCred = listHeaderTopRow
@@ -608,7 +591,7 @@ kshf.list = function(_kshf, config, root){
           .append("div")
             .style("float","right")
             .on("click",function(){
-                if(_kshf.source.gDocId){
+                if(_kshf.source.gdocId){
                     window.open("https://docs.google.com/spreadsheet/ccc?key="+_kshf.source.gdocId,"_blank");
                 } else {
                     me.parentKshf.root.select(".layout_infobox").style("display","block");
@@ -930,29 +913,29 @@ kshf.init = function (options) {
     creditString += "     <li>Time filtering: Drag &amp; drop handles, set your range.<\/li>";
     creditString += " <\/ul>";
     creditString += " <\/div>";
-    creditString += "<\/div><br>";
+    creditString += "<\/div>";
     creditString += "";
     creditString += "<div align=\"center\" class=\"boxinbox\" style=\"font-size:0.9em\">";
     creditString += "Get keshif source code from <a href=\"http:\/\/www.github.com\/adilyalcin\/Keshif\" target=\"_blank\"><img alt=\"github\" src=\""+this.dirRoot+"img\/gitHub.png\" height=\"20\" style=\"position:relative; top:5px\"><\/a> and use it on your own page.<\/br>";
     creditString += "<iframe src=\"http:\/\/ghbtns.com\/github-btn.html?user=adilyalcin&repo=Keshif&type=watch&count=true&size=large\" allowtransparency=\"true\" frameborder=\"0\" scrolling=\"0\" width=\"152px\" height=\"30px\"><\/iframe>";
     creditString += "<iframe src=\"http:\/\/ghbtns.com\/github-btn.html?user=adilyalcin&repo=Keshif&type=fork&count=true&size=large\" allowtransparency=\"true\" frameborder=\"0\" scrolling=\"0\" width=\"152px\" height=\"30px\"><\/iframe>";
-    creditString += "<\/div><br>";
+    creditString += "<\/div>";
     creditString += "";
     creditString += "<div align=\"center\" class=\"boxinbox project_3rdparty\">";
     creditString += " 3rd party libraries and APIs:<br\/>";
     creditString += " <a href=\"http:\/\/d3js.org\/\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/3rdparty_01.png\" style=\"width:110px; top:0px\"><\/a>";
     creditString += " <a href=\"http:\/\/jquery.com\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/3rdparty_02.png\" style=\"width:150px; top: -15px;\"><\/a>";
     creditString += " <a href=\"https:\/\/developers.google.com\/chart\/\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/3rdparty_03.png\" style=\"width:90px\"><\/a>";
-    creditString += "<\/div><br>";
+    creditString += "<\/div>";
     creditString += "";
     creditString += "<div style=\"width: 450px;\" align=\"center\" class=\"boxinbox project_credits\">";
     creditString += " Developed by:<br\/>";
-    creditString += " <a href=\"http:\/\/www.adilyalcin.me\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/credit-1_01.png\" style=\"height:100px\"><\/a>";
-    creditString += " <img src=\""+this.dirRoot+"img\/credit-1_02.png\" style=\"height:100px; padding:0px 4px 0px 4px\">";
-    creditString += " <a href=\"http:\/\/www.cs.umd.edu\/hcil\/\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/credit-1_03.png\" style=\"height:100px\"><\/a>";
-    creditString += " <img src=\""+this.dirRoot+"img\/credit-1_04.png\" style=\"height:100px;padding:0px 4px 0px 4px\">";
-    creditString += " <a href=\"http:\/\/www.umd.edu\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/credit-1_05.png\" style=\"height:100px\"><\/a>";
-    creditString += "<\/div><br\/><br>";
+    creditString += " <a href=\"http:\/\/www.adilyalcin.me\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/credit-1_01.png\" style=\"height:50px\"><\/a>";
+    creditString += " <img src=\""+this.dirRoot+"img\/credit-1_02.png\" style=\"height:50px; padding:0px 4px 0px 4px\">";
+    creditString += " <a href=\"http:\/\/www.cs.umd.edu\/hcil\/\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/credit-1_03.png\" style=\"height:50px\"><\/a>";
+    creditString += " <img src=\""+this.dirRoot+"img\/credit-1_04.png\" style=\"height:50px;padding:0px 4px 0px 4px\">";
+    creditString += " <a href=\"http:\/\/www.umd.edu\" target=\"_blank\"><img src=\""+this.dirRoot+"img\/credit-1_05.png\" style=\"height:50px\"><\/a>";
+    creditString += "<\/div><br\/>";
     creditString += "";
     creditString += "<div align=\"center\" class=\"project_fund\">";
     creditString += "<i>Keshif<\/i> (<a target=\"_blank\" href=\"http:\/\/translate.google.com\/#auto\/en\/ke%C5%9Fif\">keşif<\/a>) means discovery and exploration in Turkish.<br\/><br\/>";
@@ -1006,12 +989,32 @@ kshf.init = function (options) {
             ;
     }
 
-    this.layoutBackground = this.root.append("div").attr("class","kshf layout_background");
-    this.layoutBackground.append("div").attr("class","leftBlockBackground");
-    this.layoutBackground.append("div").attr("class","leftBlockAdjustSize")
+    this.layoutBackground = this.root.append("div").attr("class","kshf layout_left_background");
+    var mm=this.root.append("div").attr("class","kshf layout_left_header").append("div").attr("class","filter_header");
+    mm.style("top",(this.chartTitle?"23":"0")+"px")
+        .style("height",(this.line_height-2)+"px");
+    mm.append("span").attr("class","filters_text").text("Filters");
+    // insert clear all option
+    var s= mm.append("span")
+        .attr("class","filter-block-clear")
+        .attr("filtered_row","false")
+        .text("Clear All")
+        .on("click",function(){ 
+         log2Console("CLICK: clearAllFilters");
+         kshf.clearAllFilters();
+        });
+    s.append("div")
+        .attr("class","chartClearFilterButton allFilter")
+        .attr("title","Clear all")
+        .text("x")
+        .on("click",function(){ 
+         log2Console("CLICK: clearAllFilters");
+         kshf.clearAllFilters();
+        });
+
+    mm.append("div").attr("class","leftBlockAdjustSize")
         .attr("title","Drag to adjust panel width")
-        .style("height",(kshf.line_height-2)+"px")
-        .style("top",options.chartTitle!==undefined?"23px":"1px")
+        .style("height",(kshf.line_height-3)+"px")
         .on("mousedown", function (d, i) {
             log2Console("CLICK -  adjust left panel width");
             me.root.style('cursor','ew-resize');
@@ -1127,8 +1130,6 @@ kshf.update = function () {
         chart = kshf.charts[i];
         if(chart.type!=="RangeChart")
             chart.updateXAxisScale();
-
-//        if(!chart.collapsed)  // what if the chart is shown again later. It needs to be set "dirty" at least
             chart.updateSelf();
         filteredCount += chart.getFilteredCount();
 	}
@@ -1186,24 +1187,36 @@ kshf.updateLayout_Height = function(){
     // right panel ******************
     divLineRem = divLineCount;
     var targetScatterplotHeight = Math.floor(divLineRem/4)+1;
-    for (i=0; i < this.charts.length; ++i) {
-        var c2=kshf.charts[i];
-        if(c2.type==='scatterplot'){
-            c2.setRowCount_VisibleItem(targetScatterplotHeight-c2.rowCount_Header()-1);
-            divLineRem-=c2.rowCount_Total();
-            chartProcessed[i]=true;
-            break;
-        }
+    var c2=kshf.charts[0];
+    var topOffset=0;
+    if(c2.type==='scatterplot'){
+        c2.setRowCount_VisibleItem(targetScatterplotHeight-c2.rowCount_Header()-1);
+        divLineRem-=c2.rowCount_Total_Right();
+        topOffset = c2.rowCount_Total()-c2.rowCount_Total_Right();
+        if(topOffset>0) topOffset--;
+        chartProcessed[0]=true;
     }
+
     // TODO: list item header is assumed to be 3 rows, but it may dynamically change!
-    var listHeight;
-    listHeight = kshf.line_height * (divLineRem-3);
     this.root.selectAll("div.listItemGroup")
         .transition()
         .duration(500)
-        .style("height",listHeight+"px");
+        .style("height",(kshf.line_height * (divLineRem-3))+"px")
+        ;
+    this.root.selectAll("div.layout_right")
+        .transition()
+        .duration(500)
+        .style("top", (-topOffset*kshf.line_height)+"px");
 
     //left panel
+    divLineRem = divLineCount;
+    for (i=0; i < this.charts.length; ++i) {
+        var c2=kshf.charts[i];
+        if(c2.type==='scatterplot'){
+            divLineRem-=c2.rowCount_Total();
+            break;
+        }
+    }
 
     // numeric range filters have a constant height (for now)
     for (i=0; i < this.charts.length; ++i) {
@@ -1219,7 +1232,7 @@ kshf.updateLayout_Height = function(){
         var targetSharedHeight = Math.floor(divLineRem/(barChartCount-procBarCharts));
         for (i=0; i<this.charts.length; ++i) {
             var c=kshf.charts[i];
-            if((c.type==='barChart') && chartProcessed[i]===false){
+            if((c.type==='barChart' || c.type==='scatterplot') && chartProcessed[i]===false){
                 if(c.collapsed){
                     c.setRowCount_VisibleItem(3); // some number, TODO: do not insert chart items if not visible
                 } else if(c.options.catDispCountFix){
@@ -1309,8 +1322,11 @@ kshf.updateAllTheWidth = function(v){
         }
     }
 
-    this.root.select("div.leftBlockBackground").style("width",(this.width_leftPanel_total)+"px");
+    var rowLabelOffset = this.charts[0].getRowLabelOffset();
+
+    this.root.select("div.layout_left_background").style("width",(this.width_leftPanel_total)+"px");
     this.root.select("div.leftBlockAdjustSize").style("left",(this.width_leftPanel_total)+"px");
+    this.root.select("div.filter_header").style("width",(this.width_leftPanel_total-8)+"px");
 
     var width_rightPanel_total = this.divWidth-this.width_leftPanel_total-kshf.scrollPadding-15; // 15 is padding
     for (i = 0; i < this.charts.length; ++i){
@@ -1363,9 +1379,12 @@ kshf.Chart = function(options){
     kshf.num_of_charts++;
     this.filterId = kshf.maxFilterID++;
     this.options = options;
+
     this.collapsed = false;
     if(options.collapsed===true) this.collapsed = true;
 
+    this.collapsedTime = false;
+    if(options.collapsedTime===true) this.collapsedTime = true;
 };
 
 // set x offset to display active number of items
@@ -1436,14 +1455,15 @@ kshf.BarChart.prototype.rowCount_Header_Left = function(){
 };
 kshf.BarChart.prototype.rowCount_Header_Right = function(){
     if(this.type==='scatterplot'){
+        if(this.collapsed || this.collapsedTime) return 1;
         return (this.options.timeTitle)?3:2;
     }
     return 0;
 };
 kshf.BarChart.prototype.rowCount_Header = function(){
     var h= Math.max(this.rowCount_Header_Left(),this.rowCount_Header_Right());
-    if(this.type==='scatterplot'){
-        h = Math.max(h,2);
+    if(this.id===0){
+        if(this.rowCount_Header_Right()-this.rowCount_Header_Left()<1) h++;
     }
     return h;
 };
@@ -1469,6 +1489,7 @@ kshf.BarChart.prototype.init_shared = function(options){
     } else {
         this.catTableName = this.options.catTableName;
     }
+
     // BIG. Apply row map function
     var dt = kshf.items;
     var curDtId = this.getData_wID();
@@ -1479,7 +1500,19 @@ kshf.BarChart.prototype.init_shared = function(options){
             item.filters[f] = true;
         }
         var toMap = this.options.catItemMap(item);
-        if(toMap===undefined || toMap==="") { toMap=null; }
+        if(toMap===undefined || toMap==="") { 
+            toMap=null;
+        } else if(Array.isArray(toMap)){
+            // remove duplicate values in the array
+            var found = {};
+            toMap = toMap.filter(function(e){
+                if(found[e]===undefined){
+                    found[e] = true;
+                    return true;
+                }
+                return false;
+            });
+        }
         item.mappedData[this.filterId] = toMap;
         item.mappedRows[this.filterId] = [];
         if(toMap===null) { continue; }
@@ -1552,12 +1585,19 @@ kshf.BarChart.prototype.getWidth = function(){
 
 kshf.BarChart.prototype.rowCount_Total = function(){
     if(this.collapsed){
+        if(this.id===0) return 2;
         return 1;
     }
+    // need 1 more row at the bottom is scrollbar is shown, or barInfoText is set
     var bottomRow=1;
-    if(this.scrollbar.show || this.options.barInfoText!==undefined) bottomRow=1;
-    //1 for padding below
+//    if(this.scrollbar.show || this.options.barInfoText!==undefined) bottomRow=1;
     return this.rowCount_VisibleItem+this.rowCount_Header()+bottomRow;
+};
+kshf.BarChart.prototype.rowCount_Total_Right = function(){
+    if(this.type==='scatterplot' && this.collapsedTime===true){
+        return 1;
+    }
+    return this.rowCount_Total();
 };
 
 kshf.BarChart.prototype.rowCount_MaxTotal = function(){
@@ -1577,6 +1617,7 @@ kshf.BarChart.prototype.updateChartTotalWidth = function(){
 
 kshf.BarChart.prototype.init_shared2 = function(){
     var kshf_ = this;
+    var me=this;
     
     this.divRoot = this.options.layout
         .append("div").attr("class","kshfChart");
@@ -1686,9 +1727,10 @@ kshf.BarChart.prototype.init_shared2 = function(){
 	var barGroup_Top = this.root.append("svg:g")
 		.attr("class","barGroup_Top")
 		.attr("clip-path","url(#kshf_chart_clippath_"+this.id+")")
-		.attr("transform", function(d,i) {
-			return "translate(0," + ((kshf.line_height*kshf_.rowCount_Header())) + ")";
-		});
+        .attr("transform", function(d,i) {
+            return "translate(0," + ((kshf.line_height*me.rowCount_Header())) + ")";
+        })
+        ;
 	var barGroup = barGroup_Top.append("svg:g")
 		.attr("class","barGroup");
 	barGroup.selectAll("g.row")
@@ -1865,27 +1907,58 @@ kshf.BarChart.prototype.clearTimeFilter = function(toUpdate){
     if(toUpdate!==false) { kshf.update(); }
 };
 
-kshf.BarChart.prototype.showHide = function(hide){
+kshf.BarChart.prototype.collapseCategories = function(hide){
     this.collapsed = hide;
+    this.adjustLeftHeaderPadding();
+    kshf.updateLayout_Height();
+}
+
+kshf.BarChart.prototype.collapseTime = function(hide){
+    this.collapsedTime = hide;
+    this.adjustLeftHeaderPadding();
+    kshf.updateLayout_Height();
+}
+
+kshf.BarChart.prototype.adjustLeftHeaderPadding = function(hide){
+    var me=this;
+    var collapsedHeaderPadding=0;
+    if(this.id===0){
+        collapsedHeaderPadding = kshf.line_height;
+    }
+
+    this.leftHeaderPaddingTop = ((this.rowCount_Header() - this.rowCount_Header_Left())*kshf.line_height);
+
     this.headerhtml.select("span.leftHeader")
         .transition()
         .duration(500)
-        .style("padding-top",(this.collapsed?0:this.leftHeaderPaddingTop)+"px");
-    kshf.updateLayout_Height();
+        .style("padding-top",(this.collapsed?collapsedHeaderPadding:this.leftHeaderPaddingTop)+"px");
+
+    this.root.select("g.barGroup_Top")
+        .transition()
+        .duration(500)
+        .attr("transform", function(d,i) {
+            return "translate(0," + ((kshf.line_height*me.rowCount_Header())) + ")";
+        })
+
+    this.root.select("g.x_axis")
+        .transition()
+        .duration(500)
+        .attr("transform","translate("+this.options.rowTextWidth+","+(kshf.line_height*(this.rowCount_Header()))+")")
+
+    this.root.select("g.timeAxisGroup")
+        .attr("transform","translate("+
+              (this.barMaxWidth+kshf.scrollPadding+kshf.scrollWidth+kshf.sepWidth+this.options.rowTextWidth)+","+
+              (kshf.line_height*(this.rowCount_Header()-0.5)+2)+")");
+
 }
+
 
 kshf.BarChart.prototype.insertHeader = function(){
 	var kshf_ = this;
     var rows_Left = this.rowCount_Header_Left();
-    var rows_Right = this.rowCount_Header_Right();
-    if(this.type==='scatterplot'){
-        rows_Right = Math.max(rows_Right,2);
-    }
 
-    var leftMoveDown = 0;
-    if(rows_Right>rows_Left){
-        leftMoveDown = rows_Right - rows_Left;
-    }
+    this.leftHeaderPaddingTop = ((this.rowCount_Header() - this.rowCount_Header_Left())*kshf.line_height);
+
 	var headerGroup = this.root.append("svg:g").attr("class","headerGroup")
         .on("mouseclick", function (d, i) { d3.event.preventDefault(); });
     this.headerhtml=headerGroup.append("svg:foreignObject").attr("class","headerHTML")
@@ -1893,21 +1966,22 @@ kshf.BarChart.prototype.insertHeader = function(){
         .attr("height",this.rowCount_Header()*kshf.line_height+2)
         .attr("x",0)
         .attr("y",0);
-    this.headerhtml.append("xhtml:div").attr("class","chartAboveSeparator")
-        .on("mousedown", function (d, i) {
-            log2Console("CLICK -  adjust filter height",kshf_);
-            kshf.root.style('cursor','ns-resize');
-            d3.event.preventDefault();
-            kshf.root.on("mouseup", function(){
-                kshf.root.style( 'cursor', 'default' );
+    if(this.id!==0){
+        this.headerhtml.append("xhtml:div").attr("class","chartAboveSeparator")
+            .on("mousedown", function (d, i) {
+                log2Console("CLICK -  adjust filter height",kshf_);
+                kshf.root.style('cursor','ns-resize');
+                d3.event.preventDefault();
+                kshf.root.on("mouseup", function(){
+                    kshf.root.style( 'cursor', 'default' );
+                });
+            })
+            .on("click",function(){
+                d3.event.stopPropagation();
+                d3.event.preventDefault();
             });
-        })
-        .on("click",function(){
-            d3.event.stopPropagation();
-            d3.event.preventDefault();
-        });
-        ;
-    this.leftHeaderPaddingTop = (leftMoveDown*kshf.line_height);
+            ;
+        }
     var leftBlock = this.headerhtml.append("xhtml:span").attr("class","leftHeader")
         .style("width",(kshf_.options.rowTextWidth-this.getRowLabelOffset())+"px")
         .style("padding-top",this.leftHeaderPaddingTop+"px")
@@ -1915,75 +1989,43 @@ kshf.BarChart.prototype.insertHeader = function(){
     var headerLabel = leftBlock.append("xhtml:span")
         .attr("class", "header_label")
         .attr("title", this.catCount_Total+" categories")
-        .style("float","right")
         .html(this.options.facetTitle)
         .on("click",function(){ 
-            if(kshf_.collapsed) {
-                log2Console("CLICK - showhide - false",kshf_);
-                kshf_.showHide(false);
-            }
+            if(kshf_.collapsed) { kshf_.collapseCategories(false); }
         })
         ;
     leftBlock.append("xhtml:span").attr("class","header_label_arrow header_label_down")
         .attr("title","Show categories").text("▼")
-        .on("click",function(){ 
-            log2Console("CLICK - showhide - false",kshf_);
-            kshf_.showHide(false);
-        })
+        .on("click",function(){ kshf_.collapseCategories(false); })
         ;
     leftBlock.append("xhtml:span").attr("class","header_label_arrow header_label_up"  )
         .attr("title","Hide categories").text("▲")
-        .on("click",function(){ 
-            log2Console("CLICK - showhide - true",kshf_);
-            kshf_.showHide(true);
-        })
+        .on("click",function(){ kshf_.collapseCategories(true); })
         ;
     leftBlock.append("xhtml:div")
         .attr("class","chartClearFilterButton rowFilter")
         .attr("title","Clear filter")
-		.on("click", function(d,i){
-            log2Console("CLICK - clearRowFilter",kshf_);
-            kshf_.clearRowFilter(); 
-        })
+		.on("click", function(d,i){ kshf_.clearRowFilter(); })
         .text('x');
     if(this.type==="scatterplot"){
-        var rightBlock = this.headerhtml.append("xhtml:span").attr("class","rightHeader")
-            .style("display","inline-block")
-            .style("float","right")
-            .style("pointer-events","all")
-            ;
+        var rightBlock = this.headerhtml.append("xhtml:span").attr("class","rightHeader");
         rightBlock.append("xhtml:span")
             .attr("class", "header_label")
-            .style("float","left")
             .text(this.options.timeTitle)
-            .on("click",function(){ 
-                if(kshf_.collapsed) {
-                    log2Console("CLICK - showhide - false",kshf_);
-                    kshf_.showHide(false);
-                }
-            })
+            .on("click",function(){ if(kshf_.collapsedTime) { kshf_.collapseTime(false); } })
             ;
         rightBlock.append("xhtml:span").attr("class","header_label_arrow header_label_down")
             .attr("title","Show categories").text("▼")
-            .on("click",function(){ 
-                log2Console("CLICK - showhide - false,",kshf_);
-                kshf_.showHide(false);
-            })
+            .on("click",function(){ kshf_.collapseTime(false); })
             ;
         rightBlock.append("xhtml:span").attr("class","header_label_arrow header_label_up"  )
             .attr("title","Hide categories").text("▲")
-            .on("click",function(){ 
-                log2Console("CLICK - showhide - true",kshf_);
-                kshf_.showHide(true);
-            })
+            .on("click",function(){ kshf_.collapseTime(true); })
             ;
         rightBlock.append("xhtml:div")
             .attr("class","chartClearFilterButton timeFilter")
             .attr("title","Clear filter")
-            .on("click", function(d,i){
-                log2Console("CLICK - clearTimeFilter",kshf_);
-                kshf_.clearTimeFilter(); 
-            })
+            .on("click", function(d,i){ kshf_.clearTimeFilter(); })
             .text('x');
     }
 	// line
@@ -2248,6 +2290,7 @@ kshf.BarChart.prototype.setRowCount_VisibleItem = function(c){
     var kshf_ = this;
     this.divRoot
         .attr("collapsed",this.collapsed===false?"false":"true")
+        .attr("collapsedTime",this.collapsedTime===false?"false":"true")
         .transition()
         .duration(500)
         .style("height",totalHeight+"px");
@@ -3065,6 +3108,12 @@ kshf.BarChart.prototype.insertTimeChartRows = function(){
         })
 		.attr("r", 5)
 		.attr("cy", Math.floor(kshf.line_height / 2))
+        .on("mouseover",function(d,i,f){
+            d.highlightAttributes();
+        })
+        .on("mouseout",function(d,i){
+            d.nohighlightAttributes();
+        })
 		.on("click", function(d,i,f) {
             log2Console("CLICK: time dot",kshf_);
             // clear all the selections in filterRow function
@@ -3522,26 +3571,15 @@ kshf.RangeChart.prototype.insertHeader = function(){
         .attr("class", "header_label")
         .style("float","right")
         .text(this.options.facetTitle)
-        .on("click",function(){ 
-            if(kshf_.collapsed) {
-                log2Console("CLICK: show-hide");
-                kshf_.showHide(false);
-            }
-        })
+        .on("click",function(){ if(kshf_.collapsed) { kshf_.collapseCategories(false); } })
         ;
     leftBlock.append("xhtml:span").attr("class","header_label_arrow header_label_down")
         .attr("title","Show categories").text("▼")
-        .on("click",function(){ 
-            log2Console("CLICK: show-hide");
-            kshf_.showHide(false);
-        })
+        .on("click",function(){ kshf_.collapseCategories(false); })
         ;
     leftBlock.append("xhtml:span").attr("class","header_label_arrow header_label_up"  )
         .attr("title","Hide categories").text("▲")
-        .on("click",function(){ 
-            log2Console("CLICK: show-hide");
-            kshf_.showHide(true);
-        })
+        .on("click",function(){ kshf_.collapseCategories(true); })
         ;
     leftBlock.append("xhtml:div")
         .attr("class","chartClearFilterButton rangeFilter")
@@ -3728,7 +3766,7 @@ kshf.RangeChart.prototype.setWidth = function(w){
 }
 
 
-kshf.RangeChart.prototype.showHide = function(hide){
+kshf.RangeChart.prototype.collapseCategories = function(hide){
     this.collapsed = hide;
 
     this.sliderDiv.style("display",hide?"none":"block");

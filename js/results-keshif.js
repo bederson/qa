@@ -187,6 +187,7 @@ function initKeshif() {
 	    itemName : " responses",
 	    categoryTextWidth: 150,
 	    dirRoot: "/js/keshif/",
+	    showDataSource: false,
 	    source : {
             sheets : [ 
                 { name: "ideas", data: data.ideaData },
