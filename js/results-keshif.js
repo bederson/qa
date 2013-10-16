@@ -205,11 +205,10 @@ function initKeshif() {
     		for (var i=0; i<kshf.dt.ideas.length; i++) {
     		 	var ideaId = kshf.dt.ideas[i].data[ideasCol.id];
     		 	var ideaText = kshf.dt.ideas[i].data[ideasCol.idea];
-    		 	ideaText = ideaText.replace(/[,:;.?]/g, "")
 				var words = ideaText.split(" ");
     		 	for (var j=0; j<words.length; j++) {
-    		 		var word = words[j];
-    		 		if (word != "" && !isStopWord(word)) {
+    		 		var word = cleanWord(words[j]);
+    		 		if (word!="" && !isStopWord(word)) {
 				    	if (!kshf.dt_id.ideas[ideaId].data[ideasCol.words]) { 
 				    		kshf.dt_id.ideas[ideaId].data[ideasCol.words] = []; 
 				    	}
@@ -321,23 +320,6 @@ function getMinMaxCategories(categories) {
 		}										
 	}
 	return { "min":minCategory, "max":maxCategory };
-}
-
-//=================================================================================
-// Language and Stemming
-//=================================================================================
-
-function isStopWord(word) {
-	var stopWordsSet = isStopWord._stopWordsSet;
-	if (isUndefined(stopWordsSet)) {
-		var stopWordsSet = {};
-		var numStopWords = STOP_WORDS.length;
-		for(var i=0; i<numStopWords; i++) {
-			stopWordsSet[STOP_WORDS[i].toLowerCase()] = true;
-		}
-		isStopWord._stopWordsSet = stopWordsSet;
-	}
-	return isDefined(stopWordsSet[word.toLowerCase()]);
 }
 
 /////////////////////////

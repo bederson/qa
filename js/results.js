@@ -576,9 +576,8 @@ function displayCloud(group, id) {
 	for (var i in group) {
 		var words = group[i].idea.split(" ");
 		for (var j in words) {
-			var word = words[j].trim().toLowerCase();
-			word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()]/g, "");
-			if (!isStopWord(word)) {
+			var word = cleanWord(words[j]);
+			if (word!="" && !isStopWord(word)) {
 				if (word.length > 2) {
 					if (word in weights) {
 						weights[word] += 1;
@@ -599,23 +598,6 @@ function displayCloud(group, id) {
 	}
 
 	div.jQCloud(wordList);
-}
-
-//=================================================================================
-// Language and Stemming
-//=================================================================================
-
-function isStopWord(word) {
-	var stopWordsSet = isStopWord._stopWordsSet;
-	if (isUndefined(stopWordsSet)) {
-		var stopWordsSet = {};
-		var numStopWords = STOP_WORDS.length;
-		for(var i=0; i<numStopWords; i++) {
-			stopWordsSet[STOP_WORDS[i].toLowerCase()] = true;
-		}
-		isStopWord._stopWordsSet = stopWordsSet;
-	}
-	return isDefined(stopWordsSet[word.toLowerCase()]);
 }
 
 function getWordStem(word) {

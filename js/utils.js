@@ -12,7 +12,7 @@ var VERIFY_CATEGORY = 5;
 var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
 var MAX_CHARS = 125; // max characters per response
 
-var STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "here", "his", "how", "I", "if", "in", "into", "is", "it", "its", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];
+var STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "her", "here", "him", "his", "how", "I", "if", "in", "into", "is", "it", "its", "just", "my", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];
 
 /**
  * jQuery.browser.mobile (http://detectmobilebrowser.com/)
@@ -188,6 +188,21 @@ function redirectToLogout(question_id) {
 
 function getURLParameter(name) {
     return decodeURIComponent((new RegExp('[?|&|#]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+}
+
+//=================================================================================
+// Language and Stemming
+//=================================================================================
+
+function cleanWord(word) {
+	var word = word.trim();
+	word = word.replace(/[\.,-\/#!$%\^&\*;:{}=\-_'`~()"@+|<>?]/g, "");
+	return word;
+}
+
+function isStopWord(word) {
+	word = word.toLowerCase();
+	return $.inArray(word, STOP_WORDS) != -1;
 }
 
 //===================================================
