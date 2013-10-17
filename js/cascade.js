@@ -160,9 +160,15 @@ function suggestCategoryUI() {
 		$("#task_area").html(taskHtml);
 		
 		$(".suggested_category").autocomplete({
-			source: assignedJob.categories 
+			source: assignedJob.categories,
+			delay: 0,
+			minLength: 0
 		});
-		
+
+		$(".suggested_category").click(function(event) {
+			$(this).autocomplete("search", "");
+		});
+				
 		$("#submit_btn").on("click", {}, function(event) {
 			submitSuggestedCategories();
 		});

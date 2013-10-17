@@ -1574,7 +1574,19 @@ class CascadeFitCategory(DBObject):
         sql = "select count(*) as ct from {0} where question_id=%s and {1}".format(cls.table, cls.incompleteCondition)
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
-        return row["ct"] == 0
+        allTasksCompleted = row["ct"] == 0
+        
+        # need to check if any tasks exist for cases when 
+        # this function is called as result of manually generating categories
+        # (CascadeVerifyCategory tasks may not exist for older questions)
+        tasksExist = False
+        if allTasksCompleted:
+            sql = "select count(*) as ct from {0} where question_id=%s".format(cls.table)
+            dbConnection.cursor.execute(sql, (question.id))
+            row = dbConnection.cursor.fetchone()
+            tasksExist = row["ct"] > 0
+        
+        return allTasksCompleted and tasksExist
 
 class CascadeVerifyCategory(CascadeFitCategory):
     type = constants.VERIFY_CATEGORY
@@ -1767,7 +1779,7 @@ def getCategoryGroups(dbConnection, question):
     if constants.VERIFY_CATEGORIES:
         # check if verified tasks are complete
         # if so, use fit tasks to generate hierarchy and update with completed verify tasks
-        verifyComplete = CascadeVerifyCategory.isStepComplete(dbConnection, question)        
+        verifyComplete = CascadeVerifyCategory.isStepComplete(dbConnection, question)
         if not verifyComplete:
             sql = "select idea_id,category,sum(fit) as fitvotes, count(*) as ct from {0} where ".format(CascadeVerifyCategory.table)
             sql += "question_id=%s ".format(CascadeVerifyCategory.table)

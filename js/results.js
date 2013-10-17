@@ -222,7 +222,7 @@ function updateDisplayCategories() {
 			}
 		}
 		
-		// CHECK: added isRootCategory because subcategories not working correctly
+		// TODO/FIX: simplify code
 		if (showSubcategories && isRootCategory) {
 			var subcategoryIndex = 0;
 			for (var j in categorySubcategories) {

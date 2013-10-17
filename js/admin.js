@@ -54,6 +54,11 @@ function onChannelOpen() {
 	$("#create_categories2_button").click(function() {
 		createTestCategories();
 	});
+
+	// regenerate categories
+	$("#create_categories3_button").click(function() {
+		createCategories();
+	});
 }
 
 function updateQuestionUI(question_id) {
@@ -404,6 +409,9 @@ function showHideCreateCategoryButton(question) {
 		//if (isRunningOnTestServer() && user_login=="xx") {
 		//	$("#create_categories2_button").show();
 		//}
+		
+		// FOR TESTING ONLY: regenerate existing categories
+		//$("#create_categories3_button").show();
 	}
 }
 
