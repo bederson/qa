@@ -245,7 +245,8 @@ function intersection(a1, a2) {
 
 function difference(a1, a2) {
 	// assumes a2 is subset of a1
-	var diff = $(a1).not(a1).get();
+	var diff = $(a2).not(a1).get();
+	return diff;
 }
 
 function sortTuplesAscending(tuples) {		

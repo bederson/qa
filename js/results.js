@@ -32,7 +32,7 @@ var hasSubcategories = false;
 
 var DISPLAY_ITEM_IN_SINGLE_CATEGORY = true;
 var singleCategoryOnly = false;
-var showOnlyInCategories = {};
+var primaryCategories = {};
 
 var showExpanded = true;
 var showAlsoIn = false;
@@ -68,7 +68,6 @@ function onChannelOpen() {
 	});
 	
 	$("#sort_by").change(function() {
-		updateDisplayCategories();
 		displayIdeas();
 	});
 	
@@ -111,63 +110,25 @@ function loadResults() {
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
 		updateStatus();
-		
+				
+		// update category counts and list of all subcategories
 		categoryCounts = {};
+		subcategories = [];
 		for (var i in categorizedIdeas) {
 			var category = categorizedIdeas[i].category;
-			var ideas = categorizedIdeas[i].ideas;
-			categoryCounts[category] = ideas.length;
-		}
-			
-		// create list of subcategories
-		if (DISPLAY_SUBCATEGORIES) {
-			subcategories = [];
-			for (var i in categorizedIdeas) {
-				subcategoriesForCategory = categorizedIdeas[i].subcategories;
-				for (var j in subcategoriesForCategory) {
-					var subcategory = subcategoriesForCategory[j];
+			var categoryIdeas = categorizedIdeas[i].ideas;
+			var categorySubcategories = categorizedIdeas[i].subcategories;
+			categoryCounts[category] = categoryIdeas.length;
+			if (DISPLAY_SUBCATEGORIES) {
+				for (var j in categorySubcategories) {
+					var subcategory = categorySubcategories[j];
 					if ($.inArray(subcategory, subcategories) == -1) {
 						subcategories.push(subcategory);
 					} 
 				}
 			}
-			hasSubcategories = subcategories.length > 0;
-		}
-		
-		// find category that item should be displayed in if only displayed in a *single* category
-		if (DISPLAY_ITEM_IN_SINGLE_CATEGORY) {		
-			showOnlyInCategories = {};
-			for (var i in categorizedIdeas) {
-				var category = categorizedIdeas[i].category;
-				var ideas = categorizedIdeas[i].ideas;
-				for (var j in ideas) {
-					var idea = ideas[j];
-					if (isUndefined(showOnlyInCategories[idea.id])) {
-						var ideaSubcategories = [];
-					    var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
-						if (ideaAlsoIn.length > 0) {
-							ideaAlsoIn.push(category);
-							if (subcategories.length > 0) {
-								ideaSubcategories = intersection(ideaAlsoIn, subcategories);
-							}
-							
-							var showInCategory = null;							
-							if (ideaSubcategories.length > 0) {
-								var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
-								// TODO/FIX: consider whether single category should be smallest or largest
-								showInCategory = minMaxSubcategories.min;
-							}
-							else {
-								var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
-								var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
-								showInCategory =  minMaxRootCategories.min;
-							}
-							showOnlyInCategories[idea.id] = showInCategory;
-						}
-					}			
-				}
-			}
-		}
+		}	
+		hasSubcategories = subcategories.length > 0;
 		
 		// update data structure used to display results
 		updateDisplayCategories();
@@ -180,121 +141,6 @@ function loadResults() {
 			google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': displayIdeas });
 		}
 	});
-}
-
-function updateDisplayCategories() {
-	displayedCategories = {};
-	for (var i in categorizedIdeas) {
-		var categoryGroup = categorizedIdeas[i];
-		var category = categoryGroup.category;
-		var categoryIdeas = categoryGroup.ideas;
-		var categorySubcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
-		var categorySameAs = categoryGroup.same_as;
-		
-		var isRootCategory = !showSubcategories || ($.inArray(category, subcategories) == -1);
-		if (isRootCategory) {
-			var count = 0;
-			for (var j in categoryIdeas) {
-				var skip = false;
-				var idea = categoryIdeas[j];
-				var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
-				if (showSubcategories && alsoIn.length > 0 && categorySubcategories.length > 0) {
-					isIdeaInSubcategory = intersection(alsoIn, categorySubcategories).length > 0;
-					skip = isIdeaInSubcategory;
-				}
-			
-				if (singleCategoryOnly && isDefined(showOnlyInCategories[idea.id]) && showOnlyInCategories[idea.id] != category) {
-					skip = true;
-				}
-					
-				if (!skip) {
-					// initialize root category in displayedCategories
-					// ideas + moreideas = unique list of ideas contained in root category
-					if (isUndefined(displayedCategories[i])) {
-						displayedCategories[i] = { "category":category, "ideas":[], "moreideas":[], "subcategories":[], "sameas":categorySameAs, "count":0 };
-					}
-					
-					// update root category
-					displayedCategories[i]["ideas"].push(idea);
-					displayedCategories[i]["count"]++;
-					count++;
-				}
-			}
-		}
-		
-		// TODO/FIX: simplify code
-		if (showSubcategories && isRootCategory) {
-			var subcategoryIndex = 0;
-			for (var j in categorySubcategories) {
-				var subcategoryGroup = getCategory(categorySubcategories[j]);
-				// check if subcategory found
-				// if not, it may have already been merged with another category (if it is a duplicate)
-				// if not, the category it was merged with will only be checked if it is also a subcategory of this category
-				if (subcategoryGroup) {
-					var subcategory = subcategoryGroup.category;
-					var subcategoryIdeas = subcategoryGroup.ideas;
-					var subcategorySameAs = subcategoryGroup.same_as;
-					var count = 0;
-					for (var k in subcategoryIdeas) {
-						var subcategoryIdea = subcategoryIdeas[k];
-						var skip = singleCategoryOnly && isDefined(showOnlyInCategories[subcategoryIdea.id]) && (showOnlyInCategories[subcategoryIdea.id] != subcategory);
-						if (!skip) {
-							// update root category	associated with subcategory										
-							if (singleCategoryOnly || subcategoryIndex==0 || !doesIdeaListContain(displayedCategories[i]["ideas"], subcategoryIdea)) {
-								displayedCategories[i]["moreideas"].push(subcategoryIdea);	
-							}
-							displayedCategories[i]["count"]++;
-	
-							// initialize subcategory
-							if (count == 0) {	
-								displayedCategories[i]["subcategories"].push({ "category":subcategory, "ideas":[], "sameas":subcategorySameAs, "count":0 })
-							}
-							
-							// update subcategory
-							displayedCategories[i]["subcategories"][subcategoryIndex]["ideas"].push(subcategoryIdea);
-							displayedCategories[i]["subcategories"][subcategoryIndex]["count"]++;
-							count++;
-						}
-					}
-					subcategoryIndex++;
-				}
-			}
-		}
-	}
-}
-
-function getSortIndices(categoriesToSort) {
-	var categoriesToSort = isDefined(categoriesToSort) ? categoriesToSort : displayedCategories;
-	var sortBy = $("#sort_by").val();
-	var sortTuples = [];
-	for (var i in categoriesToSort) {
-		var sortValue = sortBy == SORT_BY_NAME ? categoriesToSort[i].category : categoriesToSort[i].count;
-		sortTuples.push([i, sortValue]);
-	}
-	
-	if (sortBy == SORT_BY_COUNT) {
-		sortTuplesDescending(sortTuples);
-	}
-	else {
-		sortTuplesAscending(sortTuples);
-	}
-	
-	var sortIndices = [];
-	for (var i in sortTuples) {
-		sortIndices.push(sortTuples[i][0]);
-	}
-	return sortIndices;
-}
-
-function updateStatus() {
-	$("#inactive").html(!question.active ? "INACTIVE" : "");
-	if (question.active && !question.cascade_complete) {
-		$("#idea_link").attr("href", getNotesPageUrl(question.id));
-		$("#idea_link_area").show();
-	}
-	else {
-		$("#idea_link_area").hide();
-	}
 }
 
 function displayIdeas() {	
@@ -441,36 +287,6 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	return html;
 }
 
-function doesIdeaListContain(ideaList, idea) {
-	var found = false;
-	for (var i in ideaList) {
-		if (ideaList[i].id == idea.id) {
-			found = true;
-			break;
-		}
-	}
-	return found;
-}
-
-function getCategory(category) {
-	var match = null;
-	for (var i in categorizedIdeas) {
-		if (categorizedIdeas[i].category == category) {
-			match = categorizedIdeas[i];
-			break;
-		}
-	}
-	return match;
-}
-
-function addIdea(idea) {
-	uncategorizedIdeas.push(idea);
-	numIdeas++;
-	var html = ideaAsHtml(idea);
-	$("#new_ideas").prepend(html);
-	updateStats();
-}
-
 function ideaAsHtml(idea, parent) {
 	var alsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
 	var parent = isDefined(parent) ? parent : null;
@@ -537,19 +353,15 @@ function updateStats() {
 	$("#question_stats").html(html);
 }
 
-function getMinMaxCategories(categories) {
-	var minCategory = null;
-	var maxCategory = null;
-	for (var i in categories) {
-		var category = categories[i];
-		if (!minCategory || (categoryCounts[category] < categoryCounts[minCategory])) {
-			minCategory = category;
-		}
-		if (!maxCategory || (categoryCounts[category] > categoryCounts[maxCategory])) {
-			maxCategory = category;
-		}										
+function updateStatus() {
+	$("#inactive").html(!question.active ? "INACTIVE" : "");
+	if (question.active && !question.cascade_complete) {
+		$("#idea_link").attr("href", getNotesPageUrl(question.id));
+		$("#idea_link_area").show();
 	}
-	return { "min":minCategory, "max":maxCategory };
+	else {
+		$("#idea_link_area").hide();
+	}
 }
 
 //=================================================================================
@@ -620,11 +432,215 @@ function getWordStem(word) {
 	return stem;
 }
 
+//=================================================================================
+// Results Data Structures
+//=================================================================================
+
+function updateDisplayCategories() {
+	// update primary categories for ideas where a primary category is where
+	// an item should be displayed in if it can only be displayed in a *single* category
+	updatePrimaryCategories();
+		
+	displayedCategories = {};
+	for (var i in categorizedIdeas) {
+		var categoryGroup = categorizedIdeas[i];
+		var category = categoryGroup.category;
+		var categoryIdeas = categoryGroup.ideas;
+		var categorySubcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
+		var categorySameAs = categoryGroup.same_as;
+		
+		var isRootCategory = !showSubcategories || $.inArray(category, subcategories) == -1;		
+		if (isRootCategory) {
+			var count = 0;
+			for (var j in categoryIdeas) {
+				var idea = categoryIdeas[j];
+				
+				// skip if displaying subcategories and this idea is in a subcategory
+				var skip = false;
+				var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
+				if (showSubcategories && alsoIn.length > 0 && categorySubcategories.length > 0) {
+					var isIdeaInSubcategory = intersection(alsoIn, categorySubcategories).length > 0;
+					skip = isIdeaInSubcategory;
+				}
+			
+				// skip if only displaying idea in single category and this is not the primary category
+				if (singleCategoryOnly && isDefined(primaryCategories[idea.id]) && primaryCategories[idea.id] != category) {
+					skip = true;
+				}
+
+				// add idea to root category
+				if (!skip) {
+					if (isUndefined(displayedCategories[i])) {
+						// ideas + moreideas = unique list of ideas contained in root category
+						// moreideas is a list of ideas from subcategories that are not in the root category
+						displayedCategories[i] = { "category": category, "ideas": [], "moreideas": [], "subcategories": [], "sameas": categorySameAs, "count": 0 };
+					}
+					displayedCategories[i]["ideas"].push(idea);
+					displayedCategories[i]["count"]++;
+					count++;
+				}
+			}
+		}
+		
+		// display subcategories (if any)
+		if (isRootCategory && showSubcategories) {
+			var subcategoryIndex = 0;
+			for (var j=0; j<categorySubcategories.length; j++) {
+				// check if subcategory found
+				// if not, it may have already been merged with another category (if it is a duplicate)
+				var subcategoryGroup = getCategoryGroup(categorySubcategories[j]);
+				if (subcategoryGroup) {
+					var subcategory = subcategoryGroup.category;
+					var subcategoryIdeas = subcategoryGroup.ideas;
+					var subcategorySameAs = subcategoryGroup.same_as;
+					var count = 0;
+					for (var k=0; k<subcategoryIdeas.length; k++) {
+						var subcategoryIdea = subcategoryIdeas[k];
+						
+						// skip adding this idea to this subcategory if ideas are only to be shown in one category,
+						// and this subcategory is not the primary category for this idea
+						var skip = singleCategoryOnly && isDefined(primaryCategories[subcategoryIdea.id]) && (primaryCategories[subcategoryIdea.id] != subcategory);
+						
+						// add this idea to this subcategory
+						if (!skip) {
+							// add subcategory idea to moreideas if not in ideas already										
+							if (!doesIdeaListContain(displayedCategories[i]["ideas"], subcategoryIdea)) {
+								displayedCategories[i]["moreideas"].push(subcategoryIdea);	
+							}
+							// update total count for root category
+							displayedCategories[i]["count"]++;
+	
+							// initialize subcategory
+							if (count == 0) {	
+								displayedCategories[i]["subcategories"].push({ "category":subcategory, "ideas":[], "sameas":subcategorySameAs, "count":0 })
+							}
+							
+							// update subcategory
+							displayedCategories[i]["subcategories"][subcategoryIndex]["ideas"].push(subcategoryIdea);
+							displayedCategories[i]["subcategories"][subcategoryIndex]["count"]++;
+							count++;
+						}
+					}
+					subcategoryIndex++;
+				}
+			}
+		}
+	}
+	return displayedCategories;
+}
+
+function getSortIndices(categoriesToSort) {
+	var categoriesToSort = isDefined(categoriesToSort) ? categoriesToSort : displayedCategories;
+	var sortBy = $("#sort_by").val();
+	var sortTuples = [];
+	for (var i in categoriesToSort) {
+		var sortValue = sortBy == SORT_BY_NAME ? categoriesToSort[i].category : categoriesToSort[i].count;
+		sortTuples.push([i, sortValue]);
+	}
+	
+	if (sortBy == SORT_BY_COUNT) {
+		sortTuplesDescending(sortTuples);
+	}
+	else {
+		sortTuplesAscending(sortTuples);
+	}
+	
+	var sortIndices = [];
+	for (var i=0; i<sortTuples.length; i++) {
+		sortIndices.push(sortTuples[i][0]);
+	}
+	return sortIndices;
+}
+
+function updatePrimaryCategories() {
+	// find primary categories for ideas that appear in multiple categories
+	// ideas only in single category not included
+	primaryCategories = {};
+	if (DISPLAY_ITEM_IN_SINGLE_CATEGORY) {		
+		for (var i=0; i<categorizedIdeas.length; i++) {
+			var category = categorizedIdeas[i].category;
+			var ideas = categorizedIdeas[i].ideas;
+			for (var j=0; j<ideas.length; j++) {
+				var idea = ideas[j];
+				if (isUndefined(primaryCategories[idea.id])) {
+					var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
+					if (ideaAlsoIn.length > 0) {
+						// if this idea is in other categories, add this category to list
+						ideaAlsoIn.push(category);
+						
+						// find subcategories this idea is in
+						var ideaSubcategories = subcategories.length > 0 ? intersection(ideaAlsoIn, subcategories) : [];
+							
+						// find primary category for this idea
+						// * if idea is in a subcategory, pick the smallest one
+						// * otherwise, pick the smallest root category
+						// TODO/FIX: consider whether primary category should be smallest or largest
+						var primaryCategory = null;					
+						if (ideaSubcategories.length > 0) {
+							var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
+							primaryCategory = minMaxSubcategories.min;
+						}
+						else {
+							var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
+							var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
+							primaryCategory =  minMaxRootCategories.min;
+						}
+						primaryCategories[idea.id] = primaryCategory;
+					}
+				}			
+			}
+		}
+	}
+	return primaryCategories;
+}
+
+function getMinMaxCategories(categories) {
+	var minCategory = null;
+	var maxCategory = null;
+	for (var i=0; i<categories.length; i++) {
+		var category = categories[i];
+		if (!minCategory || (categoryCounts[category] < categoryCounts[minCategory])) {
+			minCategory = category;
+		}
+		if (!maxCategory || (categoryCounts[category] > categoryCounts[maxCategory])) {
+			maxCategory = category;
+		}										
+	}
+	return { "min":minCategory, "max":maxCategory };
+}
+
+function getCategoryGroup(category) {
+	var group = null;
+	for (var i=0; i<categorizedIdeas.length; i++) {
+		if (categorizedIdeas[i].category == category) {
+			group = categorizedIdeas[i];
+			break;
+		}
+	}
+	return group;
+}
+
+function doesIdeaListContain(ideaList, idea) {
+	var found = false;
+	for (var i=0; i<ideaList.length; i++) {
+		if (ideaList[i].id == idea.id) {
+			found = true;
+			break;
+		}
+	}
+	return found;
+}
+
 /////////////////////////
 // Channel support
 /////////////////////////
 function handleIdea(data) {
-	addIdea(data.idea);
+	var idea = data.idea;
+	uncategorizedIdeas.push(idea);
+	numIdeas++;
+	var html = ideaAsHtml(idea);
+	$("#new_ideas").prepend(html);
+	updateStats();
 }
 
 function handleEnable(data) {

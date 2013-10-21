@@ -1691,9 +1691,8 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
     # find duplicate categories and subcategories
     duplicateCategories = {}
     nestedCategories = {}
-    findDuplicates = question.cascade_p > 0
     
-    if findDuplicates or constants.FIND_SUBCATEGORIES:
+    if question.cascade_p > 0:
         categoriesToRemove = []
         categoryKeys = categoryGroups.keys()
         for x in range(len(categoryKeys)):
@@ -1704,32 +1703,29 @@ def GenerateCascadeHierarchy(dbConnection, question, forTesting=False):
                     ideaIds1 = categoryGroups[category1]
                     ideaIds2 = categoryGroups[category2]
 
-                    if question.cascade_p > 0:                            
-                        sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
-                        sizePercentage = (min(len(ideaIds1),len(ideaIds2)) / float(max(len(ideaIds1),len(ideaIds2))))*100
-                        duplicateThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
-                        nestedThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
+                    sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
+                    sizePercentage = (min(len(ideaIds1),len(ideaIds2)) / float(max(len(ideaIds1),len(ideaIds2))))*100
+                    duplicateThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
+                    nestedThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
                         
-                        # find duplicate categories (that have more than p % of overlapping items)
-                        duplicateFound = False
-                        if sizePercentage >= constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
-                            duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
-                            primaryCategory = category1 if duplicateCategory != category1 else category2
-                            if duplicateCategory not in categoriesToRemove:
-                                categoriesToRemove.append(duplicateCategory)
-                            if primaryCategory not in duplicateCategories:
-                                duplicateCategories[primaryCategory] = []
-                            duplicateCategories[primaryCategory].append(duplicateCategory)
-                            duplicateFound = True
+                    # find duplicate categories (that have more than p % of overlapping items)
+                    if sizePercentage >= constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
+                        duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
+                        primaryCategory = category1 if duplicateCategory != category1 else category2
+                        if duplicateCategory not in categoriesToRemove:
+                            categoriesToRemove.append(duplicateCategory)
+                        if primaryCategory not in duplicateCategories:
+                            duplicateCategories[primaryCategory] = []
+                        duplicateCategories[primaryCategory].append(duplicateCategory)
 
-                        # find subcategories (make sure they aren't flagged to be removed)   
-                        if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
-                            primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
-                            subCategory = category2 if primaryCategory == category1 else category1
-                            if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
-                                if primaryCategory not in nestedCategories:
-                                    nestedCategories[primaryCategory] = []
-                                nestedCategories[primaryCategory].append(subCategory)
+                    # find subcategories (make sure they aren't flagged to be removed)   
+                    if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
+                        primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
+                        subCategory = category2 if primaryCategory == category1 else category1
+                        if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
+                            if primaryCategory not in nestedCategories:
+                                nestedCategories[primaryCategory] = []
+                            nestedCategories[primaryCategory].append(subCategory)
         
         # merge items in duplicate categories with primary (larger) category
         for primaryCategory in duplicateCategories: 

@@ -22,11 +22,17 @@ var question = null;
 var categorizedIdeas = [];
 var uncategorizedIdeas = [];
 var numIdeas = 0;
+var displayedCategories = {};
 var categoryCounts = {};
-    		
-var singleCategoryOnly = false;
-var showOnlyInCategories = {};
+    	
+var DISPLAY_SUBCATEGORIES = false;
 var subcategories = [];
+var showSubcategories = false;
+var hasSubcategories = false;
+
+var DISPLAY_ITEM_IN_SINGLE_CATEGORY = true;		
+var singleCategoryOnly = false;
+var primaryCategories = {};
 
 // Keshif
 var ideasCol;
@@ -42,17 +48,7 @@ $(document).ready(function() {
 	$("#page_content").show();
 });
 
-function adjustSize() {
-	var top = $("#ideas").position().top;
-	var height = $(window).height()-top-10;
-	var width = $(window).width()-10;
-	if (width < MIN_RESULTS_WIDTH) width = MIN_RESULTS_WIDTH;
-	$("#ideas").height(height);
-	$("#ideas").width(width);
-}
-
 function onChannelOpen() {
-	
 	adjustSize();	
 	$(window).resize(function() {
 		adjustSize();
@@ -72,8 +68,18 @@ function onChannelOpen() {
 	
 	$("#single_category_cb").click(function() {
 		singleCategoryOnly = $(this).is(":checked");
-		displayResults();
+		updateDisplayCategories();
+		displayIdeas();
 	});
+}
+
+function adjustSize() {
+	var top = $("#ideas").position().top;
+	var height = $(window).height()-top-10;
+	var width = $(window).width()-10;
+	if (width < MIN_RESULTS_WIDTH) width = MIN_RESULTS_WIDTH;
+	$("#ideas").height(height);
+	$("#ideas").width(width);
 }
 
 function loadResults() {	
@@ -88,87 +94,23 @@ function loadResults() {
 		categorizedIdeas = results.categorized;
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
-		displayResults();
+	
+		categoryCounts = {};
+		for (var i=0; i<categorizedIdeas.length; i++) {
+			var category = categorizedIdeas[i].category;
+			var categoryIdeas = categorizedIdeas[i].ideas;
+			categoryCounts[category] = categoryIdeas.length;
+		}
+
+		// update data structure used to display results
+		updateDisplayCategories();
+
+		displayIdeas();
 	});
 }	
 
-function displayResults() {
-	updateResultsForDisplay();
+function displayIdeas() {
 	initKeshif();
-}
-
-function updateResultsForDisplay() {
-categoryCounts = {};
-	for (var i=0; i<categorizedIdeas.length; i++) {
-		var category = categorizedIdeas[i].category;
-		var ideas = categorizedIdeas[i].ideas;
-		categoryCounts[category] = ideas.length;
-	}
-					
-	// find category that item should be displayed in if only displayed in a *single* category
-	showOnlyInCategories = {};
-	for (var i=0; i<categorizedIdeas.length; i++) {
-		var category = categorizedIdeas[i].category;
-		var ideas = categorizedIdeas[i].ideas;
-		for (var j=0; j<ideas.length; j++) {
-			var idea = ideas[j];
-			if (isUndefined(showOnlyInCategories[idea.id])) {
-				var ideaSubcategories = [];
-				var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
-				if (ideaAlsoIn.length > 0) {
-					ideaAlsoIn.push(category);
-					if (subcategories.length > 0) {
-						ideaSubcategories = intersection(ideaAlsoIn, subcategories);
-					}
-							
-					var showInCategory = null;							
-					if (ideaSubcategories.length > 0) {
-						var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
-						// TODO/FIX: consider whether single category should be smallest or largest
-						showInCategory = minMaxSubcategories.min;
-					}
-					else {
-						var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
-						var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
-						showInCategory =  minMaxRootCategories.min;
-					}
-					showOnlyInCategories[idea.id] = showInCategory;
-				}
-			}			
-		}
-	}
-				
-	displayedCategories = {};
-	for (var i=0; i<categorizedIdeas.length; i++) {
-		var categoryGroup = categorizedIdeas[i];
-		var category = categoryGroup.category;
-		var categoryIdeas = categoryGroup.ideas;
-		var categorySubcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
-		var categorySameAs = categoryGroup.same_as;
-			
-		var count = 0;
-		for (var j=0; j<categoryIdeas.length; j++) {
-			var skip = false;
-			var idea = categoryIdeas[j];
-			var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
-			if (singleCategoryOnly && isDefined(showOnlyInCategories[idea.id]) && showOnlyInCategories[idea.id] != category) {
-				skip = true;
-			}
-						
-			if (!skip) {
-				// initialize root category in displayedCategories
-				// ideas + moreideas = unique list of ideas contained in root category
-				if (isUndefined(displayedCategories[i])) {
-					displayedCategories[i] = { "category":category, "ideas":[], "moreideas":[], "subcategories":[], "sameas":categorySameAs, "count":0 };
-				}
-						
-				// update root category
-				displayedCategories[i]["ideas"].push(idea);
-				displayedCategories[i]["count"]++;
-				count++;
-			}
-		}
-	}
 }
 
 function initKeshif() { 
@@ -307,10 +249,100 @@ function addIdeasToCategory(category, ideas, data) {
 	}
 }
 
+function updateDisplayCategories() {
+	// update primary categories for ideas where a primary category is where
+	// an item should be displayed in if it can only be displayed in a *single* category
+	updatePrimaryCategories();
+							
+	displayedCategories = {};
+	for (var i=0; i<categorizedIdeas.length; i++) {
+		var categoryGroup = categorizedIdeas[i];
+		var category = categoryGroup.category;
+		var categoryIdeas = categoryGroup.ideas;
+		var categorySubcategories = isDefined(categoryGroup.subcategories) ? categoryGroup.subcategories : [];
+		var categorySameAs = categoryGroup.same_as;
+		
+		var isRootCategory = !showSubcategories || $.inArray(category, subcategories) == -1;		
+		if (isRootCategory) {
+			var count = 0;
+			for (var j=0; j<categoryIdeas.length; j++) {
+				var idea = categoryIdeas[j];
+				
+				// skip if displaying subcategories and this idea is in a subcategory
+				var skip = false;
+				var alsoIn = isDefined(idea.also_in) ? idea.also_in : [];
+				if (showSubcategories && alsoIn.length > 0 && categorySubcategories.length > 0) {
+					var isIdeaInSubcategory = intersection(alsoIn, categorySubcategories).length > 0;
+					skip = isIdeaInSubcategory;
+				}
+			
+				// skip if only displaying idea in single category and this is not the primary category
+				if (singleCategoryOnly && isDefined(primaryCategories[idea.id]) && primaryCategories[idea.id] != category) {
+					skip = true;
+				}
+
+				// add idea to root category
+				if (!skip) {
+					if (isUndefined(displayedCategories[i])) {
+						// ideas + moreideas = unique list of ideas contained in root category
+						// moreideas is a list of ideas from subcategories that are not in the root category
+						displayedCategories[i] = { "category": category, "ideas": [], "moreideas": [], "subcategories": [], "sameas": categorySameAs, "count": 0 };
+					}	
+					displayedCategories[i]["ideas"].push(idea);
+					displayedCategories[i]["count"]++;
+					count++;
+				}
+			}
+		}
+	}
+}
+
+function updatePrimaryCategories() {
+	// find primary categories for ideas that appear in multiple categories
+	// ideas only in single category not included
+	primaryCategories = {};
+	if (DISPLAY_ITEM_IN_SINGLE_CATEGORY) {		
+		for (var i=0; i<categorizedIdeas.length; i++) {
+			var category = categorizedIdeas[i].category;
+			var ideas = categorizedIdeas[i].ideas;
+			for (var j=0; j<ideas.length; j++) {
+				var idea = ideas[j];
+				if (isUndefined(primaryCategories[idea.id])) {
+					var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
+					if (ideaAlsoIn.length > 0) {
+						// if this idea is in other categories, add this category to list
+						ideaAlsoIn.push(category);
+						
+						// find subcategories this idea is in
+						var ideaSubcategories = subcategories.length > 0 ? intersection(ideaAlsoIn, subcategories) : [];
+							
+						// find primary category for this idea
+						// * if idea is in a subcategory, pick the smallest one
+						// * otherwise, pick the smallest root category
+						// TODO/FIX: consider whether primary category should be smallest or largest
+						var primaryCategory = null;							
+						if (ideaSubcategories.length > 0) {
+							var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
+							primaryCategory = minMaxSubcategories.min;
+						}
+						else {
+							var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
+							var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
+							primaryCategory =  minMaxRootCategories.min;
+						}
+						primaryCategories[idea.id] = primaryCategory;
+					}
+				}			
+			}
+		}
+	}
+	return primaryCategories;
+}
+
 function getMinMaxCategories(categories) {
 	var minCategory = null;
 	var maxCategory = null;
-	for (var i in categories) {
+	for (var i=0; i<categories.length; i++) {
 		var category = categories[i];
 		if (!minCategory || (categoryCounts[category] < categoryCounts[minCategory])) {
 			minCategory = category;
