@@ -17,13 +17,18 @@
 
 var OFFLINE = false;				// For offline debugging
 
-var SHOW_DISCUSS_BUTTONS = false;
 var SHOW_TAGCLOUDS = true;
 var MIN_TAGCLOUD_ITEM_COUNT = 7;
 var MAX_CLOUD_HEIGHT = 800;
 
 var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
+
+var SHOW_DISCUSS_BUTTONS = true;
+var DISCUSS_BUTTON_NO_HIGHLIGHT = "/images/discuss.png";
+var DISCUSS_BUTTON_HIGHLIGHT = "/images/discuss-highlight.png";
+var discussFlags = {};
+var personalDiscussIdeas = [];
 
 var DISPLAY_SUBCATEGORIES = true;
 var subcategories = [];
@@ -78,7 +83,7 @@ function onChannelOpen() {
 	
 	$("#nest_categories_cb").click(function() {
 		showSubcategories = DISPLAY_SUBCATEGORIES && $(this).is(":checked");
-		updateDisplayCategories();
+		initDisplayCategories();
 		displayIdeas();
 	});
 	
@@ -89,7 +94,7 @@ function onChannelOpen() {
 	
 	$("#single_category_cb").click(function() {
 		singleCategoryOnly = $(this).is(":checked");
-		updateDisplayCategories();
+		initDisplayCategories();
 		displayIdeas();
 	});
 }
@@ -102,6 +107,7 @@ function loadResults() {
 		"request": "ideas",
 		"group_by": "category",
 		"question_id": question_id,
+		"discuss": SHOW_DISCUSS_BUTTONS ? "1" : "0",
 		"test": test!=null && test=="1" ? "1" : "0"
 	};
 	$.getJSON("/query", data, function(results) {
@@ -110,8 +116,15 @@ function loadResults() {
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
 		updateStatus();
+
+		// initialize discussion flags
+		discussFlags = {};		
+		personalDiscussIdeas = [];
+		for (var i in results.discuss_flags) {
+			addDiscussFlag(results.discuss_flags[i]);
+		}
 				
-		// update category counts and list of all subcategories
+		// initialize category counts and master list of subcategories
 		categoryCounts = {};
 		subcategories = [];
 		for (var i in categorizedIdeas) {
@@ -130,8 +143,8 @@ function loadResults() {
 		}	
 		hasSubcategories = subcategories.length > 0;
 		
-		// update data structure used to display results
-		updateDisplayCategories();
+		// initialize data structure used to display results
+		initDisplayCategories();
 			
 		if (OFFLINE) {
 			displayIdeas();
@@ -171,32 +184,55 @@ function displayIdeas() {
 	newIdeaHtml += "</table>";
 	$("#ideas").html(newIdeaHtml + html);
 	
-	// TODO: need to highlight image on mouseover
-	//$(".discuss_idea_button").mouseover(function() {
-	//	$(this).css('border', 'solid 1px black');
-	//});
-
-	//$(".discuss_idea_button").mouseout(function() {
-	//	$(this).css('border', 'none');
-	//});
+	if (SHOW_DISCUSS_BUTTONS) {
+		for (var ideaId in discussFlags) {
+			updateDiscussIdea(ideaId);
+		}
 		
-	$(".discuss_idea_button").click(function() {
-		var buttonId = $(this).attr("name");
-		var tokens = buttonId.split("_");
-		var ideaId = tokens[2];
+		$(".discuss_idea_button").click(function() {
+			var buttonId = $(this).attr("name");
+			var tokens = buttonId.split("_");
+			var ideaId = parseInt(tokens[2]);
+			var addIdeaToDiscuss = $.inArray(ideaId, personalDiscussIdeas) == -1;
+			
+			var data = {
+				"client_id": client_id,
+				"question_id": question.id,
+				"idea_id" : ideaId,
+				"add" : addIdeaToDiscuss ? "1" : "0"
+			};
+			$.post("/discuss_idea", data, function(result) {
+				if (result.status == 1) {
+					if (addIdeaToDiscuss) {
+						addDiscussFlag(result.flag);
+						$(this).attr("src", DISCUSS_BUTTON_HIGHLIGHT);
+					}
+					else {
+						removeDiscussFlag(result.flag);
+						$(this).attr("src", DISCUSS_BUTTON_NO_HIGHLIGHT);
+					}
+					updateDiscussIdea(result.flag.idea_id);
+				}
+			}, "json");
+		});
 		
-		var data = {
-			"client_id": client_id,
-			"question_id": question.id,
-			"idea_id" : ideaId
-		};
-		$.post("/discuss_idea", data, function(result) {
-			if (result.status == 1) {
-				// TODO/FIX: keep track of who marked to discuss vs. simple count
-				$(".discuss_idea_"+ideaId+"_count").html("+" + result.count);
+		// TODO/FIX/THURSDAY: highlight all displayed instances of idea in results
+		
+		$(".discuss_idea_button").hover(
+			function() {
+				var buttonImage = $(this).attr("src");
+				var newButtonImage = (buttonImage == DISCUSS_BUTTON_NO_HIGHLIGHT) ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
+				$(this).attr("src", newButtonImage);
+			}, 
+			function() {
+				var buttonId = $(this).attr("name");
+				var tokens = buttonId.split("_");
+				var ideaId = parseInt(tokens[2]);
+				var isPersonalDiscussIdea = $.inArray(ideaId, personalDiscussIdeas) != -1;
+				$(this).attr("src", isPersonalDiscussIdea ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT);
 			}
-		}, "json");
-	});
+		);
+	}
 	
 	// show/hide controls
 	if (categorizedIdeas.length>0) {
@@ -223,8 +259,14 @@ function displayIdeas() {
 			displayCloud(uncategorizedIdeas, categorizedIdeas.length+1);
 		}
 	}
-		
-	$(document).tooltip({position:{my: "left+15 center", at:"right center"}});	
+	
+	$(document).tooltip({ 
+		content: function() {
+			var id = $(this).attr("id");
+			return unescapeHtml($(this).attr("title"));
+		}, 
+		position: { my: "left+15 center", at:"right center" }
+	});
 }
 
 function categoryGroupAsHtml(categoryGroup, id) {
@@ -298,9 +340,12 @@ function ideaAsHtml(idea, parent) {
 	}
 		
 	var html = "<li>";
-	if (SHOW_DISCUSS_BUTTONS) {
-		html += "<img name='discuss_idea_"+idea.id+"_button' class='discuss_idea_button' src='/images/discuss.png' style='vertical-align:middle' /> ";
-		html += "<span class='discuss_idea_"+idea.id+"_count note'>" + (idea.discuss > 0 ? "+" + idea.discuss : "") + "</span> ";
+	if (SHOW_DISCUSS_BUTTONS) {	
+		var countLabel = isDefined(discussFlags[idea.id]) ? "+" + discussFlags[idea.id].length : "";
+		var isPersonalDiscussFlag = $.inArray(idea.id, personalDiscussIdeas) != -1;
+		var buttonImage = isPersonalDiscussFlag ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
+		html += "<img name='discuss_idea_"+idea.id+"_button' class='discuss_idea_"+idea.id+"_button discuss_idea_button' src='"+buttonImage+"' style='vertical-align:middle' /> ";
+		html += "<span name='discuss_idea_"+idea.id+"_count' class='discuss_idea_"+idea.id+"_count note'>" + countLabel + "</span> ";
 		html += " ";
 	}
 	html += idea.idea;
@@ -311,13 +356,8 @@ function ideaAsHtml(idea, parent) {
 	}
 	
 	html += "<br/>";
-	html += "<span class='author'";
-	var realIdentity = isDefined(idea.author_identity) ? idea.author_identity : "";
-	var isIdentityHidden = realIdentity != "" && realIdentity != idea.author;
-	if (isIdentityHidden) {
-		html += " title='" + realIdentity + "' ";
-	}
-	html += ">&nbsp;&nbsp;&nbsp;&nbsp;-- " + idea.author + (isIdentityHidden?"*":"") + "</span>";
+	html += "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- </span>"; 
+	html += getUserHtml(idea.author, idea.author_identity, "author");
 	html += "</li>";
 	return html;	
 }
@@ -351,6 +391,35 @@ function updateStats() {
 		
 	var html = stats.length > 0 ? "(" + stats.join(", ") + ")" : ""
 	$("#question_stats").html(html);
+}
+
+function getUserHtml(displayName, realIdentity, customClass) {
+	var realIdentity = isDefined(realIdentity) ? realIdentity : "";
+	var html = "<span";
+	html += isDefined(customClass) ? " class='" + customClass + "'" : "";
+	var isIdentityHidden = realIdentity != "" && realIdentity != displayName;
+	if (isIdentityHidden) {
+		html += " title='" + realIdentity + "' ";
+	}
+	html += ">" + displayName + (isIdentityHidden ? "*" : "") + "</span>";
+	return html;
+}
+
+function updateDiscussIdea(ideaId) {
+	// update count
+	var countLabel = isDefined(discussFlags[ideaId]) && discussFlags[ideaId].length > 0 ? "+" + discussFlags[ideaId].length : "";
+	$(".discuss_idea_"+ideaId+"_count").html(countLabel);
+
+	// update tooltip
+	var userList = [];
+	if (isDefined(discussFlags[ideaId])) {
+		for (var i=0; i<discussFlags[ideaId].length; i++) {
+			var nameHtml = getUserHtml(discussFlags[ideaId][i].user_nickname, discussFlags[ideaId][i].user_identity);
+			userList.push(nameHtml);
+		}
+	}	
+	var title = escapeHtml(userList.join("<br/>"));
+	$(".discuss_idea_"+ideaId+"_count").attr("title", title);
 }
 
 function updateStatus() {
@@ -436,10 +505,10 @@ function getWordStem(word) {
 // Results Data Structures
 //=================================================================================
 
-function updateDisplayCategories() {
-	// update primary categories for ideas where a primary category is where
+function initDisplayCategories() {
+	// initialize primary categories for ideas where a primary category is where
 	// an item should be displayed in if it can only be displayed in a *single* category
-	updatePrimaryCategories();
+	initPrimaryCategories();
 		
 	displayedCategories = {};
 	for (var i in categorizedIdeas) {
@@ -552,7 +621,7 @@ function getSortIndices(categoriesToSort) {
 	return sortIndices;
 }
 
-function updatePrimaryCategories() {
+function initPrimaryCategories() {
 	// find primary categories for ideas that appear in multiple categories
 	// ideas only in single category not included
 	primaryCategories = {};
@@ -609,6 +678,36 @@ function getMinMaxCategories(categories) {
 	return { "min":minCategory, "max":maxCategory };
 }
 
+function addDiscussFlag(flag) {
+	if (isUndefined(discussFlags[flag.idea_id])) {
+		discussFlags[flag.idea_id] = [];
+	}
+	discussFlags[flag.idea_id].push(flag);
+
+	var isPersonalFlag = flag.user_id == user_id;
+	if (isPersonalFlag && $.inArray(flag.idea_id, personalDiscussIdeas) == -1) {
+		personalDiscussIdeas.push(flag.idea_id);
+	}
+}
+
+function removeDiscussFlag(flag) {
+	if (isUndefined(discussFlags[flag.idea_id])) {
+		discussFlags[flag.idea_id] = [];
+	}
+
+	for (var i=0; i<discussFlags[flag.idea_id].length; i++) {
+		if (discussFlags[flag.idea_id][i].user_id == flag.user_id) {
+			discussFlags[flag.idea_id].splice(i, 1);
+			break;
+		}
+	}	
+
+	var index = personalDiscussIdeas.indexOf(flag.idea_id);
+	if (index != -1) {
+		personalDiscussIdeas.splice(index, 1);
+	}
+}
+
 function getCategoryGroup(category) {
 	var group = null;
 	for (var i=0; i<categorizedIdeas.length; i++) {
@@ -662,6 +761,17 @@ function handleResults(data) {
 	question.cascade_complete = 1;
 	question.cascade_stats = data.cascade_stats;
 	window.location.reload();
+}
+
+function handleDiscussIdea(data) {
+	if (data.op == "discuss_idea") {
+		addDiscussFlag(data.flag);
+	}
+	else {
+		removeDiscussFlag(data.flag);
+	}
+	updateDiscussIdea(data.flag.idea_id);
+	
 }
 
 function handleLogout(data) {

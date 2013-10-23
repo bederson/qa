@@ -179,7 +179,7 @@ function ideaAsHtml(idea) {
 	var html = "<li>";
 	html += idea.idea + "<br/>";
 	html += "<span class='author'";
-	var realIdentity = isDefined(idea.author_identity) ? idea.author_identity : "";
+	var realIdentity = isDefined(idea.author_identity) && idea.author_identity!=null ? idea.author_identity : "";
 	var isIdentityHidden = realIdentity != "" && realIdentity != idea.author;
 	if (isIdentityHidden) {
 		html += " title='" + realIdentity + "' ";

@@ -77,6 +77,9 @@ onMessage = function(message) {
 	else if (dataObj.op == "categories" && typeof window.handleResults == 'function') {
 		handleResults(dataObj);
 	}	
+	else if ((dataObj.op == "discuss_idea" || dataObj.op == "remove_discuss_idea") && typeof window.handleDiscussIdea == 'function') {
+		handleDiscussIdea(dataObj);
+	}
 	else if (dataObj.op == "nickname" && typeof window.handleNickname == 'function') {
 		handleNickname(dataObj);
 	}	
@@ -299,4 +302,28 @@ function toHHMMSS(str) {
     	hhmmss = hours+':'+minutes+':'+seconds;
     }
     return hhmmss;
+}
+
+var entityMap = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': '&quot;',
+    "'": '&#39;',
+    "/": '&#x2F;'
+  };
+
+function escapeHtml(string) {
+    return String(string).replace(/[&<>"'\/]/g, function (s) {
+        return entityMap[s];
+    });
+}
+
+function unescapeHtml(string) {
+	var s = new String(string);
+    for (var char in entityMap) {
+    	var re = new RegExp(entityMap[char], "g");
+    	s = s.replace(re, char); 
+    }
+    return s;
 }

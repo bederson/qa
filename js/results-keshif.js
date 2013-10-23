@@ -68,7 +68,7 @@ function onChannelOpen() {
 	
 	$("#single_category_cb").click(function() {
 		singleCategoryOnly = $(this).is(":checked");
-		updateDisplayCategories();
+		initDisplayCategories();
 		displayIdeas();
 	});
 }
@@ -102,8 +102,8 @@ function loadResults() {
 			categoryCounts[category] = categoryIdeas.length;
 		}
 
-		// update data structure used to display results
-		updateDisplayCategories();
+		// initialize data structure used to display results
+		initDisplayCategories();
 
 		displayIdeas();
 	});
@@ -249,10 +249,10 @@ function addIdeasToCategory(category, ideas, data) {
 	}
 }
 
-function updateDisplayCategories() {
-	// update primary categories for ideas where a primary category is where
+function initDisplayCategories() {
+	// initialize primary categories for ideas where a primary category is where
 	// an item should be displayed in if it can only be displayed in a *single* category
-	updatePrimaryCategories();
+	initPrimaryCategories();
 							
 	displayedCategories = {};
 	for (var i=0; i<categorizedIdeas.length; i++) {
@@ -297,7 +297,7 @@ function updateDisplayCategories() {
 	}
 }
 
-function updatePrimaryCategories() {
+function initPrimaryCategories() {
 	// find primary categories for ideas that appear in multiple categories
 	// ideas only in single category not included
 	primaryCategories = {};
@@ -358,7 +358,7 @@ function getMinMaxCategories(categories) {
 // Channel support
 /////////////////////////
 function handleIdea(data) {
-	// TODO/FIX!
+	// TODO/FIX: support dynamic adding of new ideas
 	//addIdea(data.idea);
 }
 

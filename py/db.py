@@ -17,6 +17,13 @@
 # limitations under the License.
 #
 
+# Cascade Improvements 10.21.2013
+# - remove categories with same stem words automatically (reduce time by reducing fit tasks)
+# - ask users if categories w/ 50% of more of the same stem words are equivalent (reduce time by reducing fit tasks)
+# - show users current suggested categories (potentially reduce duplicates but might also reduce distinct categories)
+# - added fit verify task (improve quality w/o increasing # jobs as much as if k2 was increased)
+# - increase cascade_s when users >= 10 (improve quality by giving more context in fit jobs)
+
 import constants
 import helpers
 import datetime
@@ -198,8 +205,11 @@ class Question(DBObject):
 
     @staticmethod
     def copy(dbConnection, question):
+        # create new question
+        # (cascade_* data and question_discuss data not copied to new question)
         newQuestion = Question.create(dbConnection, question.user_id, "{0} (Copy)".format(question.title), question.question, question.nickname_authentication)
 
+        # copy users to new question
         newUserIds = {}
         sql = "select * from users where question_id=%s"
         dbConnection.cursor.execute(sql, (question.id))
@@ -212,6 +222,7 @@ class Question(DBObject):
             dbConnection.conn.commit()
             newUserIds[oldUserId] = newUserId
         
+        # copy ideas to new question
         sql = "select * from question_ideas where question_id=%s"
         dbConnection.cursor.execute(sql, (question.id))
         rows = dbConnection.cursor.fetchall()
@@ -401,6 +412,7 @@ class Question(DBObject):
         if not dataOnly:
             dbConnection.cursor.execute("delete from questions where id={0}".format(self.id))            
         dbConnection.cursor.execute("delete from question_ideas where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from question_discuss where question_id={0}".format(self.id))
         self.deleteCascade(dbConnection, commit=False)
 
         if onDeleteStudents:
@@ -520,7 +532,7 @@ class Person(DBObject):
         if person:
             person.is_logged_in = person.latest_login_timestamp is not None and person.latest_logout_timestamp is None
         return person
-              
+                         
     def login(self, dbConnection):
         if not self.is_logged_in:
             session = gaesessions.get_current_session()
@@ -594,6 +606,17 @@ class Person(DBObject):
         row = dbConnection.cursor.fetchone()
         return row is not None
     
+    @staticmethod
+    def getIdentity(nickname, authenticatedNickname, admin=False):
+        identity = {}
+        identity["user_nickname"] = nickname if nickname else "Anonymous"
+        identity["user_identity"] = None
+        if admin and authenticatedNickname:
+            hasHiddenIdentity = nickname and Person.cleanNickname(authenticatedNickname) != nickname
+            if hasHiddenIdentity:
+                identity["user_identity"] = authenticatedNickname
+        return identity
+            
     @staticmethod
     def cleanNickname(nickname=None):
         cleanedNickname = nickname
@@ -686,14 +709,13 @@ class Person(DBObject):
  
 class Idea(DBObject):
     table = "question_ideas"
-    fields = [ "id", "question_id", "user_id", "idea", "discuss", "item_set" ]
+    fields = [ "id", "question_id", "user_id", "idea", "item_set" ]
         
     def __init__(self):
         self.id = None
         self.question_id = None
         self.user_id = None
         self.idea = None
-        self.discuss = 0
         self.item_set = constants.CASCADE_INITIAL_ITEM_SET
     
     @staticmethod
@@ -736,17 +758,7 @@ class Idea(DBObject):
         
         if moreJobs and Question.onMoreJobs:
             question.onMoreJobs(dbConnection)
-     
-    def flagToDiscuss(self, dbConnection):
-        sql = "update question_ideas set discuss = last_insert_id(discuss + 1) where id=%s"
-        dbConnection.cursor.execute(sql, (self.id))
-        dbConnection.conn.commit()
-        
-        sql = "select last_insert_id() as discuss"
-        dbConnection.cursor.execute(sql)
-        row = dbConnection.cursor.fetchone()
-        return row["discuss"]
-               
+                    
     @staticmethod
     def getById(dbConnection, ideaId):
         sql = "select {0} from question_ideas where id=%s".format(Idea.fieldsSql())
@@ -758,7 +770,7 @@ class Idea(DBObject):
     def getByQuestion(dbConnection, question, asDict=False, includeCreatedOn=False):
         ideas = []
         if question:
-            sql = "select {0},{1},question_ideas.created_on as idea_created_on, question_ideas.discuss as idea_discuss from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},question_ideas.created_on as idea_created_on from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
@@ -770,7 +782,6 @@ class Idea(DBObject):
                         "nickname" : row[Person.tableField("nickname")]
                     }
                     idea = idea.toDict(author=author, admin=Person.isAdmin() or Person.isAuthor(question))
-                    idea["discuss"] = row["idea_discuss"]
                     if includeCreatedOn:
                         idea["created_on"] = row["idea_created_on"]
                                            
@@ -792,7 +803,7 @@ class Idea(DBObject):
         
         if question:
             # group alphabetically by category name
-            sql = "select {0},{1},question_ideas.created_on as idea_created_on,question_ideas.discuss as idea_discuss, subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},question_ideas.created_on as idea_created_on,subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
             sql += "left join {0} on question_ideas.id={0}.idea_id ".format(questionCategoriesTable)
             sql += "left join {0} on {1}.category_id={0}.id ".format(categoriesTable, questionCategoriesTable)
             sql += "left join users on question_ideas.user_id=users.id where "
@@ -811,7 +822,6 @@ class Idea(DBObject):
                     "nickname" : row[Person.tableField("nickname")]
                 }
                 idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin() or Person.isAuthor(question))
-                idea["discuss"] = row["idea_discuss"]
                 if includeCreatedOn:
                     idea["created_on"] = row["idea_created_on"]
                     
@@ -869,13 +879,9 @@ class Idea(DBObject):
         if author:
             nickname = author["nickname"] if "nickname" in author else None
             authenticatedNickname = author["authenticated_nickname"] if "authenticated_nickname" in author else None
-            objDict["author"] = nickname if nickname else "Anonymous"
-            # only pass authenticated nickname to admin users
-            if admin and authenticatedNickname:
-                hiddenIdentity = nickname and Person.cleanNickname(authenticatedNickname) != nickname
-                if hiddenIdentity:
-                    objDict["author_identity"] = authenticatedNickname
-                            
+            identity = Person.getIdentity(nickname, authenticatedNickname, admin)
+            objDict["author"] = identity["user_nickname"]
+            objDict["author_identity"] = identity["user_identity"]             
         return objDict
                      
 ###################
@@ -1902,6 +1908,85 @@ def getCascadeClass(type):
 
 CASCADE_CLASSES = [ CascadeSuggestCategory, CascadeBestCategory, CascadeEqualCategory, CascadeFitCategory, CascadeVerifyCategory ]
 
+class DiscussFlag(DBObject):               
+    table = "question_discuss"
+    fields = [ "question_id", "idea_id", "user_id" ]
+    
+    def __init__(self):
+        self.question_id = None
+        self.idea_id = None
+        self.user_id = None
+        self.user_nickname = None
+        self.user_identity = None
+    
+    @staticmethod
+    def create(dbConnection, question, ideaId, person, admin=False, insertInDb=True):
+        discuss = DiscussFlag()
+        discuss.question_id = question.id
+        discuss.idea_id = ideaId
+        discuss.user_id = person.id
+        identity = Person.getIdentity(person.nickname, person.authenticated_nickname, admin)
+        discuss.user_nickname = identity["user_nickname"]
+        discuss.user_identity = identity["user_identity"]
+        
+        if insertInDb:
+            # TODO/FIX: could INSERT IGNORE be used other places (w/ unique index) to prevent duplicate records from being added
+            sql = "insert ignore into question_discuss (question_id, idea_id, user_id) values (%s, %s, %s)"
+            dbConnection.cursor.execute(sql, (question.id, ideaId, person.id))
+            dbConnection.conn.commit()
+        
+        return discuss
+    
+    @classmethod
+    def createFromData(cls, data, admin=False):
+        discuss = super(DiscussFlag, cls).createFromData(data)
+        if "nickname" in data and "authenticated_nickname" in data:
+            identity = Person.getIdentity(data["nickname"], data["authenticated_nickname"], admin)
+            discuss.user_nickname = identity["user_nickname"]
+            discuss.user_identity = identity["user_identity"]
+        else:
+            helpers.log("WARNING: nickname and authenticated_nickname not included in data")            
+        return discuss
+   
+    @staticmethod
+    def delete(dbConnection, question, ideaId, person, admin=False):        
+        sql = "delete from question_discuss where question_id=%s and idea_id=%s and user_id=%s"
+        dbConnection.cursor.execute(sql, (question.id, ideaId, person.id))
+        dbConnection.conn.commit()
+        return DiscussFlag.create(dbConnection, question, ideaId, person, admin=admin, insertInDb=False)
+         
+    @staticmethod
+    def getFlags(dbConnection, question, ideaId=None, admin=False):
+        flags = []
+        sql = "select * from question_discuss, users where question_discuss.user_id=users.id and question_discuss.question_id=%s"
+        sql += " and idea_id=%s" if ideaId else ""
+        dbConnection.cursor.execute(sql, (question.id, ideaId) if ideaId else (question.id))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            discuss = DiscussFlag.createFromData(row, admin=admin)
+            flags.append(discuss.toDict())
+        
+        return flags
+    
+    def toDict(self, admin=False, person=None):
+        objDict = super(DiscussFlag, self).toDict()
+        objDict["user_nickname"] = self.user_nickname
+        objDict["user_identity"] = self.user_identity
+        
+        # force inclusion of user identity if admin and person defined
+        # may already be defined if created with admin=True
+        # used when sending discuss messages between admin and non-admin users
+        if person:
+            identity = Person.getIdentity(person.nickname, person.authenticated_nickname, admin)
+            objDict["user_nickname"] = identity["user_nickname"]
+            objDict["user_identity"] = identity["user_identity"]
+
+        return objDict
+    
+# TUESDAY: check hidden identity with instructor and user
+# TUESDAY: remember that discuss may not get created if already exists
+# TUESDAY: handle discuss msgs sent to ui
+      
 # TODO / DB: no longer using the following db fields (not deleted from public database):
 #    questions: phase, cascade_iteration, cascade_step, cascade_step_count
 #    cascade_stats: iteration_count, step[1-5]_job_count, step[1-5]_duration, step[4-5]_unsaved_count
@@ -1910,10 +1995,7 @@ CASCADE_CLASSES = [ CascadeSuggestCategory, CascadeBestCategory, CascadeEqualCat
 #    cascade_best_categories: cascade_iteration
 #    cascade_fit_categories_phase1: cascade_iteration, subsequent
 
-# TODO: fix waiting ui on cascade page (shown between jobs); change to loading
-# TODO: consider changing best category to checkboxes; would require more jobs
 # TODO: remove duplicate ideas (common problem for questions w/ short answers)
-# TODO: users often must wait between cascade step 1-2 (esp. if there are not many users)
 # TODO: very small ks used; when should they be larger? use larger ks when > x students? what happens if ks adjusted as things progress? reconsider how voting threshold is calculated
 # TODO: allow teacher to continue cascade after generating categories by force
 # BEHAVIOR / BUG: options calculated based on # of active users so options will be *wrong* if first idea submitted before most people are logged in

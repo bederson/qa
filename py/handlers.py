@@ -118,6 +118,7 @@ class BaseHandler(webapp2.RequestHandler):
                     
         template_values = {}
         template_values['logged_in'] = json.dumps(loggedIn)  
+        template_values['user_id'] = self.person.id if loggedIn else -1
         template_values['url_linktext'] = urlLink
         template_values['url'] = url
         template_values['msg'] = self.session.pop("msg") if self.session.has_key("msg") else ""
@@ -453,6 +454,10 @@ class QueryHandler(BaseHandler):
                 else:
                     ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)
                     data = { "question": self.question.toDict(), "ideas": ideas }
+                
+                includeDiscussFlags = self.request.get("discuss", "0") == "1"    
+                if includeDiscussFlags:
+                    data["discuss_flags"] = DiscussFlag.getFlags(self.dbConnection, self.question, admin=self.isAdminLoggedIn())
 
         self.writeResponseAsJson(data)
 
@@ -812,19 +817,28 @@ class DiscussIdeaHandler(BaseHandler):
     def post(self):
         self.init()
         clientId = self.request.get("client_id")
-        ideaId = self.request.get("idea_id")
+        ideaId = int(self.request.get("idea_id"))
+        addIdeaToDiscuss = self.request.get("add", "1") == "1"
         
         ok = self.checkRequirements(userRequired=True, questionRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
              
-        else:
-            idea = Idea.getById(self.dbConnection, ideaId)
-            count = idea.flagToDiscuss(self.dbConnection)          
-            data = { "status" : 1, "count" : count }
-                
+        else: 
+            if addIdeaToDiscuss: 
+                flag = DiscussFlag.create(self.dbConnection, self.question, ideaId, self.person, admin=self.isAdminLoggedIn())     
+            else:
+                flag = DiscussFlag.delete(self.dbConnection, self.question, ideaId, self.person, admin=self.isAdminLoggedIn())            
+
+            op = "discuss_idea" if addIdeaToDiscuss else "remove_discuss_idea"
+            msg = { "op": op, "flag": flag.toDict(admin=False, person=self.person) }
+            adminMsg = { "op": op, "flag": flag.toDict(admin=True, person=self.person) }
+            sendMessage(self.dbConnection, clientId, self.question, msg, adminMsg)
+            data = { "status" : 1, "flag" : flag.toDict() }
+        
         self.writeResponseAsJson(data)
-        self.destroy()                                          
+        self.destroy()        
+                                          
 #####################
 # Channel support
 #####################

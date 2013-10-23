@@ -204,6 +204,23 @@ CREATE TABLE `question_categories2` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `question_discuss`
+--
+
+DROP TABLE IF EXISTS `question_discuss`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `question_discuss` (
+  `question_id` int(11) DEFAULT NULL,
+  `idea_id` int(11) DEFAULT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  UNIQUE KEY `question_idea_user_index` (`question_id`,`idea_id`,`user_id`),
+  KEY `question_index` (`question_id`),
+  KEY `question_idea_index` (`question_id`,`idea_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `question_ideas`
 --
 
@@ -215,7 +232,6 @@ CREATE TABLE `question_ideas` (
   `question_id` int(11) DEFAULT NULL,
   `user_id` int(11) DEFAULT NULL,
   `idea` varchar(255) DEFAULT NULL,
-  `discuss` int(11) DEFAULT '0',
   `item_set` int(11) DEFAULT '0',
   `created_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -306,4 +322,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-10-16 14:05:44
+-- Dump completed on 2013-10-22 10:50:47

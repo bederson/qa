@@ -118,6 +118,7 @@ function getQuestionItemHtml(question) {
 	html += "<a class='small' href='javascript:deleteQuestionData(" + question.id + ")'>[delete data]</a>&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a>";
+	// TODO/FIX/THURSDAY - remove hard-coded user_login
 	if (isRunningOnLocalServer() || (isRunningOnTestServer() && user_login=="anne.bobrose")) {
 		html += "&nbsp;&nbsp;||&nbsp;&nbsp;";
 		html += "<a class='small' href='javascript:copyQuestion(" + question.id + ")'>[duplicate]</a>";
