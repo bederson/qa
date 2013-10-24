@@ -885,7 +885,8 @@ kshf.init = function (options) {
         .attr("class","kshfHost")
         .attr("tabindex","1")
         .style("position","relative")
-        .style("overflow-y","hidden");
+        .style("overflow-y","hidden")
+        ;
     $(this.domID).keydown(function(e){
         if(e.which===27){ // escape
             me.clearAllFilters();
@@ -1186,15 +1187,18 @@ kshf.updateLayout_Height = function(){
 
     // right panel ******************
     divLineRem = divLineCount;
-    var targetScatterplotHeight = Math.floor(divLineRem/4)+1;
     var c2=kshf.charts[0];
-    var topOffset=0;
     if(c2.type==='scatterplot'){
-        c2.setRowCount_VisibleItem(targetScatterplotHeight-c2.rowCount_Header()-1);
-        divLineRem-=c2.rowCount_Total_Right();
-        topOffset = c2.rowCount_Total()-c2.rowCount_Total_Right();
-        if(topOffset>0) topOffset--;
-        chartProcessed[0]=true;
+        if(divLineRem>15){
+            var targetScatterplotHeight = Math.floor(divLineRem/4)+1;
+            c2.setRowCount_VisibleItem(targetScatterplotHeight-c2.rowCount_Header()-1);
+            divLineRem-=c2.rowCount_Total_Right();
+            chartProcessed[0]=true;
+        } else { 
+            c2.collapsedTime = true;
+            c2.adjustLeftHeaderPadding();
+            divLineRem--;
+        }
     }
 
     // TODO: list item header is assumed to be 3 rows, but it may dynamically change!
@@ -1203,16 +1207,13 @@ kshf.updateLayout_Height = function(){
         .duration(500)
         .style("height",(kshf.line_height * (divLineRem-3))+"px")
         ;
-    this.root.selectAll("div.layout_right")
-        .transition()
-        .duration(500)
-        .style("top", (-topOffset*kshf.line_height)+"px");
 
-    //left panel
+    // *********************************************************************************
+    // left panel ***********************************************************************
     divLineRem = divLineCount;
     for (i=0; i < this.charts.length; ++i) {
         var c2=kshf.charts[i];
-        if(c2.type==='scatterplot'){
+        if(c2.type==='scatterplot' && chartProcessed[i]===true){
             divLineRem-=c2.rowCount_Total();
             break;
         }
@@ -1221,9 +1222,7 @@ kshf.updateLayout_Height = function(){
     // numeric range filters have a constant height (for now)
     for (i=0; i < this.charts.length; ++i) {
         var c=kshf.charts[i];
-        if(c.type==='RangeChart' && chartProcessed[i]===false){
-            divLineRem-=c.getHeight_Rows();
-        }
+        if(c.type==='RangeChart' && chartProcessed[i]===false){ divLineRem-=c.getHeight_Rows(); }
     }
 
     var finalPass = false;
@@ -1233,17 +1232,26 @@ kshf.updateLayout_Height = function(){
         for (i=0; i<this.charts.length; ++i) {
             var c=kshf.charts[i];
             if((c.type==='barChart' || c.type==='scatterplot') && chartProcessed[i]===false){
-                if(c.collapsed){
+                if(divLineRem<c.rowCount_MinTotal()){
+                    c.divRoot.style("display","none");
+                    chartProcessed[i] = true;
+                    procBarCharts++;
+                    c.hidden = true;
+                    continue;
+                } else if(c.collapsed){
                     c.setRowCount_VisibleItem(3); // some number, TODO: do not insert chart items if not visible
                 } else if(c.options.catDispCountFix){
                     c.setRowCount_VisibleItem(c.options.catDispCountFix);
                 } else if(c.rowCount_MaxTotal()<=targetSharedHeight){
+                    // you say you have 10 rows available, but I only needed 5. Thanks,
                     c.setRowCount_VisibleItem(c.catCount_Total);
                 } else if(finalPass){
                     c.setRowCount_VisibleItem(targetSharedHeight-c.rowCount_Header()-1);
                 } else {
                     continue;
                 }
+                c.hidden=false;
+                c.divRoot.style("display","block");
                 divLineRem-=c.rowCount_Total();
                 chartProcessed[i] = true;
                 procBarCharts++;
@@ -1253,17 +1261,33 @@ kshf.updateLayout_Height = function(){
     }
 
     // there may be some empty lines remaining, try to give it back to the filters
-    if(divLineRem>0){
+    var allDone = false;
+    while(divLineRem>0 && !allDone){
+        allDone = true;
         for (i=0; i < this.charts.length && divLineRem>0; ++i) {
             var c3=kshf.charts[i];
-            if(c3.type==='barChart' && c3.catCount_Total!==c3.rowCount_VisibleItem){
+            if(c3.type==='barChart' && c3.catCount_Total!==c3.rowCount_VisibleItem && c3.hidden===false){
                 var tmp=divLineRem;
                 divLineRem+=c3.rowCount_Total();
                 c3.setRowCount_VisibleItem(c3.rowCount_VisibleItem+1);
                 divLineRem-=c3.rowCount_Total();
+                if(tmp!==divLineRem) allDone=false;
             }
         }
-    }    
+    }
+
+    // adjust layout_right vertical position
+    c2=kshf.charts[0];
+    var topOffset=0;
+    if(c2.type==='scatterplot'){
+        topOffset = c2.rowCount_Total()-c2.rowCount_Total_Right();
+        if(topOffset>0) topOffset--;
+    }
+
+    this.root.selectAll("div.layout_right")
+        .transition()
+        .duration(500)
+        .style("top", (-topOffset*kshf.line_height)+"px");
 };
 
 
@@ -1602,6 +1626,10 @@ kshf.BarChart.prototype.rowCount_Total_Right = function(){
 
 kshf.BarChart.prototype.rowCount_MaxTotal = function(){
     return this.catCount_Total+this.rowCount_Header()+1;
+};
+kshf.BarChart.prototype.rowCount_MinTotal = function(){
+    var _min =  (this.catCount_Total<3)?this.catCount_Total:3;
+    return _min+this.rowCount_Header()+1;
 };
 
 kshf.BarChart.prototype.updateChartTotalWidth = function(){
@@ -1949,7 +1977,6 @@ kshf.BarChart.prototype.adjustLeftHeaderPadding = function(hide){
         .attr("transform","translate("+
               (this.barMaxWidth+kshf.scrollPadding+kshf.scrollWidth+kshf.sepWidth+this.options.rowTextWidth)+","+
               (kshf.line_height*(this.rowCount_Header()-0.5)+2)+")");
-
 }
 
 
@@ -2045,8 +2072,8 @@ kshf.BarChart.prototype.insertHeader = function(){
             .attr("width",1500)
             .attr("height",1500)
             .on("click",function(d){
-                log2Console("CLICK - RESORT!",kshf_);
-                kshf_.sortDelay = 0; kshf_.updateSorting(true);
+                kshf_.sortDelay = 0; 
+                kshf_.updateSorting(true);
             })
             ;
         xxx.append("svg:path")
@@ -2334,6 +2361,7 @@ kshf.BarChart.prototype.setRowCount_VisibleItem = function(c){
     // how much is one row when mapped to the scroll bar?
 	this.scrollbar.rowScrollHeight = kshf.line_height*this.rowCount_VisibleItem/this.catCount_Total;
 	
+    this.updateScrollBarPos();
     this.refreshScrollbar(true);
 };
 
@@ -2511,14 +2539,19 @@ kshf.BarChart.prototype.insertScrollbar_do = function(parentDom){
 kshf.BarChart.prototype.updateScrollBarPos = function(){
 	var translate_left = this.options.rowTextWidth+this.barMaxWidth+kshf.scrollPadding;//+this.options.timeMaxWidth;
     this.root.select("g.scrollGroup")
+        .transition()
+        .duration(500)
         .attr("transform","translate(0,"+(kshf.line_height*this.rowCount_Header())+")");
 	this.root.select("g.scrollGroup g.leftScroll")
+        .transition()
+        .duration(500)
 		.attr("transform","translate("+
 			translate_left+",0)");
     if(this.type==='scatterplot'){
         this.root.select("g.scrollGroup g.rightScroll")
-            .attr("transform","translate("+
-                (this.getWidth()-15)+",0)");
+            .transition()
+            .duration(500)
+            .attr("transform","translate("+(this.getWidth()-15)+",0)");
     }
 
     this.root.select("text.scroll_display_more")
@@ -2624,9 +2657,13 @@ kshf.BarChart.prototype.filter_addItems = function(){
     }
 };
 
+kshf.BarChart.prototype.noItemOnSelect = function(d){
+    return d.selected!==false || this.catCount_Selected!==0 || d.activeItems!==0;
+}
 
 // When clicked on a row
 kshf.BarChart.prototype.filterRow = function(d,forceAll){
+    // if new selection would generate 0 items in result, don't change anything
 	d.selected = !d.selected;
     if(this.options.singleSelect===true){
         if(d.selected===true){
@@ -2666,6 +2703,7 @@ kshf.BarChart.prototype.filterRow = function(d,forceAll){
         this.dom.showTextSearch[0][0].value="";
     }
     this.refreshFilterRowState();
+    return true;
 };
 kshf.BarChart.prototype.filterTime = function(){
     var i,j;
@@ -2741,6 +2779,7 @@ kshf.BarChart.prototype.insertItemRows_shared = function(){
 	var rows = this.root.selectAll("g.barGroup g.row")
 		.on("click", function(d){ 
             log2Console("CLICK: select category",kshf_);
+            if(!kshf_.noItemOnSelect(d)) return;
             kshf_.filterRow(d);
             if (this.timer) {
                 log2Console("CLICK: select exact category",kshf_);
@@ -2749,7 +2788,8 @@ kshf.BarChart.prototype.insertItemRows_shared = function(){
                 // clears all the selection when selected
                 kshf_.selectAllRows(false);
                 kshf_.filterRow(d,true);
-                kshf_.sortDelay = 0; kshf_.updateSorting(true);
+                kshf_.sortDelay = 0;
+                kshf_.updateSorting(true);
                 return;
             }
             var x = this;
@@ -2766,14 +2806,16 @@ kshf.BarChart.prototype.insertItemRows_shared = function(){
         })
         ;
     var rowsSub = rows.append("svg:g").attr("class","barRow")
-		.on("mouseover", function(e){
+		.on("mouseover", function(d){
             // if there are no active item, do not allow selection
 //            if(e.activeItems===0) return;
+            if(!kshf_.noItemOnSelect(d)) return;
             this.setAttribute("highlight",true);
         })
-		.on("mouseout", function(e){ 
+		.on("mouseout", function(d){ 
             this.setAttribute("highlight",false);
         })
+        .attr("highlight","false")
         ;
     this.dom.row_title = rowsSub
         .append("svg:title")
@@ -3116,7 +3158,7 @@ kshf.BarChart.prototype.insertTimeChartRows = function(){
         })
 		.on("click", function(d,i,f) {
             log2Console("CLICK: time dot",kshf_);
-            // clear all the selections in filterRow function
+            // clear all the selections
             kshf_.selectAllRows(false);
 
             var itemDate = d.timePos;

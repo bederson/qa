@@ -23,8 +23,8 @@ var categorizedIdeas = [];
 var uncategorizedIdeas = [];
 var numIdeas = 0;
 var displayedCategories = {};
-var categoryCounts = {};
-    	
+var categoryCounts = {};    
+	
 var DISPLAY_SUBCATEGORIES = false;
 var subcategories = [];
 var showSubcategories = false;

@@ -29,6 +29,7 @@ var DISCUSS_BUTTON_NO_HIGHLIGHT = "/images/discuss.png";
 var DISCUSS_BUTTON_HIGHLIGHT = "/images/discuss-highlight.png";
 var discussFlags = {};
 var personalDiscussIdeas = [];
+var discussOnly = false;
 
 var DISPLAY_SUBCATEGORIES = true;
 var subcategories = [];
@@ -86,16 +87,21 @@ function onChannelOpen() {
 		initDisplayCategories();
 		displayIdeas();
 	});
-	
-	$("#also_in_cb").click(function() {
-		showAlsoIn = $(this).is(":checked");
-		showHide($(".also_in"), showAlsoIn);
-	});
-	
+		
 	$("#single_category_cb").click(function() {
 		singleCategoryOnly = $(this).is(":checked");
 		initDisplayCategories();
 		displayIdeas();
+	});
+
+	$("#discuss_only_cb").click(function() {
+		discussOnly = $(this).is(":checked");
+		displayIdeas();
+	});
+	
+	$("#also_in_cb").click(function() {
+		showAlsoIn = $(this).is(":checked");
+		showHide($(".also_in"), showAlsoIn);
 	});
 }
 
@@ -234,9 +240,11 @@ function displayIdeas() {
 	
 	// show/hide controls
 	if (categorizedIdeas.length>0) {
-		showHide($("#also_in_control"), hasAlsoIn);
-		showHide($("#single_category_control"), hasAlsoIn);
 		showHide($("#nest_categories_control"), hasSubcategories);
+		showHide($("#single_category_control"), hasAlsoIn);
+		showHide($("#discuss_only_control"), true);
+		showHide($("#discuss_only_control"), true);
+		showHide($("#also_in_control"), hasAlsoIn);
 		showHide($(".also_in"), showAlsoIn);
 		$("#display_control_area").show();
 	}	
@@ -689,14 +697,15 @@ function addDiscussFlag(flag) {
 }
 
 function removeDiscussFlag(flag) {
-	if (isUndefined(discussFlags[flag.idea_id])) {
-		discussFlags[flag.idea_id] = [];
-	}
-
-	for (var i=0; i<discussFlags[flag.idea_id].length; i++) {
-		if (discussFlags[flag.idea_id][i].user_id == flag.user_id) {
-			discussFlags[flag.idea_id].splice(i, 1);
-			break;
+	if (isDefined(discussFlags[flag.idea_id])) {
+		for (var i=0; i<discussFlags[flag.idea_id].length; i++) {
+			if (discussFlags[flag.idea_id][i].user_id == flag.user_id) {
+				discussFlags[flag.idea_id].splice(i, 1);
+				if (discussFlags[flag.idea_id].length == 0) {
+					delete discussFlags[flag.idea_id];
+				}
+				break;
+			}
 		}
 	}	
 
