@@ -95,7 +95,7 @@ class BaseHandler(webapp2.RequestHandler):
         return self.person is not None and self.person.is_logged_in
     
     def isAdminLoggedIn(self):
-        return Person.isAdmin() or (self.question is not None and Person.isAuthor(self.question))
+        return Person.isAdmin(self.person) or (self.question is not None and Person.isAuthor(self.question))
     
     def getDefaultTemplateValues(self, connect=True):
         """Return a dictionary of default template values""" 
@@ -117,7 +117,8 @@ class BaseHandler(webapp2.RequestHandler):
             urlLink = "Login w/ Nickname" if nicknameAuthenticationAllowed else "Login w/ Google Account"
                     
         template_values = {}
-        template_values['logged_in'] = json.dumps(loggedIn)  
+        template_values['logged_in'] = json.dumps(loggedIn)
+        template_values['dev_user'] = json.dumps(True) if Person.isAdmin(self.person) else json.dumps(False) 
         template_values['user_id'] = self.person.id if loggedIn else -1
         template_values['url_linktext'] = urlLink
         template_values['url'] = url
@@ -449,10 +450,10 @@ class QueryHandler(BaseHandler):
                 groupBy = self.request.get("group_by", None)
                 if groupBy == "category":
                     useTestCategories = self.request.get("test", "0") == "1"
-                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, includeAlsoIn=True, useTestCategories=useTestCategories)
+                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, self.person, includeAlsoIn=True, useTestCategories=useTestCategories)
                     data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }        
                 else:
-                    ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True)
+                    ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person)
                     data = { "question": self.question.toDict(), "ideas": ideas }
                 
                 includeDiscussFlags = self.request.get("discuss", "0") == "1"    
@@ -570,7 +571,7 @@ class DownloadQuestionHandler(BaseHandler):
               
             # write out ideas with categories
             if self.question.cascade_complete:
-                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, includeCreatedOn=True)
+                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, self.person, includeCreatedOn=True)
 
                 # write out stats                
                 excelWriter.writerow(("Statistics",))
@@ -645,7 +646,7 @@ class DownloadQuestionHandler(BaseHandler):
                 )
                 excelWriter.writerow(headers)
         
-                ideas = Idea.getByQuestion(self.dbConnection, self.question, asDict=True, includeCreatedOn=True)
+                ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person, includeCreatedOn=True)
                 for ideaDict in ideas:     
                     line_parts = (
                         ideaDict["idea"],

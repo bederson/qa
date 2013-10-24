@@ -118,8 +118,7 @@ function getQuestionItemHtml(question) {
 	html += "<a class='small' href='javascript:deleteQuestionData(" + question.id + ")'>[delete data]</a>&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a>";
-	// TODO/FIX/THURSDAY - remove hard-coded user_login
-	if (isRunningOnLocalServer() || (isRunningOnTestServer() && user_login=="anne.bobrose")) {
+	if (isRunningOnLocalServer() || (isRunningOnTestServer() && dev_user)) {
 		html += "&nbsp;&nbsp;||&nbsp;&nbsp;";
 		html += "<a class='small' href='javascript:copyQuestion(" + question.id + ")'>[duplicate]</a>";
 	}
@@ -406,13 +405,13 @@ function showHideCreateCategoryButton(question) {
 	}
 	else {
 		$("#create_categories_button").hide();
-		// FOR TESTING ONLY: allows categories to be regenerated to a secondary set of tables
-		//if (isRunningOnTestServer() && user_login=="xx") {
+		// FOR TESTING ONLY: create_categories2_button allows categories to be regenerated to a secondary set of tables
+		// FOR TESTING ONLY: create_categories3_button allows existing categories to be regenerated
+		//if (isRunningOnTestServer() && dev_user) {
 		//	$("#create_categories2_button").show();
+		//  $("#create_categories3_button").show();
 		//}
 		
-		// FOR TESTING ONLY: regenerate existing categories
-		//$("#create_categories3_button").show();
 	}
 }
 

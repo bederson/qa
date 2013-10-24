@@ -479,7 +479,7 @@ class Question(DBObject):
     
 class Person(DBObject):               
     table = "users"
-    fields = [ "id", "authenticated_user_id", "authenticated_nickname", "nickname", "question_id", "latest_login_timestamp", "latest_logout_timestamp", "session_sid" ]   
+    fields = [ "id", "authenticated_user_id", "authenticated_nickname", "nickname", "question_id", "latest_login_timestamp", "latest_logout_timestamp", "session_sid", "admin" ]   
     onCreate = None
     onLogin = None
     onLogout = None
@@ -494,6 +494,7 @@ class Person(DBObject):
         self.latest_logout_timestamp = None
         self.is_logged_in = False # not stored in db
         self.session_sid = None
+        self.admin = 0
     
     @staticmethod
     def create(dbConnection, question=None, nickname=None):
@@ -635,10 +636,10 @@ class Person(DBObject):
         sql = "update user_clients set waiting_since=null where client_id=%s"
         dbConnection.cursor.execute(sql, (clientId))
         dbConnection.conn.commit()
-                             
-    @staticmethod
-    def isAdmin():
-        return users.is_current_user_admin()
+    
+    @staticmethod                        
+    def isAdmin(person=None):
+        return users.is_current_user_admin() or (person and person.admin == 1)
     
     @staticmethod
     def isAuthor(question):
@@ -767,7 +768,7 @@ class Idea(DBObject):
         return Idea.createFromData(row)
         
     @staticmethod
-    def getByQuestion(dbConnection, question, asDict=False, includeCreatedOn=False):
+    def getByQuestion(dbConnection, question, person, includeCreatedOn=False):
         ideas = []
         if question:
             sql = "select {0},{1},question_ideas.created_on as idea_created_on from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
@@ -775,21 +776,20 @@ class Idea(DBObject):
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 idea = Idea.createFromData(row)
-                if asDict:
-                    # include author info with idea
-                    author = {
-                        "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
-                        "nickname" : row[Person.tableField("nickname")]
-                    }
-                    idea = idea.toDict(author=author, admin=Person.isAdmin() or Person.isAuthor(question))
-                    if includeCreatedOn:
-                        idea["created_on"] = row["idea_created_on"]
+                # include author info
+                author = {
+                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
+                    "nickname" : row[Person.tableField("nickname")]
+                }
+                ideaDict = idea.toDict(author=author, admin=Person.isAdmin(person) or Person.isAuthor(question))
+                if includeCreatedOn:
+                    ideaDict["created_on"] = row["idea_created_on"]
                                            
-                ideas.append(idea)
+                ideas.append(ideaDict)
         return ideas
         
     @staticmethod
-    def getByCategories(dbConnection, question, includeCreatedOn=False, includeAlsoIn=False, useTestCategories=False):
+    def getByCategories(dbConnection, question, person, includeCreatedOn=False, includeAlsoIn=False, useTestCategories=False):
         ideaIds = []
         categorizedIdeas = []
         category = None
@@ -821,7 +821,7 @@ class Idea(DBObject):
                     "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
                     "nickname" : row[Person.tableField("nickname")]
                 }
-                idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin() or Person.isAuthor(question))
+                idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin(person) or Person.isAuthor(question))
                 if includeCreatedOn:
                     idea["created_on"] = row["idea_created_on"]
                     

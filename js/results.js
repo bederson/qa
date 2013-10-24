@@ -205,19 +205,17 @@ function displayIdeas() {
 				if (result.status == 1) {
 					if (addIdeaToDiscuss) {
 						addDiscussFlag(result.flag);
-						$(this).attr("src", DISCUSS_BUTTON_HIGHLIGHT);
+						$(".discuss_idea_"+ideaId+"_button").attr("src", DISCUSS_BUTTON_HIGHLIGHT);
 					}
 					else {
 						removeDiscussFlag(result.flag);
-						$(this).attr("src", DISCUSS_BUTTON_NO_HIGHLIGHT);
+						$(".discuss_idea_"+ideaId+"_button").attr("src", DISCUSS_BUTTON_NO_HIGHLIGHT);
 					}
 					updateDiscussIdea(result.flag.idea_id);
 				}
 			}, "json");
 		});
-		
-		// TODO/FIX/THURSDAY: highlight all displayed instances of idea in results
-		
+				
 		$(".discuss_idea_button").hover(
 			function() {
 				var buttonImage = $(this).attr("src");
@@ -771,7 +769,6 @@ function handleDiscussIdea(data) {
 		removeDiscussFlag(data.flag);
 	}
 	updateDiscussIdea(data.flag.idea_id);
-	
 }
 
 function handleLogout(data) {
