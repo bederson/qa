@@ -23,7 +23,14 @@ var categorizedIdeas = [];
 var uncategorizedIdeas = [];
 var numIdeas = 0;
 var displayedCategories = {};
-var categoryCounts = {};    
+var categoryCounts = {};
+
+var SHOW_DISCUSS_BUTTONS = true;
+var DISCUSS_BUTTON_NO_HIGHLIGHT = "/images/discuss.png";
+var DISCUSS_BUTTON_HIGHLIGHT = "/images/discuss-highlight.png";
+var discussFlags = {};
+var personalDiscussIdeas = [];
+var discussOnly = false;
 	
 var DISPLAY_SUBCATEGORIES = false;
 var subcategories = [];
@@ -88,6 +95,7 @@ function loadResults() {
 		"request": "ideas",
 		"group_by": "category",
 		"question_id": question_id,
+		"discuss": SHOW_DISCUSS_BUTTONS ? "1" : "0",
 	};
 	$.getJSON("/query", data, function(results) {
 		question = results.question;
@@ -95,6 +103,14 @@ function loadResults() {
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
 	
+		// initialize discussion flags
+		discussFlags = {};		
+		personalDiscussIdeas = [];
+		for (var i in results.discuss_flags) {
+			addDiscussFlag(results.discuss_flags[i]);
+		}
+		
+		// initialize category counts
 		categoryCounts = {};
 		for (var i=0; i<categorizedIdeas.length; i++) {
 			var category = categorizedIdeas[i].category;
@@ -111,6 +127,14 @@ function loadResults() {
 
 function displayIdeas() {
 	initKeshif();
+	
+	$(document).tooltip({ 
+		content: function() {
+			var id = $(this).attr("id");
+			return unescapeHtml($(this).attr("title"));
+		}, 
+		position: { my: "left+15 center", at:"right center" }
+	});
 }
 
 function initKeshif() { 
@@ -121,7 +145,61 @@ function initKeshif() {
 		addIdeasToCategory(category, ideas, data);
 	}
 	addIdeasToCategory("NONE", uncategorizedIdeas, data);
-				
+		
+	var userSortOption = {   
+		name: 'User',
+        width: 85,
+        label: function(idea) {
+            var userId = idea.data[ideasCol.user_id];
+        	var user = kshf.dt_id.users[userId].data;
+        	return getUserHtml(user[usersCol.nickname], user[usersCol.authenticated_nickname], "");
+        },
+        value: function(idea) { 
+        	var userId = idea.data[ideasCol.user_id];
+        	var user = kshf.dt_id.users[userId].data;
+        	return user[usersCol.nickname];
+       	},
+       	value_type: "string"
+     };
+     
+     var discussSortOption = {
+		name: 'Discuss',
+        width: 85,
+        label: function(idea) {
+        	var ideaId = idea.data[ideasCol.id];
+		    var html = "";
+			var countLabel = isDefined(discussFlags[ideaId]) ? "+" + discussFlags[ideaId].length : "";				
+			
+			var tooltip = "";
+			var userList = [];
+			if (isDefined(discussFlags[ideaId])) {
+				for (var i=0; i<discussFlags[ideaId].length; i++) {
+					var nameHtml = getUserHtml(discussFlags[ideaId][i].user_nickname, discussFlags[ideaId][i].user_identity);
+					userList.push(nameHtml);
+				}
+			}	
+			tooltip = escapeHtml(userList.join("<br/>"));
+			
+			var isPersonalDiscussFlag = $.inArray(ideaId, personalDiscussIdeas) != -1;
+			var buttonImage = isPersonalDiscussFlag ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
+			html += "<img name='discuss_idea_"+idea.id+"_button' class='discuss_idea_"+ideaId+"_button discuss_idea_button' src='"+buttonImage+"' style='vertical-align:middle' /> ";
+			html += "<span name='discuss_idea_"+idea.id+"_count'";
+			html += (tooltip != "") ? " title='" + tooltip + "'" : "";
+			html += " class='discuss_idea_"+ideaId+"_count note'>" + countLabel + "</span> ";
+			return html;
+		},
+        value: function(idea) {
+            var ideaId = idea.data[ideasCol.id];
+			return isDefined(discussFlags[ideaId]) ? discussFlags[ideaId].length : 0;
+        }
+    };
+    
+    var sortOpts = [];
+    if (numKeys(discussFlags) > 0) {
+    	sortOpts.push(discussSortOption);
+    }
+    sortOpts.push(userSortOption);
+                			
 	$("#ideas").html("");	       
 	kshf.init({
 	    facetTitle: question.question,
@@ -134,7 +212,7 @@ function initKeshif() {
             sheets : [ 
                 { name: "ideas", data: data.ideaData },
                 { name: "fits", data: data.fitData },
-                { name: "users", data: data.userData },
+                { name: "users", data: data.userData }
             ]
 	    },
 	    loadedCb: function() {  
@@ -197,20 +275,19 @@ function initKeshif() {
             }
 	    ],
 	    list: {
-            sortOpts : [
-                {   name: 'Student ID',
-                    width: 85,
-                    value: function(idea) { return idea.data[ideasCol.user_id]; }
-                }
-            ],
+            sortOpts : sortOpts,
             contentFunc : function(idea) {
+	            var userId = idea.data[ideasCol.user_id];
+	        	var user = kshf.dt_id.users[userId].data;
                 var cats = idea.data[ideasCol.categories];
-                var str = "";
-                str += "<div class='iteminfo iteminfo_0'>"+idea.data[ideasCol.idea]+"</div>";
-                str += "<div class='iteminfo iteminfo_1'>";
-                str += (cats.length==1 && cats[0]=="NONE") ? "Uncategorized" : "Categories: " + cats.join(", ");
-                str += "</div>";
-                return str;
+                var html = "<div class='iteminfo iteminfo_0'>" + idea.data[ideasCol.idea] + "</div>";
+                html += "<div class='iteminfo iteminfo_1'>submitted by ";            
+				html += getUserHtml(user[usersCol.nickname], user[usersCol.authenticated_nickname], "");
+				html += "</div>";
+                html += "<div class='iteminfo iteminfo_2'>";
+                html += (cats.length==1 && cats[0]=="NONE") ? "Uncategorized" : cats.join(", ");
+                html += "</div>";
+                return html;
             }
         }
 	});
@@ -233,7 +310,7 @@ function addIdeasToCategory(category, ideas, data) {
 		var ideaId = ideas[i].id;
 		var idea = ideas[i].idea;
 		var author = ideas[i].author;
-		var authorIdentity = isDefined(ideas[i].author_identity) ? ideas[i].author : ideas[i].author;
+		var authorIdentity = isDefined(ideas[i].author_identity) && ideas[i].author_identity!=null ? ideas[i].author_identity : ideas[i].author;
 				
 		if (!(ideaId in data.ideas)) { 
 			data.ideas[ideaId] = [ ideaId, idea, userId ];
@@ -352,6 +429,49 @@ function getMinMaxCategories(categories) {
 		}										
 	}
 	return { "min":minCategory, "max":maxCategory };
+}
+
+function addDiscussFlag(flag) {
+	if (isUndefined(discussFlags[flag.idea_id])) {
+		discussFlags[flag.idea_id] = [];
+	}
+	discussFlags[flag.idea_id].push(flag);
+
+	var isPersonalFlag = flag.user_id == user_id;
+	if (isPersonalFlag && $.inArray(flag.idea_id, personalDiscussIdeas) == -1) {
+		personalDiscussIdeas.push(flag.idea_id);
+	}
+}
+
+function removeDiscussFlag(flag) {
+	if (isDefined(discussFlags[flag.idea_id])) {
+		for (var i=0; i<discussFlags[flag.idea_id].length; i++) {
+			if (discussFlags[flag.idea_id][i].user_id == flag.user_id) {
+				discussFlags[flag.idea_id].splice(i, 1);
+				if (discussFlags[flag.idea_id].length == 0) {
+					delete discussFlags[flag.idea_id];
+				}
+				break;
+			}
+		}
+	}	
+
+	var index = personalDiscussIdeas.indexOf(flag.idea_id);
+	if (index != -1) {
+		personalDiscussIdeas.splice(index, 1);
+	}
+}
+
+function getUserHtml(displayName, realIdentity, customClass) {
+	var realIdentity = isDefined(realIdentity) && realIdentity!=null ? realIdentity : "";
+	var html = "<span";
+	html += isDefined(customClass) ? " class='" + customClass + "'" : "";
+	var isIdentityHidden = realIdentity != "" && realIdentity != displayName;
+	if (isIdentityHidden) {
+		html += " title='" + realIdentity + "' ";
+	}
+	html += ">" + displayName + (isIdentityHidden ? "*" : "") + "</span>";
+	return html;
 }
 
 /////////////////////////

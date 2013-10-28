@@ -400,7 +400,7 @@ function updateStats() {
 }
 
 function getUserHtml(displayName, realIdentity, customClass) {
-	var realIdentity = isDefined(realIdentity) ? realIdentity : "";
+	var realIdentity = isDefined(realIdentity) && realIdentity != null ? realIdentity : "";
 	var html = "<span";
 	html += isDefined(customClass) ? " class='" + customClass + "'" : "";
 	var isIdentityHidden = realIdentity != "" && realIdentity != displayName;
