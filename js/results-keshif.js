@@ -104,7 +104,7 @@ function loadResults() {
 		numIdeas = results.count;
 	
 		// initialize discussion flags
-		initDiscussFlags(results.discuss_flags, true);
+		initDiscussFlags(results.discuss_flags, true, true);
 		
 		// initialize category counts
 		categoryCounts = {};
@@ -124,7 +124,12 @@ function loadResults() {
 function displayIdeas() {
 	initKeshif();
 	initDiscussButtons(question.id, client_id);
-	$('[title!=""]').qtip({ style: "tooltip" });
+	$('[title!=""]').qtip({ 
+		style: { 
+			tip: { corner: true }, 
+			classes: 'qtip-rounded tooltip' 
+		}
+	});
 }
 
 function initKeshif() { 

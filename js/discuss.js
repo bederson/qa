@@ -21,9 +21,10 @@ var DISCUSS_BUTTON_HIGHLIGHT = "/images/discuss-highlight.png";
 
 var discussFlags = {};
 var personalDiscussIdeas = [];
-var showFlagCount = true;
+var showFlagCount = false;
+var showUserList = false;
 
-function initDiscussFlags(flags, showCount) {
+function initDiscussFlags(flags, showCount, showUsers) {
 	if (!SHOW_DISCUSS_BUTTONS) {
 		return;
 	}
@@ -31,19 +32,22 @@ function initDiscussFlags(flags, showCount) {
 	discussFlags = {};		
 	personalDiscussIdeas = [];
 	showFlagCount = isDefined(showCount) ? showCount : false;
+	showUserList = isDefined(showUsers) ? showUsers : false;
 	
 	for (var i in flags) {
 		addDiscussFlag(flags[i]);
 	}
 }
 
-function initDiscussButtons(questionId, clientId) {
+function initDiscussButtons(questionId, clientId, ideaId) {
 	if (!SHOW_DISCUSS_BUTTONS) {
 		return;
 	}
+	
+	buttonSelector = isDefined(ideaId) ? ".discuss_idea_"+ideaId+"_button" : ".discuss_idea_button";
 
 	// TOOD/FIX: tooltip does not display in Keshif, and click function not called either
-	$(".discuss_idea_button").qtip({
+	$(buttonSelector).qtip({
 		content: {
 			text: function(event, api) {
 				var buttonId = $(this).attr("name");
@@ -53,11 +57,12 @@ function initDiscussButtons(questionId, clientId) {
 			}
 		},
 		style: {
-			classes: 'tooltip'
+			tip: { corner: true },
+			classes: 'qtip-rounded tooltip'
 		}
 	});
 	
-	$(".discuss_idea_button").click(function() {
+	$(buttonSelector).click(function() {
 		var buttonId = $(this).attr("name");
 		var tokens = buttonId.split("_");
 		var ideaId = parseInt(tokens[2]);
@@ -77,9 +82,9 @@ function initDiscussButtons(questionId, clientId) {
 		}, "json");
 	});
 	
-	// TODO/FIX: need different highlight for hover
+	// TODO/FIX: need different highlight image for hover
 	/*			
-	$(".discuss_idea_button").hover(
+	$(buttonSelector).hover(
 		function() {
 			var buttonImage = $(this).attr("src");
 			var newButtonImage = (buttonImage == DISCUSS_BUTTON_NO_HIGHLIGHT) ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
@@ -117,24 +122,26 @@ function discussButtonHtml(ideaId, customCss) {
 }
 
 function discussTooltipHtml(ideaId) {
-	var userList = [];
-	if (isDefined(discussFlags[ideaId])) {
-		for (var i=0; i<discussFlags[ideaId].length; i++) {
-			var nameHtml = discussUserHtml(discussFlags[ideaId][i].user_nickname, discussFlags[ideaId][i].user_identity);
-			userList.push(nameHtml);
+	var userListHtml = "";
+	if (showUserList) {
+		var userList = [];
+		if (isDefined(discussFlags[ideaId])) {
+			for (var i=0; i<discussFlags[ideaId].length; i++) {
+				var nameHtml = discussUserHtml(discussFlags[ideaId][i].user_nickname, discussFlags[ideaId][i].user_identity);
+				userList.push(nameHtml);
+			}
+		}	
+			
+		if (userList.length > 0) {
+			userListHtml += "Flagged by:<br/>";
+			userListHtml += userList.join("<br/>");
 		}
-	}	
+	}
 
-	// TODO/FIX: show unflag message?
+	var isPersonal = isPersonalDiscussIdea(ideaId);
 	var tooltip = "<span class='note'>";
-	if (userList.length > 0) {
-		tooltip += "Flagged to discuss by:<br/>";
-		tooltip += userList.join("<br/>");
-		tooltip += "<br/>";
-	}
-	else {
-		tooltip += "<em>Click to flag for discussion</em>";
-	}
+	tooltip += !isPersonal ? "<em>Click to flag for discussion</em><br/>" : "";
+	tooltip += showUserList ? userListHtml : (isPersonal ? "<em>Flagged for discussion</em>" : "");
 	tooltip += "</span>";
 	return tooltip;
 }

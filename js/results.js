@@ -118,7 +118,7 @@ function loadResults() {
 		updateStatus();
 
 		// initialize discussion flags
-		initDiscussFlags(results.discuss_flags, true);
+		initDiscussFlags(results.discuss_flags, true, true);
 				
 		// initialize category counts and master list of subcategories
 		categoryCounts = {};
@@ -180,9 +180,8 @@ function displayIdeas() {
 	newIdeaHtml += "</table>";
 	$("#ideas").html(newIdeaHtml + html);
 	
-	// init discuss button tooltips, event handlers
-	initDiscussButtons(question.id, client_id);
-	
+	initIdeaHandlers();
+			
 	// show/hide controls
 	if (categorizedIdeas.length>0) {
 		showHide($("#nest_categories_control"), hasSubcategories);
@@ -209,8 +208,19 @@ function displayIdeas() {
 			displayCloud(uncategorizedIdeas, categorizedIdeas.length+1);
 		}
 	}
+}
+
+function initIdeaHandlers(ideaId) {
+	// init discuss button tooltips, event handlers
+	initDiscussButtons(question.id, client_id, ideaId);
 	
-	$('[title!=""]').qtip({ style: "tooltip" });
+	// init any other tooltips in idea
+	$('[title!=""]').qtip({ 
+		style: { 
+			tip: { corner: true }, 
+			classes: 'qtip-rounded tooltip' 
+		}
+	});
 }
 
 function categoryGroupAsHtml(categoryGroup, id) {
@@ -634,6 +644,7 @@ function handleIdea(data) {
 	numIdeas++;
 	var html = ideaAsHtml(idea);
 	$("#new_ideas").prepend(html);
+	initIdeaHandlers(idea.id);
 	updateStats();
 }
 

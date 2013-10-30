@@ -20,7 +20,7 @@ var loading = false;
 var waiting = false;
 
 // overrides setting in utils.js
-// TODO/FIX: improve location of discuss button in gui
+// TODO/FIX: improve how count label is displayed in discuss buttons (shown on results page, but not cascade pages)
 var SHOW_DISCUSS_BUTTONS = true;
 
 $(document).ready(function() {
@@ -461,7 +461,8 @@ function handleJob(data) {
 	if (loading) {
 		assignedJob = data.job;
 		if (assignedJob) {
-			initDiscussFlags(assignedJob.discuss_flags, false);
+			// do not show counts in discuss buttons or user lists (when moused over)
+			initDiscussFlags(assignedJob.discuss_flags, false, false);
 		}
 		loading = false;
 		waiting = !assignedJob;
