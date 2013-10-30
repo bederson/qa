@@ -22,9 +22,11 @@ Suggestions
 * Categorize: consider unassigning jobs that a user has not finished in some period of time (warn user)
 * Categorize: should never wait if only 1 user; if so then user has hit a deadend (e.g., no categories available to fit tasks)
 * Categorize: skip best category tasks if k=1
-* Categorize: add user task to find equal categories
-* Categorize: more jobs created than needed (question 32350 check cascade_fit_categories_phase1)
 * Categorize: would it be better to group more categories together in fit tasks when larger number of categories to check
+* Categorize: flag to discuss
+* Categorize: allow instructor to pre-populate categories
+* Categorize: consider how "best category" and fit tasks could be merged
+* Categorize: change fit tasks from 2 radio boxes (y/n) to single checkbox
                                       
 * Results: add "discuss" button to categories and items and show counts
 * Results: allow users to expand/collapse individual categories
@@ -36,6 +38,8 @@ Suggestions
 * Results: suggested sorts: count (default), same as nested (but without nesting), name
 * Results: consider where idea should be displayed if only shown once (currently shown in smallest category)
 * Results: should instructor changes to results page be pushed to students (e.g., nest categories, etc.)
+* Results: sort by discuss
+
 
 * Admin: allow question author to release incomplete cascade assignments after some period of inactivity
 * Admin: add option to hide names completely for a question

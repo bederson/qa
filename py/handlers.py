@@ -716,6 +716,7 @@ class CascadeJobHandler(BaseHandler):
         clientId = self.request.get("client_id")
         job = self.request.get("job")
         waiting = self.request.get("waiting")
+        discuss = self.request.get("discuss")
                 
         ok = self.checkRequirements(userRequired=True, questionRequired=True)
         if not ok:
@@ -725,7 +726,7 @@ class CascadeJobHandler(BaseHandler):
             # queue the request to save and get a new cascade job
             # (requests will timeout if not responded to within roughly 30 seconds, 
             #  but added to a taskqueue do not have this time deadline)
-            taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "job": job, "waiting": waiting })
+            taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "job": job, "waiting": waiting, "discuss": discuss })
             data = { "status" : 1 }
                 
         self.writeResponseAsJson(data)
@@ -736,6 +737,7 @@ class CascadeSaveAndGetNextJobHandler(BaseHandler):
         self.init()
         clientId = self.request.get("client_id")
         waiting = self.request.get("waiting", "0") == "1"
+        discuss = self.request.get("discuss", "0") == "1"
 
         # get person
         questionId, personId, isAdmin = getInfoFromClient(clientId)
@@ -755,8 +757,16 @@ class CascadeSaveAndGetNextJobHandler(BaseHandler):
           
             job = self.question.getCascadeJob(self.dbConnection, person)
             jobDict = { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None
-            if job and "categories" in job:
+            if jobDict and "categories" in job:
                 jobDict["categories"] = job["categories"]
+
+            if jobDict and discuss:
+                discussIdeas = []
+                jobDict["discuss_flags"] = []
+                for task in job["tasks"]:
+                    if task.idea_id not in discussIdeas:
+                        jobDict["discuss_flags"].extend(DiscussFlag.getFlags(self.dbConnection, self.question, ideaId=task.idea_id, admin=self.isAdminLoggedIn()))
+                    discussIdeas.append(task.idea_id)
             
             sendMessageToClient(clientId, { "op": "job", "question_id" : self.question.id, "job": jobDict })
             

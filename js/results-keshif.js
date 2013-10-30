@@ -15,6 +15,13 @@
 // limitations under the License.
 // 
 
+// TODOs
+// * highlight categories
+// * make NONE category always on bottom
+// * make list of words smaller
+// * show popup when user mouses over discuss
+// * allow user to click on discuss button
+
 var OFFLINE = false;
 var MIN_RESULTS_WIDTH = 700;
 
@@ -24,13 +31,6 @@ var uncategorizedIdeas = [];
 var numIdeas = 0;
 var displayedCategories = {};
 var categoryCounts = {};
-
-var SHOW_DISCUSS_BUTTONS = true;
-var DISCUSS_BUTTON_NO_HIGHLIGHT = "/images/discuss.png";
-var DISCUSS_BUTTON_HIGHLIGHT = "/images/discuss-highlight.png";
-var discussFlags = {};
-var personalDiscussIdeas = [];
-var discussOnly = false;
 	
 var DISPLAY_SUBCATEGORIES = false;
 var subcategories = [];
@@ -104,11 +104,7 @@ function loadResults() {
 		numIdeas = results.count;
 	
 		// initialize discussion flags
-		discussFlags = {};		
-		personalDiscussIdeas = [];
-		for (var i in results.discuss_flags) {
-			addDiscussFlag(results.discuss_flags[i]);
-		}
+		initDiscussFlags(results.discuss_flags, true);
 		
 		// initialize category counts
 		categoryCounts = {};
@@ -127,14 +123,8 @@ function loadResults() {
 
 function displayIdeas() {
 	initKeshif();
-	
-	$(document).tooltip({ 
-		content: function() {
-			var id = $(this).attr("id");
-			return unescapeHtml($(this).attr("title"));
-		}, 
-		position: { my: "left+15 center", at:"right center" }
-	});
+	initDiscussButtons(question.id, client_id);
+	$('[title!=""]').qtip({ style: "tooltip" });
 }
 
 function initKeshif() { 
@@ -148,11 +138,14 @@ function initKeshif() {
 		
 	var userSortOption = {   
 		name: 'User',
-        width: 85,
+        width: 80,
         label: function(idea) {
             var userId = idea.data[ideasCol.user_id];
         	var user = kshf.dt_id.users[userId].data;
-        	return getUserHtml(user[usersCol.nickname], user[usersCol.authenticated_nickname], "");
+        	var html = "<div style='text-align:left; margin-left:15px'>";
+        	html += getUserHtml(user[usersCol.nickname], user[usersCol.authenticated_nickname], "");
+        	html += "</div>";
+        	return html;
         },
         value: function(idea) { 
         	var userId = idea.data[ideasCol.user_id];
@@ -164,39 +157,37 @@ function initKeshif() {
      
      var discussSortOption = {
 		name: 'Discuss',
-        width: 85,
+        width: 80,
         label: function(idea) {
         	var ideaId = idea.data[ideasCol.id];
-		    var html = "";
-			var countLabel = isDefined(discussFlags[ideaId]) ? "+" + discussFlags[ideaId].length : "";				
-			
-			var tooltip = "";
-			var userList = [];
-			if (isDefined(discussFlags[ideaId])) {
-				for (var i=0; i<discussFlags[ideaId].length; i++) {
-					var nameHtml = getUserHtml(discussFlags[ideaId][i].user_nickname, discussFlags[ideaId][i].user_identity);
-					userList.push(nameHtml);
-				}
-			}	
-			tooltip = escapeHtml(userList.join("<br/>"));
-			
-			var isPersonalDiscussFlag = $.inArray(ideaId, personalDiscussIdeas) != -1;
-			var buttonImage = isPersonalDiscussFlag ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
-			html += "<img name='discuss_idea_"+idea.id+"_button' class='discuss_idea_"+ideaId+"_button discuss_idea_button' src='"+buttonImage+"' style='vertical-align:middle' /> ";
-			html += "<span name='discuss_idea_"+idea.id+"_count'";
-			html += (tooltip != "") ? " title='" + tooltip + "'" : "";
-			html += " class='discuss_idea_"+ideaId+"_count note'>" + countLabel + "</span> ";
-			return html;
+        	return discussButtonHtml(ideaId, "width:100%; margin-left:auto; margin-right:auto;");
 		},
         value: function(idea) {
             var ideaId = idea.data[ideasCol.id];
-			return isDefined(discussFlags[ideaId]) ? discussFlags[ideaId].length : 0;
+            return getDiscussFlagCount(ideaId);
+        },
+        value_type: "number"
+    };
+    
+    var personalDiscussSortOption = {
+		name: 'Personal Discuss',
+        width: 80,
+        label: function(idea) {
+        	var ideaId = idea.data[ideasCol.id];
+		    return discussButtonHtml(ideaId);
+		},
+        value: function(idea) {
+            var ideaId = idea.data[ideasCol.id];
+			return isPersonalDiscussIdea(ideaId) ? getDiscussFlagCount(ideaId) : 0;
         }
     };
     
     var sortOpts = [];
     if (numKeys(discussFlags) > 0) {
     	sortOpts.push(discussSortOption);
+    	if (personalDiscussIdeas.length > 0) {
+    		//sortOpts.push(personalDiscussSortOption);
+    	}
     }
     sortOpts.push(userSortOption);
                 			
@@ -284,7 +275,7 @@ function initKeshif() {
                 html += "<div class='iteminfo iteminfo_1'>submitted by ";            
 				html += getUserHtml(user[usersCol.nickname], user[usersCol.authenticated_nickname], "");
 				html += "</div>";
-                html += "<div class='iteminfo iteminfo_2'>";
+                html += "<div class='iteminfo iteminfo_2' style='margin-bottom:8px'>";
                 html += (cats.length==1 && cats[0]=="NONE") ? "Uncategorized" : cats.join(", ");
                 html += "</div>";
                 return html;
@@ -429,37 +420,6 @@ function getMinMaxCategories(categories) {
 		}										
 	}
 	return { "min":minCategory, "max":maxCategory };
-}
-
-function addDiscussFlag(flag) {
-	if (isUndefined(discussFlags[flag.idea_id])) {
-		discussFlags[flag.idea_id] = [];
-	}
-	discussFlags[flag.idea_id].push(flag);
-
-	var isPersonalFlag = flag.user_id == user_id;
-	if (isPersonalFlag && $.inArray(flag.idea_id, personalDiscussIdeas) == -1) {
-		personalDiscussIdeas.push(flag.idea_id);
-	}
-}
-
-function removeDiscussFlag(flag) {
-	if (isDefined(discussFlags[flag.idea_id])) {
-		for (var i=0; i<discussFlags[flag.idea_id].length; i++) {
-			if (discussFlags[flag.idea_id][i].user_id == flag.user_id) {
-				discussFlags[flag.idea_id].splice(i, 1);
-				if (discussFlags[flag.idea_id].length == 0) {
-					delete discussFlags[flag.idea_id];
-				}
-				break;
-			}
-		}
-	}	
-
-	var index = personalDiscussIdeas.indexOf(flag.idea_id);
-	if (index != -1) {
-		personalDiscussIdeas.splice(index, 1);
-	}
 }
 
 function getUserHtml(displayName, realIdentity, customClass) {

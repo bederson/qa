@@ -24,13 +24,6 @@ var MAX_CLOUD_HEIGHT = 800;
 var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
 
-var SHOW_DISCUSS_BUTTONS = true;
-var DISCUSS_BUTTON_NO_HIGHLIGHT = "/images/discuss.png";
-var DISCUSS_BUTTON_HIGHLIGHT = "/images/discuss-highlight.png";
-var discussFlags = {};
-var personalDiscussIdeas = [];
-var discussOnly = false;
-
 var DISPLAY_SUBCATEGORIES = true;
 var subcategories = [];
 var showSubcategories = false;
@@ -51,6 +44,7 @@ var numIdeas = 0;
 var displayedCategories = {};
 var categoryCounts = {};
 var adminStats = null;
+var discussOnly = false;
    
 $(document).ready(function() {
 	if ($("#msg").html()) {
@@ -124,11 +118,7 @@ function loadResults() {
 		updateStatus();
 
 		// initialize discussion flags
-		discussFlags = {};		
-		personalDiscussIdeas = [];
-		for (var i in results.discuss_flags) {
-			addDiscussFlag(results.discuss_flags[i]);
-		}
+		initDiscussFlags(results.discuss_flags, true);
 				
 		// initialize category counts and master list of subcategories
 		categoryCounts = {};
@@ -190,59 +180,13 @@ function displayIdeas() {
 	newIdeaHtml += "</table>";
 	$("#ideas").html(newIdeaHtml + html);
 	
-	if (SHOW_DISCUSS_BUTTONS) {
-		for (var ideaId in discussFlags) {
-			updateDiscussIdea(ideaId);
-		}
-		
-		$(".discuss_idea_button").click(function() {
-			var buttonId = $(this).attr("name");
-			var tokens = buttonId.split("_");
-			var ideaId = parseInt(tokens[2]);
-			var addIdeaToDiscuss = $.inArray(ideaId, personalDiscussIdeas) == -1;
-			
-			var data = {
-				"client_id": client_id,
-				"question_id": question.id,
-				"idea_id" : ideaId,
-				"add" : addIdeaToDiscuss ? "1" : "0"
-			};
-			$.post("/discuss_idea", data, function(result) {
-				if (result.status == 1) {
-					if (addIdeaToDiscuss) {
-						addDiscussFlag(result.flag);
-						$(".discuss_idea_"+ideaId+"_button").attr("src", DISCUSS_BUTTON_HIGHLIGHT);
-					}
-					else {
-						removeDiscussFlag(result.flag);
-						$(".discuss_idea_"+ideaId+"_button").attr("src", DISCUSS_BUTTON_NO_HIGHLIGHT);
-					}
-					updateDiscussIdea(result.flag.idea_id);
-				}
-			}, "json");
-		});
-				
-		$(".discuss_idea_button").hover(
-			function() {
-				var buttonImage = $(this).attr("src");
-				var newButtonImage = (buttonImage == DISCUSS_BUTTON_NO_HIGHLIGHT) ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
-				$(this).attr("src", newButtonImage);
-			}, 
-			function() {
-				var buttonId = $(this).attr("name");
-				var tokens = buttonId.split("_");
-				var ideaId = parseInt(tokens[2]);
-				var isPersonalDiscussIdea = $.inArray(ideaId, personalDiscussIdeas) != -1;
-				$(this).attr("src", isPersonalDiscussIdea ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT);
-			}
-		);
-	}
+	// init discuss button tooltips, event handlers
+	initDiscussButtons(question.id, client_id);
 	
 	// show/hide controls
 	if (categorizedIdeas.length>0) {
 		showHide($("#nest_categories_control"), hasSubcategories);
 		showHide($("#single_category_control"), hasAlsoIn);
-		showHide($("#discuss_only_control"), true);
 		showHide($("#discuss_only_control"), true);
 		showHide($("#also_in_control"), hasAlsoIn);
 		showHide($(".also_in"), showAlsoIn);
@@ -266,13 +210,7 @@ function displayIdeas() {
 		}
 	}
 	
-	$(document).tooltip({ 
-		content: function() {
-			var id = $(this).attr("id");
-			return unescapeHtml($(this).attr("title"));
-		}, 
-		position: { my: "left+15 center", at:"right center" }
-	});
+	$('[title!=""]').qtip({ style: "tooltip" });
 }
 
 function categoryGroupAsHtml(categoryGroup, id) {
@@ -345,25 +283,23 @@ function ideaAsHtml(idea, parent) {
 		}
 	}
 		
-	var html = "<li>";
-	if (SHOW_DISCUSS_BUTTONS) {	
-		var countLabel = isDefined(discussFlags[idea.id]) ? "+" + discussFlags[idea.id].length : "";
-		var isPersonalDiscussFlag = $.inArray(idea.id, personalDiscussIdeas) != -1;
-		var buttonImage = isPersonalDiscussFlag ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
-		html += "<img name='discuss_idea_"+idea.id+"_button' class='discuss_idea_"+idea.id+"_button discuss_idea_button' src='"+buttonImage+"' style='vertical-align:middle' /> ";
-		html += "<span name='discuss_idea_"+idea.id+"_count' class='discuss_idea_"+idea.id+"_count note'>" + countLabel + "</span> ";
-		html += " ";
-	}
+	var html = "<li class='spacebelow'>";
+	html += "<div style='display:block'>";
+	html += discussButtonHtml(idea.id) + " ";
+	html += "<div style='margin-left:30px'>";
 	html += idea.idea;
-
 	if (alsoIn.length>0) {
 		hasAlsoIn = true;
 		html += "<span class='note also_in' style='display:none'><br/>Also in: " + alsoIn.join(", ") + "</span>";
 	}
-	
-	html += "<br/>";
-	html += "<span class='author'>&nbsp;&nbsp;&nbsp;&nbsp;-- </span>"; 
-	html += getUserHtml(idea.author, idea.author_identity, "author");
+
+	html += "</br>";
+	html += "<span class='author'>";
+	html += "-- "; 
+	html += getUserHtml(idea.author, idea.author_identity);
+	html += "</span>";
+	html += "</div>";
+	html += "</div>";
 	html += "</li>";
 	return html;	
 }
@@ -409,23 +345,6 @@ function getUserHtml(displayName, realIdentity, customClass) {
 	}
 	html += ">" + displayName + (isIdentityHidden ? "*" : "") + "</span>";
 	return html;
-}
-
-function updateDiscussIdea(ideaId) {
-	// update count
-	var countLabel = isDefined(discussFlags[ideaId]) && discussFlags[ideaId].length > 0 ? "+" + discussFlags[ideaId].length : "";
-	$(".discuss_idea_"+ideaId+"_count").html(countLabel);
-
-	// update tooltip
-	var userList = [];
-	if (isDefined(discussFlags[ideaId])) {
-		for (var i=0; i<discussFlags[ideaId].length; i++) {
-			var nameHtml = getUserHtml(discussFlags[ideaId][i].user_nickname, discussFlags[ideaId][i].user_identity);
-			userList.push(nameHtml);
-		}
-	}	
-	var title = escapeHtml(userList.join("<br/>"));
-	$(".discuss_idea_"+ideaId+"_count").attr("title", title);
 }
 
 function updateStatus() {
@@ -684,37 +603,6 @@ function getMinMaxCategories(categories) {
 	return { "min":minCategory, "max":maxCategory };
 }
 
-function addDiscussFlag(flag) {
-	if (isUndefined(discussFlags[flag.idea_id])) {
-		discussFlags[flag.idea_id] = [];
-	}
-	discussFlags[flag.idea_id].push(flag);
-
-	var isPersonalFlag = flag.user_id == user_id;
-	if (isPersonalFlag && $.inArray(flag.idea_id, personalDiscussIdeas) == -1) {
-		personalDiscussIdeas.push(flag.idea_id);
-	}
-}
-
-function removeDiscussFlag(flag) {
-	if (isDefined(discussFlags[flag.idea_id])) {
-		for (var i=0; i<discussFlags[flag.idea_id].length; i++) {
-			if (discussFlags[flag.idea_id][i].user_id == flag.user_id) {
-				discussFlags[flag.idea_id].splice(i, 1);
-				if (discussFlags[flag.idea_id].length == 0) {
-					delete discussFlags[flag.idea_id];
-				}
-				break;
-			}
-		}
-	}	
-
-	var index = personalDiscussIdeas.indexOf(flag.idea_id);
-	if (index != -1) {
-		personalDiscussIdeas.splice(index, 1);
-	}
-}
-
 function getCategoryGroup(category) {
 	var group = null;
 	for (var i=0; i<categorizedIdeas.length; i++) {
@@ -771,13 +659,7 @@ function handleResults(data) {
 }
 
 function handleDiscussIdea(data) {
-	if (data.op == "discuss_idea") {
-		addDiscussFlag(data.flag);
-	}
-	else {
-		removeDiscussFlag(data.flag);
-	}
-	updateDiscussIdea(data.flag.idea_id);
+	addRemoveDiscussFlag(data.flag, data.op == "discuss_idea");
 }
 
 function handleLogout(data) {

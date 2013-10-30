@@ -19,6 +19,10 @@ var assignedJob = null;
 var loading = false;
 var waiting = false;
 
+// overrides setting in utils.js
+// TODO/FIX: improve location of discuss button in gui
+var SHOW_DISCUSS_BUTTONS = true;
+
 $(document).ready(function() {
 	onResize();
 	initEventHandlers();
@@ -42,7 +46,8 @@ function saveAndRequestNewJob(tasksToSave) {
 	var data = {
 		"client_id" : client_id,
 		"question_id" : question_id,
-		"waiting" : waiting ? "1" : "0"
+		"waiting" : waiting ? "1" : "0",
+		"discuss" : SHOW_DISCUSS_BUTTONS ? "1" : "0"
 	};
 	if (isDefined(tasksToSave)) {
 		data["job"] = $.toJSON({
@@ -138,7 +143,12 @@ function suggestCategoryUI() {
 		for (var i=0; i<tasks.length; i++) {
 			var task = tasks[i];				
 			taskHtml += "<div class='largespacebelow'>";
-			taskHtml += "<div class='green_highlight smallspacebelow'>" + task.idea + "</div>";
+			taskHtml += "<div class='green_highlight smallspacebelow'>";
+			taskHtml += discussButtonHtml(task.idea_id) + " ";
+			taskHtml += SHOW_DISCUSS_BUTTONS ? "<div style='margin-left:30px'>" : "";
+			taskHtml += task.idea;
+			taskHtml += SHOW_DISCUSS_BUTTONS ?"</div>" : "";
+			taskHtml += "</div>";
 			taskHtml += "<input class='suggested_category' id='category_"+task.id+"' type='text' value='' size='30'>";
 			taskHtml += "<input type='hidden' id='idea_"+task.id+"' value='"+task.idea_id+"'>";
 			taskHtml += "</div>\n";
@@ -172,6 +182,8 @@ function suggestCategoryUI() {
 		$("#submit_btn").on("click", {}, function(event) {
 			submitSuggestedCategories();
 		});
+				
+		initDiscussButtons(question_id, client_id);
 	}
 }
 
@@ -206,7 +218,12 @@ function bestCategoryUI() {
 		var task = tasks[0];
 		var taskHtml = "";
 		taskHtml += "<div class='largespacebelow'>";
-		taskHtml += "<div class='green_highlight largespacebelow'>" + task.idea + "</div>";
+		taskHtml += "<div class='green_highlight largespacebelow'>";
+		taskHtml += discussButtonHtml(task.idea_id) + " ";
+		taskHtml += SHOW_DISCUSS_BUTTONS ? "<div style='margin-left:30px'>" : "";
+		taskHtml += task.idea;
+		taskHtml += SHOW_DISCUSS_BUTTONS ? "</div>" : "";
+		taskHtml += "</div>";
 		taskHtml += "<div class='note smallspacebelow'>Best?</div>";
 		for (var i=0; i<task.suggested_categories.length; i++) {
 			var radioBoxId = "category_rb_"+i;
@@ -228,6 +245,8 @@ function bestCategoryUI() {
 		$("#submit_btn").on("click", { task : task }, function(event) {
 			submitBestCategory(event.data.task);
 		});
+		
+		initDiscussButtons(question_id, client_id);
 	}
 }
 
@@ -302,7 +321,10 @@ function fitCategoryUI() {
 			var task = tasks[i];
 			if (i==0) {
 				taskHtml += "<div class='green_highlight largespacebelow'>";
+				taskHtml += discussButtonHtml(task.idea_id);
+				taskHtml += SHOW_DISCUSS_BUTTONS ? "<div style='margin-left:30px'>" : "";
 				taskHtml += task.idea;
+				taskHtml += SHOW_DISCUSS_BUTTONS ? "</div>" : "";
 				taskHtml += "<input type='hidden' id='idea_id' value='"+task.idea_id+"'>";
 				taskHtml += "</div>";
 				taskHtml += "<div class='small'>Fits?</div>";
@@ -326,6 +348,8 @@ function fitCategoryUI() {
 		$("#submit_btn").on("click", {}, function(event) {
 			submitFitCategories();
 		});
+		
+		initDiscussButtons(question_id, client_id);
 	}
 }
 
@@ -436,6 +460,9 @@ function handleDisable(data) {
 function handleJob(data) {
 	if (loading) {
 		assignedJob = data.job;
+		if (assignedJob) {
+			initDiscussFlags(assignedJob.discuss_flags, false);
+		}
 		loading = false;
 		waiting = !assignedJob;
 		updateUI(0);

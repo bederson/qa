@@ -33,6 +33,12 @@ h2 {
 	font-size: 0.8em;
 }
 
+.tooltip {
+	color: #888;
+	font-size: 1.0em;
+	line-height: 100%;
+}
+
 .small {
 	font-size: 0.8em;
 }
@@ -77,6 +83,22 @@ a.warning:hover {
 
 #cascade_stats {
 	width: 225px;
+}
+
+.image {
+	position: relative;
+	text-align: center;
+	float: left;
+}
+
+.image_text {
+	left: 0;
+	position: absolute;
+	text-align: center;
+	top: 22px;
+	width: 100%;
+	color: #888;
+	font-size: 0.5em;
 }
 
 /* backgrounds */

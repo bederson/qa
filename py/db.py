@@ -1354,9 +1354,8 @@ class CascadeEqualCategory(DBObject):
                     equalVoteCount += 1
                     
             # check if any equal votes pass the voting threshold
-            votingThreshold = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k>3 else 1
+            votingThreshold = min([constants.DEFAULT_VOTING_THRESHOLD,question.cascade_k])
             if equalVoteCount >= votingThreshold:
-                
                 try:
                     # use transaction since too many categories might get flagged to skip if concurrency issues come up
                     dbConnection.begin()
@@ -1982,11 +1981,7 @@ class DiscussFlag(DBObject):
             objDict["user_identity"] = identity["user_identity"]
 
         return objDict
-    
-# TUESDAY: check hidden identity with instructor and user
-# TUESDAY: remember that discuss may not get created if already exists
-# TUESDAY: handle discuss msgs sent to ui
-      
+          
 # TODO / DB: no longer using the following db fields (not deleted from public database):
 #    questions: phase, cascade_iteration, cascade_step, cascade_step_count
 #    cascade_stats: iteration_count, step[1-5]_job_count, step[1-5]_duration, step[4-5]_unsaved_count
