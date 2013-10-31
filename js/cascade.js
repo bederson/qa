@@ -19,6 +19,8 @@ var assignedJob = null;
 var loading = false;
 var waiting = false;
 
+var CREATE_OWN_CATEGORY = "Create category, or select one";
+
 // overrides setting in utils.js
 // TODO/FIX: improve how count label is displayed in discuss buttons (shown on results page, but not cascade pages)
 var SHOW_DISCUSS_BUTTONS = true;
@@ -136,7 +138,7 @@ function updateUI(complete) {
 
 function suggestCategoryUI() {
 	$("#title").html("Suggest Categories");
-	$("#help").html("Read the notes below and suggest a category for each one.<br/>If you can not think of a good category, skip that note.");	
+	$("#help").html("Suggest a category for each response.<br/>If you can not think of a good category, skip that response.");	
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var taskHtml = "";
@@ -155,9 +157,10 @@ function suggestCategoryUI() {
 		}
 		taskHtml += "<input id='submit_btn' type='button' value='Submit Categories'> ";
 		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
-		
+			
+		var categorySuggestions = [];	
 		if (assignedJob.categories.length > 0) {
-			taskHtml += "<div class='green_highlight spaceabove'>";
+			taskHtml += "<div id='suggested_categories' class='green_highlight spaceabove'>";
 			taskHtml += "<div class='smallspacebelow'>Suggested By Others</div>";
 			taskHtml += "<ul class='nospaceabove smallspacebelow'>";
 			for (var i=0; i<assignedJob.categories.length; i++) {
@@ -165,20 +168,44 @@ function suggestCategoryUI() {
 			}
 			taskHtml += "</ul>";
 			taskHtml += "</div>";
+			
+			categorySuggestions.push({ label: CREATE_OWN_CATEGORY, value: "" });
+			for (var i=0; i<assignedJob.categories.length; i++) {
+				var category = assignedJob.categories[i];
+				categorySuggestions.push({ label: category, value: category });
+			}
 		}
 		
 		$("#task_area").html(taskHtml);
 		
 		$(".suggested_category").autocomplete({
-			source: assignedJob.categories,
+			source: categorySuggestions,
 			delay: 0,
 			minLength: 0
 		});
-
+		
+		$(".suggested_category").each(function(index) {
+			var ac = $(this).data("ui-autocomplete");
+			if (ac) {
+				ac._renderItem = function(ul, item) {
+					var htmlLabel = item.label;
+					htmlLabel = htmlLabel.replace("<", "&lt;");
+					htmlLabel = htmlLabel.replace(">", "&gt;");
+					if (item.label == CREATE_OWN_CATEGORY) {
+						htmlLabel = "<span class='help'>" + htmlLabel + "</span>";
+					}
+					return $("<li>")
+						.data('item.autocomplete', item)
+						.append($("<a>").html(htmlLabel))
+						.appendTo(ul);
+				};
+			}
+		});
+		
 		$(".suggested_category").click(function(event) {
 			$(this).autocomplete("search", "");
 		});
-				
+			
 		$("#submit_btn").on("click", {}, function(event) {
 			submitSuggestedCategories();
 		});
@@ -203,7 +230,7 @@ function submitSuggestedCategories() {
 	});
 		
 	if (skipCount > 2) {
-		$("#warning").html("You may only skip 2 notes");
+		$("#warning").html("You may only skip 2 responses");
 		return;
 	}
 	
@@ -212,7 +239,7 @@ function submitSuggestedCategories() {
 
 function bestCategoryUI() {
 	$("#title").html("Select Best Category");
-	$("#help").html("Pick the one category that best fits this note.");
+	$("#help").html("Pick the one category that best fits this response.");
 	var tasks = assignedJob.tasks;
 	if (tasks.length == 1) {
 		var task = tasks[0];
@@ -313,7 +340,7 @@ function submitEqualCategories() {
 
 function fitCategoryUI() {
 	$("#title").html("Match Categories");
-	$("#help").html("Select whether or not each category fits this note.");
+	$("#help").html("Select whether or not each category fits this response.");
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var taskHtml = "";

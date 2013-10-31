@@ -29,6 +29,7 @@ app = webapp2.WSGIApplication([
 	('/', MainPageHandler),
     ('/nickname_page', NicknameLoginPageHandler),
     ('/idea', IdeaPageHandler),
+    #('/idea/([0-9]+)', IdeaPageHandler),
     ('/cascade', CascadePageHandler),
     ('/results', ResultsPageHandler),
     ('/results_test', ResultsTestPageHandler),

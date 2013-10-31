@@ -85,6 +85,12 @@ a.warning:hover {
 	width: 225px;
 }
 
+#suggested_categories {
+	max-height: 145px;
+	overflow-y: auto;
+}
+
+/* used by discuss button */
 .image {
 	position: relative;
 	text-align: center;
@@ -241,4 +247,10 @@ select {
 
 div.jqcloud {
 	font-size: 8pt;
+}
+
+.ui-autocomplete {
+	max-height: 160px;
+	overflow-y: auto;
+	overflow-x: hidden;
 }

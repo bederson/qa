@@ -21,6 +21,7 @@
 // * make list of words smaller
 // * show popup when user mouses over discuss
 // * allow user to click on discuss button
+// * singleSelect and catDispCountFix not working as expected
 
 var OFFLINE = false;
 var MIN_RESULTS_WIDTH = 700;
@@ -104,7 +105,7 @@ function loadResults() {
 		numIdeas = results.count;
 	
 		// initialize discussion flags
-		initDiscussFlags(results.discuss_flags, true, true);
+		initDiscussFlags(results.discuss_flags, true, false);
 		
 		// initialize category counts
 		categoryCounts = {};
@@ -143,11 +144,11 @@ function initKeshif() {
 		
 	var userSortOption = {   
 		name: 'User',
-        width: 80,
+        width: 115,
         label: function(idea) {
             var userId = idea.data[ideasCol.user_id];
         	var user = kshf.dt_id.users[userId].data;
-        	var html = "<div style='text-align:left; margin-left:15px'>";
+        	var html = "<div style='text-align:left; margin-left:5px'>";
         	html += getUserHtml(user[usersCol.nickname], user[usersCol.authenticated_nickname], "");
         	html += "</div>";
         	return html;
@@ -251,7 +252,7 @@ function initKeshif() {
                 catItemMap : function(idea) {
                     return idea.data[ideasCol.categories];
                 },
-                filter: { rowConj: 'in category' },
+                filter: { rowConj: 'in category' }
             },
             {
                 facetTitle: "Words",
@@ -268,6 +269,14 @@ function initKeshif() {
                     return userData[usersCol.nickname];
                 },
                 filter: { rowConj: 'by author' },
+            },
+            {
+            	facetTitle: "Discuss",
+            	catItemMap : function(idea) {
+            		var ideaId = idea.data[ideasCol.id];
+            		return (isDefined(discussFlags[ideaId]) && discussFlags[ideaId].length>0) ? "Yes" : "No"
+            	},
+            	filter: { rowConj: 'discuss' },
             }
 	    ],
 	    list: {

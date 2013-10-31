@@ -118,7 +118,7 @@ function loadResults() {
 		updateStatus();
 
 		// initialize discussion flags
-		initDiscussFlags(results.discuss_flags, true, true);
+		initDiscussFlags(results.discuss_flags, true, false);
 				
 		// initialize category counts and master list of subcategories
 		categoryCounts = {};
@@ -318,7 +318,7 @@ function updateStats() {
 	var stats = [];
 
 	// number of ideas
-	var stat = numIdeas == 0 ? "No notes yet" : (numIdeas == 1 ? "1 note" : numIdeas + " notes");
+	var stat = numIdeas == 0 ? "No notes yet" : (numIdeas == 1 ? "1 response" : numIdeas + " responses");
 	stats.push(stat);
 	
 	// number of categories (if any)
@@ -338,7 +338,7 @@ function updateStats() {
 	
 	// number of uncategorized ideas (if any)
 	if (categorizedIdeas.length>0 && uncategorizedIdeas.length > 0) {
-		stats.push(uncategorizedIdeas.length + (uncategorizedIdeas.length == 1? " uncategorized note" : " uncategorized notes"));
+		stats.push(uncategorizedIdeas.length + (uncategorizedIdeas.length == 1? " uncategorized response" : " uncategorized responses"));
 	}
 		
 	var html = stats.length > 0 ? "(" + stats.join(", ") + ")" : ""

@@ -39,7 +39,7 @@ from db import *
 #####################
 
 class BaseHandler(webapp2.RequestHandler):
-    def init(self, initUser=True, adminRequired=False, initSession=True, loggingOut=False):                    
+    def init(self, questionId=None, initUser=True, adminRequired=False, initSession=True, loggingOut=False):                    
         # Get the current browser session, if any
         # Otherwise, create one
         self.session = gaesessions.get_current_session()
@@ -54,7 +54,8 @@ class BaseHandler(webapp2.RequestHandler):
         self.dbConnection.connect()
         
         self.question = None
-        questionId = self.request.get("question_id")
+        if not questionId:
+            questionId = self.request.get("question_id")
         if questionId:
             self.question = Question.getById(self.dbConnection, questionId)
 
@@ -183,7 +184,7 @@ class BaseHandler(webapp2.RequestHandler):
             self.session['msg'] = "Invalid question code"
         return ok
     
-    def checkIfQuestion(self, activeQuestionRequired=True):  
+    def checkIfQuestion(self, activeQuestionRequired=True):
         ok = True  
         if not self.request.get("question_id"):
             self.session['msg'] = "Question code required"
@@ -243,7 +244,7 @@ class NicknameLoginPageHandler(BaseHandler):
         self.destroy()
         
 class IdeaPageHandler(BaseHandler):
-    def get(self): 
+    def get(self):
         self.init()
         self.checkRequirements(userRequired=True, questionRequired=True)
         templateValues = self.getDefaultTemplateValues()  

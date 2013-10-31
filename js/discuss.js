@@ -141,7 +141,7 @@ function discussTooltipHtml(ideaId) {
 	var isPersonal = isPersonalDiscussIdea(ideaId);
 	var tooltip = "<span class='note'>";
 	tooltip += !isPersonal ? "<em>Click to flag for discussion</em><br/>" : "";
-	tooltip += showUserList ? userListHtml : (isPersonal ? "<em>Flagged for discussion</em>" : "");
+	tooltip += showUserList ? userListHtml : (isPersonal ? "<em>Click to unflag for discussion</em>" : "");
 	tooltip += "</span>";
 	return tooltip;
 }
