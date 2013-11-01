@@ -20,7 +20,10 @@ limitations under the License.
 
 {% block title %}XParty - Admin{% endblock %}
 {% block scripts %}
-	<script type="text/javascript" src="js/admin.js"></script>
+	<script type="text/javascript" src="/js/admin.js"></script>
+	<script>
+		var selected_question_id = "{{ question_id }}";
+	</script>
 {% endblock %}
 
 {% block content %}

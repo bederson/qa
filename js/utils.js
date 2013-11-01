@@ -122,50 +122,40 @@ function redirectToHome() {
 
 function getNotesPageUrl(question_id) {
     var url = "/idea";
-	if (isDefined(question_id)) {
-		url += "?question_id=" + question_id;
-	}
+	url += isDefined(question_id) ? "/" + question_id : ""
 	return url;
 }
 
 function getCascadePageUrl(question_id) {
     var url = "/cascade";
-	if (isDefined(question_id)) {
-		url += "?question_id=" + question_id;
-	}
+    url += isDefined(question_id) ? "/" + question_id : ""
 	return url;
 }
 
 function getResultsPageUrl(question_id) {
 	var url = "/results";
-	if (isDefined(question_id)) {
-		url += "?question_id=" + question_id;
-	}
+	url += isDefined(question_id) ? "/" + question_id : ""
 	return url;
 }
 
 function getTestResultsPageUrl(question_id) {
 	var url = "/results";
+	url += isDefined(question_id) ? "/" + question_id : ""
 	if (isDefined(question_id)) {
-		url += "?question_id=" + question_id;
-		url += "&test=1"
+		url += "?test=1"
 	}
 	return url;
 }
  
 function getAdminPageUrl(question_id) {
 	var url = "/admin";
-	if (isDefined(question_id)) {
-		url += "?question_id=" + question_id;
-	}
+	url += isDefined(question_id) ? "/" + question_id : ""
 	return url;
 }
 
 function getLogoutUrl(question_id) {
 	var url = "/logout";
-	if (isDefined(question_id)) {
-		url += "?question_id=" + question_id;
-	}
+	url += isDefined(question_id) ? "/" + question_id : ""
 	return url;
 }
 

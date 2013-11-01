@@ -20,8 +20,8 @@ limitations under the License.
 
 {% block title %}XParty - Results{% endblock %}
 {% block css %}
-	<link type="text/css" rel="stylesheet" href="js/keshif/keshif.css" />
-	<link type="text/css" rel="stylesheet" href="css/jqcloud.css" />
+	<link type="text/css" rel="stylesheet" href="/js/keshif/keshif.css" />
+	<link type="text/css" rel="stylesheet" href="/css/jqcloud.css" />
 	<style media="screen" type="text/css">
 	.kshf .listDiv{
 		margin:0px;
@@ -51,11 +51,14 @@ limitations under the License.
 {% endblock %}
 {% block scripts %}
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
-	<script type="text/javascript" src="js/keshif/d3.v3/d3.v3.js" charset="utf-8"></script>
-	<script type="text/javascript" src="js/keshif/keshif.js" charset="utf-8"></script>
-	<script type="text/javascript" src="js/jqcloud.js"></script>
-	<script type="text/javascript" src="js/discuss.js"></script>
-	<script type="text/javascript" src="js/results-keshif.js"></script>
+	<script type="text/javascript" src="/js/keshif/d3.v3/d3.v3.js" charset="utf-8"></script>
+	<script type="text/javascript" src="/js/keshif/keshif.js" charset="utf-8"></script>
+	<script type="text/javascript" src="/js/jqcloud.js"></script>
+	<script type="text/javascript" src="/js/discuss.js"></script>
+	<script type="text/javascript" src="/js/results-keshif.js"></script>
+	<script>
+		var question_id = "{{ question_id }}";
+	</script>
 {% endblock %}
 
 {% block content %}

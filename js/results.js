@@ -64,7 +64,6 @@ function onChannelOpen() {
 	}
 	
 	$("#admin_button").click(function() {
-		var question_id = getURLParameter("question_id");
 		redirectToAdminPage(question_id);
 	});
 	
@@ -101,7 +100,6 @@ function onChannelOpen() {
 }
 
 function loadResults() {	
-	var question_id = getURLParameter("question_id");
 	var test = getURLParameter("test");
 
 	var data = {
@@ -693,6 +691,5 @@ function onClickDiscuss(questionId, ideaId, add) {
 }
 
 function handleLogout(data) {
-	var question_id = getURLParameter("question_id");
 	redirectToLogout(question_id);
 }

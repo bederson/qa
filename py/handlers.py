@@ -39,7 +39,8 @@ from db import *
 #####################
 
 class BaseHandler(webapp2.RequestHandler):
-    def init(self, questionId=None, initUser=True, adminRequired=False, initSession=True, loggingOut=False):                    
+    def init(self, questionId=None, initUser=True, adminRequired=False, initSession=True, loggingOut=False):   
+                                 
         # Get the current browser session, if any
         # Otherwise, create one
         self.session = gaesessions.get_current_session()
@@ -53,11 +54,11 @@ class BaseHandler(webapp2.RequestHandler):
         self.dbConnection = DatabaseConnection()
         self.dbConnection.connect()
         
-        self.question = None
+        # if not passed in, check if question_id is included in request
         if not questionId:
             questionId = self.request.get("question_id")
-        if questionId:
-            self.question = Question.getById(self.dbConnection, questionId)
+        
+        self.question = Question.getById(self.dbConnection, questionId) if questionId else None
 
         self.person = None
         if initUser:
@@ -141,7 +142,7 @@ class BaseHandler(webapp2.RequestHandler):
                 
         return template_values
     
-    def checkRequirements(self, userRequired=False, authenticatedUserRequired=False, optionalQuestionCode=False, questionRequired=False, activeQuestionRequired=True, editPrivilegesRequired=False):
+    def checkRequirements(self, userRequired=False, authenticatedUserRequired=False, optionalQuestionCode=False, questionRequired=False, activeQuestionRequired=True, editPrivilegesRequired=False, questionId=None):
         ok = True
         
         # check if user logged in
@@ -154,11 +155,11 @@ class BaseHandler(webapp2.RequestHandler):
         
         # question code is optional, but if provided must be valid
         if ok and optionalQuestionCode:
-            ok = self.checkOptionalQuestionCode()
+            ok = self.checkOptionalQuestionCode(questionId=questionId)
             
         # check if valid question
         if ok and questionRequired:
-            ok = self.checkIfQuestion(activeQuestionRequired)
+            ok = self.checkIfQuestion(activeQuestionRequired, questionId=questionId)
             
         # check if user has edit privileges for question
         if ok and editPrivilegesRequired:
@@ -178,15 +179,19 @@ class BaseHandler(webapp2.RequestHandler):
             self.session['msg'] = "Please login"
         return ok
 
-    def checkOptionalQuestionCode(self):
-        ok = not self.request.get("question_id") or self.question
+    def checkOptionalQuestionCode(self, questionId=None):
+        if not questionId:
+            questionId = self.request.get("question_id")
+        ok = not questionId or self.question
         if not ok:
             self.session['msg'] = "Invalid question code"
         return ok
     
-    def checkIfQuestion(self, activeQuestionRequired=True):
-        ok = True  
-        if not self.request.get("question_id"):
+    def checkIfQuestion(self, activeQuestionRequired=True, questionId=None):
+        ok = True
+        if not questionId:
+            questionId = self.request.get("question_id")
+        if not questionId:
             self.session['msg'] = "Question code required"
             ok = False
         elif not self.question:
@@ -235,18 +240,18 @@ class MainPageHandler(BaseHandler):
         self.destroy()
 
 class NicknameLoginPageHandler(BaseHandler):
-    def get(self):
-        self.init()
-        self.checkRequirements(questionRequired=True)
+    def get(self, questionId):
+        self.init(questionId=questionId)
+        self.checkRequirements(questionRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()        
         path = os.path.join(os.path.dirname(__file__), '../html/login.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
         
 class IdeaPageHandler(BaseHandler):
-    def get(self):
-        self.init()
-        self.checkRequirements(userRequired=True, questionRequired=True)
+    def get(self, questionId):
+        self.init(questionId=questionId)
+        self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()  
         templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and self.person.authenticated_user_id is not None)
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
@@ -254,40 +259,45 @@ class IdeaPageHandler(BaseHandler):
         self.destroy()
      
 class CascadePageHandler(BaseHandler):
-    def get(self):
-        self.init() 
-        self.checkRequirements(userRequired=True, questionRequired=True)
+    def get(self, questionId):
+        self.init(questionId=questionId) 
+        self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
                 
 class ResultsPageHandler(BaseHandler):
-    def get(self):
-        self.init()    
-        self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False)
+    def get(self, questionId):
+        self.init(questionId=questionId)    
+        self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
 
 class ResultsTestPageHandler(BaseHandler):
-    def get(self):
-        self.init()    
-        self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False)
+    def get(self, questionId):
+        self.init(questionId=questionId)    
+        self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/results-keshif.html')
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
         
 class AdminPageHandler(BaseHandler):
-    def get(self):
-        self.init(adminRequired=True)
-        self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True)
+    def get(self, questionId=None):
+        self.init(adminRequired=True, questionId=questionId)
+        self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True, questionId=questionId)
         # set question to None so not used when creating channel client id
         # but if one passed in, it has already been checked for validity
         self.question = None
         templateValues = self.getDefaultTemplateValues()
+        
+        # used to indicate which question should be selected (if any)
+        if questionId:
+            templateValues["question_id"] = questionId
+
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -298,8 +308,8 @@ class AdminPageHandler(BaseHandler):
 
 class LoginHandler(BaseHandler):    
     # called after successful Google authentication
-    def get(self):
-        self.init(initUser=False)
+    def get(self, questionId=None):
+        self.init(initUser=False, questionId=questionId)
         page = self.request.get("page")
 
         self.person = Person.getPerson(self.dbConnection, self.question)  
@@ -374,8 +384,8 @@ class QuestionLoginHandler(BaseHandler):
         self.destroy()
                      
 class LogoutHandler(BaseHandler):
-    def get(self):
-        self.init(loggingOut=True)
+    def get(self, questionId=None):
+        self.init(loggingOut=True, questionId=questionId)
         ok = self.checkRequirements(userRequired=True)
         if ok:
             self.person.logout(self.dbConnection, userRequestedLogout=True)
@@ -393,13 +403,13 @@ class LogoutHandler(BaseHandler):
         self.redirect(users.create_logout_url("/") if self.person is not None and self.person.authenticated_user_id else "/")
                     
 class NicknameHandler(BaseHandler):
-    def post(self):
-        self.init()
+    def post(self, questionId=None):
+        self.init(questionId=questionId)
         clientId = self.request.get("client_id")
         nickname = self.request.get("nickname")
         specialChars = set('$\'"*,')
         
-        ok = self.checkRequirements(userRequired=True, questionRequired=True)        
+        ok = self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)        
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
 
@@ -535,7 +545,6 @@ class DeleteQuestionHandler(BaseHandler):
         self.init(adminRequired=True)
         clientId = self.request.get('client_id')
         dataOnly = self.request.get('data_only', False)
-
         ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
@@ -1007,10 +1016,11 @@ Question.onMoreVerifyJobs = onMoreVerifyJobs
 def getLoginUrl(page, question=None):
     if question:
         if question.nickname_authentication:
-            url = "/nickname_page?question_id=" + str(question.id)            
+            url = "/nickname_page/" + str(question.id)
+          
         else:
             page = page if page else getIdeaPageUrl(question)
-            url = users.create_login_url("/login?page=" + urllib.quote(page) + "&question_id=" + str(question.id))
+            url = users.create_login_url("/login/" + str(question.id) + "?page=" + urllib.quote(page))
     else:
         page = page if page else getHomePageUrl()
         url = users.create_login_url("/login?page=" + urllib.quote(page))
@@ -1019,8 +1029,7 @@ def getLoginUrl(page, question=None):
 
 def getLogoutUrl(question=None):
     url = "/logout"
-    if question:
-        url += "?question_id=" + str(question.id)
+    url += "/" + str(question.id) if question else ""
     return url
   
 def getHomePageUrl():
@@ -1028,18 +1037,15 @@ def getHomePageUrl():
 
 def getIdeaPageUrl(question=None):
     url = "/idea"
-    if question:
-        url += "?question_id=" + str(question.id)
+    url += "/" + str(question.id) if question else ""
     return url
 
 def getCascadePageUrl(question=None):
     url = "/cascade"
-    if question:
-        url += "?question_id=" + str(question.id)
+    url += "/" + str(question.id) if question else ""
     return url
 
 def getResultsPageUrl(question=None):
     url = "/results"
-    if question:
-        url += "?question_id=" + str(question.id)
+    url += "/" + str(question.id) if question else ""
     return url

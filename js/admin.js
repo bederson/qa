@@ -24,13 +24,13 @@
 // Step 5 (fit categories subsequent)	(n-m) * Math.ceil(C/t) * k2; C = Math.ceil(0.33 * m) (estimate)
 
 var questions = [];
-var selected_question_id = null;
 
 $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
 	}
 	
+	selected_question_id = selected_question_id !="" ? selected_question_id : null;
 	initChannel(onChannelOpen);
 	$("#page_content").show();
 });
@@ -82,9 +82,8 @@ function loadQuestions() {
 			addQuestion(results.questions[i]);
 		}
 		displayQuestionsList();
-		var question_id = getURLParameter("question_id");
-		if (question_id) {
-			selectQuestion(question_id);
+		if (selected_question_id) {
+			selectQuestion(selected_question_id);
 		}
 	});	
 }

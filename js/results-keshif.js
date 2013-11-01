@@ -70,7 +70,6 @@ function onChannelOpen() {
 	}
 	
 	$("#admin_button").click(function() {
-		var question_id = getURLParameter("question_id");
 		redirectToAdminPage(question_id);
 	});
 	
@@ -91,7 +90,6 @@ function adjustSize() {
 }
 
 function loadResults() {	
-	var question_id = getURLParameter("question_id");
 	var data = {
 		"request": "ideas",
 		"group_by": "category",
@@ -468,6 +466,5 @@ function handleResults(data) {
 }
 
 function handleLogout(data) {
-	var question_id = getURLParameter("question_id");
 	redirectToLogout(question_id);
 }

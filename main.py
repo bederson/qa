@@ -27,18 +27,20 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
 app = webapp2.WSGIApplication([
 	('/', MainPageHandler),
-    ('/nickname_page', NicknameLoginPageHandler),
-    ('/idea', IdeaPageHandler),
-    #('/idea/([0-9]+)', IdeaPageHandler),
-    ('/cascade', CascadePageHandler),
-    ('/results', ResultsPageHandler),
-    ('/results_test', ResultsTestPageHandler),
+    ('/nickname_page/([0-9]+)', NicknameLoginPageHandler),
+    ('/idea/([0-9]+)', IdeaPageHandler),
+    ('/cascade/([0-9]+)', CascadePageHandler),
+    ('/results/([0-9]+)', ResultsPageHandler),
+    ('/results_test/([0-9]+)', ResultsTestPageHandler),
     ('/admin', AdminPageHandler),
-
+    ('/admin/([0-9]+)', AdminPageHandler),
+        
     ('/login', LoginHandler),
+    ('/login/([0-9]+)', LoginHandler),
 	('/nickname_login', NicknameLoginHandler),
 	('/question_login', QuestionLoginHandler),
-    ('/logout', LogoutHandler),
+	('/logout', LogoutHandler),
+    ('/logout/([0-9]+)', LogoutHandler),
     ('/nickname', NicknameHandler),
 	('/new_question', NewQuestionHandler),
 	('/edit_question', EditQuestionHandler),

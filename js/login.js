@@ -33,7 +33,6 @@ function initEventHandlers() {
 }
 
 function submit() {
-	var question_id = getURLParameter("question_id");
 	var nickname = $("#nickname").val();
 
 	if (isUndefined(question_id)) {

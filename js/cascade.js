@@ -156,7 +156,7 @@ function suggestCategoryUI() {
 			taskHtml += "</div>\n";
 		}
 		taskHtml += "<input id='submit_btn' type='button' value='Submit Categories'> ";
-		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
+		taskHtml += "<img id='loading_icon' src='/images/loading.gif' style='display:none'/>";
 					
 		var categorySuggestions = [];	
 		if (assignedJob.categories.length > 0) {
@@ -269,7 +269,7 @@ function bestCategoryUI() {
 		}
 		taskHtml += "</div>\n";
 		taskHtml += "<input id='submit_btn' type='button' value='Submit'> ";
-		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";		
+		taskHtml += "<img id='loading_icon' src='/images/loading.gif' style='display:none'/>";		
 		$("#task_area").html(taskHtml);
 		$("#submit_btn").on("click", { task : task }, function(event) {
 			submitBestCategory(event.data.task);
@@ -316,7 +316,7 @@ function equalCategoryUI() {
 		}
 		taskHtml += "</table>";
 		taskHtml += "<input id='submit_btn' type='button' value='Submit'> ";
-		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
+		taskHtml += "<img id='loading_icon' src='/images/loading.gif' style='display:none'/>";
 		$("#task_area").html(taskHtml);
 		$("#submit_btn").on("click", {}, function(event) {
 			submitEqualCategories();
@@ -372,7 +372,7 @@ function fitCategoryUI() {
 		}
 		taskHtml += "</table>";
 		taskHtml += "<input id='submit_btn' type='button' value='Submit'> ";
-		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
+		taskHtml += "<img id='loading_icon' src='/images/loading.gif' style='display:none'/>";
 		$("#task_area").html(taskHtml);
 		$("#submit_btn").on("click", {}, function(event) {
 			submitFitCategories();
@@ -419,7 +419,7 @@ function getTaskAttribute(taskId, attribute) {
 function waitForJobToLoad() {
 	$("#title").html("Loading next job ...");
 	$("#help").html("");
-	$("#task_area").html("<img id='loading_icon' src='images/loading.gif' />");
+	$("#task_area").html("<img id='loading_icon' src='/images/loading.gif' />");
 }
 
 function waitForNextJob() {

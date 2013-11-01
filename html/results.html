@@ -20,13 +20,16 @@ limitations under the License.
 
 {% block title %}XParty - Results{% endblock %}
 {% block css %}
-	<link type="text/css" rel="stylesheet" href="css/jqcloud.css" />
+	<link type="text/css" rel="stylesheet" href="/css/jqcloud.css" />
 {% endblock %}
 {% block scripts %}
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
-	<script type="text/javascript" src="js/jqcloud.js"></script>
-	<script type="text/javascript" src="js/discuss.js"></script>
-	<script type="text/javascript" src="js/results.js"></script>
+	<script type="text/javascript" src="/js/jqcloud.js"></script>
+	<script type="text/javascript" src="/js/discuss.js"></script>
+	<script type="text/javascript" src="/js/results.js"></script>
+	<script>
+		var question_id = "{{ question_id }}";
+	</script>
 {% endblock %}
 
 {% block content %}
