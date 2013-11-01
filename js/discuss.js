@@ -23,8 +23,9 @@ var discussFlags = {};
 var personalDiscussIdeas = [];
 var showFlagCount = false;
 var showUserList = false;
+var onClickDiscuss = null;
 
-function initDiscussFlags(flags, showCount, showUsers) {
+function initDiscussFlags(flags, showCount, showUsers, onClickDiscuss) {
 	if (!SHOW_DISCUSS_BUTTONS) {
 		return;
 	}
@@ -78,6 +79,9 @@ function initDiscussButtons(questionId, clientId, ideaId) {
 			if (result.status == 1) {
 				addRemoveDiscussFlag(result.flag, data.add=="1");
 				$(".discuss_idea_"+result.flag.idea_id+"_button").attr("src", data.add=="1" ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT);
+				if (onClickDiscuss) {
+					onClickDiscuss(questionId, ideaId, data.add=="1");
+				}
 			}
 		}, "json");
 	});

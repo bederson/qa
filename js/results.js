@@ -45,6 +45,7 @@ var displayedCategories = {};
 var categoryCounts = {};
 var adminStats = null;
 var discussOnly = false;
+var isQuestionAuthor = false;
    
 $(document).ready(function() {
 	if ($("#msg").html()) {
@@ -115,10 +116,11 @@ function loadResults() {
 		categorizedIdeas = results.categorized;
 		uncategorizedIdeas = results.uncategorized;
 		numIdeas = results.count;
+		isQuestionAuthor = results.is_question_author;
 		updateStatus();
 
 		// initialize discussion flags
-		initDiscussFlags(results.discuss_flags, true, false);
+		initDiscussFlags(results.discuss_flags, true, false, onClickDiscuss);
 				
 		// initialize category counts and master list of subcategories
 		categoryCounts = {};
@@ -293,7 +295,8 @@ function ideaAsHtml(idea, parent) {
 		}
 	}
 		
-	var html = "<li class='spacebelow'>";
+	var highlightClass = isQuestionAuthor && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
+	var html = "<li class='idea_" + idea.id + highlightClass + " smallspacebelow' style='padding:6px'>";	
 	html += "<div style='display:block'>";
 	html += discussButtonHtml(idea.id) + " ";
 	html += "<div style='margin-left:30px'>";
@@ -670,7 +673,23 @@ function handleResults(data) {
 }
 
 function handleDiscussIdea(data) {
-	addRemoveDiscussFlag(data.flag, data.op == "discuss_idea");
+	if (data.flag.question_id == question.id) {
+		addRemoveDiscussFlag(data.flag, data.op == "discuss_idea");
+		onClickDiscuss(data.flag.question_id, data.flag.idea_id, data.op == "discuss_idea");
+	}
+}
+
+function onClickDiscuss(questionId, ideaId, add) {
+	if (isQuestionAuthor && questionId == question.id) {
+		var ideaSelector = $(".idea_"+ideaId);
+		var count = getDiscussFlagCount(ideaId);
+		if (count > 0 && !ideaSelector.hasClass("discuss_highlight")) {
+			ideaSelector.addClass("discuss_highlight");
+		}
+		else if (count == 0) {
+			ideaSelector.removeClass("discuss_highlight");
+		}
+	}
 }
 
 function handleLogout(data) {

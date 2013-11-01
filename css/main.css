@@ -125,6 +125,11 @@ a.warning:hover {
 	border-radius: 7px;
 }
 
+.discuss_highlight {
+	background-color: #e9f3cc;
+	border-radius: 7px;
+}
+
 /* spacing */
 
 .largespaceabove {
@@ -153,6 +158,10 @@ a.warning:hover {
 
 .spacebelow {
 	margin-bottom: 10px;
+}
+
+.spaceleft {
+	margin-left: 10px;
 }
 
 .spaceright {

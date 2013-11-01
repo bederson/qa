@@ -157,16 +157,18 @@ function suggestCategoryUI() {
 		}
 		taskHtml += "<input id='submit_btn' type='button' value='Submit Categories'> ";
 		taskHtml += "<img id='loading_icon' src='images/loading.gif' style='display:none'/>";
-			
+					
 		var categorySuggestions = [];	
 		if (assignedJob.categories.length > 0) {
-			taskHtml += "<div id='suggested_categories' class='green_highlight spaceabove'>";
+			taskHtml += "<div class='green_highlight spaceabove'>";
 			taskHtml += "<div class='smallspacebelow'>Suggested By Others</div>";
+			taskHtml += "<div id='suggested_categories'>";
 			taskHtml += "<ul class='nospaceabove smallspacebelow'>";
 			for (var i=0; i<assignedJob.categories.length; i++) {
 				taskHtml += "<li class='small'>" + assignedJob.categories[i] + "</li>";	
 			}
 			taskHtml += "</ul>";
+			taskHtml += "</div>";
 			taskHtml += "</div>";
 			
 			categorySuggestions.push({ label: CREATE_OWN_CATEGORY, value: "" });

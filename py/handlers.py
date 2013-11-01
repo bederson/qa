@@ -460,6 +460,8 @@ class QueryHandler(BaseHandler):
                 includeDiscussFlags = self.request.get("discuss", "0") == "1"    
                 if includeDiscussFlags:
                     data["discuss_flags"] = DiscussFlag.getFlags(self.dbConnection, self.question, admin=self.isAdminLoggedIn())
+                    
+                data["is_question_author"] = Person.isAuthor(self.question)
 
         self.writeResponseAsJson(data)
 
