@@ -51,7 +51,7 @@ CREATE TABLE `cascade_equal_categories` (
   `equal` tinyint(4) DEFAULT '-1',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -308,6 +308,7 @@ CREATE TABLE `users` (
   `latest_login_timestamp` timestamp NULL DEFAULT NULL,
   `latest_logout_timestamp` timestamp NULL DEFAULT NULL,
   `session_sid` varchar(255) DEFAULT NULL,
+  `admin` tinyint(4) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
@@ -322,4 +323,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-10-24 11:11:19
+-- Dump completed on 2013-11-04  9:25:31
