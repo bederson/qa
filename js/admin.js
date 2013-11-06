@@ -267,6 +267,7 @@ function displaySelectedQuestion() {
 	loadStats(question);
 	
 	$("#active_cb").prop("checked", question.active);
+	$("#start_link").attr("href", getStartPageUrl(question.id));
 	$("#idea_link").attr("href", getNotesPageUrl(question.id));
 	$("#results_link").attr("href", getResultsPageUrl(question.id));
 	$("#selected_question").show();

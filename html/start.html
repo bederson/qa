@@ -1,0 +1,51 @@
+<!--
+Copyright 2013 Ben Bederson - http://www.cs.umd.edu/~bederson
+Anne Rose - http://www.cs.umd.edu/hcil/members/arose
+University of Maryland
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+{% extends "base.html" %}
+
+{% block title %}XParty - Start{% endblock %}
+{% block scripts %}
+	<script type="text/javascript" src="/js/start.js"></script>
+	<script>
+		var question_id = "{{ question_id }}";
+	</script>
+{% endblock %}
+
+{% block content %}
+	{% if admin %}
+	<div id="admin_buttons">
+		<input id="admin_button" type="button" value="Admin">
+	</div>
+	<div style="clear:both"></div>	
+	{% endif %}	
+	<div id="msg" class="warning spacebelow" style="text-align:center">{{ msg }}</div>
+	<div id="page_content" style="display:none">
+		<hr>
+		<div class="center" style="width:90%; overflow-x:auto;">
+			<div class="green_highlight smallspacebelow" style="padding:8px">
+				<h1 id="question_title" class="smallspacebelow">{{ question_title }}</h1>
+				<div id="question">{{ question_text }}</div>
+			</div>
+			<div class="white_box" style="text-align:center; padding:50px 15px 50px 15px">
+				<div class="large">Go to</div>
+				<div id="start_url" style="font-size:48pt; margin-bottom:25px"><a href="http://{{start_url}}">{{ start_url }}</a></div>
+				<div class="large">and wait for instructions</div>
+			</div>
+		</div>
+	</div>
+{% endblock %}

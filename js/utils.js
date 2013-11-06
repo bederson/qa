@@ -125,6 +125,12 @@ function redirectToHome() {
 	window.location.href = "/";
 }
 
+function getStartPageUrl(question_id) {
+    var url = "/start";
+	url += isDefined(question_id) ? "/" + question_id : ""
+	return url;
+}
+
 function getNotesPageUrl(question_id) {
     var url = "/idea";
 	url += isDefined(question_id) ? "/" + question_id : ""

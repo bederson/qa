@@ -96,6 +96,7 @@ class BaseHandler(webapp2.RequestHandler):
         else:
             nicknameAuthenticationAllowed = self.question is not None and self.question.authentication_type == constants.NICKNAME_AUTHENTICATION and not Person.isAuthor(self.question)
             url = getLoginUrl(self.request.uri, self.question)
+            helpers.log("URL={0}, {1}".format(self.request.uri, self.question))
             urlLink = "Login w/ Nickname" if nicknameAuthenticationAllowed else "Login w/ Google Account"
                     
         template_values = {}
@@ -282,7 +283,34 @@ class AdminPageHandler(BaseHandler):
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
-                
+
+class StartPageHandler(BaseHandler):
+    def get(self, questionId=None):
+        self.init(adminRequired=True, questionId=questionId)
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True, questionId=questionId)
+        
+        startUrl = None
+        if ok:
+            startUrl = self.request.host_url
+            startUrl = startUrl.replace("http://","")
+            startUrl += getIdeaPageUrl(self.question)
+        
+        # set question to None so not used when creating login url
+        # but if one passed in, it has already been checked for validity
+        selectedQuestion = self.question
+        self.question = None
+        
+        templateValues = self.getDefaultTemplateValues()
+        if ok:
+            templateValues["question_id"] = selectedQuestion.id
+            templateValues["question_title"] = selectedQuestion.title
+            templateValues["question_text"] = selectedQuestion.question
+            
+        templateValues["start_url"] = startUrl
+        path = os.path.join(os.path.dirname(__file__), '../html/start.html')
+        self.response.out.write(template.render(path, templateValues))
+        self.destroy()
+                       
 #####################
 # Action Handlers
 #####################
@@ -1011,6 +1039,7 @@ Question.onMoreVerifyJobs = onMoreVerifyJobs
 #####################
 
 def getLoginUrl(page, question=None):
+    url = None
     if question:
         if question.authentication_type == constants.NICKNAME_AUTHENTICATION:
             url = "/nickname_page/" + str(question.id)

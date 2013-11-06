@@ -18,7 +18,7 @@
 var SHOW_IDEA_LIST = false;
 var ideas = [];
 
-$(function() {	
+$(document).ready(function() {
 	onResize();
 	initEventHandlers();
 		

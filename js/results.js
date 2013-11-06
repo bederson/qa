@@ -232,7 +232,8 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	
 	var html = "";
 	if (categoryCount > 0) {
-		html += "<table style='width: 100%'><tr>";
+		html += "<table style='width: 100%'>";
+		html += "<tr>";
 		html += "<td style='width: 50%'>";
 		// an empty category means the items have not been categorized yet
 		if (category != "") {
@@ -263,6 +264,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 					for (var j in subcategoryIdeas) {
 						html += ideaAsHtml(subcategoryIdeas[j], category, (DEFAULT_IDEA_INDENT*2)+10);
 					}
+					html += "<div style='clear:both'></div>";
 				}
 			}
 		}
@@ -293,7 +295,7 @@ function ideaAsHtml(idea, parent, indent) {
 	}
 	
 	var highlightClass = isQuestionAuthor && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
-	var html = "<div class='left idea idea_" + idea.id + highlightClass + "' style='width:100%; margin-left:"+indent+"px;'>";	
+	var html = "<div class='left idea idea_" + idea.id + highlightClass + "' style='margin-left:"+indent+"px;'>";	
 	html += discussButtonHtml(idea.id);
 	html += "<div style='margin-left:40px;'>";
 	html += idea.idea;

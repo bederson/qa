@@ -22,6 +22,7 @@
 // * show popup when user mouses over discuss
 // * allow user to click on discuss button
 // * singleSelect and catDispCountFix not working as expected
+// * how to handle no authentication (show students ids?)
 
 var OFFLINE = false;
 var MIN_RESULTS_WIDTH = 700;
@@ -321,6 +322,11 @@ function addIdeasToCategory(category, ideas, data) {
 		}
 			
 		if (!(userId in data.users)) {
+			// author is not be defined when no authentication required
+			// so display "Student<id>" instead
+			if (!author) {
+				author = "Student" + userId;
+			}
 			data.users[userId] = [ userId, authorIdentity, author ];
 			data.userData.push(data.users[userId]);
 		}

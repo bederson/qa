@@ -48,6 +48,10 @@ h2 {
 	font-size: 0.9em;
 }
 
+.large {
+	font-size: 1.5em;
+}
+
 .tags {
 	color: #048;
 	font-size: 0.8em;
@@ -98,18 +102,21 @@ a.warning:hover {
 .category {
 	font-weight: bold;
 	font-size: 1.0em;
+	width: 100%;
 }
 
 .idea {
 	font-size: 1.0em;
 	padding: 6px;
 	margin-bottom: 5px;
+	width: 100%;
 }
 
 .discuss_count {
 	text-align: center;
 	color: #888;
 	font-size: 0.5em;
+	width: 100%;
 }
 
 /* backgrounds */
