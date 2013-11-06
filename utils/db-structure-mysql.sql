@@ -251,6 +251,7 @@ CREATE TABLE `questions` (
   `title` varchar(255) DEFAULT NULL,
   `question` varchar(255) DEFAULT NULL,
   `nickname_authentication` tinyint(4) DEFAULT '0',
+  `authentication_type` tinyint(4) DEFAULT '0',
   `user_id` int(11) DEFAULT NULL,
   `active` tinyint(4) DEFAULT '0',
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -323,4 +324,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-11-04  9:25:31
+-- Dump completed on 2013-11-05 10:02:02

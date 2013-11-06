@@ -16,10 +16,11 @@
 //
 
 $(function() {
-	enableDisable($("#admin_button"), logged_in);
+	var loggedIn = user_id != -1;
+	enableDisable($("#admin_button"), loggedIn);
 	initEventHandlers();
 	
-	if (!logged_in) {
+	if (!loggedIn) {
 		$("#admin_help").show();
 	}
 });

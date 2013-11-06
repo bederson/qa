@@ -2,6 +2,11 @@
 // Constants
 //===================================================
 
+// authentication types (for students)
+var NO_AUTHENTICATION = 0
+var GOOGLE_AUTHENTICATION = 1
+var NICKNAME_AUTHENTICATION = 2
+
 // job types
 var SUGGEST_CATEGORY = 1;
 var BEST_CATEGORY = 2;

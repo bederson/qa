@@ -31,8 +31,7 @@ $(function() {
 });
 
 function onChannelOpen() {
-	var isCascadeComplete = isDefined(cascade_complete) && cascade_complete == 1;
-	if (isCascadeComplete) {
+	if (cascade_complete) {
 		$("#msg").html("This question is complete. <a class='warning' href='"+getResultsPageUrl(question_id)+"'>View results</a>");
 		disableUI();
 	}	
@@ -42,16 +41,16 @@ function onChannelOpen() {
 }
 
 function updateUI(enable) {
-	var isActive = isDefined(enable) ? enable : (isDefined(active) && active == 1);
-	enableDisable($("#answer"), isActive);
-	enableDisable($("#submit"), isActive);
-	enableDisable($("#done"), isActive);
+	var enable = isDefined(enable) ? enable : (isDefined(question_active) && question_active);
+	enableDisable($("#answer"), enable);
+	enableDisable($("#submit"), enable);
+	enableDisable($("#done"), enable);
 	if (!$("#msg").html()) {
-		$("#msg").html(!isActive ? "Question has been disabled" : "");
+		$("#msg").html(!enable ? "Question has been disabled" : "");
 	}
-	$("#answer").val(!isActive ? "Not currently accepting new submissions" : "");	
+	$("#answer").val(!enable ? "Not currently accepting new submissions" : "");	
 	
-	if (isActive) {		
+	if (enable) {		
 		$("#answer").focus();
 		if (change_nickname_allowed) {
 			displayNicknameArea();
@@ -244,12 +243,12 @@ function handleIdea(data) {
 }
 
 function handleEnable(data) {
-	active = 1;
+	question_active = true;
 	updateUI();
 }
 
 function handleDisable(data) {
-	active = 0;
+	question_active = false;
 	updateUI();
 }
 

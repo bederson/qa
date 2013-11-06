@@ -7,6 +7,11 @@ DATABASE_NAME = "qa"
 LOCAL_DB_USER = "qatest"
 LOCAL_DB_PWD = "qatest"
 
+# Authentication Types (for students)
+NO_AUTHENTICATION = 0
+GOOGLE_AUTHENTICATION = 1
+NICKNAME_AUTHENTICATION = 2
+
 # Cascade Job Types
 SUGGEST_CATEGORY = 1
 BEST_CATEGORY = 2

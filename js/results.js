@@ -15,11 +15,12 @@
 // limitations under the License.
 // 
 
-var OFFLINE = false;				// For offline debugging
+var OFFLINE = false;
 
 var SHOW_TAGCLOUDS = true;
 var MIN_TAGCLOUD_ITEM_COUNT = 7;
 var MAX_CLOUD_HEIGHT = 800;
+var DEFAULT_IDEA_INDENT = 20; // pixels
 
 var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
@@ -58,7 +59,7 @@ $(document).ready(function() {
 
 function onChannelOpen() {
 	loadResults();
-	
+		
 	if (!jQuery.browser.mobile) {
 		$("#admin_buttons").show();
 	}
@@ -174,7 +175,7 @@ function displayIdeas() {
 	var newIdeaHtml = "<table style='width:100%'>";
 	newIdeaHtml += "<tr>";
 	newIdeaHtml += "<td style='width:50%'>";
-	newIdeaHtml += "<ul id='new_ideas' style='margin-bottom:0'></ul>";
+	newIdeaHtml += "<div id='new_ideas'></div>";
 	newIdeaHtml += "</td>";
 	newIdeaHtml += "</tr>";
 	newIdeaHtml += "</table>";
@@ -235,17 +236,18 @@ function categoryGroupAsHtml(categoryGroup, id) {
 		html += "<td style='width: 50%'>";
 		// an empty category means the items have not been categorized yet
 		if (category != "") {
-			html += "<strong>" + category + "</strong>&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span><br/>";		
+			html += showExpanded ? "<div class='category spaceabove spacebelow'>" : "<div class='category smallspaceabove smallspacebelow'>";
+			html += category + "&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span>";
+			html += "</div>";		
 		}
 		if (showExpanded) {
-			html += "<ul" + (category == "" ? " style='margin-top:0px'" : "") + ">";
 			for (var i in ideas) {
-				html += ideaAsHtml(ideas[i]);
+				html += ideaAsHtml(ideas[i], null, category != "" ? DEFAULT_IDEA_INDENT : 0);
 			}
 		}
 		
 		if (showSubcategories && isDefined(categoryGroup.subcategories) && categoryGroup.subcategories.length > 0) {
-			html += !showExpanded ? "<ul style='margin-top:5px'>" : "";
+			html += "<div style='clear:both'></div>";
 			for (var i in categoryGroup.subcategories) {
 				var subcategoryGroup = categoryGroup.subcategories[i];
 				var subcategory = subcategoryGroup.category;
@@ -253,23 +255,18 @@ function categoryGroupAsHtml(categoryGroup, id) {
 				var subcategorySameAs = subcategoryGroup.sameas ? "Similar to: "+subcategoryGroup.sameas : "";	
 				var subcategoryCount = subcategoryGroup.count;
 		
-				html += "<li style='margin-top:8px'>";
-				html += "<strong>" + subcategory + "</strong>&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span><br/>";
+				var customStyles = "style='margin-left:" + (DEFAULT_IDEA_INDENT+10) + "px;'";
+				html += showExpanded ? "<div class='category spaceabove spacebelow' " + customStyles + ">" : "<div class='category smallspaceabove smallspacebelow' " + customStyles + ">";
+				html += subcategory + "&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span>";				
+				html += "</div>";
 				if (showExpanded) {
-					html += "<ul style='margin-top:15px'>";
 					for (var j in subcategoryIdeas) {
-						html += ideaAsHtml(subcategoryIdeas[j], category);
+						html += ideaAsHtml(subcategoryIdeas[j], category, (DEFAULT_IDEA_INDENT*2)+10);
 					}
-					html += "</ul>";
 				}
-				html += "</li>";
 			}
-			html += !showExpanded ? "</ul>" : "";
 		}
-
-		if (showExpanded) {
-			html += "</ul>";
-		}
+				
 		html += "</td>";
 		
 		if (!jQuery.browser.mobile) {
@@ -282,36 +279,40 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	
 	return html;
 }
+				
+function ideaAsHtml(idea, parent, indent) {
+	parent = isDefined(parent) ? parent : null;
+	indent = isDefined(indent) ? indent : DEFAULT_IDEA_INDENT;
 
-function ideaAsHtml(idea, parent) {
 	var alsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
-	var parent = isDefined(parent) ? parent : null;
 	if (alsoIn.length>0) {
 		var alsoInIndex = alsoIn.indexOf(parent);
 		if (alsoInIndex != -1) {
 			alsoIn.splice(alsoInIndex, 1);
 		}
 	}
-		
+	
 	var highlightClass = isQuestionAuthor && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
-	var html = "<li class='idea_" + idea.id + highlightClass + " smallspacebelow' style='padding:6px'>";	
-	html += "<div style='display:block'>";
-	html += discussButtonHtml(idea.id) + " ";
-	html += "<div style='margin-left:30px'>";
+	var html = "<div class='left idea idea_" + idea.id + highlightClass + "' style='width:100%; margin-left:"+indent+"px;'>";	
+	html += discussButtonHtml(idea.id);
+	html += "<div style='margin-left:40px;'>";
 	html += idea.idea;
+
 	if (alsoIn.length>0) {
 		hasAlsoIn = true;
 		html += "<span class='note also_in' style='display:none'><br/>Also in: " + alsoIn.join(", ") + "</span>";
 	}
 
+	if (idea.author) {
 	html += "</br>";
 	html += "<span class='author'>";
 	html += "-- "; 
 	html += getUserHtml(idea.author, idea.author_identity);
 	html += "</span>";
+	}
+	
 	html += "</div>";
 	html += "</div>";
-	html += "</li>";
 	return html;	
 }
 

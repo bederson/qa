@@ -24,7 +24,6 @@ limitations under the License.
 	<script type="text/javascript" src="/js/cascade.js"></script>
 	<script>
 		var question_id = "{{ question_id }}";
-		var active = parseInt("{{ active }}");
 	</script>
 {% endblock %}
 
@@ -39,8 +38,8 @@ limitations under the License.
 	<div id="page_content" style="display:none">
 		<div id="box_area" class="center">
 			<div class="green_highlight smallspacebelow" style="padding:8px">
-				<h1 id="question_title" class="smallspacebelow">{{ title }}</h1>
-				<div id="question">{{ question }}</div>
+				<h1 id="question_title" class="smallspacebelow">{{ question_title }}</h1>
+				<div id="question">{{ question_text }}</div>
 			</div>
 			<div class="white_box spacebelow">
 				<h2 id="title" class="nospaceabove spacebelow"></h2>

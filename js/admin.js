@@ -31,6 +31,15 @@ $(document).ready(function() {
 	}
 	
 	selected_question_id = selected_question_id !="" ? selected_question_id : null;
+	
+	var authenticationOptions = {};
+	authenticationOptions[NO_AUTHENTICATION] = "No authentication required";
+	authenticationOptions[GOOGLE_AUTHENTICATION] = "Google authentication";
+	authenticationOptions[NICKNAME_AUTHENTICATION] = "Nickname authentication";
+	$.each(authenticationOptions, function(key, value) {
+		$("#newq_authentication").append($("<option></option>").attr("value", key).text(value));
+	});
+	
 	initChannel(onChannelOpen);
 	$("#page_content").show();
 });
@@ -124,9 +133,14 @@ function getQuestionItemHtml(question) {
 	html += "<br/>";
 	html += question.question + "<br/>";
 	html += isDefined(question.author) ? "<em>" + question.author + "</em><br/>" : "";
-	if (question.nickname_authentication) {
-		html += '<span class="note"><em>Nickname authentication</em></span><br/>';
+	
+	if (question.authentication_type == GOOGLE_AUTHENTICATION) {
+		html += '<span class="note"><em>Google authentication required</em></span><br/>';
 	}
+	else if (question.authentication_type == NICKNAME_AUTHENTICATION) {
+		html += '<span class="note"><em>Nickname authentication required</em></span><br/>';
+	}
+	
 	if (!question.active) {
 		html += '<span class="note"><em>Inactive</em></span><br/>';
 	}
@@ -443,6 +457,7 @@ function setActive(active) {
 function createEditQuestion() {
 	var title = $("#newq_title").val();
 	var questionText = $("#newq_question").val();
+	var authenticationType = parseInt($("#newq_authentication").val());
 	
 	if (!title || !questionText) {
 		$("#newq_info").html("Title and question required");
@@ -453,7 +468,7 @@ function createEditQuestion() {
 			"client_id": client_id,
 			"title": title,
 			"question": questionText,
-			"nickname_authentication": $("#newq_nickname_authentication").is(":checked") ? "1" : "0"			
+			"authentication_type": authenticationType
 		};
 			
 		// edit existing question
@@ -467,7 +482,7 @@ function createEditQuestion() {
 				var index = getQuestionIndex(result.question.id);
 				questions[index].title = result.question.title;
 				questions[index].question = result.question.question;
-				questions[index].nickname_authentication = result.question.nickname_authentication;
+				questions[index].authentication_type = result.question.authentication_type;
 				updateQuestionUI(result.question.id);
 				createQuestionForm();
 			}, "json");
@@ -493,7 +508,7 @@ function createQuestionForm() {
 	$("#newq_info").html("");
 	$("#newq_title").val("");
 	$("#newq_question").val("");
-	$("#newq_nickname_authentication").prop("checked", false);
+	$("#newq_authentication").val(""+NO_AUTHENTICATION);
 	$("#newq_button").val("Create new question");
 	$("#newq_button").removeData("question_id");
 }
@@ -504,7 +519,7 @@ function editQuestionForm(question_id) {
 		$("#newq_info").html("");
 		$("#newq_title").val(question.title);
 		$("#newq_question").val(question.question);
-		$("#newq_nickname_authentication").prop("checked", question.nickname_authentication);
+		$("#newq_authentication").val(""+question.authentication_type);
 		$("#newq_button").val("Update question");
 		$("#newq_button").data("question_id", question.id);
 	}

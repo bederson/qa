@@ -39,12 +39,12 @@ from db import *
 #####################
 
 class BaseHandler(webapp2.RequestHandler):
-    def init(self, questionId=None, initUser=True, adminRequired=False, initSession=True, loggingOut=False):   
+    def init(self, questionId=None, initUser=True, adminRequired=False, loggingOut=False):   
                                  
-        # Get the current browser session, if any
-        # Otherwise, create one
+        # get the current browser session, if any
+        # otherwise, create one
         self.session = gaesessions.get_current_session()
-        if initSession and self.session.sid is None:
+        if self.session.sid is None:
             self.session.start()
                     
         # Google recommends that a new connection be created to service each HTTP request, 
@@ -54,44 +54,24 @@ class BaseHandler(webapp2.RequestHandler):
         self.dbConnection = DatabaseConnection()
         self.dbConnection.connect()
         
-        # if not passed in, check if question_id is included in request
+        # get question, if any
+        # check for question_id in request, if not passed in
         if not questionId:
-            questionId = self.request.get("question_id")
-        
+            questionId = self.request.get("question_id")  
         self.question = Question.getById(self.dbConnection, questionId) if questionId else None
 
+        # get user, if any
         self.person = None
         if initUser:
-            self.initUserContext(adminRequired=adminRequired, loggingOut=loggingOut)
+            # get person and update login status, if needed
+            # if adminRequired, force check for Google authenticated instructor (question=None)
+            self.person = Person.getPerson(self.dbConnection, self.question if not adminRequired else None)                
+            if self.person and not self.person.is_logged_in:
+                self.person.login(self.dbConnection, self.question)
                             
     def destroy(self):
         if self.dbConnection:
             self.dbConnection.disconnect()
-                
-    def initUserContext(self, adminRequired=False, loggingOut=False):
-        nickname = self.request.get("nickname", None)
-        question = self.question
-        
-        # if question allows nickname authentication and nickname not provided,
-        # check if stored in session
-        if question is not None and question.nickname_authentication and not nickname:
-            questionValues = self.session.get(question.id) if self.session.has_key(question.id) else None
-            nickname = questionValues["nickname"] if questionValues else None
-
-        # force check for authenticated Google user not affiliated with a specific question
-        if adminRequired:
-            question = None
-            nickname = None
-            
-        # get person, and update login status if needed
-        self.person = Person.getPerson(self.dbConnection, question, nickname)
-
-        # only allow nickname authenticated user to login to one session
-        if self.person is not None and nickname is not None and self.person.session_sid is not None and self.person.session_sid != self.session.sid:
-            self.person = None
-        
-        if self.person is not None and not self.person.is_logged_in:
-            self.person.login(self.dbConnection)
                     
     def isUserLoggedIn(self):
         return self.person is not None and self.person.is_logged_in
@@ -114,31 +94,31 @@ class BaseHandler(webapp2.RequestHandler):
         
         # otherwise, user not logged in
         else:
-            nicknameAuthenticationAllowed = self.question is not None and self.question.nickname_authentication and not Person.isAuthor(self.question)
+            nicknameAuthenticationAllowed = self.question is not None and self.question.authentication_type == constants.NICKNAME_AUTHENTICATION and not Person.isAuthor(self.question)
             url = getLoginUrl(self.request.uri, self.question)
             urlLink = "Login w/ Nickname" if nicknameAuthenticationAllowed else "Login w/ Google Account"
                     
         template_values = {}
-        template_values['logged_in'] = json.dumps(loggedIn)
-        template_values['dev_user'] = json.dumps(True) if Person.isAdmin(self.person) else json.dumps(False) 
         template_values['user_id'] = self.person.id if loggedIn else -1
-        template_values['url_linktext'] = urlLink
-        template_values['url'] = url
+        template_values['login_logout_linktext'] = urlLink
+        template_values['login_logout_url'] = url
         template_values['msg'] = self.session.pop("msg") if self.session.has_key("msg") else ""
           
         if loggedIn:
             template_values['client_id'] = clientId
             template_values['token'] = token
-            template_values['user_login'] = self.person.authenticated_nickname if self.person.authenticated_nickname else self.person.nickname
-            template_values['user_nickname'] = self.person.nickname
+            # TODO/FIX: If no nickname available, should "Student<id>" be displayed?
+            template_values['user_login'] = self.person.authenticated_nickname if self.person.authenticated_nickname else (self.person.nickname if self.person.nickname else "Student{0}".format(self.person.id))
             template_values['admin'] = self.isAdminLoggedIn()
+            template_values['dev_user'] = json.dumps(True) if Person.isAdmin(self.person) else json.dumps(False) 
+
             
         if self.question:
             template_values["question_id"] = self.question.id
-            template_values["title"] = self.question.title
-            template_values["question"] = self.question.question
-            template_values["active"] = self.question.active
-            template_values["cascade_complete"] = self.question.cascade_complete
+            template_values["question_title"] = self.question.title
+            template_values["question_text"] = self.question.question
+            template_values["question_active"] = json.dumps(self.question.active == 1)
+            template_values["cascade_complete"] = json.dumps(self.question.cascade_complete == 1)
                 
         return template_values
     
@@ -252,7 +232,8 @@ class IdeaPageHandler(BaseHandler):
     def get(self, questionId):
         self.init(questionId=questionId)
         self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
-        templateValues = self.getDefaultTemplateValues()  
+        templateValues = self.getDefaultTemplateValues()
+        templateValues["user_nickname"] = self.person.nickname if self.person else None
         templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and self.person.authenticated_user_id is not None)
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, templateValues))
@@ -316,7 +297,7 @@ class LoginHandler(BaseHandler):
         if not self.person:
             self.person = Person.create(self.dbConnection, question=self.question)
         elif not self.person.is_logged_in:
-            self.person.login(self.dbConnection)
+            self.person.login(self.dbConnection, self.question)
         
         self.destroy()
         self.redirect(str(page) if page else (getIdeaPageUrl(self.question) if self.question else getHomePageUrl()))
@@ -332,7 +313,7 @@ class NicknameLoginHandler(BaseHandler):
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
             
-        elif not self.question.nickname_authentication:
+        elif self.question.authentication_type != constants.NICKNAME_AUTHENTICATION:
             data = { "status" : 0, "msg" : "This question does not allow nickname authentication" }
     
         elif not nickname:
@@ -352,9 +333,8 @@ class NicknameLoginHandler(BaseHandler):
                 if not self.person:
                     self.person = Person.create(self.dbConnection, question=self.question, nickname=nickname)
                 elif not self.person.is_logged_in:
-                    self.person.login(self.dbConnection)
+                    self.person.login(self.dbConnection, self.question)
 
-                self.session[self.question.id] = { "nickname": nickname }
                 data = { "status" : 1, "url" : str(page) if page else (getIdeaPageUrl(self.question) if self.question else getHomePageUrl()) }
 
         self.writeResponseAsJson(data)       
@@ -372,7 +352,7 @@ class QuestionLoginHandler(BaseHandler):
                
         else:
             if self.person is not None and not self.person.is_logged_in:
-                self.person.login(self.dbConnection)
+                self.person.login(self.dbConnection, self.question)
                             
             data = {
                 "status" : 1, 
@@ -480,7 +460,7 @@ class NewQuestionHandler(BaseHandler):
         self.init()
         title = self.request.get('title')
         questionText = self.request.get('question')
-        nicknameAuthentication = self.request.get('nickname_authentication', '0') == "1"
+        authenticationType = self.request.get('authentication_type', str(constants.GOOGLE_AUTHENTICATION))
         clientId = self.request.get('client_id')
 
         ok = self.checkRequirements(authenticatedUserRequired=True)
@@ -491,7 +471,7 @@ class NewQuestionHandler(BaseHandler):
             data = { "status" : 0, "msg" : "Title and question must must be at least 4 characters" }
                      
         else:
-            self.question = Question.create(self.dbConnection, self.person.id, title, questionText, nicknameAuthentication)
+            self.question = Question.create(self.dbConnection, self.person.id, title, questionText, authenticationType)
             data = { "status": 1, "question": self.question.toDict() }
 
         self.writeResponseAsJson(data)
@@ -502,7 +482,7 @@ class EditQuestionHandler(BaseHandler):
         self.init(adminRequired=True);
         title = self.request.get('title')
         questionText = self.request.get('question')
-        nicknameAuthentication = self.request.get('nickname_authentication', '0') == "1"
+        authenticationType = self.request.get('authentication_type', str(constants.GOOGLE_AUTHENTICATION))
         clientId = self.request.get('client_id')
         
         ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, activeQuestionRequired=False, editPrivilegesRequired=True)
@@ -516,7 +496,7 @@ class EditQuestionHandler(BaseHandler):
             properties = {
                 "title" : title,
                 "question" : questionText,
-                "nickname_authentication" : nicknameAuthentication,
+                "authentication_type" : authenticationType,
                 "id" : self.question.id
             }
             self.question.update(self.dbConnection, properties)            
@@ -529,11 +509,13 @@ class EditQuestionHandler(BaseHandler):
 
 class CopyQuestionHandler(BaseHandler):
     def post(self):
-        self.init()
+        self.init(adminRequired=True)
         clientId = self.request.get('client_id')
-
         ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True)
-        if ok:
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+        
+        else:
             new_question = Question.copy(self.dbConnection, self.question)
             data = { "status": 1, "new_question": new_question.toDict() }
 
@@ -691,7 +673,7 @@ class NewIdeaHandler(BaseHandler):
                 idea = Idea.create(self.dbConnection, self.question, self.person.id, ideaText)
                 author = { 
                     "nickname" : self.person.nickname, 
-                    "authenticated_nickname" : self.person.authenticated_nickname if not self.question.nickname_authentication else None 
+                    "authenticated_nickname" : self.person.authenticated_nickname 
                 }
                 msg = { "op": "newidea", "idea": idea.toDict(author=author) }
                 adminMsg = { "op": "newidea", "idea": idea.toDict(author=author, admin=True) }
@@ -737,56 +719,67 @@ class CascadeJobHandler(BaseHandler):
         else:
             # queue the request to save and get a new cascade job
             # (requests will timeout if not responded to within roughly 30 seconds, 
-            #  but added to a taskqueue do not have this time deadline)
-            taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "job": job, "waiting": waiting, "discuss": discuss })
+            # but taskqueues do not have this time deadline)
+            # check status of taskqueues at https://code.google.com/status/appengine since sometimes they run slow 
+            taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "user_id": self.person.id, "admin": "1" if self.isAdminLoggedIn() else "0", "job": job, "waiting": waiting, "discuss": discuss })
             data = { "status" : 1 }
                 
         self.writeResponseAsJson(data)
         self.destroy()
         
-class CascadeSaveAndGetNextJobHandler(BaseHandler):
+class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
     def post(self):
-        self.init()
-        clientId = self.request.get("client_id")
-        waiting = self.request.get("waiting", "0") == "1"
-        discuss = self.request.get("discuss", "0") == "1"
+        # this handler is called by the taskqueue
+        # since it is called by the taskqueue, and not a user, it can not access things like the current user
+        # information such as the current user must be passed into the job
+        # question_id, user_id, and admin are passed as request parameters not by parsing clientId (which should be the same)
 
-        # get person
-        questionId, personId, isAdmin = getInfoFromClient(clientId)
-        person = Person.getById(self.dbConnection, personId)
-            
-        # userRequired=True does not seem to work within taskqueue so cannot check
-        ok = self.checkRequirements(questionRequired=True) and person is not None        
+        clientId = self.request.get("client_id")
+        questionId = self.request.get("question_id")
+        personId = self.request.get("user_id")
+        isAdmin = self.request.get("admin", "0") == "1"
+        
+        dbConnection = DatabaseConnection()
+        dbConnection.connect()
+                    
+        question = Question.getById(dbConnection, questionId)
+        person = Person.getById(dbConnection, personId)
+
+        ok = question is not None and person is not None        
         if ok:          
             # save job (if any)
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
-                self.question.saveCascadeJob(self.dbConnection, jobToSave, person)
+                question.saveCascadeJob(dbConnection, jobToSave, person)
                 # if cascade complete, notify any waiting clients that categories are ready
-                if self.question.cascade_complete:
-                    stats = self.question.getCascadeStats(self.dbConnection)
-                    sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id": self.question.id, "cascade_stats" : stats })
+                if question.cascade_complete:
+                    stats = question.getCascadeStats(dbConnection)
+                    sendMessage(dbConnection, None, question, { "op": "categories", "question_id": question.id, "cascade_stats" : stats })
           
-            job = self.question.getCascadeJob(self.dbConnection, person)
+            job = question.getCascadeJob(dbConnection, person)
             jobDict = { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None
             if jobDict and "categories" in job:
                 jobDict["categories"] = job["categories"]
 
+            discuss = self.request.get("discuss", "0") == "1"
             if jobDict and discuss:
                 discussIdeas = []
                 jobDict["discuss_flags"] = []
                 for task in job["tasks"]:
                     if task.idea_id not in discussIdeas:
-                        jobDict["discuss_flags"].extend(DiscussFlag.getFlags(self.dbConnection, self.question, ideaId=task.idea_id, admin=self.isAdminLoggedIn()))
+                        jobDict["discuss_flags"].extend(DiscussFlag.getFlags(dbConnection, question, ideaId=task.idea_id, admin=isAdmin))
                     discussIdeas.append(task.idea_id)
             
-            sendMessageToClient(clientId, { "op": "job", "question_id" : self.question.id, "job": jobDict })
-            
+            sendMessageToClient(clientId, { "op": "job", "question_id" : question.id, "job": jobDict })
+
+            waiting = self.request.get("waiting", "0") == "1"
             if job and waiting:
-                Person.working(self.dbConnection, clientId)
+                Person.working(dbConnection, clientId)
                 
             if not job:
-                Person.waiting(self.dbConnection, clientId)
+                Person.waiting(dbConnection, clientId)
+                
+        dbConnection.disconnect()
                 
 class CancelCascadeJobHandler(BaseHandler):
     def post(self):
@@ -866,29 +859,33 @@ class DiscussIdeaHandler(BaseHandler):
 # Channel support
 #####################
           
-class ChannelConnectedHandler(BaseHandler):
+class ChannelConnectedHandler(webapp2.RequestHandler):
     # Notified when clients connect
     def post(self):
-        self.init(initUser=False, initSession=False)
         clientId = self.request.get("from")
         questionId, personId, isAdmin = getInfoFromClient(clientId)
-        person = Person.getById(self.dbConnection, personId)
+        helpers.log("*** CONNECT: question={0}, user={1}".format(questionId, personId))
+        dbConnection = DatabaseConnection()
+        dbConnection.connect()
+        person = Person.getById(dbConnection, personId)
         if person:
-            person.addClient(self.dbConnection, clientId) 
-        self.destroy()   
+            person.addClient(dbConnection, clientId) 
+        dbConnection.disconnect()   
             
-class ChannelDisconnectedHandler(BaseHandler):
+class ChannelDisconnectedHandler(webapp2.RequestHandler):
     # Notified when clients disconnect
     def post(self):
-        self.init(initUser=False, initSession=False)
         clientId = self.request.get("from")
         questionId, personId, isAdmin = getInfoFromClient(clientId)
-        person = Person.getById(self.dbConnection, personId)
+        helpers.log("*** DISCONNECT: question={0}, user={1}".format(questionId, personId))
+        dbConnection = DatabaseConnection()
+        dbConnection.connect()
+        person = Person.getById(dbConnection, personId)
         if person:
-            numClients = person.removeClient(self.dbConnection, clientId, returnNumClients=True)
+            numClients = person.removeClient(dbConnection, clientId, returnNumClients=True)
             if numClients == 0 and person.is_logged_in:
-                person.logout(self.dbConnection, userRequestedLogout=False)
-        self.destroy()
+                person.logout(dbConnection, userRequestedLogout=False)
+        dbConnection.disconnect()
 
 def createChannel(question, person):
     clientId = str(random.randint(1000000000000, 10000000000000))
@@ -1015,10 +1012,10 @@ Question.onMoreVerifyJobs = onMoreVerifyJobs
 
 def getLoginUrl(page, question=None):
     if question:
-        if question.nickname_authentication:
+        if question.authentication_type == constants.NICKNAME_AUTHENTICATION:
             url = "/nickname_page/" + str(question.id)
           
-        else:
+        elif question.authentication_type == constants.GOOGLE_AUTHENTICATION:
             page = page if page else getIdeaPageUrl(question)
             url = users.create_login_url("/login/" + str(question.id) + "?page=" + urllib.quote(page))
     else:

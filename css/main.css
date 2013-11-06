@@ -31,6 +31,7 @@ h2 {
 .help, .note {
 	color: #888;
 	font-size: 0.8em;
+	font-weight: normal;
 }
 
 .tooltip {
@@ -41,6 +42,10 @@ h2 {
 
 .small {
 	font-size: 0.8em;
+}
+
+.medium {
+	font-size: 0.9em;
 }
 
 .tags {
@@ -90,19 +95,19 @@ a.warning:hover {
 	overflow-y: auto;
 }
 
-/* used by discuss button */
-.image {
-	position: relative;
-	text-align: center;
-	float: left;
+.category {
+	font-weight: bold;
+	font-size: 1.0em;
 }
 
-.image_text {
-	left: 0;
-	position: absolute;
+.idea {
+	font-size: 1.0em;
+	padding: 6px;
+	margin-bottom: 5px;
+}
+
+.discuss_count {
 	text-align: center;
-	top: 22px;
-	width: 100%;
 	color: #888;
 	font-size: 0.5em;
 }
@@ -164,6 +169,10 @@ a.warning:hover {
 	margin-left: 10px;
 }
 
+.smallspaceright {
+	margin-left: 5px;
+}
+
 .spaceright {
 	margin-right: 10px;
 }
@@ -197,6 +206,10 @@ td {
 .center {
 	margin-left: auto;
 	margin-right: auto;
+}
+
+.left {
+	float: left;
 }
 
 .right {

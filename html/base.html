@@ -33,17 +33,7 @@ limitations under the License.
 	<script type="text/javascript">
 		var client_id = "{{ client_id }}";
 		var token = "{{ token }}";
-		var logged_in = {{ logged_in }};
 		var user_id = {{ user_id }};
-		var user_login = "{{ user_login }}";		
-		var user_nickname = "{{ user_nickname }}";
-		var dev_user = {{ dev_user }};
-	
-		$(document).ready(function() {
-			if (logged_in) {
-				$("#user_login").html(user_login ? user_login : user_nickname);
-			}
-		});
 	</script>
 
 	{% block scripts %}{% endblock %}
@@ -55,8 +45,8 @@ limitations under the License.
 			<a id="home_link" class="xparty_link" href="/">XParty</a>
 		</div>
 		<div style="float:right; width:45%; text-align:right">
-			<span id="user_login"></span>
-			<a id="login_logout_link" class="xparty_link" href="{{ url }}">{{ url_linktext }}</a>
+			<span id="user_login">{{ user_login }}</span>
+			<a id="login_logout_link" class="xparty_link" href="{{ login_logout_url }}">{{ login_logout_linktext }}</a>
 		</div>
 	<div style="clear:both"></div>
 	</div>

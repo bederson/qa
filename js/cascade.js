@@ -438,7 +438,7 @@ function initEventHandlers() {
 	});
 
 	$("#admin_button").click(function() {
-		if (logged_in) {
+		if (user_id != -1) {
 			unloadPage(getAdminPageUrl(question_id));
 		}
 		else {
@@ -447,7 +447,7 @@ function initEventHandlers() {
 	});
 	
 	$(".xparty_link").click(function() {
-		if (logged_in) {
+		if (user_id != -1) {
 			unloadPage($(this).attr("href"));
 			return false;
 		}

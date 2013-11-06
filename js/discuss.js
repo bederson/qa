@@ -109,15 +109,18 @@ function discussButtonHtml(ideaId, customCss) {
 	if (!SHOW_DISCUSS_BUTTONS) {
 		return "";
 	}
-		
-	customCss = isDefined(customCss) ? "style='"+customCss+"'" : ""
+
 	var isPersonal = isPersonalDiscussIdea(ideaId);
-	var buttonImage = isPersonal ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
-	var html = "<div class='image' " + customCss + ">";
-	html += "<img name='discuss_idea_"+ideaId+"_button' class='discuss_idea_"+ideaId+"_button discuss_idea_button' src='"+buttonImage+"' style='vertical-align:middle' /> ";
+	var buttonImage = isPersonal ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;		
+	
+	var styleCss = showFlagCount ? "width:35px;" : "width:25px;";
+	styleCss += isDefined(customCss) ? customCss : "";
+	
+	var html = "<div class='left' style='" + styleCss + "'>";
+	html += "<img name='discuss_idea_"+ideaId+"_button' class='discuss_idea_"+ideaId+"_button discuss_idea_button center' style='display:block' src='"+buttonImage+"' />";
 	if (showFlagCount) {
 		var count = getDiscussFlagCount(ideaId);
-		html += "<div name='discuss_idea_"+ideaId+"_count' class='discuss_idea_"+ideaId+"_count image_text'>";
+		html += "<div class='discuss_idea_"+ideaId+"_count discuss_count'>";
 		html += count > 0 ? "+" + count : "";
 		html += "</div> ";
 	}

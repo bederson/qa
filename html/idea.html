@@ -23,9 +23,10 @@ limitations under the License.
 	<script type="text/javascript" src="/js/idea.js"></script>
 	<script>
 		var question_id = "{{ question_id }}";
+		var question_active = {{ question_active }};
+		var cascade_complete = {{ cascade_complete }};
+		var user_nickname = "{{ user_nickname }}";
 		var change_nickname_allowed = {{ change_nickname_allowed }};
-		var active = parseInt("{{ active }}");
-		var cascade_complete = parseInt("{{ cascade_complete }}");
 	</script>
 {% endblock %}
 
@@ -40,10 +41,10 @@ limitations under the License.
 	<div id="page_content">
 		<div id="box_area" class="center">
 			<div class="green_highlight smallspacebelow" style="padding:8px">
-				<h1 id="title" class="nospacebelow">{{ title }}</h1>
+				<h1 id="title" class="nospacebelow">{{ question_title }}</h1>
 			</div>
 			<div id="answer_box" class="white_box">
-				<h2 id="question" class="nospaceabove spacebelow">{{ question }}</h2>
+				<h2 id="question" class="nospaceabove spacebelow">{{ question_text }}</h2>
 				<div id="help" class="help spacebelow">
 					Only put a single thing here. If you have other things to say, submit multiple times.
 				</div>

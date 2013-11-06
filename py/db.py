@@ -145,7 +145,7 @@ class DBObject(object):
            
 class Question(DBObject):
     table = "questions"
-    fields = [ "id", "title", "question", "nickname_authentication", "user_id", "active", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_s", "cascade_t", "cascade_complete" ]  
+    fields = [ "id", "title", "question", "authentication_type", "user_id", "active", "cascade_k", "cascade_k2", "cascade_m", "cascade_p", "cascade_s", "cascade_t", "cascade_complete" ]  
     onCascadeSettingsChanged = None
     onNewCategory = None
     onFitComplete = None
@@ -155,7 +155,7 @@ class Question(DBObject):
         self.id = None
         self.title = None
         self.question = None
-        self.nickname_authentication = False
+        self.authentication_type = constants.GOOGLE_AUTHENTICATION
         self.user_id = None
         self.authenticated_user_id = None # stored in users table
         self.active = 0
@@ -168,7 +168,7 @@ class Question(DBObject):
         self.cascade_complete = 0
         
     @staticmethod
-    def create(dbConnection, authorId, title, questionText, nicknameAuthentication=False):
+    def create(dbConnection, authorId, title, questionText, authenticationType=constants.GOOGLE_AUTHENTICATION):
         # create unique 5 digit id
         # TODO: need better way to generate unique question ids
         idCreated = False
@@ -182,12 +182,12 @@ class Question(DBObject):
         question.id = questionId
         question.title = title
         question.question = questionText
-        question.nickname_authentication = nicknameAuthentication
+        question.authentication_type = authenticationType
         question.user_id = authorId
         question.active = 1
             
-        sql = "insert into questions (id, title, question, nickname_authentication, user_id, active) values (%s, %s, %s, %s, %s, %s)"
-        dbConnection.cursor.execute(sql, (question.id, question.title, question.question, question.nickname_authentication, question.user_id, question.active))
+        sql = "insert into questions (id, title, question, authentication_type, user_id, active) values (%s, %s, %s, %s, %s, %s)"
+        dbConnection.cursor.execute(sql, (question.id, question.title, question.question, question.authentication_type, question.user_id, question.active))
         dbConnection.conn.commit()
             
         return question
@@ -207,7 +207,7 @@ class Question(DBObject):
     def copy(dbConnection, question):
         # create new question
         # (cascade_* data and question_discuss data not copied to new question)
-        newQuestion = Question.create(dbConnection, question.user_id, "{0} (Copy)".format(question.title), question.question, question.nickname_authentication)
+        newQuestion = Question.create(dbConnection, question.user_id, "{0} (Copy)".format(question.title), question.question, question.authentication_type)
 
         # copy users to new question
         newUserIds = {}
@@ -442,10 +442,13 @@ class Question(DBObject):
                                         
     @staticmethod
     def getById(dbConnection, questionId):
-        sql = "select {0}, authenticated_user_id from questions,users where questions.user_id=users.id and questions.id=%s".format(Question.fieldsSql())
-        dbConnection.cursor.execute(sql, (questionId))
-        row = dbConnection.cursor.fetchone()
-        return Question.createFromData(row)
+        question = None
+        if questionId:
+            sql = "select {0}, authenticated_user_id from questions,users where questions.user_id=users.id and questions.id=%s".format(Question.fieldsSql())
+            dbConnection.cursor.execute(sql, (questionId))
+            row = dbConnection.cursor.fetchone()
+            question = Question.createFromData(row)
+        return question
 
     @staticmethod                
     def getByUser(dbConnection):
@@ -498,23 +501,32 @@ class Person(DBObject):
     
     @staticmethod
     def create(dbConnection, question=None, nickname=None):
+        # if Person authenticated via Google, make sure user logged in
         user = users.get_current_user()
-        authenticatedUserId = user.user_id() if user else None
-        authenticatedNickname = user.nickname() if user else None
-
-        # Person must be either an authenticated Google user
-        # or login with a nickname (if the question allows)
-        if not authenticatedUserId and not nickname:
+        if question and question.authentication_type == constants.GOOGLE_AUTHENTICATION and not user:
             return None
         
+        # if Person authenticated via nickname, make sure nickname provided
+        if question and question.authentication_type == constants.NICKNAME_AUTHENTICATION and not nickname:
+            return None
+
+        # if authenticated via Google to a question with Google authentication, 
+        # or as an instructor (not to any question in particular), get authenticated info
+        authenticatedUserId = None
+        authenticatedNickname = None
+        if user and (not question or question.authentication_type == constants.GOOGLE_AUTHENTICATION):
+            authenticatedUserId = user.user_id()
+            authenticatedNickname = user.nickname()       
+
         session = gaesessions.get_current_session()
+        helpers.log("*** SESSION: {0} (Person.create)".format(session.sid if session else None))
         
         person = Person()
         person.authenticated_user_id = authenticatedUserId
         person.authenticated_nickname = authenticatedNickname
-        person.nickname = nickname if nickname else (Person.cleanNickname(user.nickname()) if user else None)
+        person.nickname = nickname if nickname else (Person.cleanNickname(authenticatedNickname) if authenticatedNickname else None)
         person.question_id = question.id if question else None
-        person.session_sid = session.sid if session and authenticatedUserId is None else None
+        person.session_sid = session.sid if session and question and (question.authentication_type == constants.NO_AUTHENTICATION or question.authentication_type == constants.NICKNAME_AUTHENTICATION) else None
           
         sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id, session_sid, latest_login_timestamp, latest_logout_timestamp) values (%s, %s, %s, %s, %s, now(), null)"
         dbConnection.cursor.execute(sql, (person.authenticated_user_id, person.authenticated_nickname, person.nickname, person.question_id, person.session_sid))
@@ -534,20 +546,14 @@ class Person(DBObject):
             person.is_logged_in = person.latest_login_timestamp is not None and person.latest_logout_timestamp is None
         return person
                          
-    def login(self, dbConnection):
+    def login(self, dbConnection, question=None):
         if not self.is_logged_in:
+            # update session id for students using no authentication or nickname authentication
             session = gaesessions.get_current_session()
-            updateValues = ()
-            sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null"
-            # store session id with nickname authenticated users
-            if self.authenticated_user_id is None and session is not None:
-                sql += ", session_sid=%s"
-                updateValues += (session.sid,)
-            sql += " where id=%s"
-            updateValues += (self.id,)
-            dbConnection.cursor.execute(sql, updateValues)
+            self.session_sid = session.sid if session and question and (question.authentication_type == constants.NO_AUTHENTICATION or question.authentication_type == constants.NICKNAME_AUTHENTICATION) else None
+            sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null, session_sid=%s where id=%s"
+            dbConnection.cursor.execute(sql, (self.session_sid, self.id))
             dbConnection.conn.commit()
-            self.session_sid = session.sid if session else None
             self.is_logged_in = True
             
             if Person.onLogin:
@@ -555,19 +561,26 @@ class Person(DBObject):
   
     def logout(self, dbConnection, userRequestedLogout=True):
         if self.is_logged_in:
-            # if a Google authenticated user is actively logging out (clicked on Logout), 
-            # modify all records associated with this user            
-            if userRequestedLogout and self.authenticated_user_id:
-                sql = "update users set latest_logout_timestamp=now(), session_sid=null where authenticated_user_id=%s"
-                dbConnection.cursor.execute(sql, (self.authenticated_user_id))
+            # user actively logged out (clicked on Logout)
+            if userRequestedLogout:
+                # if Google authenticated user, modify *all* logged in records associated with this user            
+                if self.authenticated_user_id:
+                    sql = "update users set latest_logout_timestamp=now(), session_sid=null where authenticated_user_id=%s and latest_logout_timestamp is null"
+                    dbConnection.cursor.execute(sql, (self.authenticated_user_id))
+                # otherwise, modify this specific user instance
+                else:
+                    sql = "update users set latest_logout_timestamp=now(), session_sid=null where id=%s"
+                    dbConnection.cursor.execute(sql, (self.id))
+                
+                self.session_sid = None     
     
-            # otherwise, logout this specific user instance
+            # user passively logged out (closed browser, etc.)
+            # do not change session_sid since they might go back again
             else:
-                sql = "update users set latest_logout_timestamp=now(), session_sid=null where id=%s"
+                sql = "update users set latest_logout_timestamp=now() where id=%s"
                 dbConnection.cursor.execute(sql, (self.id))
                         
             dbConnection.conn.commit()
-            self.session_sid = None     
             self.is_logged_in = False
             
             if Person.onLogout:
@@ -610,7 +623,10 @@ class Person(DBObject):
     @staticmethod
     def getIdentity(nickname, authenticatedNickname, admin=False):
         identity = {}
-        identity["user_nickname"] = nickname if nickname else "Anonymous"
+        # TODO/FIX/WED: teacher login url view
+        # TODO/FIX/WED: allow user to create nickname - doesn't have to be unique
+        # TODO/FIX/WED: display Anonymous or Student<id> or nothing?
+        identity["user_nickname"] = nickname if nickname else None
         identity["user_identity"] = None
         if admin and authenticatedNickname:
             hasHiddenIdentity = nickname and Person.cleanNickname(authenticatedNickname) != nickname
@@ -636,11 +652,7 @@ class Person(DBObject):
         sql = "update user_clients set waiting_since=null where client_id=%s"
         dbConnection.cursor.execute(sql, (clientId))
         dbConnection.conn.commit()
-    
-    @staticmethod                        
-    def isAdmin(person=None):
-        return users.is_current_user_admin() or (person and person.admin == 1)
-    
+        
     @staticmethod
     def isAuthor(question):
         # BEHAVIOR: check if currently authenticated user is the question author
@@ -648,36 +660,44 @@ class Person(DBObject):
         user = users.get_current_user()
         return user and question and question.authenticated_user_id and user.user_id()==question.authenticated_user_id
    
+    def isAdmin(self):
+        return self.admin == 1
+    
     @staticmethod
-    def getPerson(dbConnection, question=None, nickname=None):
+    def getPerson(dbConnection, question=None):
         person = None
         user = users.get_current_user()
 
-        # if question allows nickname authentication and nickname given, check for user
-        # question author does not have to login with nickname if already authenticated
-        if question is not None and question.nickname_authentication and nickname is not None and not Person.isAuthor(question):
-            sql = "select {0} from users where question_id=%s and nickname=%s".format(Person.fieldsSql())
-            dbConnection.cursor.execute(sql, (question.id, nickname))
-            row = dbConnection.cursor.fetchone()
-            person = Person.createFromData(row)
-                    
-        # if authenticated user logged in, check for user     
-        if user:
+        # find Google authenticated instructor
+        if not question and user:
             sql = "select {0} from users where authenticated_user_id=%s".format(Person.fieldsSql())
-            sqlValues = (user.user_id())
-            if question:
-                sql += " and question_id=%s"
-                # TODO: compile error when trying to add item to sqlValues; must have syntax wrong
-                sqlValues = (user.user_id(), question.id)
-
-            dbConnection.cursor.execute(sql, sqlValues)
+            dbConnection.cursor.execute(sql, (user.user_id()))
+            row = dbConnection.cursor.fetchone()
+            person = Person.createFromData(row)
+        
+        # find Google authenticated student
+        elif question and question.authentication_type==constants.GOOGLE_AUTHENTICATION and user:
+            sql = "select {0} from users where question_id=%s and authenticated_user_id=%s".format(Person.fieldsSql())
+            dbConnection.cursor.execute(sql, (question.id, user.user_id()))
             row = dbConnection.cursor.fetchone()
             person = Person.createFromData(row)
 
-            # if authenticated user is logging in to question for the first time, create user for question
-            if not person and question is not None:
+            # if not found, create new one
+            if not person:
                 person = Person.create(dbConnection, question=question)
-                
+                    
+        # find student by session
+        elif question and (question.authentication_type==constants.NO_AUTHENTICATION or question.authentication_type==constants.NICKNAME_AUTHENTICATION):
+            session = gaesessions.get_current_session()
+            sql = "select {0} from users where question_id=%s and session_sid=%s".format(Person.fieldsSql())
+            dbConnection.cursor.execute(sql, (question.id, session.sid))
+            row = dbConnection.cursor.fetchone()
+            person = Person.createFromData(row)            
+            
+            # if not found and no authentication required, create new one
+            if not person and question.authentication_type==constants.NO_AUTHENTICATION:
+                person = Person.create(dbConnection, question=question)
+                        
         return person
      
     @staticmethod
@@ -770,7 +790,7 @@ class Idea(DBObject):
     @staticmethod
     def getByQuestion(dbConnection, question, person, includeCreatedOn=False):
         ideas = []
-        if question:
+        if question and person:
             sql = "select {0},{1},question_ideas.created_on as idea_created_on from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
@@ -778,10 +798,10 @@ class Idea(DBObject):
                 idea = Idea.createFromData(row)
                 # include author info
                 author = {
-                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
+                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
                     "nickname" : row[Person.tableField("nickname")]
                 }
-                ideaDict = idea.toDict(author=author, admin=Person.isAdmin(person) or Person.isAuthor(question))
+                ideaDict = idea.toDict(author=author, admin=person.isAdmin() or Person.isAuthor(question))
                 if includeCreatedOn:
                     ideaDict["created_on"] = row["idea_created_on"]
                                            
@@ -818,10 +838,10 @@ class Idea(DBObject):
                 idea = Idea.createFromData(row)
                 ideaId = idea.id
                 ideaAuthor = {
-                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")] if not question.nickname_authentication else None,
+                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
                     "nickname" : row[Person.tableField("nickname")]
                 }
-                idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin(person) or Person.isAuthor(question))
+                idea = idea.toDict(author=ideaAuthor, admin=person.isAdmin() or Person.isAuthor(question))
                 if includeCreatedOn:
                     idea["created_on"] = row["idea_created_on"]
                     
@@ -1984,6 +2004,7 @@ class DiscussFlag(DBObject):
           
 # TODO / DB: no longer using the following db fields (not deleted from public database):
 #    questions: phase, cascade_iteration, cascade_step, cascade_step_count
+#    questions: nickname_authentication (but not until replaced with authentication_type)
 #    cascade_stats: iteration_count, step[1-5]_job_count, step[1-5]_duration, step[4-5]_unsaved_count
 #    cascade_times: delete table
 #    cascade_suggested_categories: cascade_iteration

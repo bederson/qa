@@ -23,6 +23,7 @@ limitations under the License.
 	<script type="text/javascript" src="/js/admin.js"></script>
 	<script>
 		var selected_question_id = "{{ question_id }}";
+		var dev_user = {{ dev_user }};
 	</script>
 {% endblock %}
 
@@ -62,8 +63,7 @@ limitations under the License.
 		<tr>
 			<td valign="top">Options</td>
 			<td class="padbottom">
-				<input id="newq_nickname_authentication" type="checkbox" name="nickname_authentication">Nickname authentication<br>
-				<span class="note">Google authentication required by default</span>
+			<select id="newq_authentication" name="newq_authentication"></select>
 			</td>
 		</tr>
 		<tr>
