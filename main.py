@@ -29,12 +29,12 @@ app = webapp2.WSGIApplication([
 	('/', MainPageHandler),
     ('/nickname_page/([0-9]+)', NicknameLoginPageHandler),
     ('/idea/([0-9]+)', IdeaPageHandler),
+    ('/([0-9]+)', IdeaPageHandler),
     ('/cascade/([0-9]+)', CascadePageHandler),
     ('/results/([0-9]+)', ResultsPageHandler),
     ('/results_test/([0-9]+)', ResultsTestPageHandler),
     ('/start/([0-9]+)', StartPageHandler),
-    ('/admin', AdminPageHandler), # TODO/FIX: need to look up regex for option / at end
-    ('/admin/', AdminPageHandler),
+    ('/admin[/]*', AdminPageHandler),
     ('/admin/([0-9]+)', AdminPageHandler),
         
     ('/login', LoginHandler),

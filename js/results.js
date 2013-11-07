@@ -284,7 +284,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 				
 function ideaAsHtml(idea, parent, indent) {
 	parent = isDefined(parent) ? parent : null;
-	indent = isDefined(indent) ? indent : DEFAULT_IDEA_INDENT;
+	indent = isDefined(indent) ? indent : 0;
 
 	var alsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
 	if (alsoIn.length>0) {
@@ -646,8 +646,8 @@ function handleIdea(data) {
 	var idea = data.idea;
 	uncategorizedIdeas.push(idea);
 	numIdeas++;
-	var html = ideaAsHtml(idea);
-	$("#new_ideas").prepend(html);
+	var newHtml = ideaAsHtml(idea);
+	$("#new_ideas").html(newHtml + $("#new_ideas").html());
 	initIdeaHandlers(idea.id);
 	updateStats();
 }

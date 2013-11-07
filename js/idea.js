@@ -144,6 +144,9 @@ function displayNicknameArea(editableNickname) {
 					return;
 				}
 				user_nickname = result.user.nickname;
+				if (result.authentication_type != GOOGLE_AUTHENTICATION) {
+					$("#user_login").html(user_nickname);
+				}
 				displayNicknameArea();
 			}, "json");
 		});  

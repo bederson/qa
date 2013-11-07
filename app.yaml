@@ -1,6 +1,7 @@
 #application: qa-umd
 #version: 8
 
+# free version so small quotas
 #application: xparty-umd
 #version: 8
 

@@ -79,7 +79,7 @@ class BaseHandler(webapp2.RequestHandler):
     def isAdminLoggedIn(self):
         return Person.isAdmin(self.person) or (self.question is not None and Person.isAuthor(self.question))
     
-    def getDefaultTemplateValues(self, connect=True):
+    def getDefaultTemplateValues(self, connect=True, adminConnect=False):
         """Return a dictionary of default template values""" 
         
         # check if user logged in 
@@ -87,7 +87,7 @@ class BaseHandler(webapp2.RequestHandler):
         if loggedIn:
             # create a new channel if connect is true
             if connect:
-                clientId, token = createChannel(self.question, self.person)
+                clientId, token = createChannel(self.question if not adminConnect else None, self.person)
             
             url = getLogoutUrl(self.question)    
             urlLink = 'Logout'
@@ -108,8 +108,7 @@ class BaseHandler(webapp2.RequestHandler):
         if loggedIn:
             template_values['client_id'] = clientId
             template_values['token'] = token
-            # TODO/FIX: If no nickname available, should "Student<id>" be displayed?
-            template_values['user_login'] = self.person.authenticated_nickname if self.person.authenticated_nickname else (self.person.nickname if self.person.nickname else "Student{0}".format(self.person.id))
+            template_values['user_login'] = self.person.getLogin()
             template_values['admin'] = self.isAdminLoggedIn()
             template_values['dev_user'] = json.dumps(True) if Person.isAdmin(self.person) else json.dumps(False) 
 
@@ -234,8 +233,10 @@ class IdeaPageHandler(BaseHandler):
         self.init(questionId=questionId)
         self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
-        templateValues["user_nickname"] = self.person.nickname if self.person else None
-        templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and self.person.authenticated_user_id is not None)
+        templateValues["user_nickname"] = self.person.getNickname() if self.person else None
+        # allow Google authenticated students and non-authenticated students to change nickname
+        # nicknames for non-authenticated students do not have to be unique
+        templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and (self.question.authentication_type==constants.GOOGLE_AUTHENTICATION or self.question.authentication_type==constants.NO_AUTHENTICATION))
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -271,15 +272,7 @@ class AdminPageHandler(BaseHandler):
     def get(self, questionId=None):
         self.init(adminRequired=True, questionId=questionId)
         self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True, questionId=questionId)
-        # set question to None so not used when creating channel client id
-        # but if one passed in, it has already been checked for validity
-        self.question = None
-        templateValues = self.getDefaultTemplateValues()
-        
-        # used to indicate which question should be selected (if any)
-        if questionId:
-            templateValues["question_id"] = questionId
-
+        templateValues = self.getDefaultTemplateValues(adminConnect=True)
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -293,19 +286,9 @@ class StartPageHandler(BaseHandler):
         if ok:
             startUrl = self.request.host_url
             startUrl = startUrl.replace("http://","")
-            startUrl += getIdeaPageUrl(self.question)
+            startUrl += getIdeaPageUrl(self.question, short=True)
         
-        # set question to None so not used when creating login url
-        # but if one passed in, it has already been checked for validity
-        selectedQuestion = self.question
-        self.question = None
-        
-        templateValues = self.getDefaultTemplateValues()
-        if ok:
-            templateValues["question_id"] = selectedQuestion.id
-            templateValues["question_title"] = selectedQuestion.title
-            templateValues["question_text"] = selectedQuestion.question
-            
+        templateValues = self.getDefaultTemplateValues(adminConnect=True)
         templateValues["start_url"] = startUrl
         path = os.path.join(os.path.dirname(__file__), '../html/start.html')
         self.response.out.write(template.render(path, templateValues))
@@ -431,12 +414,12 @@ class NicknameHandler(BaseHandler):
         elif any((c in specialChars) for c in nickname):
             data = { "status" : 0, "msg" : "Nickname can not contain " + "".join(specialChars) }
                 
-        elif Person.doesNicknameExist(self.dbConnection, self.question.id, nickname):
+        elif self.question.authentication_type != constants.NO_AUTHENTICATION and Person.doesNicknameExist(self.dbConnection, self.question.id, nickname):
             data = { "status" : 0, "msg" : "Nickname already exists (" + nickname + ")" }
                             
         else:
             self.person.update(self.dbConnection, { "nickname" : nickname, "id" : self.person.id })           
-            data = { "status" : 1, "question_id": self.question.id, "user" : self.person.toDict() }
+            data = { "status" : 1, "question_id": self.question.id, "authentication_type": self.question.authentication_type, "user" : self.person.toDict() }
             message = {
                 "op": "nickname",
                 "user": self.person.toDict()
@@ -699,7 +682,8 @@ class NewIdeaHandler(BaseHandler):
             ideaText = self.request.get('idea')                
             if ideaText and ideaText != "":
                 idea = Idea.create(self.dbConnection, self.question, self.person.id, ideaText)
-                author = { 
+                author = {
+                    "id" : self.person.id,
                     "nickname" : self.person.nickname, 
                     "authenticated_nickname" : self.person.authenticated_nickname 
                 }
@@ -1061,9 +1045,12 @@ def getLogoutUrl(question=None):
 def getHomePageUrl():
     return "/"
 
-def getIdeaPageUrl(question=None):
-    url = "/idea"
-    url += "/" + str(question.id) if question else ""
+def getIdeaPageUrl(question=None, short=False):
+    if short and question:
+        url = "/" + str(question.id)       
+    else:
+        url = "/idea"
+        url += "/" + str(question.id) if question else ""
     return url
 
 def getCascadePageUrl(question=None):

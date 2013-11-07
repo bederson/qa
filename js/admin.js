@@ -35,7 +35,8 @@ $(document).ready(function() {
 	var authenticationOptions = {};
 	authenticationOptions[NO_AUTHENTICATION] = "No authentication required";
 	authenticationOptions[GOOGLE_AUTHENTICATION] = "Google authentication";
-	authenticationOptions[NICKNAME_AUTHENTICATION] = "Nickname authentication";
+	// More testing needed before enabling
+	//authenticationOptions[NICKNAME_AUTHENTICATION] = "Nickname authentication";
 	$.each(authenticationOptions, function(key, value) {
 		$("#newq_authentication").append($("<option></option>").attr("value", key).text(value));
 	});
@@ -382,7 +383,7 @@ function createCategories() {
 	}
 	var data = {
 		"client_id": client_id,
-		"question_id": question.id,
+		"question_id": question.id
 	};
 	$.post("/generate_categories", data, function(result) {
 		if (result.status == 0) {
@@ -400,7 +401,7 @@ function createTestCategories() {
 	}
 	var data = {
 		"client_id": client_id,
-		"question_id": question.id,
+		"question_id": question.id
 	};
 	$.post("/generate_test_categories", data, function(result) {
 		if (result.status == 0) {

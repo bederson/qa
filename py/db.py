@@ -612,7 +612,24 @@ class Person(DBObject):
         dbConnection.cursor.execute(sql)
         rows = dbConnection.cursor.fetchall()
         return [ row["client_id"] for row in rows ]
-                                                                                      
+   
+    def getNickname(self):
+        # if no nickname available, use Student<id>
+        return self.nickname if self.nickname else "Student{0}".format(self.id) if self.id else None
+    
+    def getLogin(self):
+        return self.authenticated_nickname if self.authenticated_nickname else self.getNickname()
+
+    def getIdentity(self, admin=False):
+        identity = {}        
+        identity["user_nickname"] = self.getNickname()
+        identity["user_identity"] = None
+        if admin and self.authenticated_nickname:
+            hasHiddenIdentity = self.nickname and Person.cleanNickname(self.authenticated_nickname) != self.nickname
+            if hasHiddenIdentity:
+                identity["user_identity"] = self.authenticated_nickname
+        return identity
+            
     @staticmethod
     def doesNicknameExist(dbConnection, questionId, nickname):
         sql = "select {0} from users where question_id=%s and nickname=%s".format(Person.fieldsSql())
@@ -620,20 +637,6 @@ class Person(DBObject):
         row = dbConnection.cursor.fetchone()
         return row is not None
     
-    @staticmethod
-    def getIdentity(nickname, authenticatedNickname, admin=False):
-        identity = {}
-        # TODO/FIX/WED: teacher login url view
-        # TODO/FIX/WED: allow user to create nickname - doesn't have to be unique
-        # TODO/FIX/WED: display Anonymous or Student<id> or nothing?
-        identity["user_nickname"] = nickname if nickname else None
-        identity["user_identity"] = None
-        if admin and authenticatedNickname:
-            hasHiddenIdentity = nickname and Person.cleanNickname(authenticatedNickname) != nickname
-            if hasHiddenIdentity:
-                identity["user_identity"] = authenticatedNickname
-        return identity
-            
     @staticmethod
     def cleanNickname(nickname=None):
         cleanedNickname = nickname
@@ -798,6 +801,7 @@ class Idea(DBObject):
                 idea = Idea.createFromData(row)
                 # include author info
                 author = {
+                    "id" : row[Person.tableField("id")],
                     "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
                     "nickname" : row[Person.tableField("nickname")]
                 }
@@ -838,6 +842,7 @@ class Idea(DBObject):
                 idea = Idea.createFromData(row)
                 ideaId = idea.id
                 ideaAuthor = {
+                    "id" : row[Person.tableField("id")],
                     "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
                     "nickname" : row[Person.tableField("nickname")]
                 }
@@ -897,9 +902,11 @@ class Idea(DBObject):
     def toDict(self, author=None, admin=False):
         objDict = super(Idea, self).toDict()
         if author:
-            nickname = author["nickname"] if "nickname" in author else None
-            authenticatedNickname = author["authenticated_nickname"] if "authenticated_nickname" in author else None
-            identity = Person.getIdentity(nickname, authenticatedNickname, admin)
+            person = Person()
+            person.id = author["id"] if "id" in author else None
+            person.nickname = author["nickname"] if "nickname" in author else None
+            person.authenticated_nickname = author["authenticated_nickname"] if "authenticated_nickname" in author else None
+            identity = person.getIdentity(admin=admin)
             objDict["author"] = identity["user_nickname"]
             objDict["author_identity"] = identity["user_identity"]             
         return objDict
@@ -1944,7 +1951,7 @@ class DiscussFlag(DBObject):
         discuss.question_id = question.id
         discuss.idea_id = ideaId
         discuss.user_id = person.id
-        identity = Person.getIdentity(person.nickname, person.authenticated_nickname, admin)
+        identity = person.getIdentity(admin=admin)
         discuss.user_nickname = identity["user_nickname"]
         discuss.user_identity = identity["user_identity"]
         
@@ -1960,7 +1967,10 @@ class DiscussFlag(DBObject):
     def createFromData(cls, data, admin=False):
         discuss = super(DiscussFlag, cls).createFromData(data)
         if "nickname" in data and "authenticated_nickname" in data:
-            identity = Person.getIdentity(data["nickname"], data["authenticated_nickname"], admin)
+            person = Person()
+            person.nickname = data["nickname"]
+            person.authenticated_nickname = data["authenticated_nickname"]
+            identity = person.getIdentity(admin=admin)
             discuss.user_nickname = identity["user_nickname"]
             discuss.user_identity = identity["user_identity"]
         else:
@@ -1996,7 +2006,7 @@ class DiscussFlag(DBObject):
         # may already be defined if created with admin=True
         # used when sending discuss messages between admin and non-admin users
         if person:
-            identity = Person.getIdentity(person.nickname, person.authenticated_nickname, admin)
+            identity = person.getIdentity(admin=admin)
             objDict["user_nickname"] = identity["user_nickname"]
             objDict["user_identity"] = identity["user_identity"]
 
