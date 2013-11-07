@@ -96,7 +96,6 @@ class BaseHandler(webapp2.RequestHandler):
         else:
             nicknameAuthenticationAllowed = self.question is not None and self.question.authentication_type == constants.NICKNAME_AUTHENTICATION and not Person.isAuthor(self.question)
             url = getLoginUrl(self.request.uri, self.question)
-            helpers.log("URL={0}, {1}".format(self.request.uri, self.question))
             urlLink = "Login w/ Nickname" if nicknameAuthenticationAllowed else "Login w/ Google Account"
                     
         template_values = {}
@@ -876,7 +875,6 @@ class ChannelConnectedHandler(webapp2.RequestHandler):
     def post(self):
         clientId = self.request.get("from")
         questionId, personId, isAdmin = getInfoFromClient(clientId)
-        helpers.log("*** CONNECT: question={0}, user={1}".format(questionId, personId))
         dbConnection = DatabaseConnection()
         dbConnection.connect()
         person = Person.getById(dbConnection, personId)
@@ -889,7 +887,6 @@ class ChannelDisconnectedHandler(webapp2.RequestHandler):
     def post(self):
         clientId = self.request.get("from")
         questionId, personId, isAdmin = getInfoFromClient(clientId)
-        helpers.log("*** DISCONNECT: question={0}, user={1}".format(questionId, personId))
         dbConnection = DatabaseConnection()
         dbConnection.connect()
         person = Person.getById(dbConnection, personId)

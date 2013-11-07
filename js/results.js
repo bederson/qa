@@ -37,6 +37,7 @@ var primaryCategories = {};
 var showExpanded = true;
 var showAlsoIn = false;
 var hasAlsoIn = false;
+var highlightAllDiscuss = false;
 
 var question = null;
 var categorizedIdeas = [];
@@ -86,6 +87,11 @@ function onChannelOpen() {
 	$("#single_category_cb").click(function() {
 		singleCategoryOnly = $(this).is(":checked");
 		initDisplayCategories();
+		displayIdeas();
+	});
+	
+	$("#highlight_discuss_cb").click(function() {
+		highlightAllDiscuss = $(this).is(":checked");
 		displayIdeas();
 	});
 
@@ -294,7 +300,7 @@ function ideaAsHtml(idea, parent, indent) {
 		}
 	}
 	
-	var highlightClass = isQuestionAuthor && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
+	var highlightClass = highlightAllDiscuss && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
 	var html = "<div class='left idea idea_" + idea.id + highlightClass + "' style='margin-left:"+indent+"px;'>";	
 	html += discussButtonHtml(idea.id);
 	html += "<div style='margin-left:40px;'>";
@@ -681,7 +687,7 @@ function handleDiscussIdea(data) {
 }
 
 function onClickDiscuss(questionId, ideaId, add) {
-	if (isQuestionAuthor && questionId == question.id) {
+	if (highlightAllDiscuss && questionId == question.id) {
 		var ideaSelector = $(".idea_"+ideaId);
 		var count = getDiscussFlagCount(ideaId);
 		if (count > 0 && !ideaSelector.hasClass("discuss_highlight")) {

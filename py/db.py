@@ -519,7 +519,6 @@ class Person(DBObject):
             authenticatedNickname = user.nickname()       
 
         session = gaesessions.get_current_session()
-        helpers.log("*** SESSION: {0} (Person.create)".format(session.sid if session else None))
         
         person = Person()
         person.authenticated_user_id = authenticatedUserId

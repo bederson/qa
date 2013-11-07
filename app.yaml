@@ -1,12 +1,12 @@
 #application: qa-umd
-#version: 8
+#version: 9
+
+application: qa-umd-test
+version: dev
 
 # free version so small quotas
 #application: xparty-umd
 #version: 8
-
-application: qa-umd-test
-version: dev
 
 runtime: python27
 api_version: 1
