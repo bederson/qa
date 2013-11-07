@@ -46,6 +46,8 @@ class BaseHandler(webapp2.RequestHandler):
         self.session = gaesessions.get_current_session()
         if self.session.sid is None:
             self.session.start()
+            # FOR TESTING
+            helpers.log("CREATE NEW SESSION: {0}".format(self.session.sid))
                     
         # Google recommends that a new connection be created to service each HTTP request, 
         # and re-used for the duration of that request (since the time to create a new connection is 
@@ -65,9 +67,9 @@ class BaseHandler(webapp2.RequestHandler):
         if initUser:
             # get person and update login status, if needed
             # if adminRequired, force check for Google authenticated instructor (question=None)
-            self.person = Person.getPerson(self.dbConnection, self.question if not adminRequired else None)                
+            self.person = Person.getPerson(self.dbConnection, question=self.question if not adminRequired else None, session=self.session)
             if self.person and not self.person.is_logged_in:
-                self.person.login(self.dbConnection, self.question)
+                self.person.login(self.dbConnection, question=self.question, session=self.session)
                             
     def destroy(self):
         if self.dbConnection:
@@ -303,11 +305,11 @@ class LoginHandler(BaseHandler):
         self.init(initUser=False, questionId=questionId)
         page = self.request.get("page")
 
-        self.person = Person.getPerson(self.dbConnection, self.question)  
+        self.person = Person.getPerson(self.dbConnection, question=self.question, session=self.session)  
         if not self.person:
-            self.person = Person.create(self.dbConnection, question=self.question)
+            self.person = Person.create(self.dbConnection, question=self.question, session=self.session)
         elif not self.person.is_logged_in:
-            self.person.login(self.dbConnection, self.question)
+            self.person.login(self.dbConnection, question=self.question, session=self.session)
         
         self.destroy()
         self.redirect(str(page) if page else (getIdeaPageUrl(self.question) if self.question else getHomePageUrl()))
@@ -333,7 +335,7 @@ class NicknameLoginHandler(BaseHandler):
                 data = { "status" : 0, "msg" : "Nickname can not contain {0}".format("".join(specialChars)) }                
         
         else:
-            self.person = Person.getPerson(self.dbConnection, self.question, nickname)
+            self.person = Person.getPerson(self.dbConnection, question=self.question, session=self.session)
             
             # check if someone is already logged in with same nickname
             if self.isUserLoggedIn():
@@ -341,9 +343,9 @@ class NicknameLoginHandler(BaseHandler):
                 
             else:
                 if not self.person:
-                    self.person = Person.create(self.dbConnection, question=self.question, nickname=nickname)
+                    self.person = Person.create(self.dbConnection, question=self.question, nickname=nickname, session=self.session)
                 elif not self.person.is_logged_in:
-                    self.person.login(self.dbConnection, self.question)
+                    self.person.login(self.dbConnection, question=self.question, session=self.session)
 
                 data = { "status" : 1, "url" : str(page) if page else (getIdeaPageUrl(self.question) if self.question else getHomePageUrl()) }
 
@@ -362,7 +364,7 @@ class QuestionLoginHandler(BaseHandler):
                
         else:
             if self.person is not None and not self.person.is_logged_in:
-                self.person.login(self.dbConnection, self.question)
+                self.person.login(self.dbConnection, question=self.question, session=self.session)
                             
             data = {
                 "status" : 1, 

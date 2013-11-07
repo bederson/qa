@@ -500,7 +500,7 @@ class Person(DBObject):
         self.admin = 0
     
     @staticmethod
-    def create(dbConnection, question=None, nickname=None):
+    def create(dbConnection, question=None, nickname=None, session=None):
         # if Person authenticated via Google, make sure user logged in
         user = users.get_current_user()
         if question and question.authentication_type == constants.GOOGLE_AUTHENTICATION and not user:
@@ -518,13 +518,12 @@ class Person(DBObject):
             authenticatedUserId = user.user_id()
             authenticatedNickname = user.nickname()       
 
-        session = gaesessions.get_current_session()
-        
         person = Person()
         person.authenticated_user_id = authenticatedUserId
         person.authenticated_nickname = authenticatedNickname
         person.nickname = nickname if nickname else (Person.cleanNickname(authenticatedNickname) if authenticatedNickname else None)
         person.question_id = question.id if question else None
+        # pass in session since it is empty sometimes if retrieved via gaesessions.get_current_session
         person.session_sid = session.sid if session and question and (question.authentication_type == constants.NO_AUTHENTICATION or question.authentication_type == constants.NICKNAME_AUTHENTICATION) else None
           
         sql = "insert into users (authenticated_user_id, authenticated_nickname, nickname, question_id, session_sid, latest_login_timestamp, latest_logout_timestamp) values (%s, %s, %s, %s, %s, now(), null)"
@@ -545,10 +544,10 @@ class Person(DBObject):
             person.is_logged_in = person.latest_login_timestamp is not None and person.latest_logout_timestamp is None
         return person
                          
-    def login(self, dbConnection, question=None):
+    def login(self, dbConnection, question=None, session=None):
         if not self.is_logged_in:
             # update session id for students using no authentication or nickname authentication
-            session = gaesessions.get_current_session()
+            # pass in session since it is empty sometimes if retrieved via gaesessions.get_current_session
             self.session_sid = session.sid if session and question and (question.authentication_type == constants.NO_AUTHENTICATION or question.authentication_type == constants.NICKNAME_AUTHENTICATION) else None
             sql = "update users set latest_login_timestamp=now(), latest_logout_timestamp=null, session_sid=%s where id=%s"
             dbConnection.cursor.execute(sql, (self.session_sid, self.id))
@@ -666,7 +665,7 @@ class Person(DBObject):
         return self.admin == 1
     
     @staticmethod
-    def getPerson(dbConnection, question=None):
+    def getPerson(dbConnection, question=None, session=None):
         person = None
         user = users.get_current_user()
 
@@ -686,11 +685,11 @@ class Person(DBObject):
 
             # if not found, create new one
             if not person:
-                person = Person.create(dbConnection, question=question)
+                person = Person.create(dbConnection, question=question, session=session)
                     
         # find student by session
-        elif question and (question.authentication_type==constants.NO_AUTHENTICATION or question.authentication_type==constants.NICKNAME_AUTHENTICATION):
-            session = gaesessions.get_current_session()
+        # pass in session since it is empty sometimes if retrieved via gaesessions.get_current_session
+        elif question and (question.authentication_type==constants.NO_AUTHENTICATION or question.authentication_type==constants.NICKNAME_AUTHENTICATION) and session:
             sql = "select {0} from users where question_id=%s and session_sid=%s".format(Person.fieldsSql())
             dbConnection.cursor.execute(sql, (question.id, session.sid))
             row = dbConnection.cursor.fetchone()
@@ -698,7 +697,7 @@ class Person(DBObject):
             
             # if not found and no authentication required, create new one
             if not person and question.authentication_type==constants.NO_AUTHENTICATION:
-                person = Person.create(dbConnection, question=question)
+                person = Person.create(dbConnection, question=question, session=session)
                         
         return person
      
