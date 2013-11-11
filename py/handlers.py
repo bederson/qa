@@ -46,8 +46,6 @@ class BaseHandler(webapp2.RequestHandler):
         self.session = gaesessions.get_current_session()
         if self.session.sid is None:
             self.session.start()
-            # FOR TESTING
-            helpers.log("CREATE NEW SESSION: {0}".format(self.session.sid))
                     
         # Google recommends that a new connection be created to service each HTTP request, 
         # and re-used for the duration of that request (since the time to create a new connection is 
@@ -70,7 +68,7 @@ class BaseHandler(webapp2.RequestHandler):
             self.person = Person.getPerson(self.dbConnection, question=self.question if not adminRequired else None, session=self.session)
             if self.person and not self.person.is_logged_in:
                 self.person.login(self.dbConnection, question=self.question, session=self.session)
-                            
+                
     def destroy(self):
         if self.dbConnection:
             self.dbConnection.disconnect()

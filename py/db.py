@@ -1191,8 +1191,11 @@ class CascadeBestCategory(DBObject):
                     categoryWords = category.split(" ")
                     for i in xrange(len(categoryWords)):
                         word = helpers.cleanWord(categoryWords[i])
-                        if word != "":
-                            categoryStems.append(stem(word))
+                        word = word.replace("-", "")
+                        if word and word != "":
+                            wordStem = stem(word)
+                            if wordStem and wordStem != "":
+                                categoryStems.append(wordStem)
                     categoryStems.sort()
                                         
                     # check if category to be added matches any existing categories by stems
@@ -1218,7 +1221,8 @@ class CascadeBestCategory(DBObject):
                                 category2 = row["category"]
                                 category2Stems = row["stems"].split(":::")
                                 stemMatches = helpers.intersect(categoryStems, category2Stems)
-                                # TODO/FIX: how and when can stem counts be zero?
+                                # calculate percentage of stems that overlap between categories
+                                # stem counts can be zero if category contains only stop words
                                 similarPercentage = (float(len(stemMatches)) / min(len(categoryStems), len(category2Stems)))*100 if len(categoryStems)>0 and len(category2Stems)>0 else 0
                                 if similarPercentage >= 50:
                                     similarCategories.append(category2)

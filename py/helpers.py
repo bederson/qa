@@ -49,6 +49,7 @@ def _jsonHandler(o):
     
 def cleanWord(word):
     word = word.lower()
+    # characters only stripped from ends
     word = word.strip("`~!@#$%^&*()-_=+|;:',<.>/?")
     if isStopWord(word):
         word = ""
