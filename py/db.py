@@ -1218,7 +1218,8 @@ class CascadeBestCategory(DBObject):
                                 category2 = row["category"]
                                 category2Stems = row["stems"].split(":::")
                                 stemMatches = helpers.intersect(categoryStems, category2Stems)
-                                similarPercentage = (float(len(stemMatches)) / min(len(categoryStems), len(category2Stems)))*100
+                                # TODO/FIX: how and when can stem counts be zero?
+                                similarPercentage = (float(len(stemMatches)) / min(len(categoryStems), len(category2Stems)))*100 if len(categoryStems)>0 and len(category2Stems)>0 else 0
                                 if similarPercentage >= 50:
                                     similarCategories.append(category2)
                             
