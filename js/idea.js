@@ -28,6 +28,9 @@ $(document).ready(function() {
 	}
 	
 	initChannel(onChannelOpen);
+	
+	// will only exist for instructor
+	$("#start_url_area").show();
 });
 
 function onChannelOpen() {
@@ -219,6 +222,18 @@ function initEventHandlers() {
 	
 	$("#admin_button").click(function() {	
 		redirectToAdminPage(question_id);
+	});
+	
+	$("#hide_start_url").click(function() {
+		$("#start_url_area").hide();
+		$("#show_start_url").show();
+		return false;
+	});
+
+	$("#show_start_url").click(function() {
+		$("#show_start_url").hide();
+		$("#start_url_area").show();
+		return false;
 	});
 }
 

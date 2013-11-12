@@ -33,7 +33,11 @@ $(document).ready(function() {
 		return;
 	}
 		
-	initChannel(onChannelOpen);	
+	initChannel(onChannelOpen);
+	
+	// will only exist for instructor
+	$("#start_url_area").show();
+	
 	$("#page_content").show();
 });
 
@@ -456,6 +460,18 @@ function initEventHandlers() {
 		}
 	});
 	
+	$("#hide_start_url").click(function() {
+		$("#start_url_area").hide();
+		$("#show_start_url").show();
+		return false;
+	});
+
+	$("#show_start_url").click(function() {
+		$("#show_start_url").hide();
+		$("#start_url_area").show();
+		return false;
+	});
+		
 	// if a user closes the window/tab or browses to another url
 	// before they submit their job, notify the server
 	$(window).on('beforeunload', function() {

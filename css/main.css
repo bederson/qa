@@ -44,6 +44,10 @@ h2 {
 	font-size: 0.8em;
 }
 
+.xsmall {
+	font-size: 0.7em;
+}
+
 .medium {
 	font-size: 0.9em;
 }
@@ -78,6 +82,16 @@ a.warning, a.warning:visited {
 
 a.warning:hover {
 	color: #595454;
+}
+
+a.noline, a.noline:visited {
+	color: #595454;
+	text-decoration: none;
+}
+
+a.noline:hover {
+	color: #000000;
+	text-decoration: underline;
 }
 
 /* QA ELEMENTS */

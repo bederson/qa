@@ -1001,7 +1001,7 @@ class CascadeSuggestCategory(DBObject):
                 sql = "update cascade_suggested_categories set suggested_category=%s"
                 sql += ", user_id={0} ".format(person.id) if person else " "
                 sql += "where id=%s and {0}".format(CascadeSuggestCategory.incompleteCondition)
-                dbConnection.cursor.execute(sql, (suggestedCategory, taskId))  
+                dbConnection.cursor.execute(sql, (suggestedCategory, taskId)) 
                 
                 # record category, but may be removed when voting for best category or checking for duplicates
                 # categories removed/skipped because they are equivalent will be removed

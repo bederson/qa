@@ -209,6 +209,14 @@ class BaseHandler(webapp2.RequestHandler):
         if msg is not None:
             self.session['msg'] = msg
         self.redirect(dst)
+        
+    def getStartUrl(self):
+        url = None
+        if self.question:
+            url = self.request.host_url
+            url = url.replace("http://","")
+            url += getIdeaPageUrl(self.question, short=True)
+        return url
      
 class MainPageHandler(BaseHandler):
     def get(self):
@@ -230,12 +238,13 @@ class NicknameLoginPageHandler(BaseHandler):
 class IdeaPageHandler(BaseHandler):
     def get(self, questionId):
         self.init(questionId=questionId)
-        self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
+        ok = self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
         templateValues["user_nickname"] = self.person.getNickname() if self.person else None
         # allow Google authenticated students and non-authenticated students to change nickname
         # nicknames for non-authenticated students do not have to be unique
         templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and (self.question.authentication_type==constants.GOOGLE_AUTHENTICATION or self.question.authentication_type==constants.NO_AUTHENTICATION))
+        templateValues["start_url"] = self.getStartUrl() if ok else ""
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -243,12 +252,13 @@ class IdeaPageHandler(BaseHandler):
 class CascadePageHandler(BaseHandler):
     def get(self, questionId):
         self.init(questionId=questionId) 
-        self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
+        ok = self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
+        templateValues["start_url"] = self.getStartUrl() if ok else ""
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
-                
+        
 class ResultsPageHandler(BaseHandler):
     def get(self, questionId):
         self.init(questionId=questionId)    
@@ -279,16 +289,9 @@ class AdminPageHandler(BaseHandler):
 class StartPageHandler(BaseHandler):
     def get(self, questionId=None):
         self.init(adminRequired=True, questionId=questionId)
-        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True, questionId=questionId)
-        
-        startUrl = None
-        if ok:
-            startUrl = self.request.host_url
-            startUrl = startUrl.replace("http://","")
-            startUrl += getIdeaPageUrl(self.question, short=True)
-        
+        ok = self.checkRequirements(authenticatedUserRequired=True, questionRequired=True, editPrivilegesRequired=True, questionId=questionId)        
         templateValues = self.getDefaultTemplateValues(adminConnect=True)
-        templateValues["start_url"] = startUrl
+        templateValues["start_url"] = self.getStartUrl() if ok else ""
         path = os.path.join(os.path.dirname(__file__), '../html/start.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -722,7 +725,7 @@ class CascadeJobHandler(BaseHandler):
         job = self.request.get("job")
         waiting = self.request.get("waiting")
         discuss = self.request.get("discuss")
-                
+                        
         ok = self.checkRequirements(userRequired=True, questionRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
@@ -756,22 +759,23 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
         question = Question.getById(dbConnection, questionId)
         person = Person.getById(dbConnection, personId)
 
-        ok = question is not None and person is not None        
+        ok = question is not None and person is not None 
         if ok:          
             # save job (if any)
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
                 question.saveCascadeJob(dbConnection, jobToSave, person)
+
                 # if cascade complete, notify any waiting clients that categories are ready
                 if question.cascade_complete:
                     stats = question.getCascadeStats(dbConnection)
                     sendMessage(dbConnection, None, question, { "op": "categories", "question_id": question.id, "cascade_stats" : stats })
-          
+            
             job = question.getCascadeJob(dbConnection, person)
             jobDict = { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None
             if jobDict and "categories" in job:
                 jobDict["categories"] = job["categories"]
-
+    
             discuss = self.request.get("discuss", "0") == "1"
             if jobDict and discuss:
                 discussIdeas = []
@@ -780,13 +784,13 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
                     if task.idea_id not in discussIdeas:
                         jobDict["discuss_flags"].extend(DiscussFlag.getFlags(dbConnection, question, ideaId=task.idea_id, admin=isAdmin))
                     discussIdeas.append(task.idea_id)
-            
+                
             sendMessageToClient(clientId, { "op": "job", "question_id" : question.id, "job": jobDict })
 
             waiting = self.request.get("waiting", "0") == "1"
             if job and waiting:
                 Person.working(dbConnection, clientId)
-                
+                    
             if not job:
                 Person.waiting(dbConnection, clientId)
                 
@@ -1041,7 +1045,7 @@ def getLogoutUrl(question=None):
   
 def getHomePageUrl():
     return "/"
-
+            
 def getIdeaPageUrl(question=None, short=False):
     if short and question:
         url = "/" + str(question.id)       
