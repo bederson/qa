@@ -246,20 +246,18 @@ class Question(DBObject):
     
     def setCascadeSettings(self, dbConnection):
         userCount = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)
-        cascade_s = constants.CASCADE_S["min"] if userCount < 10 else constants.CASCADE_S["max"]
-        if userCount > 1:
-            cascade_k = 2
-            cascade_k2 = 1
-        else:
-            cascade_k = 1
-            cascade_k2 = 1
-            
+
+        # if fewer than cascade_k students logged in, they will need to wait until
+        # cascade_k jobs are completed before they can continue
+        cascade_k = 2
+        cascade_k2 = 1    
+        
         properties = {
             "cascade_k" : cascade_k,
             "cascade_k2" : cascade_k2,
             "cascade_m" : constants.CASCADE_M,
             "cascade_p" : constants.CASCADE_P,
-            "cascade_s" : cascade_s,
+            "cascade_s" : constants.CASCADE_S,
             "cascade_t" : constants.CASCADE_T,
             "id" : self.id
         }
@@ -1335,7 +1333,7 @@ class CascadeEqualCategory(DBObject):
             sql += "question_id=%s " 
             sql += "and user_id is null "
             sql += "and (category1, category2) not in (select distinct category1, category2 from cascade_equal_categories where question_id=%s and user_id=%s) " if not helpers.allowDuplicateJobs() else ""
-            sql += "group by category1, category2 order by rand() limit {0}".format(constants.CASCADE_S["min"])
+            sql += "group by category1, category2 order by rand() limit {0}".format(constants.CASCADE_S)
             if helpers.allowDuplicateJobs():
                 dbConnection.cursor.execute(sql, (question.id,))
             else:

@@ -19,7 +19,7 @@ EQUAL_CATEGORY = 3
 FIT_CATEGORY = 4
 VERIFY_CATEGORY = 5
 
-ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = False
+ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = True
 FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (EQUAL_CATEGORY)
 VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGORY)
 
@@ -27,7 +27,7 @@ VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGOR
 CASCADE_M = 50                      # % of items placed in initial item set (TODO/FIX: code always assumes 50% currently)
 CASCADE_P = 80                      # % of overlapping items used to detect duplicates and subcategories
 CASCADE_Q = 1                       # min number of items allowed in a category
-CASCADE_S = { "min": 4, "max": 6 }  # number of categories grouped together in jobs (e.g., # categories to fit to an idea)
+CASCADE_S = 5                       # number of categories grouped together in jobs (e.g., # categories to fit to an idea)
 CASCADE_T = 3                       # number of items grouped together in jobs (e.g., # items to suggest categories for)
 CASCADE_INITIAL_ITEM_SET = 0        # set of items to suggest categories for
 CASCADE_SUBSEQUENT_ITEM_SET = 1
