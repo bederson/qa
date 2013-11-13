@@ -17,6 +17,8 @@ var VERIFY_CATEGORY = 5;
 var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
 var MAX_CHARS = 125; // max characters per response
 
+var SHOW_START_URL_BY_DEFAULT = false;
+
 var STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "her", "here", "him", "his", "how", "I", "if", "in", "into", "is", "it", "its", "just", "my", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];
 
 /**

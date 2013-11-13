@@ -85,12 +85,12 @@ a.warning:hover {
 }
 
 a.noline, a.noline:visited {
-	color: #595454;
+	color: #888;
 	text-decoration: none;
 }
 
 a.noline:hover {
-	color: #000000;
+	color: #000;
 	text-decoration: underline;
 }
 
@@ -174,8 +174,20 @@ a.noline:hover {
 	margin-top: 0px;
 }
 
+.smallspaceabove {
+	margin-top: 5px;
+}
+
 .smallspacebelow {
 	margin-bottom: 5px;
+}
+
+.smallspaceleft {
+	margin-left: 5px;
+}
+
+.smallspaceright {
+	margin-right: 5px;
 }
 
 .spaceabove {
@@ -190,16 +202,8 @@ a.noline:hover {
 	margin-left: 10px;
 }
 
-.smallspaceright {
-	margin-left: 5px;
-}
-
 .spaceright {
 	margin-right: 10px;
-}
-
-.smallspaceright {
-	margin-right: 5px;
 }
 
 .indentleft {

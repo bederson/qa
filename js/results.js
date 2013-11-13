@@ -50,11 +50,23 @@ var discussOnly = false;
 var isQuestionAuthor = false;
    
 $(document).ready(function() {
+	initEventHandlers();
+
 	if ($("#msg").html()) {
 		return;
 	}
 
 	initChannel(onChannelOpen);
+	
+	// will only be shown for instructor
+	// for questions that are not finished yet
+	if (SHOW_START_URL_BY_DEFAULT) {
+		$("#start_url_area").show();
+	}
+	else {
+		$("#show_start_url").show();
+	}
+	
 	$("#page_content").show();
 });
 
@@ -643,6 +655,20 @@ function doesIdeaListContain(ideaList, idea) {
 		}
 	}
 	return found;
+}
+
+function initEventHandlers() {
+	$("#hide_start_url").click(function() {
+		$("#start_url_area").hide();
+		$("#show_start_url").show();
+		return false;
+	});
+
+	$("#show_start_url").click(function() {
+		$("#show_start_url").hide();
+		$("#start_url_area").show();
+		return false;
+	});
 }
 
 /////////////////////////

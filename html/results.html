@@ -37,12 +37,23 @@ limitations under the License.
 	<div id="admin_buttons">
 		<input id="admin_button" type="button" value="Admin">
 	</div>
-	<div style="clear:both"></div>	
-	{% endif %}	
+	<div style="clear:both"></div>
+	{% if start_url != "" %}
+	<div id="start_url_area" class="center" style="margin-bottom:25px; text-align:center; display:none">
+		<span style="font-size:2.8em">{{start_url}}</span>
+		<a href id="hide_start_url" class="small noline" onClick="return false;">Hide</a>
+	</div>	
+	{% endif %}
+	{% endif %}
 	{% if not admin %}
 	<br/>
 	{% endif %}
-	<h1>Results</h1>
+	
+	<h1>Results
+	{% if admin and start_url != "" %}
+	<div class="note spaceabove" style="float:right; font-size:10pt"><a href id="show_start_url" class="noline" onClick="return false;" style="display:none">Show Start Url</a></div>
+	{% endif %}
+	</h1>
 	<div id="msg" class="warning spacebelow" style="text-align:center">{{ msg }}</div>
 	<div id="page_content" style="display:none">
 	<hr>

@@ -35,8 +35,14 @@ $(document).ready(function() {
 		
 	initChannel(onChannelOpen);
 	
-	// will only exist for instructor
-	$("#start_url_area").show();
+	// will only be shown for instructor
+	// for questions that are not finished yet
+	if (SHOW_START_URL_BY_DEFAULT) {
+		$("#start_url_area").show();
+	}
+	else {
+		$("#show_start_url").show();
+	}
 	
 	$("#page_content").show();
 });

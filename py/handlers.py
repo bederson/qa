@@ -244,7 +244,7 @@ class IdeaPageHandler(BaseHandler):
         # allow Google authenticated students and non-authenticated students to change nickname
         # nicknames for non-authenticated students do not have to be unique
         templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and (self.question.authentication_type==constants.GOOGLE_AUTHENTICATION or self.question.authentication_type==constants.NO_AUTHENTICATION))
-        templateValues["start_url"] = self.getStartUrl() if ok else ""
+        templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -254,7 +254,7 @@ class CascadePageHandler(BaseHandler):
         self.init(questionId=questionId) 
         ok = self.checkRequirements(userRequired=True, questionRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
-        templateValues["start_url"] = self.getStartUrl() if ok else ""
+        templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""
         path = os.path.join(os.path.dirname(__file__), '../html/cascade.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
@@ -262,8 +262,9 @@ class CascadePageHandler(BaseHandler):
 class ResultsPageHandler(BaseHandler):
     def get(self, questionId):
         self.init(questionId=questionId)    
-        self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
+        ok = self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
+        templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
