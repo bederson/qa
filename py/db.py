@@ -245,16 +245,13 @@ class Question(DBObject):
             self.update(dbConnection, { "active" : active, "id" : self.id })
     
     def setCascadeSettings(self, dbConnection):
-        userCount = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)
-
         # if fewer than cascade_k students logged in, they will need to wait until
         # cascade_k jobs are completed before they can continue
-        cascade_k = 2
-        cascade_k2 = 1    
+        userCount = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)
         
         properties = {
-            "cascade_k" : cascade_k,
-            "cascade_k2" : cascade_k2,
+            "cascade_k" : constants.CASCADE_K,
+            "cascade_k2" : constants.CASCADE_K2,
             "cascade_m" : constants.CASCADE_M,
             "cascade_p" : constants.CASCADE_P,
             "cascade_s" : constants.CASCADE_S,
@@ -744,7 +741,8 @@ class Idea(DBObject):
         idea.question_id = question.id
         idea.user_id = userId
         idea.idea = ideaText
-        idea.item_set = toggleCascadeItemSet(question) # toggle ideas between initial item set and subsequent item set used by Cascade
+        idea.item_set = getNewCascadeItemSet(question)
+        helpers.log("{0}: {1}".format(idea.item_set, idea.idea))
         
         sql = "insert into question_ideas (question_id, user_id, idea, item_set) values (%s, %s, %s, %s)"
         dbConnection.cursor.execute(sql, (idea.question_id, idea.user_id, idea.idea, idea.item_set))
@@ -1900,26 +1898,37 @@ def getCascadeDuration(question):
     duration = time.mktime(endTime.timetuple())-time.mktime(startTime.timetuple()) if startTime and endTime else 0
     return duration
 
-def toggleCascadeItemSet(question):
+def getNewCascadeItemSet(question):
     client = memcache.Client()
     key = "cascade_item_set_{0}".format(question.id)
-    MAX_RETRIES = 15
 
-    # TODO/FIX: CASCADE_M currently not used when determining if item belongs to initial or subsequent set 
-    # CASCADE_M is currently 50%
-    # might get better results if higher percentage used but then more jobs required
-    # consider recording x first items to guarantee minimum # items in initial item set value
-    
+    itemSetRatio = constants.ITEM_SET_RATIOS[constants.CASCADE_M]
+    xInitial = itemSetRatio["initial"]
+    xSubsequent = itemSetRatio["subsequent"]
+    newItemSet = constants.CASCADE_INITIAL_ITEM_SET
+        
     i = 0
-    while i <= MAX_RETRIES: # Retry loop
-        itemSet = client.gets(key)
-        if itemSet is None:
+    MAX_RETRIES = 15
+    while i <= MAX_RETRIES:
+        itemIndex = client.gets(key)
+        if itemIndex is None:
+            newItemIndex = 1
             newItemSet = constants.CASCADE_INITIAL_ITEM_SET
-            client.add(key, newItemSet)
+            client.add(key, newItemIndex)
             break
         else:
-            newItemSet = constants.CASCADE_INITIAL_ITEM_SET if itemSet==constants.CASCADE_SUBSEQUENT_ITEM_SET else constants.CASCADE_SUBSEQUENT_ITEM_SET
-            if client.cas(key, newItemSet):
+            newItemIndex = itemIndex + 1
+            if newItemIndex <= xInitial:
+                newItemSet = constants.CASCADE_INITIAL_ITEM_SET
+                
+            elif newItemIndex <= xInitial + xSubsequent:
+                newItemSet = constants.CASCADE_SUBSEQUENT_ITEM_SET
+                
+            else:
+                newItemSet = constants.CASCADE_INITIAL_ITEM_SET
+                newItemIndex = 1
+                
+            if client.cas(key, newItemIndex):
                 break
         i += 1
         if i > MAX_RETRIES:

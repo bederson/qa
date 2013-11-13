@@ -24,13 +24,20 @@ FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (
 VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGORY)
 
 # Cascade Settings
-CASCADE_M = 50                      # % of items placed in initial item set (TODO/FIX: code always assumes 50% currently)
+CASCADE_INITIAL_ITEM_SET = 0        # set of items to suggest categories for
+CASCADE_SUBSEQUENT_ITEM_SET = 1     # set of items that categories are not suggested for (but are included in fit tasks)
+ITEM_SET_RATIOS = {}                # number of items to add to initial set followed by subsequent set; initial must by >= 1; keyed by percentage
+ITEM_SET_RATIOS[50] = { "initial": 1, "subsequent": 1 } # 50% of items in initial item set
+ITEM_SET_RATIOS[67] = { "initial": 2, "subsequent": 1 } # 67% of items in initial item set
+ITEM_SET_RATIOS[75] = { "initial": 3, "subsequent": 1 } # 75% of items in initial item set
+
+CASCADE_K = 2                       # redundancy factor used by suggest category and best category tasks
+CASCADE_K2 = 1                      # redundancy factor used by fit tasks
+CASCADE_M = 50                      # percentage of items placed in initial item set
 CASCADE_P = 80                      # % of overlapping items used to detect duplicates and subcategories
 CASCADE_Q = 1                       # min number of items allowed in a category
 CASCADE_S = 5                       # number of categories grouped together in jobs (e.g., # categories to fit to an idea)
 CASCADE_T = 3                       # number of items grouped together in jobs (e.g., # items to suggest categories for)
-CASCADE_INITIAL_ITEM_SET = 0        # set of items to suggest categories for
-CASCADE_SUBSEQUENT_ITEM_SET = 1
 
 DEFAULT_VOTING_THRESHOLD = 2        # min number of votes required to pass cascade step (if k>3 or k2>3); 1 otherwise
 FIND_SUBCATEGORIES = True           # whether or not to find subcategories in results
