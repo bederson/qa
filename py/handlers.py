@@ -223,7 +223,7 @@ class MainPageHandler(BaseHandler):
         self.init()      
         templateValues = self.getDefaultTemplateValues()
         path = os.path.join(os.path.dirname(__file__), '../html/main.html')
-        self.response.out.write(template.render(path, templateValues))
+        self.response.out.write(template.render(path, templateValues))                
         self.destroy()
 
 class NicknameLoginPageHandler(BaseHandler):
@@ -782,9 +782,10 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
                 discussIdeas = []
                 jobDict["discuss_flags"] = []
                 for task in job["tasks"]:
-                    if task.idea_id not in discussIdeas:
-                        jobDict["discuss_flags"].extend(DiscussFlag.getFlags(dbConnection, question, ideaId=task.idea_id, admin=isAdmin))
-                    discussIdeas.append(task.idea_id)
+                    if hasattr(task, "idea_id"):
+                        if task.idea_id not in discussIdeas:
+                            jobDict["discuss_flags"].extend(DiscussFlag.getFlags(dbConnection, question, ideaId=task.idea_id, admin=isAdmin))
+                        discussIdeas.append(task.idea_id)
                 
             sendMessageToClient(clientId, { "op": "job", "question_id" : question.id, "job": jobDict })
 

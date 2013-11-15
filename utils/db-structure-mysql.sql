@@ -51,7 +51,7 @@ CREATE TABLE `cascade_equal_categories` (
   `equal` tinyint(4) DEFAULT '-1',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,7 +70,8 @@ CREATE TABLE `cascade_fit_categories_phase1` (
   `fit` int(11) DEFAULT '-1',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`),
-  KEY `question_user_index` (`question_id`,`user_id`)
+  KEY `question_user_index` (`question_id`,`user_id`),
+  KEY `question_category_index` (`question_id`,`category`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -106,10 +107,8 @@ CREATE TABLE `cascade_stats` (
   `category_count` int(11) DEFAULT '0',
   `uncategorized_count` int(11) DEFAULT '0',
   `user_count` int(11) DEFAULT '0',
+  `skipped_categories` text,
   `total_duration` int(11) DEFAULT '0',
-  `step1_unsaved_count` int(11) DEFAULT '0',
-  `step2_unsaved_count` int(11) DEFAULT '0',
-  `step3_unsaved_count` int(11) DEFAULT '0',
   PRIMARY KEY (`question_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -324,4 +323,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-11-05 10:02:02
+-- Dump completed on 2013-11-15 12:39:10
