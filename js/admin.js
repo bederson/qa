@@ -325,7 +325,7 @@ function updateUserCount(question) {
 
 function updateIdeaCount(question) {
     $("#idea_count").html(question.idea_count);
-    $("#idea_count_label").html(question.idea_count != 1 ? "NOTES" : "NOTE");
+    $("#idea_count_label").html(question.idea_count != 1 ? "RESPONSES" : "RESPONSE");
     showHideCreateCategoryButton(question);
 }
 
@@ -355,9 +355,7 @@ function updateCategoryStatus(question) {
 }
 
 function updatePercentComplete(question) {
-    // calculate percentage complete
-    var percentComplete = 0;
-    
+    var percentComplete = 0;  
     if (question.cascade_complete) {
     	percentComplete = 100;
     }

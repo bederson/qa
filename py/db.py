@@ -915,7 +915,8 @@ class Idea(DBObject):
 # BEHAVIOR: users are restricted to unique cascade jobs when running on GAE which means >= k users required to complete cascade 
 # BEHAVIOR: introduced cascade_k2 to use for category fit jobs since large number of fit jobs required to complete cascade
 # BEHAVIOR: categories with fewer than CASCADE_Q items removed
-# BEHAVIOR: duplicate categories merged (the % of overlapping items used to detect duplicates is defined by cascade_p)
+# BEHAVIOR: duplicate categories merged (two categories are checked if the smaller is >= MIN_DUPLICATE_SIZE_PERCENTAGE of the larger and CASCADE_P % of the category items overlap)
+# BEHAVIOR: subcategories are nested (two categories are checked if the smaller is < MIN_DUPLICATE_SIZE_PERCENTAGE of the larger and CASCADE_P % of the category items overlap)
     
 # BEHAVIOR: fit tasks are performed for both the initial item set and subsequent item set using the same categories
 # This is different than Cascade where the fit tasks for the initial item set are done and then 
@@ -1368,6 +1369,9 @@ class CascadeEqualCategory(DBObject):
                   
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
+        # TODO/FIX: currently categorization is considered complete if all fit tasks have been completed
+        # so even if there are incomplete CascadeEqualCategory jobs, the categories will be generated 
+        # when all fit tasks are complete
         for task in job:
             taskId = task["id"]
             equal = task["equal"]
@@ -1863,16 +1867,9 @@ def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=F
         # remove duplicate categories               
         for category in categoriesToRemove:
             del categoryGroups[category]
-        
-    questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"
-    sql = "delete from {0} where question_id=%s".format(questionCategoriesTable)
-    dbConnection.cursor.execute(sql, (question.id))
-
-    categoriesTable = "categories" if not forTesting else "categories2"
-    sql = "delete from {0} where question_id=%s".format(categoriesTable)
-    dbConnection.cursor.execute(sql, (question.id))
     
-    # record any categories skipped because they were marked as equal to another categories (CascadeEqualCategory)
+    # find any skipped categories before they are deleted
+    # a category is skipped because it was found to be equal to another category (CascadeEqualCategory)
     skippedCategories = []
     if constants.FIND_EQUAL_CATEGORIES:
         sql = "select * from categories where question_id=%s and skip=1"
@@ -1880,7 +1877,15 @@ def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=F
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             skippedCategories.append(row["category"])
-       
+                
+    questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"
+    sql = "delete from {0} where question_id=%s".format(questionCategoriesTable)
+    dbConnection.cursor.execute(sql, (question.id))
+
+    categoriesTable = "categories" if not forTesting else "categories2"
+    sql = "delete from {0} where question_id=%s".format(categoriesTable)
+    dbConnection.cursor.execute(sql, (question.id))
+           
     # TODO: inserts are faster if done as a group
     for category in categoryGroups:
         # NOTE: category stems and skip attributes not maintained in final categories table
