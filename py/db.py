@@ -420,7 +420,7 @@ class Question(DBObject):
         return self
     
     def deleteCascade(self, dbConnection, commit=True):
-        self.update(dbConnection, { "cascade_k" : 0, "cascade_k2" : 0, "cascade_m" : 0, "cascade_p" : 0, "cascade_s" : 0, "cascade_t" : 0, "cascade_complete" : 0, "id" : self.id }, commit=False)
+        self.update(dbConnection, { "cascade_complete" : 0, "id" : self.id }, commit=False)
         dbConnection.cursor.execute("update user_clients,users set waiting_since=null where user_clients.user_id=users.id and question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_suggested_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_best_categories where question_id={0}".format(self.id))
