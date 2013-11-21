@@ -1622,7 +1622,6 @@ class CascadeFitCategory(DBObject):
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 if row["fitvotes"] >= minCount:
-                    helpers.log("FIT! idea={0}, category={1}, votes={2}".format(row["idea_id"], row["category"], row["fitvotes"]))
                     fitTasks.append({ "idea_id": row["idea_id"], "category": row["category"] })
         
         else:
@@ -1868,7 +1867,7 @@ def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=F
         for category in categoriesToRemove:
             del categoryGroups[category]
     
-    # find any skipped categories before they are deleted
+    # find any skipped categories before they are deleted from db
     # a category is skipped because it was found to be equal to another category (CascadeEqualCategory)
     skippedCategories = []
     if constants.FIND_EQUAL_CATEGORIES:

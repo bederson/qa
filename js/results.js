@@ -18,7 +18,7 @@
 var OFFLINE = false;
 
 var SHOW_TAGCLOUDS = true;
-var MIN_TAGCLOUD_ITEM_COUNT = 7;
+var MIN_TAGCLOUD_ITEM_COUNT = 5;
 var MAX_CLOUD_HEIGHT = 800;
 var DEFAULT_IDEA_INDENT = 20; // pixels
 
@@ -601,6 +601,7 @@ function initPrimaryCategories() {
 						// * if idea is in a subcategory, pick the smallest one
 						// * otherwise, pick the smallest root category
 						// TODO/FIX: consider whether primary category should be smallest or largest
+						// TODO/FIX: priority should be given to categories with the most fit votes (if more than 1)
 						var primaryCategory = null;					
 						if (ideaSubcategories.length > 0) {
 							var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);

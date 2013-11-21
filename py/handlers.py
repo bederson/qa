@@ -243,7 +243,7 @@ class IdeaPageHandler(BaseHandler):
         templateValues["user_nickname"] = self.person.getNickname() if self.person else None
         # allow Google authenticated students and non-authenticated students to change nickname
         # nicknames for non-authenticated students do not have to be unique
-        templateValues["change_nickname_allowed"] = json.dumps(self.person is not None and (self.question.authentication_type==constants.GOOGLE_AUTHENTICATION or self.question.authentication_type==constants.NO_AUTHENTICATION))
+        templateValues["change_nickname_allowed"] = json.dumps(ok and self.person is not None and (self.question.authentication_type==constants.GOOGLE_AUTHENTICATION or self.question.authentication_type==constants.NO_AUTHENTICATION))
         templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""
         path = os.path.join(os.path.dirname(__file__), '../html/idea.html')
         self.response.out.write(template.render(path, templateValues))
@@ -574,7 +574,7 @@ class DownloadQuestionHandler(BaseHandler):
             
             stats = self.question.getQuestionStats(self.dbConnection)
             cascadeStats = stats["cascade_stats"] 
-            totalDuration = cascadeStats["total_duration"]  
+            totalDuration = cascadeStats["total_duration"] if "total_duration" in cascadeStats else None
             totalDurationFormatted = str(datetime.timedelta(seconds=totalDuration)) if totalDuration else "-"
               
             # write out ideas with categories
