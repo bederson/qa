@@ -95,6 +95,11 @@ Google Cloud SQL
 * google_app_engine_sdk_path/google_sql.py
 * https://developers.google.com/appengine/training/cloud-sql/deploy_the_app
 
+AFTER STUDY
+* add option to make questions active/inactive
+* check # fit votes when deciding which single category to display an item in
+* allow instructor to pre-populate categories
+
 ****** OLD ******
 
 New approaches

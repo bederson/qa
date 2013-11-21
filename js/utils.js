@@ -78,9 +78,6 @@ onMessage = function(message) {
 	else if (dataObj.op == "moreverifyjobs" && typeof window.handleMoreVerifyJobs == 'function') {
 		handleMoreVerifyJobs(dataObj);
 	}
-	else if (dataObj.op == "cascadesettings" && typeof window.handleCascadeSettings == 'function') {
-		handleCascadeSettings(dataObj);
-	}
 	else if (dataObj.op == "categories" && typeof window.handleResults == 'function') {
 		handleResults(dataObj);
 	}	

@@ -189,6 +189,8 @@ class Question(DBObject):
         sql = "insert into questions (id, title, question, authentication_type, user_id, active) values (%s, %s, %s, %s, %s, %s)"
         dbConnection.cursor.execute(sql, (question.id, question.title, question.question, question.authentication_type, question.user_id, question.active))
         dbConnection.conn.commit()
+        
+        question.setCascadeSettings(dbConnection)
             
         return question
 
@@ -246,8 +248,9 @@ class Question(DBObject):
     
     def setCascadeSettings(self, dbConnection):
         # if fewer than cascade_k students logged in, they will need to wait until
-        # cascade_k jobs are completed before they can continue
-        userCount = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)
+        # cascade_k jobs are completed before they can continue     
+        # NO LONGER USED to set default cascade settings
+        #userCount = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)
         
         properties = {
             "cascade_k" : constants.CASCADE_K,
@@ -259,9 +262,6 @@ class Question(DBObject):
             "id" : self.id
         }
         self.update(dbConnection, properties)
-        
-        if Question.onCascadeSettingsChanged:
-            self.onCascadeSettingsChanged(dbConnection) 
            
     def getCascadeJob(self, dbConnection, person):
         # return the earliest job that needs to be done (e.g., return suggest category job before match category job)
@@ -748,9 +748,8 @@ class Idea(DBObject):
         idea.id = dbConnection.cursor.lastrowid
         dbConnection.conn.commit()
         
-        # initialize cascade settings when first idea added
+        # initialize cascade stats when first idea added
         if question.cascade_k == 0:
-            question.setCascadeSettings(dbConnection)
             sql = "insert into cascade_stats (question_id) values (%s)"
             dbConnection.cursor.execute(sql, (question.id))            
             dbConnection.conn.commit()   

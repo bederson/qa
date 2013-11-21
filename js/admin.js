@@ -623,17 +623,6 @@ function handleMoreVerifyJobs(data) {
 	}
 }
 
-function handleCascadeSettings(data) {
-	var question = getSelectedQuestion();
-	if (question && data.question_id==question.id) {
-		question.cascade_k = data.cascade_k;
-		question.cascade_k2 = data.cascade_k2;
-		question.cascade_s = data.cascade_s;
-		question.cascade_t = data.cascade_t;
-		updateCategoryStatus(question);
-	}
-}
-
 function handleResults(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
