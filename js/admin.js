@@ -288,7 +288,7 @@ function loadStats() {
 		var question = getQuestion(results.question_id);
 		if (question) {
 			question.idea_count = results["idea_count"];
-			question.user_count = results["user_count"];
+			question.idea_user_count = results["idea_user_count"];
 			question.active_user_count = results["active_user_count"];
 			question.cascade_stats = results["cascade_stats"];
 			onStatsLoaded(question);
@@ -342,7 +342,7 @@ function updateCategoryStatus(question) {
 	var html = "";
 	if (question.cascade_complete) {
 		html += "<div class='note' style='text-align:center'>";
-		html += question.cascade_stats["user_count"] + (question.cascade_stats["user_count"]==1 ? "&nbsp;user" : "&nbsp;users");
+		html += question.cascade_stats["cascade_user_count"] + (question.cascade_stats["cascade_user_count"]==1 ? "&nbsp;user" : "&nbsp;users");
 		if (question.cascade_stats["uncategorized_count"] > 0) {
 			html += ", " + question.cascade_stats["uncategorized_count"] + "&nbsp;uncategorized";
 		}
@@ -568,9 +568,9 @@ function addQuestion(question, addToFront) {
 }
 
 function initQuestionStats(question) {
-	question.idea_count = isDefined(question.idea_count) ? question.idea_count : 0;
-	question.user_count = isDefined(question.user_count) ? question.user_count : 0;
 	question.active_user_count = isDefined(question.active_user_count) ? question.active_user_count : 0;
+	question.idea_count = isDefined(question.idea_count) ? question.idea_count : 0;
+	question.idea_user_count = isDefined(question.idea_user_count) ? question.idea_user_count : 0;
 	question.cascade_stats = isDefined(question.cascade_stats) ? question.cascade_stats : {};
 	question.cascade_stats["category_count"] = 0;
 	question.cascade_stats["completed_fit_count"] = 0;
@@ -637,9 +637,6 @@ function handleStudentLogin(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.active_user_count++;
-		if (data.is_new) {
-			question.user_count++;
-		}
 		updateUserCount(question);
 	}	
 }

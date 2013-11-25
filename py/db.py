@@ -337,7 +337,7 @@ class Question(DBObject):
             # total duration
             totalDuration = getCascadeDuration(self)
             
-            stats["user_count"] = userCount
+            stats["cascade_user_count"] = userCount
             stats["idea_count"] = ideaCount
             stats["category_count"] = categoryCount
             stats["uncategorized_count"] = uncategorizedCount
@@ -350,16 +350,16 @@ class Question(DBObject):
         if self.cascade_complete:      
             stats = self.calculateCascadeStats(dbConnection)        
             sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s, total_duration=%s, skipped_categories=%s where question_id=%s"
-            dbConnection.cursor.execute(sql, (stats["user_count"], stats["category_count"], stats["idea_count"], stats["uncategorized_count"], stats["total_duration"], ", ".join(skippedCategories) if skippedCategories and len(skippedCategories)>0 else None, self.id))
+            dbConnection.cursor.execute(sql, (stats["cascade_user_count"], stats["category_count"], stats["idea_count"], stats["uncategorized_count"], stats["total_duration"], ", ".join(skippedCategories) if skippedCategories and len(skippedCategories)>0 else None, self.id))
             dbConnection.conn.commit()
         return stats
                 
     def getQuestionStats(self, dbConnection):
         stats = {}
         stats["question_id"] = self.id
-        stats["user_count"] = Person.getCountForQuestion(dbConnection, self.id)
         stats["active_user_count"] = Person.getCountForQuestion(dbConnection, self.id, loggedIn=True)    
-        stats["idea_count"] = Idea.getCountForQuestion(dbConnection, self.id) 
+        stats["idea_user_count"] = Idea.getAuthorCountForQuestion(dbConnection, self.id)
+        stats["idea_count"] = Idea.getCountForQuestion(dbConnection, self.id)
         stats["cascade_stats"] = self.getCascadeStats(dbConnection)
         return stats
     
@@ -370,7 +370,7 @@ class Question(DBObject):
             dbConnection.cursor.execute(sql, (self.id))
             row = dbConnection.cursor.fetchone()
             stats = {}
-            stats["user_count"] = row["user_count"] if row else 0
+            stats["cascade_user_count"] = row["user_count"] if row else 0
             stats["idea_count"] = row["idea_count"] if row else 0
             stats["category_count"] = row["category_count"] if row else 0
             stats["uncategorized_count"] = row["uncategorized_count"] if row else 0
@@ -897,7 +897,14 @@ class Idea(DBObject):
         dbConnection.cursor.execute(sql, (questionId))
         row = dbConnection.cursor.fetchone()
         return row["ct"] if row else 0
-          
+
+    @staticmethod
+    def getAuthorCountForQuestion(dbConnection, questionId):
+        sql = "select count(distinct user_id) as ct from question_ideas where question_id=%s"
+        dbConnection.cursor.execute(sql, (questionId))
+        row = dbConnection.cursor.fetchone()
+        return row["ct"] if row else 0
+              
     def toDict(self, author=None, admin=False):
         objDict = super(Idea, self).toDict()
         if author:

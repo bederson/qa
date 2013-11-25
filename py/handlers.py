@@ -583,7 +583,7 @@ class DownloadQuestionHandler(BaseHandler):
 
                 # write out stats                
                 excelWriter.writerow(("Statistics",))
-                excelWriter.writerow(("# users", stats["user_count"]))
+                excelWriter.writerow(("# users", max(stats["idea_user_count"], cascadeStats["cascade_user_count"])))
                 excelWriter.writerow(("# ideas", stats["idea_count"]))
                 excelWriter.writerow(("# categories", cascadeStats["category_count"]))
                 excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
@@ -594,6 +594,7 @@ class DownloadQuestionHandler(BaseHandler):
                 excelWriter.writerow(("Cascade Settings",))
                 excelWriter.writerow(("k", self.question.cascade_k))
                 excelWriter.writerow(("k2", self.question.cascade_k2))
+                excelWriter.writerow(("m", self.question.cascade_m))
                 excelWriter.writerow(("p", self.question.cascade_p))
                 excelWriter.writerow(("s", self.question.cascade_s))
                 excelWriter.writerow(("t", self.question.cascade_t))
@@ -641,7 +642,7 @@ class DownloadQuestionHandler(BaseHandler):
             # write out ideas generated so far
             else:
                 excelWriter.writerow(("Counts",))
-                excelWriter.writerow(("# users", stats["user_count"]))
+                excelWriter.writerow(("# users", stats["idea_user_count"]))
                 excelWriter.writerow(("# ideas", stats["idea_count"]))
                 excelWriter.writerow(())   
                     
