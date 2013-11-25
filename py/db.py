@@ -2023,7 +2023,7 @@ def getNewCascadeItemSet(question):
     client = memcache.Client()
     key = "cascade_item_set_{0}".format(question.id)
 
-    itemSetRatio = constants.ITEM_SET_RATIOS[constants.CASCADE_M]
+    itemSetRatio = constants.ITEM_SET_RATIOS[question.cascade_m]
     xInitial = itemSetRatio["initial"]
     xSubsequent = itemSetRatio["subsequent"]
     newItemSet = constants.CASCADE_INITIAL_ITEM_SET
