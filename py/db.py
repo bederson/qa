@@ -749,7 +749,11 @@ class Idea(DBObject):
         dbConnection.conn.commit()
         
         # initialize cascade stats when first idea added
-        if question.cascade_k == 0:
+        # TODO/FIX: so query doesn't have to be performed for every idea added
+        sql = "select count(*) as ct from cascade_stats where question_id=%s"
+        dbConnection.cursor.execute(sql, (question.id))
+        row = dbConnection.cursor.fetchone()
+        if row["ct"] == 0:
             sql = "insert into cascade_stats (question_id) values (%s)"
             dbConnection.cursor.execute(sql, (question.id))            
             dbConnection.conn.commit()   
