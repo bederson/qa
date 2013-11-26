@@ -78,15 +78,18 @@ function disableUI() {
 	updateUI(false);
 }
 
-function submitIdea() {
+function submitIdea(continueToCascade) {
+	var continueToCascade = isDefined(continueToCascade) ? continueToCascade : false;
+	
 	var idea = $("#answer").val();
 	if (idea.length == "") {
 		return;		
 	}
 
 	enableDisable($("#submit"), false);
+	enableDisable($("#done"), false);
 	$("#loading_icon").show();
-	
+
 	var data = {
 		"client_id": client_id,
 		"idea": idea,
@@ -94,6 +97,7 @@ function submitIdea() {
 	};
 	$.post("/new_idea", data, function(result) {
 		enableDisable($("#submit"), true);
+		enableDisable($("#done"), true);
 		if (result.status == 0) {
 			$("#msg").html(result.msg);
 			return;
@@ -103,6 +107,9 @@ function submitIdea() {
 		updateRemainingChars();
 		$("#loading_icon").hide();
 		$("#thankyou").show();
+		if (continueToCascade) {
+			redirectToCascadePage(question_id);
+		}
 	}, "json");
 }
 		
@@ -223,7 +230,17 @@ function initEventHandlers() {
 	});
 
 	$("#done").click(function() {
-		redirectToCascadePage(question_id);
+		// check if idea not submitted yet
+		// if not, submit it and then continue
+		var idea = $("#answer").val();
+		if (idea.length != "") {
+			submitIdea(true);
+		}
+		
+		// otherwise, just continue
+		else {
+			redirectToCascadePage(question_id);
+		}
 	});
 	
 	$("#admin_button").click(function() {	

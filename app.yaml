@@ -1,8 +1,8 @@
-application: qa-umd
-version: 13
+#application: qa-umd
+#version: 13
 
-#application: qa-umd-test
-#version: dev
+application: qa-umd-test
+version: dev
 
 # free version so small quotas
 #application: xparty-umd

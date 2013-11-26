@@ -31,7 +31,7 @@ var showSubcategories = false;
 var hasSubcategories = false;
 
 var DISPLAY_ITEM_IN_SINGLE_CATEGORY = true;
-var singleCategoryOnly = false;
+var singleCategoryOnly = true;
 var primaryCategories = {};
 
 var showExpanded = true;
