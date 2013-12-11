@@ -202,14 +202,16 @@ function displayIdeas() {
 	initIdeaHandlers();
 			
 	// show/hide controls
-	if (categorizedIdeas.length>0) {
-		showHide($("#nest_categories_control"), hasSubcategories);
-		showHide($("#single_category_control"), hasAlsoIn);
-		showHide($("#discuss_only_control"), true);
-		showHide($("#also_in_control"), hasAlsoIn);
-		showHide($(".also_in"), showAlsoIn);
-		$("#display_control_area").show();
-	}	
+	var hasCategories = categorizedIdeas.length > 0;
+	showHide($("#sort_control"), hasCategories);
+	showHide($("#expand_categories_control"), hasCategories);
+	showHide($("#nest_categories_control"), hasSubcategories);
+	showHide($("#single_category_control"), hasAlsoIn);
+	showHide($("#control_lb"), hasCategories);
+	showHide($("#discuss_only_control"), true);
+	showHide($("#also_in_control"), hasAlsoIn);
+	showHide($(".also_in"), showAlsoIn);
+	$("#display_control_area").show();
 		
 	// BEHAVIOR: only display tag clouds when cascade is complete and categories expanded
 	if (SHOW_TAGCLOUDS && showExpanded && question.cascade_complete && !jQuery.browser.mobile) {
@@ -601,7 +603,7 @@ function initPrimaryCategories() {
 						// * if idea is in a subcategory, pick the smallest one
 						// * otherwise, pick the smallest root category
 						// TODO/FIX: consider whether primary category should be smallest or largest
-						// TODO/FIX: priority should be given to categories with the most fit votes (if more than 1)
+						// TODO/FIX: priority should be given to categories with the most fit votes (if k2>1)
 						var primaryCategory = null;					
 						if (ideaSubcategories.length > 0) {
 							var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
