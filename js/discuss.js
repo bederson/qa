@@ -25,15 +25,16 @@ var showFlagCount = false;
 var showUserList = false;
 var onClickDiscuss = null;
 
-function initDiscussFlags(flags, showCount, showUsers, onClickDiscuss) {
+function initDiscussFlags(flags, showCount, showUsers, clickDiscuss) {
 	if (!SHOW_DISCUSS_BUTTONS) {
 		return;
 	}
-	
+		
 	discussFlags = {};		
 	personalDiscussIdeas = [];
 	showFlagCount = isDefined(showCount) ? showCount : false;
 	showUserList = isDefined(showUsers) ? showUsers : false;
+	onClickDiscuss = isDefined(clickDiscuss) ? clickDiscuss : null;
 	
 	for (var i in flags) {
 		addDiscussFlag(flags[i]);
@@ -79,30 +80,9 @@ function initDiscussButtons(questionId, clientId, ideaId) {
 			if (result.status == 1) {
 				addRemoveDiscussFlag(result.flag, data.add=="1");
 				$(".discuss_idea_"+result.flag.idea_id+"_button").attr("src", data.add=="1" ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT);
-				if (onClickDiscuss) {
-					onClickDiscuss(questionId, ideaId, data.add=="1");
-				}
 			}
 		}, "json");
 	});
-	
-	// TODO/FIX: need different highlight image for hover
-	/*			
-	$(buttonSelector).hover(
-		function() {
-			var buttonImage = $(this).attr("src");
-			var newButtonImage = (buttonImage == DISCUSS_BUTTON_NO_HIGHLIGHT) ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT;
-			$(this).attr("src", newButtonImage);
-		}, 
-		function() {
-			var buttonId = $(this).attr("name");
-			var tokens = buttonId.split("_");
-			var ideaId = parseInt(tokens[2]);
-			var isPersonal = isPersonalDiscussIdea(ideaId);
-			$(this).attr("src", isPersonal ? DISCUSS_BUTTON_HIGHLIGHT : DISCUSS_BUTTON_NO_HIGHLIGHT);
-		}
-	);
-	*/
 }
 
 function discussButtonHtml(ideaId, customCss) {
@@ -184,6 +164,10 @@ function addRemoveDiscussFlag(flag, add) {
 		removeDiscussFlag(flag);
 	}
 	updateDiscussIdea(flag.idea_id);
+	
+	if (onClickDiscuss) {
+		onClickDiscuss(flag.question_id, flag.idea_id, add);
+	}
 }
 	
 function addDiscussFlag(flag) {

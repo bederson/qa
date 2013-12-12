@@ -192,7 +192,7 @@ function displayIdeas() {
 	// new idea html
 	var newIdeaHtml = "<table style='width:100%'>";
 	newIdeaHtml += "<tr>";
-	newIdeaHtml += "<td style='width:50%'>";
+	newIdeaHtml += "<td style='width:65%'>";
 	newIdeaHtml += "<div id='new_ideas'></div>";
 	newIdeaHtml += "</td>";
 	newIdeaHtml += "</tr>";
@@ -208,6 +208,7 @@ function displayIdeas() {
 	showHide($("#nest_categories_control"), hasSubcategories);
 	showHide($("#single_category_control"), hasAlsoIn);
 	showHide($("#control_lb"), hasCategories);
+	showHide($("#highlight_discuss_control"), true);
 	showHide($("#discuss_only_control"), true);
 	showHide($("#also_in_control"), hasAlsoIn);
 	showHide($(".also_in"), showAlsoIn);
@@ -248,22 +249,28 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	var category = categoryGroup.category;
 	var ideas = categoryGroup.ideas;
 	var sameAs = isDefined(categoryGroup.sameas) ? "Similar to: "+categoryGroup.sameas : "";
-	var categoryCount = categoryGroup.count;
+	var categoryCount = categoryGroup.count;	
+	var hiddenCount = 0;
 	
 	var html = "";
 	if (categoryCount > 0) {
 		html += "<table style='width: 100%'>";
 		html += "<tr>";
-		html += "<td style='width: 50%'>";
+		html += "<td style='width: 65%'>";
+		
 		// an empty category means the items have not been categorized yet
 		if (category != "") {
 			html += showExpanded ? "<div class='category spaceabove spacebelow'>" : "<div class='category smallspaceabove smallspacebelow'>";
 			html += category + "&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span>";
 			html += "</div>";		
 		}
+		
 		if (showExpanded) {
 			for (var i in ideas) {
-				html += ideaAsHtml(ideas[i], null, category != "" ? DEFAULT_IDEA_INDENT : 0);
+				html += ideaAsHtml(ideas[i], id, null, category != "" ? DEFAULT_IDEA_INDENT : 0);
+				if (discussOnly && getDiscussFlagCount(ideas[i].id) == 0) {
+					hiddenCount++;
+				}
 			}
 		}
 		
@@ -282,27 +289,32 @@ function categoryGroupAsHtml(categoryGroup, id) {
 				html += "</div>";
 				if (showExpanded) {
 					for (var j in subcategoryIdeas) {
-						html += ideaAsHtml(subcategoryIdeas[j], category, (DEFAULT_IDEA_INDENT*2)+10);
+						html += ideaAsHtml(subcategoryIdeas[j], id, category, (DEFAULT_IDEA_INDENT*2)+10);
+						if (discussOnly && getDiscussFlagCount(subcategoryIdeas[j].id) == 0) {
+							hiddenCount++;
+						}
 					}
 					html += "<div style='clear:both'></div>";
 				}
 			}
-		}
-				
+		}	
+		
+		var hiddenIdeasExist = showExpanded && discussOnly && hiddenCount > 0;
+		var hiddenMessage = "<span class=\"note\"><em>Responses are hidden if not flagged to discuss</em></span>";
+		html += "<div id='category_" + id + "_ellipses" + "' style='" + (!hiddenIdeasExist ? "display:none;" : "") +"color:#888; margin-left: " + (DEFAULT_IDEA_INDENT+10) + "px'><span title='" + hiddenMessage + "'>...</span></div>";
+								
 		html += "</td>";
-		
 		if (!jQuery.browser.mobile) {
-			html += "<td style='width: 50%' valign='top'><div id='cloud"+id+"' class='cloud'></div></td>";
+			html += "<td style='width: 35%' valign='top'><div id='cloud"+id+"' class='cloud'></div></td>";
 		}
-		
 		html += "</tr>";
 		html += "</table>";
 	}
-	
+		
 	return html;
 }
 				
-function ideaAsHtml(idea, parent, indent) {
+function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	parent = isDefined(parent) ? parent : null;
 	indent = isDefined(indent) ? indent : 0;
 
@@ -314,8 +326,13 @@ function ideaAsHtml(idea, parent, indent) {
 		}
 	}
 	
+	var discussCount = getDiscussFlagCount(idea.id);
+	var hideIdea = discussOnly && discussCount == 0;
+	
 	var highlightClass = highlightAllDiscuss && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
-	var html = "<div class='left idea idea_" + idea.id + highlightClass + "' style='margin-left:"+indent+"px;'>";	
+	var html = "<div class='left idea idea_" + idea.id + " category_" + rootCategoryId + highlightClass + "' style='margin-left:"+indent+"px;"
+	html += hideIdea ? "display:none" : "";
+	html += "'>";	
 	html += discussButtonHtml(idea.id);
 	html += "<div style='margin-left:40px;'>";
 	html += idea.idea;
@@ -326,11 +343,11 @@ function ideaAsHtml(idea, parent, indent) {
 	}
 
 	if (idea.author) {
-	html += "</br>";
-	html += "<span class='author'>";
-	html += "-- "; 
-	html += getUserHtml(idea.author, idea.author_identity);
-	html += "</span>";
+		html += "</br>";
+		html += "<span class='author'>";
+		html += "-- "; 
+		html += getUserHtml(idea.author, idea.author_identity);
+		html += "</span>";
 	}
 	
 	html += "</div>";
@@ -401,7 +418,7 @@ function displayCloud(group, id) {
 	var div = $("#cloud"+id);
 	
 	// do not show tag clouds for groups with < MIN_TAGCLOUD_ITEM_COUNT items
-	if (group.length < MIN_TAGCLOUD_ITEM_COUNT) {
+	if (group.length < MIN_TAGCLOUD_ITEM_COUNT || discussOnly) {
 		div.html("");
 		return;
 	}
@@ -681,7 +698,7 @@ function handleIdea(data) {
 	var idea = data.idea;
 	uncategorizedIdeas.push(idea);
 	numIdeas++;
-	var newHtml = ideaAsHtml(idea);
+	var newHtml = ideaAsHtml(idea, categorizedIdeas.length+1);
 	$("#new_ideas").html(newHtml + $("#new_ideas").html());
 	initIdeaHandlers(idea.id);
 	updateStats();
@@ -711,19 +728,40 @@ function handleResults(data) {
 function handleDiscussIdea(data) {
 	if (data.flag.question_id == question.id) {
 		addRemoveDiscussFlag(data.flag, data.op == "discuss_idea");
-		onClickDiscuss(data.flag.question_id, data.flag.idea_id, data.op == "discuss_idea");
 	}
 }
 
 function onClickDiscuss(questionId, ideaId, add) {
-	if (highlightAllDiscuss && questionId == question.id) {
+	if (questionId == question.id) {
 		var ideaSelector = $(".idea_"+ideaId);
 		var count = getDiscussFlagCount(ideaId);
-		if (count > 0 && !ideaSelector.hasClass("discuss_highlight")) {
-			ideaSelector.addClass("discuss_highlight");
+		
+		if (highlightAllDiscuss) {
+			if (count > 0 && !ideaSelector.hasClass("discuss_highlight")) {
+				ideaSelector.addClass("discuss_highlight");
+			}
+			else if (count == 0) {
+				ideaSelector.removeClass("discuss_highlight");
+			}
 		}
-		else if (count == 0) {
-			ideaSelector.removeClass("discuss_highlight");
+		
+		if (showExpanded && discussOnly) {
+			showHide(ideaSelector, count>0);
+			ideaSelector.each(function() {
+				var categoryClass = null;
+				var ideaClasses = $(this).attr('class').split(' ');
+				for (var i in ideaClasses) {
+					if (ideaClasses[i].indexOf("category_") != -1) {
+						categoryClass = ideaClasses[i]; 
+						break;
+					}
+				}
+				
+				if (categoryClass) {
+					var visibleCount = $("."+categoryClass+":visible").length;
+					showHide($("#"+categoryClass+"_ellipses"), visibleCount==0);
+				}
+			});
 		}
 	}
 }
