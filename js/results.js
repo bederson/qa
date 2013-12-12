@@ -234,7 +234,9 @@ function displayIdeas() {
 
 function initIdeaHandlers(ideaId) {
 	// init discuss button tooltips, event handlers
-	initDiscussButtons(question.id, client_id, ideaId);
+	if (question.active) {
+		initDiscussButtons(question.id, client_id, ideaId);
+	}
 	
 	// init any other tooltips in idea
 	$('[title!=""]').qtip({ 
@@ -706,12 +708,14 @@ function handleIdea(data) {
 
 function handleEnable(data) {
 	question.active = 1;
-	updateStatus();
+	// TODO: would be better to only update data that has changed
+	window.location.reload();
 }
 
 function handleDisable(data) {
 	question.active = 0;
-	updateStatus();
+	// TODO: would be better to only update data that has changed
+	window.location.reload();
 }
 
 function handleNickname(data) {
@@ -759,7 +763,8 @@ function onClickDiscuss(questionId, ideaId, add) {
 				
 				if (categoryClass) {
 					var visibleCount = $("."+categoryClass+":visible").length;
-					showHide($("#"+categoryClass+"_ellipses"), visibleCount==0);
+					var hiddenCount = $("."+categoryClass+":hidden").length;
+					showHide($("#"+categoryClass+"_ellipses"), hiddenCount > 0);
 				}
 			});
 		}

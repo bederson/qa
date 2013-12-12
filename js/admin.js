@@ -260,13 +260,14 @@ function displaySelectedQuestion() {
 	}
 	
 	var html = "<h2 class='spacebelow'>Selected question:</h2>";
-	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span><br/>";
+	html += "<strong>" + question.title + "</strong> <span class='note'>#" + question.id + "</span> <span id='inactive' class='small warning'></span><br/>";
 	html += question.question + "<br/>";
 	html += "<div id='user_stats' class='small largespacebelow'>&nbsp;</div>";
 	$("#question").html(html);
 		
 	loadStats(question);
 	
+	$("#inactive").html(!question.active ? "INACTIVE" : "");
 	$("#active_cb").prop("checked", question.active);
 	$("#start_link").attr("href", getStartPageUrl(question.id));
 	$("#idea_link").attr("href", getNotesPageUrl(question.id));

@@ -177,7 +177,7 @@ class BaseHandler(webapp2.RequestHandler):
             self.session['msg'] = "Invalid question code"
             ok = False
         elif activeQuestionRequired and not self.question.active:
-            self.session['msg'] = "Question inactive"
+            self.session['msg'] = "Inactive question"
             ok = False
         return ok
           

@@ -123,7 +123,10 @@ function loadResults() {
 
 function displayIdeas() {
 	initKeshif();
-	initDiscussButtons(question.id, client_id);
+	if (question.active) {
+		initDiscussButtons(question.id, client_id);
+	}
+	
 	$('[title!=""]').qtip({ 
 		style: { 
 			tip: { corner: true }, 
@@ -458,6 +461,18 @@ function getUserHtml(displayName, realIdentity, customClass) {
 function handleIdea(data) {
 	// TODO/FIX: support dynamic adding of new ideas
 	//addIdea(data.idea);
+}
+
+function handleEnable(data) {
+	question.active = 1;
+	// TODO: would be better to only update data that has changed
+	window.location.reload();
+}
+
+function handleDisable(data) {
+	question.active = 0;
+	// TODO: would be better to only update data that has changed
+	window.location.reload();
 }
 
 function handleNickname(data) {
