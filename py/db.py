@@ -1424,7 +1424,6 @@ class CascadeEqualCategory(DBObject):
                     # TODO/FIX: generates error if transaction not started
                     #sql = "select * from categories where question_id=%s and (category=%s or category=%s) and skip=1 on update"
                     sql = "select * from categories where question_id=%s and (category=%s or category=%s) and skip=1"
-
                     dbConnection.cursor.execute(sql, (question.id, category1, category2))
                     rows = dbConnection.cursor.fetchall()
                                              
@@ -1809,6 +1808,16 @@ class CascadeVerifyCategory(CascadeFitCategory):
                                   
 def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=False): 
 
+    # delete any remaining fit tasks that should have been deleted because category was skipped 
+    # (probably because it was found to be equal to another category)
+    if constants.FIND_EQUAL_CATEGORIES:
+        sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category in (select category from categories where question_id=%s and skip=1)"
+        dbConnection.cursor.execute(sql, (question.id, question.id))
+        if constants.VERIFY_CATEGORIES:
+            sql = "delete from cascade_fit_categories_phase2 where question_id=%s and category in (select category from categories where question_id=%s and skip=1)"
+            dbConnection.cursor.execute(sql, (question.id, question.id))
+        dbConnection.cursor.commit()
+                         
     # get category groups based on current CascadeCategoryFit tasks and CascadeVerifyFit tasks
     categoryGroups = getCategoryGroups(dbConnection, question)
     ideaCount = Idea.getCountForQuestion(dbConnection, question.id)
