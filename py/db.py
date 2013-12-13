@@ -1063,8 +1063,15 @@ class CascadeSuggestCategory(DBObject):
                 moreJobs = True
                 
         elif task["suggested_category"]:
-            CascadeBestCategory.create(dbConnection, question, task["idea_id"])
-            moreJobs = True
+            # if k=1, skip CascadeBestCategory jobs
+            #CascadeBestCategory.create(dbConnection, question, task["idea_id"])
+            #moreJobs = True
+            sql = "select count(*) as ct from categories where question_id=%s and category=%s"
+            dbConnection.cursor.execute(sql, (question.id, task["suggested_category"]))
+            row = dbConnection.cursor.fetchone()
+            isNewCategory = row["ct"] == 0
+            data = { "best_category": task["suggested_category"], "is_new_category": isNewCategory }
+            CascadeBestCategory.createCascadeJobs(dbConnection, question, rows=[data])
             
         if moreJobs and Question.onMoreJobs:
             question.onMoreJobs(dbConnection)
@@ -1179,17 +1186,18 @@ class CascadeBestCategory(DBObject):
             dbConnection.conn.commit()
             
             # create any new cascade jobs
-            CascadeBestCategory.createCascadeJobs(dbConnection, question, task)
+            CascadeBestCategory.createCascadeJobs(dbConnection, question, task=task)
     
     @staticmethod
-    def createCascadeJobs(dbConnection, question, task):    
+    def createCascadeJobs(dbConnection, question, task=None, rows=None):    
         # create cascade jobs if CascadeBestCategory job is complete
-        sql = "select *, (best_category not in (select category from categories where question_id={0})) as is_new_category ".format(question.id)
-        sql += "from cascade_best_categories where question_id={0} and ".format(question.id)
-        sql += "idea_id=(select idea_id from cascade_best_categories where id={0}) and ".format(task["id"])
-        sql += "{0}".format(CascadeBestCategory.completeCondition)
-        dbConnection.cursor.execute(sql)
-        rows = dbConnection.cursor.fetchall()
+        if rows is None:
+            sql = "select *, (best_category not in (select category from categories where question_id={0})) as is_new_category ".format(question.id)
+            sql += "from cascade_best_categories where question_id={0} and ".format(question.id)
+            sql += "idea_id=(select idea_id from cascade_best_categories where id={0}) and ".format(task["id"])
+            sql += "{0}".format(CascadeBestCategory.completeCondition)
+            dbConnection.cursor.execute(sql)
+            rows = dbConnection.cursor.fetchall()
         
         jobCount = 0
         if len(rows) >= question.cascade_k:
@@ -1808,15 +1816,14 @@ class CascadeVerifyCategory(CascadeFitCategory):
                                   
 def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=False): 
 
-    # delete any remaining fit tasks that should have been deleted because category was skipped 
-    # (probably because it was found to be equal to another category)
+    # delete any remaining fit tasks that should have been deleted because category was found equal to another category
     if constants.FIND_EQUAL_CATEGORIES:
         sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category in (select category from categories where question_id=%s and skip=1)"
         dbConnection.cursor.execute(sql, (question.id, question.id))
         if constants.VERIFY_CATEGORIES:
             sql = "delete from cascade_fit_categories_phase2 where question_id=%s and category in (select category from categories where question_id=%s and skip=1)"
             dbConnection.cursor.execute(sql, (question.id, question.id))
-        dbConnection.cursor.commit()
+        dbConnection.conn.commit()
                          
     # get category groups based on current CascadeCategoryFit tasks and CascadeVerifyFit tasks
     categoryGroups = getCategoryGroups(dbConnection, question)
