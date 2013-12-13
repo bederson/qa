@@ -1043,38 +1043,51 @@ class CascadeSuggestCategory(DBObject):
             CascadeSuggestCategory.createCascadeJobs(dbConnection, question, task)
     
     @staticmethod
-    def createCascadeJobs(dbConnection, question, task):
-        # create CascadeBestCategory jobs for task idea if CascadeSuggestCategory job complete
-        moreJobs = False
-        if question.cascade_k > 1:
+    def createCascadeJobs(dbConnection, question, task): 
+        jobComplete = False
+        suggestedCategories = []
+        skippedCategoryCount = 0
+        if question.cascade_k == 1:
+            if task["suggested_category"]:
+                suggestedCategories.append(task["suggested_category"])
+            else:
+                skippedCategoryCount = 1
+            jobComplete = True
+            
+        else:
             sql = "select idea_id, suggested_category from cascade_suggested_categories where question_id=%s and cascade_suggested_categories.idea_id=(select idea_id from cascade_suggested_categories where id=%s) and {0}".format(CascadeSuggestCategory.completeCondition)
             dbConnection.cursor.execute(sql, (question.id, task["id"]))
             rows = dbConnection.cursor.fetchall()
-            
-            # make sure at least one category was suggested (could have just skipped them all)
-            atLeastOneSuggestedCategory = False
             for row in rows:
-                if row["suggested_category"]:
-                    atLeastOneSuggestedCategory = True
-                    break
+                if row["suggested_category"] and row["suggested_category"] not in suggestedCategories:
+                    suggestedCategories.append(row["suggested_category"])
+                elif not row["suggested_category"]:
+                    skippedCategoryCount += 1
+            jobComplete = len(rows) >= question.cascade_k
 
-            if len(rows) >= question.cascade_k and atLeastOneSuggestedCategory:
-                CascadeBestCategory.create(dbConnection, question, row["idea_id"])
+        # check how many categories suggested (could have just skipped them all)
+        multipleCategoriesSuggested = len(suggestedCategories) > 1
+        onlyOneCategorySuggested = len(suggestedCategories) == 1
+
+        # create CascadeBestCategory jobs for task idea if CascadeSuggestCategory job complete
+        # and there is more than one suggested category
+        moreJobs = False
+        if jobComplete:
+            if multipleCategoriesSuggested:    
+                CascadeBestCategory.create(dbConnection, question, task["idea_id"])
                 moreJobs = True
-                
-        elif task["suggested_category"]:
-            # if k=1, skip CascadeBestCategory jobs
-            #CascadeBestCategory.create(dbConnection, question, task["idea_id"])
-            #moreJobs = True
-            sql = "select count(*) as ct from categories where question_id=%s and category=%s"
-            dbConnection.cursor.execute(sql, (question.id, task["suggested_category"]))
-            row = dbConnection.cursor.fetchone()
-            isNewCategory = row["ct"] == 0
-            data = { "best_category": task["suggested_category"], "is_new_category": isNewCategory }
-            CascadeBestCategory.createCascadeJobs(dbConnection, question, rows=[data])
+                   
+            elif onlyOneCategorySuggested:
+                sql = "select count(*) as ct from categories where question_id=%s and category=%s"
+                dbConnection.cursor.execute(sql, (question.id, suggestedCategories[0]))
+                row = dbConnection.cursor.fetchone()
+                isNewCategory = row["ct"] == 0
+                rows = [ { "best_category": suggestedCategories[0], "is_new_category": isNewCategory } for i in range(question.cascade_k-skippedCategoryCount) ] 
+                rows.extend([ { "best_category": None, "is_new_category": False } for i in range(skippedCategoryCount) ])
+                CascadeBestCategory.createCascadeJobs(dbConnection, question, rows=rows)
             
-        if moreJobs and Question.onMoreJobs:
-            question.onMoreJobs(dbConnection)
+            if moreJobs and Question.onMoreJobs:
+                question.onMoreJobs(dbConnection)
                 
     def assignTo(self, dbConnection, person, commit=True):  
         self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
