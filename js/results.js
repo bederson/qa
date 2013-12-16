@@ -25,19 +25,25 @@ var DEFAULT_IDEA_INDENT = 20; // pixels
 var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
 
-var DISPLAY_SUBCATEGORIES = true;
-var subcategories = [];
-var showSubcategories = false;
-var hasSubcategories = false;
+var DEFAULT_SHOW_EXPANDED = true;
+var DEFAULT_SHOW_SUBCATEGORIES = false;
+var DEFAULT_SHOW_IN_SINGLE_CATEGORY = true;
+var DEFAULT_SHOW_ALSO_IN = false;
+var DEFAULT_HIGHLIGHT_DISCUSS = false;
+var DEFAULT_SHOW_DISCUSS_ONLY = false;
+var STORE_SETTINGS_IN_HASH = false;
 
-var DISPLAY_ITEM_IN_SINGLE_CATEGORY = true;
-var singleCategoryOnly = true;
+var showExpanded = DEFAULT_SHOW_EXPANDED;
+var showSubcategories = DEFAULT_SHOW_SUBCATEGORIES;
+var showInSingleCategory = DEFAULT_SHOW_IN_SINGLE_CATEGORY;
+var showAlsoIn = DEFAULT_SHOW_ALSO_IN;
+var highlightDiscuss = DEFAULT_HIGHLIGHT_DISCUSS;
+var showDiscussOnly = DEFAULT_SHOW_DISCUSS_ONLY;
+
 var primaryCategories = {};
-
-var showExpanded = true;
-var showAlsoIn = false;
+var subcategories = [];
+var hasSubcategories = false;
 var hasAlsoIn = false;
-var highlightAllDiscuss = false;
 
 var question = null;
 var categorizedIdeas = [];
@@ -46,10 +52,17 @@ var numIdeas = 0;
 var displayedCategories = {};
 var categoryCounts = {};
 var adminStats = null;
-var discussOnly = false;
 var isQuestionAuthor = false;
    
 $(document).ready(function() {
+	initSettingsFromHash();
+	$("#expand_categories_cb").prop("checked", showExpanded);
+	$("#nest_categories_cb").prop("checked", showSubcategories);
+	$("#single_category_cb").prop("checked", showInSingleCategory);
+	$("#also_in_cb").prop("checked", showAlsoIn);
+	$("#highlight_discuss_cb").prop("checked", highlightDiscuss);
+	$("#discuss_only_cb").prop("checked", showDiscussOnly);
+	
 	initEventHandlers();
 
 	if ($("#msg").html()) {
@@ -57,7 +70,7 @@ $(document).ready(function() {
 	}
 
 	initChannel(onChannelOpen);
-	
+		
 	// will only be shown for instructor
 	// for questions that are not finished yet
 	if (SHOW_START_URL_BY_DEFAULT) {
@@ -87,37 +100,71 @@ function onChannelOpen() {
 	
 	$("#expand_categories_cb").click(function() {
 		showExpanded = $(this).is(":checked");
+		storeSettingsToHash();
 		displayIdeas();
 	});
 	
 	$("#nest_categories_cb").click(function() {
-		showSubcategories = DISPLAY_SUBCATEGORIES && $(this).is(":checked");
+		showSubcategories = $(this).is(":checked");
 		initDisplayCategories();
+		storeSettingsToHash();
 		displayIdeas();
 	});
 		
 	$("#single_category_cb").click(function() {
-		singleCategoryOnly = $(this).is(":checked");
+		showInSingleCategory = $(this).is(":checked");
 		initDisplayCategories();
+		storeSettingsToHash();
 		displayIdeas();
 	});
 	
 	$("#highlight_discuss_cb").click(function() {
-		highlightAllDiscuss = $(this).is(":checked");
+		highlightDiscuss = $(this).is(":checked");
+		storeSettingsToHash();
 		displayIdeas();
 	});
 
 	$("#discuss_only_cb").click(function() {
-		discussOnly = $(this).is(":checked");
+		showDiscussOnly = $(this).is(":checked");
+		storeSettingsToHash();
 		displayIdeas();
 	});
 	
 	$("#also_in_cb").click(function() {
 		showAlsoIn = $(this).is(":checked");
+		storeSettingsToHash();
 		showHide($(".also_in"), showAlsoIn);
 	});
 }
 
+function initSettingsFromHash() {
+	if (STORE_SETTINGS_IN_HASH) {
+		var hash = window.location.hash;
+		if (hash != "") {
+			var boolValues = ["0", "1"];
+			showExpanded = hash.length > 1 && hash[1] in boolValues ? hash[1] == "1" : DEFAULT_SHOW_EXPANDED;
+			showSubcategories = hash.length > 2 && hash[2] in boolValues ? hash[2] == "1" : DEFAULT_SHOW_SUBCATEGORIES;
+			showInSingleCategory = hash.length > 3 && hash[3] in boolValues ? hash[3] == "1" : DEFAULT_SHOW_IN_SINGLE_CATEGORY;
+			showAlsoIn = hash.length > 4 && hash[4] in boolValues ? hash[4] == "1" : DEFAULT_SHOW_ALSO_IN;
+			highlightDiscuss = hash.length > 5 && hash[5] in boolValues ? hash[5] == "1" : DEFAULT_HIGHLIGHT_DISCUSS;
+			showDiscussOnly = hash.length > 6 && hash[6] in boolValues ? hash[6] == "1" : DEFAULT_SHOW_DISCUSS_ONLY;
+		}
+	}
+}
+
+function storeSettingsToHash() {
+	if (STORE_SETTINGS_IN_HASH) {
+		var hash = "";
+		hash += showExpanded ? "1" : "0";
+		hash += showSubcategories ? "1" : "0";
+		hash += showInSingleCategory ? "1" : "0";
+		hash += showAlsoIn ? "1" : "0";
+		hash += highlightDiscuss ? "1" : "0";
+		hash += showDiscussOnly ? "1" : "0";
+		window.location.hash = hash;
+	}
+}
+	
 function loadResults() {	
 	var test = getURLParameter("test");
 
@@ -147,13 +194,11 @@ function loadResults() {
 			var categoryIdeas = categorizedIdeas[i].ideas;
 			var categorySubcategories = categorizedIdeas[i].subcategories;
 			categoryCounts[category] = categoryIdeas.length;
-			if (DISPLAY_SUBCATEGORIES) {
-				for (var j in categorySubcategories) {
-					var subcategory = categorySubcategories[j];
-					if ($.inArray(subcategory, subcategories) == -1) {
-						subcategories.push(subcategory);
-					} 
-				}
+			for (var j in categorySubcategories) {
+				var subcategory = categorySubcategories[j];
+				if ($.inArray(subcategory, subcategories) == -1) {
+					subcategories.push(subcategory);
+				} 
 			}
 		}	
 		hasSubcategories = subcategories.length > 0;
@@ -270,7 +315,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 		if (showExpanded) {
 			for (var i in ideas) {
 				html += ideaAsHtml(ideas[i], id, null, category != "" ? DEFAULT_IDEA_INDENT : 0);
-				if (discussOnly && getDiscussFlagCount(ideas[i].id) == 0) {
+				if (showDiscussOnly && getDiscussFlagCount(ideas[i].id) == 0) {
 					hiddenCount++;
 				}
 			}
@@ -292,7 +337,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 				if (showExpanded) {
 					for (var j in subcategoryIdeas) {
 						html += ideaAsHtml(subcategoryIdeas[j], id, category, (DEFAULT_IDEA_INDENT*2)+10);
-						if (discussOnly && getDiscussFlagCount(subcategoryIdeas[j].id) == 0) {
+						if (showDiscussOnly && getDiscussFlagCount(subcategoryIdeas[j].id) == 0) {
 							hiddenCount++;
 						}
 					}
@@ -301,7 +346,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 			}
 		}	
 		
-		var hiddenIdeasExist = showExpanded && discussOnly && hiddenCount > 0;
+		var hiddenIdeasExist = showExpanded && showDiscussOnly && hiddenCount > 0;
 		var hiddenMessage = "<span class=\"note\"><em>Responses are hidden if not flagged to discuss</em></span>";
 		html += "<div id='category_" + id + "_ellipses" + "' style='" + (!hiddenIdeasExist ? "display:none;" : "") +"color:#888; margin-left: " + (DEFAULT_IDEA_INDENT+10) + "px'><span title='" + hiddenMessage + "'>...</span></div>";
 								
@@ -329,9 +374,9 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	}
 	
 	var discussCount = getDiscussFlagCount(idea.id);
-	var hideIdea = discussOnly && discussCount == 0;
+	var hideIdea = showDiscussOnly && discussCount == 0;
 	
-	var highlightClass = highlightAllDiscuss && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
+	var highlightClass = highlightDiscuss && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
 	var html = "<div class='left idea idea_" + idea.id + " category_" + rootCategoryId + highlightClass + "' style='margin-left:"+indent+"px;"
 	html += hideIdea ? "display:none" : "";
 	html += "'>";	
@@ -420,7 +465,7 @@ function displayCloud(group, id) {
 	var div = $("#cloud"+id);
 	
 	// do not show tag clouds for groups with < MIN_TAGCLOUD_ITEM_COUNT items
-	if (group.length < MIN_TAGCLOUD_ITEM_COUNT || discussOnly) {
+	if (group.length < MIN_TAGCLOUD_ITEM_COUNT || showDiscussOnly) {
 		div.html("");
 		return;
 	}
@@ -511,7 +556,7 @@ function initDisplayCategories() {
 				}
 			
 				// skip if only displaying idea in single category and this is not the primary category
-				if (singleCategoryOnly && isDefined(primaryCategories[idea.id]) && primaryCategories[idea.id] != category) {
+				if (showInSingleCategory && isDefined(primaryCategories[idea.id]) && primaryCategories[idea.id] != category) {
 					skip = true;
 				}
 
@@ -546,7 +591,7 @@ function initDisplayCategories() {
 						
 						// skip adding this idea to this subcategory if ideas are only to be shown in one category,
 						// and this subcategory is not the primary category for this idea
-						var skip = singleCategoryOnly && isDefined(primaryCategories[subcategoryIdea.id]) && (primaryCategories[subcategoryIdea.id] != subcategory);
+						var skip = showInSingleCategory && isDefined(primaryCategories[subcategoryIdea.id]) && (primaryCategories[subcategoryIdea.id] != subcategory);
 						
 						// add this idea to this subcategory
 						if (!skip) {
@@ -603,40 +648,38 @@ function initPrimaryCategories() {
 	// find primary categories for ideas that appear in multiple categories
 	// ideas only in single category not included
 	primaryCategories = {};
-	if (DISPLAY_ITEM_IN_SINGLE_CATEGORY) {		
-		for (var i=0; i<categorizedIdeas.length; i++) {
-			var category = categorizedIdeas[i].category;
-			var ideas = categorizedIdeas[i].ideas;
-			for (var j=0; j<ideas.length; j++) {
-				var idea = ideas[j];
-				if (isUndefined(primaryCategories[idea.id])) {
-					var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
-					if (ideaAlsoIn.length > 0) {
-						// if this idea is in other categories, add this category to list
-						ideaAlsoIn.push(category);
+	for (var i=0; i<categorizedIdeas.length; i++) {
+		var category = categorizedIdeas[i].category;
+		var ideas = categorizedIdeas[i].ideas;
+		for (var j=0; j<ideas.length; j++) {
+			var idea = ideas[j];
+			if (isUndefined(primaryCategories[idea.id])) {
+				var ideaAlsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
+				if (ideaAlsoIn.length > 0) {
+					// if this idea is in other categories, add this category to list
+					ideaAlsoIn.push(category);
 						
-						// find subcategories this idea is in
-						var ideaSubcategories = subcategories.length > 0 ? intersection(ideaAlsoIn, subcategories) : [];
+					// find subcategories this idea is in
+					var ideaSubcategories = subcategories.length > 0 ? intersection(ideaAlsoIn, subcategories) : [];
 							
-						// find primary category for this idea
-						// * if idea is in a subcategory, pick the smallest one
-						// * otherwise, pick the smallest root category
-						// TODO/FIX: consider whether primary category should be smallest or largest
-						// TODO/FIX: priority should be given to categories with the most fit votes (if k2>1)
-						var primaryCategory = null;					
-						if (ideaSubcategories.length > 0) {
-							var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
-							primaryCategory = minMaxSubcategories.min;
-						}
-						else {
-							var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
-							var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
-							primaryCategory =  minMaxRootCategories.min;
-						}
-						primaryCategories[idea.id] = primaryCategory;
+					// find primary category for this idea
+					// * if idea is in a subcategory, pick the smallest one
+					// * otherwise, pick the smallest root category
+					// TODO/FIX: consider whether primary category should be smallest or largest
+					// TODO/FIX: priority should be given to categories with the most fit votes (if k2>1)
+					var primaryCategory = null;					
+					if (ideaSubcategories.length > 0) {
+						var minMaxSubcategories = getMinMaxCategories(ideaSubcategories);
+						primaryCategory = minMaxSubcategories.min;
 					}
-				}			
-			}
+					else {
+						var ideaRootCategories = ideaSubcategories.length > 0 ? difference(ideaAlsoIn, ideaSubcategories) : ideaAlsoIn;
+						var minMaxRootCategories = getMinMaxCategories(ideaRootCategories);
+						primaryCategory =  minMaxRootCategories.min;
+					}
+					primaryCategories[idea.id] = primaryCategory;
+				}
+			}			
 		}
 	}
 	return primaryCategories;
@@ -740,7 +783,7 @@ function onClickDiscuss(questionId, ideaId, add) {
 		var ideaSelector = $(".idea_"+ideaId);
 		var count = getDiscussFlagCount(ideaId);
 		
-		if (highlightAllDiscuss) {
+		if (highlightDiscuss) {
 			if (count > 0 && !ideaSelector.hasClass("discuss_highlight")) {
 				ideaSelector.addClass("discuss_highlight");
 			}
@@ -749,7 +792,7 @@ function onClickDiscuss(questionId, ideaId, add) {
 			}
 		}
 		
-		if (showExpanded && discussOnly) {
+		if (showExpanded && showDiscussOnly) {
 			showHide(ideaSelector, count>0);
 			ideaSelector.each(function() {
 				var categoryClass = null;

@@ -425,7 +425,6 @@ function showHideCreateCategoryButton(question) {
 			//$("#create_categories2_button").show();
 		    //$("#create_categories3_button").show();
 		}
-		
 	}
 }
 
