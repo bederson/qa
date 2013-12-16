@@ -53,8 +53,9 @@ FIND_SUBCATEGORIES = True           # whether or not to find subcategories in re
 MIN_DUPLICATE_SIZE_PERCENTAGE = 50  # categories >= this % in size than others are duplicates if >= p % items overlap
                                     # categories < this % in size than others are subcategories if >= p % items overlap
 DELETE_LOOSE_CATEGORIES = False     # whether or not to include categories that contain p % of all items in results
+MERGE_NEST_CATEGORIES_AGAIN = False # check for duplicate and nested categories a second time
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"
 
-STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "her", "here", "him", "his", "how", "I", "if", "in", "into", "is", "it", "its", "just", "my", "of", "on", "only", "or", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];
+STOP_WORDS = [ "a", "about", "all", "am", "an", "and", "any", "are", "as", "at", "be", "been", "being", "but", "by", "can", "did", "do", "for", "from", "get", "had", "has", "he", "her", "here", "him", "his", "how", "I", "if", "in", "into", "is", "it", "its", "just", "my", "of", "on", "only", "or", "our", "put", "said", "she", "so", "some", "than", "that", "the", "them", "they", "their", "there", "this", "to", "was", "we", "went", "were", "what", "when", "where", "which", "who", "will", "with", "without", "you", "your" ];

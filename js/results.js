@@ -192,7 +192,7 @@ function displayIdeas() {
 	// new idea html
 	var newIdeaHtml = "<table style='width:100%'>";
 	newIdeaHtml += "<tr>";
-	newIdeaHtml += "<td style='width:65%'>";
+	newIdeaHtml += "<td style='width:50%'>";
 	newIdeaHtml += "<div id='new_ideas'></div>";
 	newIdeaHtml += "</td>";
 	newIdeaHtml += "</tr>";
@@ -258,7 +258,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	if (categoryCount > 0) {
 		html += "<table style='width: 100%'>";
 		html += "<tr>";
-		html += "<td style='width: 65%'>";
+		html += "<td style='width: 50%'>";
 		
 		// an empty category means the items have not been categorized yet
 		if (category != "") {
@@ -307,7 +307,7 @@ function categoryGroupAsHtml(categoryGroup, id) {
 								
 		html += "</td>";
 		if (!jQuery.browser.mobile) {
-			html += "<td style='width: 35%' valign='top'><div id='cloud"+id+"' class='cloud'></div></td>";
+			html += "<td style='width: 50%' valign='top'><div id='cloud"+id+"' class='cloud'></div></td>";
 		}
 		html += "</tr>";
 		html += "</table>";

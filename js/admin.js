@@ -421,10 +421,10 @@ function showHideCreateCategoryButton(question) {
 		$("#create_categories_button").hide();
 		// FOR TESTING ONLY: create_categories2_button allows categories to be regenerated to a secondary set of tables
 		// FOR TESTING ONLY: create_categories3_button allows existing categories to be regenerated
-		//if (isRunningOnTestServer() && dev_user) {
-		//	$("#create_categories2_button").show();
-		//  $("#create_categories3_button").show();
-		//}
+		if (isRunningOnTestServer() && dev_user) {
+			//$("#create_categories2_button").show();
+		    //$("#create_categories3_button").show();
+		}
 		
 	}
 }

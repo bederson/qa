@@ -1860,52 +1860,32 @@ def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=F
     # find duplicate categories and subcategories
     duplicateCategories = {}
     nestedCategories = {}
-    
     if question.cascade_p > 0:
-        categoriesToRemove = []
-        categoryKeys = categoryGroups.keys()
-        for x in range(len(categoryKeys)):
-            for y in range(x, len(categoryKeys)):
-                if x != y:
-                    category1 = categoryKeys[x]
-                    category2 = categoryKeys[y]
-                    ideaIds1 = categoryGroups[category1]
-                    ideaIds2 = categoryGroups[category2]
-
-                    sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
-                    sizePercentage = (min(len(ideaIds1),len(ideaIds2)) / float(max(len(ideaIds1),len(ideaIds2))))*100
-                    duplicateThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
-                    nestedThreshold = min(len(ideaIds1),len(ideaIds2))*(question.cascade_p/100.0)
+        results = mergeAndNestCategories(categoryGroups, overlapPercentage=question.cascade_p)
+        categoryGroups = results["category_groups"]
+        duplicateCategories = results["duplicate_categories"]
+        nestedCategories = results["nested_categories"]
+            
+        # check for duplicates and subcategories again if duplicates found during the first pass
+        if constants.MERGE_NEST_CATEGORIES_AGAIN and len(duplicateCategories.keys()) > 0:
+            results = mergeAndNestCategories(categoryGroups, overlapPercentage=question.cascade_p)
+            categoryGroups = results["category_groups"]
+            duplicateCategories2 = results["duplicate_categories"]                    
+            nestedCategories = results["nested_categories"]
+            
+            for category in duplicateCategories2:
+                if category not in duplicateCategories:
+                    duplicateCategories[category] = duplicateCategories2[category]
+                else:
+                    duplicateCategories[category].extend(duplicateCategories2[category])
+                    for mergedCategory in duplicateCategories2[category]:
+                        if mergedCategory in duplicateCategories:
+                            previousMergedCategories = duplicateCategories[mergedCategory]
+                            duplicateCategories[category].extend(previousMergedCategories)
                         
-                    # find duplicate categories (that have more than p % of overlapping items)
-                    if sizePercentage >= constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
-                        duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
-                        primaryCategory = category1 if duplicateCategory != category1 else category2
-                        if duplicateCategory not in categoriesToRemove:
-                            categoriesToRemove.append(duplicateCategory)
-                        if primaryCategory not in duplicateCategories:
-                            duplicateCategories[primaryCategory] = []
-                        duplicateCategories[primaryCategory].append(duplicateCategory)
-
-                    # find subcategories (make sure they aren't flagged to be removed)   
-                    if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
-                        primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
-                        subCategory = category2 if primaryCategory == category1 else category1
-                        if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
-                            if primaryCategory not in nestedCategories:
-                                nestedCategories[primaryCategory] = []
-                            nestedCategories[primaryCategory].append(subCategory)
-        
-        # merge items in duplicate categories with primary (larger) category
-        for primaryCategory in duplicateCategories: 
-            for duplicateCategory in duplicateCategories[primaryCategory]:
-                duplicateIdeaIds = categoryGroups[duplicateCategory]
-                categoryGroups[primaryCategory] = helpers.union(categoryGroups[primaryCategory], duplicateIdeaIds)
-                
-        # remove duplicate categories               
-        for category in categoriesToRemove:
-            del categoryGroups[category]
-    
+                if category not in categoryGroups:
+                    del duplicateCategories[category]
+                    
     # find any skipped categories before they are deleted from db
     # a category is skipped because it was found to be equal to another category (CascadeEqualCategory)
     skippedCategories = []
@@ -1948,7 +1928,6 @@ def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=F
 # get category groups using the results of CascadeFitCategory tasks and/or CascadeVerifyCategory tasks
 # a category group is a list of idea ids contained in a category, keyed by category name
 def getCategoryGroups(dbConnection, question):
-    
     # TODO: how should voting threshold be determined; different depending on whether or not categories are verified?
     minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
         
@@ -2000,6 +1979,57 @@ def getCategoryGroups(dbConnection, question):
 
     return categoryGroups
 
+def mergeAndNestCategories(categoryGroups, overlapPercentage=constants.CASCADE_P):
+    duplicateCategories = {}
+    nestedCategories = {}
+    categoriesToRemove = []
+    
+    if overlapPercentage > 0:
+        categoryKeys = categoryGroups.keys()
+        for x in range(len(categoryKeys)):
+            for y in range(x, len(categoryKeys)):
+                if x != y:
+                    category1 = categoryKeys[x]
+                    category2 = categoryKeys[y]
+                    ideaIds1 = categoryGroups[category1]
+                    ideaIds2 = categoryGroups[category2]
+    
+                    sharedIdeaIds = helpers.intersect(ideaIds1, ideaIds2)
+                    sizePercentage = (min(len(ideaIds1),len(ideaIds2)) / float(max(len(ideaIds1),len(ideaIds2))))*100
+                    duplicateThreshold = min(len(ideaIds1),len(ideaIds2))*(overlapPercentage/100.0)
+                    nestedThreshold = min(len(ideaIds1),len(ideaIds2))*(overlapPercentage/100.0)
+                       
+                    # find duplicate categories (that have more than p % of overlapping items)
+                    if sizePercentage >= constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= duplicateThreshold:
+                        duplicateCategory = category1 if len(ideaIds1) < len(ideaIds2) else category2
+                        primaryCategory = category1 if duplicateCategory != category1 else category2
+                        if duplicateCategory not in categoriesToRemove:
+                            categoriesToRemove.append(duplicateCategory)
+                        if primaryCategory not in duplicateCategories:
+                            duplicateCategories[primaryCategory] = []
+                        duplicateCategories[primaryCategory].append(duplicateCategory)
+    
+                    # find subcategories (make sure they aren't flagged to be removed)   
+                    if constants.FIND_SUBCATEGORIES and sizePercentage < constants.MIN_DUPLICATE_SIZE_PERCENTAGE and len(sharedIdeaIds) >= nestedThreshold:
+                        primaryCategory = category1 if len(ideaIds1) > len(ideaIds2) else category2
+                        subCategory = category2 if primaryCategory == category1 else category1
+                        if primaryCategory not in categoriesToRemove or subCategory not in categoriesToRemove:
+                            if primaryCategory not in nestedCategories:
+                                nestedCategories[primaryCategory] = []
+                            nestedCategories[primaryCategory].append(subCategory)
+
+        # merge items in duplicate categories with primary (larger) category
+        for primaryCategory in duplicateCategories: 
+            for duplicateCategory in duplicateCategories[primaryCategory]:
+                duplicateIdeaIds = categoryGroups[duplicateCategory]
+                categoryGroups[primaryCategory] = helpers.union(categoryGroups[primaryCategory], duplicateIdeaIds)
+                        
+        # remove duplicate categories                    
+        for category in categoriesToRemove:
+            del categoryGroups[category]
+            
+    return { "category_groups": categoryGroups, "duplicate_categories": duplicateCategories, "nested_categories": nestedCategories }
+                            
 def clearMemcache(question):
     client = memcache.Client() 
     client.delete("categories_{0}".format(question.id))
