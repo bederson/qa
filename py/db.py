@@ -2116,7 +2116,7 @@ def getNewCascadeItemSet(question):
                 newItemSet = constants.CASCADE_INITIAL_ITEM_SET
                 newItemIndex = 1
                 
-            if client.cas(key, { "item_index": newItemIndex, "initial_item_set_count": initialItemSetCount + 1 }):
+            if client.cas(key, { "item_index": newItemIndex, "initial_item_set_count": initialItemSetCount + 1 if newItemSet == constants.CASCADE_INITIAL_ITEM_SET else initialItemSetCount }):
                 break
         i += 1
         if i > MAX_RETRIES:
