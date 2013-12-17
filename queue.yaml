@@ -3,9 +3,6 @@
 # Set the total storage limit for all queues to 500MB (default limit for free apps)
 total_storage_limit: 500M
 
-# Queue definitions:
-# https://developers.google.com/appengine/docs/python/config/queue?hl=en&csw=1#Python_Queue_definitions
-
 # bucket_size: limits the burstiness of the queue's processing, i.e. a higher bucket 
 # size allows bigger spikes in the queue's execution rate. For example, consider a queue 
 # with a rate of 5/s and a bucket size of 10. If that queue has been inactive for some time 
@@ -14,12 +11,14 @@ total_storage_limit: 500M
 # will be able to be executed because the token bucket has been depleted and is refilling at 
 # the specified rate of 5/s.
 # If no bucket_size is specified for a queue, the default value is 5.
+# Source: https://developers.google.com/appengine/docs/python/config/queue?hl=en&csw=1#Python_Queue_definitions
 
 # rate: how often tasks are processed on this queue. The value is a number followed by a 
 # slash and a unit of time, where the unit is s for seconds, m for minutes, h for hours, or 
 # d for days. For example, the value 5/m says tasks will be processed at a rate of 5 times 
 # per minute. If the number is 0 (such as 0/s), the queue is considered "paused," and no tasks 
 # are processed.
+# Source: https://developers.google.com/appengine/docs/python/config/queue?hl=en&csw=1#Python_Queue_definitions
 
 # max_concurrent_requests: sets the maximum number of tasks that can be executed at any given 
 # time in the specified queue. The value is an integer. By default, this directive is unset 
@@ -29,30 +28,9 @@ total_storage_limit: 500M
 # rate of execution. For example, you can constrain the number of instances that are running the 
 # queue's tasks. Limiting the number of concurrent requests in a given queue allows you to make 
 # resources available for other queues or online processing.
-
-# ???
-# There have been several discussion threads in Google groups about infrequent delays with 
-# task start times that are minutes or more in length. 
-# https://groups.google.com/forum/#!topic/google-appengine/dijnR095IXA
-# another factor into the mix- concurrency. If you have slow running (more than 30 seconds or so) tasks, then AppEngine seems to struggle to scale up the correct number of instances to deal with the requests (seems to max out about 7-8 for me).
-# http://blog.crispyfriedsoftware.com/post/7718668518/appenginetaskqueueproblems
-# check how many instances get created and max concurrent requests setting?
-
-# tq provide reliable task execution, never earlier than requested but sometimes later (like when changing data centres)
-
-# turn on warmup requests: /_ah/warmup can be use to pre-cache application data if desired
-# catch DeadlineExceededError?
-
-# X-AppEngine-QueueName, the name of the queue (possibly default)
-# X-AppEngine-TaskName, the name of the task, or a system-generated unique ID if no name was specified
-# X-AppEngine-TaskRetryCount, the number of times this task has been retried; for the first attempt, this value is 0. This number includes attempts where the task failed due to a lack of available instances and never reached the execution phase.
-# X-AppEngine-TaskExecutionCount, the number of times this task has previously failed during the execution phase. This number does not include failures due to a lack of available instances.
-# X-AppEngine-TaskETA, the target execution time of the task, specified in milliseconds since January 1st 1970.
+# Source: https://developers.google.com/appengine/docs/python/config/queue?hl=en&csw=1#Python_Queue_definitions
 
 queue:
 - name: default
   rate: 35/s
-  bucket_size: 35
-  
-  
-  
+  bucket_size: 35  

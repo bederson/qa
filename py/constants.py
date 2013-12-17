@@ -40,6 +40,7 @@ ITEM_SET_RATIOS = {}                # number of items to add to initial set foll
 ITEM_SET_RATIOS[50] = { "initial": 1, "subsequent": 1 } # 50% of items in initial item set
 ITEM_SET_RATIOS[67] = { "initial": 2, "subsequent": 1 } # 67% of items in initial item set
 ITEM_SET_RATIOS[75] = { "initial": 3, "subsequent": 1 } # 75% of items in initial item set
+MAX_INITIAL_ITEM_SET_SIZE = 30       # maximum size of initial item set, after which all items are added to the subsequent item set
 
 CASCADE_K = 2                       # redundancy factor used by suggest category and best category tasks
 CASCADE_K2 = 1                      # redundancy factor used by fit tasks

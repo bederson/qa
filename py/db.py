@@ -2091,15 +2091,22 @@ def getNewCascadeItemSet(question):
     i = 0
     MAX_RETRIES = 15
     while i <= MAX_RETRIES:
-        itemIndex = client.gets(key)
-        if itemIndex is None:
+        itemSetInfo = client.gets(key)
+        if itemSetInfo is None:
             newItemIndex = 1
             newItemSet = constants.CASCADE_INITIAL_ITEM_SET
-            client.add(key, newItemIndex)
+            client.add(key, { "item_index": newItemIndex, "initial_item_set_count": 1 })
             break
         else:
-            newItemIndex = itemIndex + 1
-            if newItemIndex <= xInitial:
+            newItemIndex = itemSetInfo["item_index"] + 1
+            initialItemSetCount = itemSetInfo["initial_item_set_count"]
+
+            # if max number items already in initial item set, place item
+            # in subsequent item set       
+            if initialItemSetCount >= constants.MAX_INITIAL_ITEM_SET_SIZE:
+                newItemSet = constants.CASCADE_SUBSEQUENT_ITEM_SET
+                
+            elif newItemIndex <= xInitial:
                 newItemSet = constants.CASCADE_INITIAL_ITEM_SET
                 
             elif newItemIndex <= xInitial + xSubsequent:
@@ -2109,7 +2116,7 @@ def getNewCascadeItemSet(question):
                 newItemSet = constants.CASCADE_INITIAL_ITEM_SET
                 newItemIndex = 1
                 
-            if client.cas(key, newItemIndex):
+            if client.cas(key, { "item_index": newItemIndex, "initial_item_set_count": initialItemSetCount + 1 }):
                 break
         i += 1
         if i > MAX_RETRIES:
