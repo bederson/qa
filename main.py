@@ -58,7 +58,7 @@ app = webapp2.WSGIApplication([
     ('/generate_test_categories', TestCategoryHandler),
     ('/discuss_idea', DiscussIdeaHandler),
     ('/query', QueryHandler),
-	
+    
 	('/_ah/channel/connected/', ChannelConnectedHandler),
 	('/_ah/channel/disconnected/', ChannelDisconnectedHandler)
     ],

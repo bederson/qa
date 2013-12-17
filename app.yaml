@@ -33,6 +33,14 @@ libraries:
 - name: webapp2
   version: "2.5.2"
 
+inbound_services:
+- channel_presence
+- warmup
+
+# The minimum # of idle instances is set to 1 in GAE admin console
+# Pending latency is set to 10ms - 3.0s (but will have less effect since min # of idle instances specified)
+# warmup must be enabled to set the min # of idle instances; both settings require paid apps
+
 # warmup: App Engine attempts to detect when your application needs a new instance, 
 # and (assuming that warmup requests are enabled for your application) initiates a warmup 
 # request to initialize the new instance. However, these detection attempts do not work in 
@@ -40,7 +48,10 @@ libraries:
 # enabled in your app. For example, if your app is serving no traffic, the first request to the 
 # app will always be a loading request, not a warmup request.
 # Source: https://developers.google.com/appengine/docs/python/config/appconfig#Python_app_yaml_Warmup_requests
-
-inbound_services:
-- channel_presence
-- warmup
+ 
+# idle instances: If you set a minimum number of idle instances, the pending latency slider will
+# have less effect on your application's performance. Because App Engine keeps idle instances in 
+# reserver, it is unlikely that requests will enter the pending queue except in exceptionally high 
+# load spikes. You will need to test your application and expected traffic volume to determine the 
+# ideal number of instances to keep in reserve.
+# Source: https://developers.google.com/appengine/docs/adminconsole/performancesettings#Setting_the_Number_of_Idle_Instances

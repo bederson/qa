@@ -430,6 +430,7 @@ class Question(DBObject):
         dbConnection.cursor.execute("delete from question_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_stats where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from task_queue_debug where question_id={0}".format(self.id))
         if commit:
             dbConnection.conn.commit()
 
