@@ -1,0 +1,39 @@
+<!--
+Copyright 2013 Ben Bederson - http://www.cs.umd.edu/~bederson
+Anne Rose - http://www.cs.umd.edu/hcil/members/arose
+University of Maryland
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+{% extends "base.html" %}
+
+{% block title %}XParty - Web Log{% endblock %}
+{% block scripts %}
+	<script type="text/javascript" src="/js/weblog.js"></script>
+{% endblock %}
+
+{% block content %}
+	{% if admin %}
+	<div id="admin_buttons">
+		<input id="admin_button" type="button" value="Admin">
+	</div>
+	<div style="clear:both"></div>
+	{% endif %}
+	<h1>Web Log</h1>
+	<div id="msg" class="warning spacebelow" style="text-align:center">{{ msg }}</div>
+	<div id="page_content" style="display:none">
+	<hr/>
+	<div id="web_log">Loading ...</div>
+	</div>
+{% endblock %}

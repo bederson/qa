@@ -1,5 +1,5 @@
 #application: qa-umd
-#version: 13
+#version: 14
 
 application: qa-umd-test
 version: dev
@@ -37,9 +37,10 @@ inbound_services:
 - channel_presence
 - warmup
 
+# requests may go to a pending queue if an instance isn't available (check logs for pending_ms)
+# new instances will be loaded if needed to handle the increased load, etc. (check logs for loading_request=1)
 # The minimum # of idle instances is set to 1 in GAE admin console
-# Pending latency is set to 10ms - 3.0s (but will have less effect since min # of idle instances specified)
-# warmup must be enabled to set the min # of idle instances; both settings require paid apps
+# warmup must be enabled to set the min # of idle instances (and it must be a paid app)
 
 # warmup: App Engine attempts to detect when your application needs a new instance, 
 # and (assuming that warmup requests are enabled for your application) initiates a warmup 
@@ -55,3 +56,7 @@ inbound_services:
 # load spikes. You will need to test your application and expected traffic volume to determine the 
 # ideal number of instances to keep in reserve.
 # Source: https://developers.google.com/appengine/docs/adminconsole/performancesettings#Setting_the_Number_of_Idle_Instances
+
+# More about pending queues and loading requests on App Engine:
+# http://bjk5.com/post/40833194761/pending-queues-and-loading-requests-on-app-engine
+# (suggests setting min idle instances so Total Instances (blue) > Billed Instances (green) does not occur)

@@ -18,6 +18,7 @@
 #
 import constants
 import helpers
+import base64
 import datetime
 import json
 import os
@@ -31,6 +32,7 @@ from google.appengine.api import users
 from google.appengine.api import taskqueue
 from google.appengine.ext.webapp import template
 from google.appengine.api import channel
+from google.appengine.api.logservice import logservice
 from lib import gaesessions
 from db import *
 
@@ -40,7 +42,7 @@ from db import *
 
 class BaseHandler(webapp2.RequestHandler):
     def init(self, questionId=None, initUser=True, adminRequired=False, loggingOut=False):   
-                                 
+        
         # get the current browser session, if any
         # otherwise, create one
         self.session = gaesessions.get_current_session()
@@ -296,7 +298,16 @@ class StartPageHandler(BaseHandler):
         path = os.path.join(os.path.dirname(__file__), '../html/start.html')
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
-                       
+
+class WebLogPageHandler(BaseHandler):
+    def get(self, questionId=None):
+        self.init()
+        ok = self.checkRequirements(authenticatedUserRequired=True)
+        templateValues = self.getDefaultTemplateValues(adminConnect=True)
+        path = os.path.join(os.path.dirname(__file__), '../html/weblog.html')
+        self.response.out.write(template.render(path, templateValues))
+        self.destroy()
+                               
 #####################
 # Action Handlers
 #####################
@@ -803,7 +814,7 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
                 Person.waiting(dbConnection, clientId)
                 
             # FOR TESTING ONLY
-            if constants.ENABLE_TASK_QUEUE_DEBUG_LOGGING and startDelaySeconds >= 5:
+            if constants.ENABLE_TASK_QUEUE_DEBUG_LOGGING and startDelaySeconds > 3:
                 taskName = self.request.headers.get('X-AppEngine-TaskName')
                 retryCount = self.request.headers.get('X-AppEngine-TaskRetryCount')
                 sql = "insert into task_queue_debug (task_name, question_id, user_id, save_job, new_job, retry_count, start_delay) values(%s, %s, %s, %s, %s, %s, %s) on duplicate key update retry_count=%s, start_delay=%s"
@@ -885,7 +896,59 @@ class DiscussIdeaHandler(BaseHandler):
         
         self.writeResponseAsJson(data)
         self.destroy()        
-                                          
+
+class LoadWebLogHandler(BaseHandler):
+    def post(self):
+        self.init()
+        ok = self.checkRequirements(authenticatedUserRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+        elif ok and not self.person.isAdmin:
+            data = { "status" : 0, "msg" : "Admin not logged in" }
+            
+        else:
+            log = []
+            req_log = None
+            i = 0
+            count = 20
+            offset = self.request.get("offset", None)
+            if offset:
+                offset = base64.urlsafe_b64decode(str(offset))
+            for req_log in logservice.fetch(offset=offset, version_ids=["dev", "13", "14"]):
+                # TODO/FIX: only return cascade requests for now
+                if not req_log.resource.startswith("/cascade") and not req_log.resource.startswith("/idea"):
+                    continue
+                        
+                reqLogData = {}
+                reqLogData["timestamp"] = datetime.datetime.fromtimestamp(req_log.end_time).strftime('%D %T UTC')
+                reqLogData["ip"] = req_log.ip
+                reqLogData["method"] = req_log.method
+                reqLogData["resource"] = req_log.resource
+                reqLogData["start_time"] = req_log.start_time
+                reqLogData["end_time"] = req_log.end_time
+                reqLogData["latency"] = req_log.latency
+                reqLogData["pending_time"] = req_log.pending_time
+                reqLogData["was_loading_request"] = req_log.was_loading_request
+                reqLogData["status"] = req_log.status
+#                 reqLogData["app_log"] = []
+                i += 1
+    
+#                 for app_log in req_log.app_logs:
+#                     appLogData = {}
+#                     appLogData["timestamp"] = datetime.datetime.fromtimestamp(app_log.time).strftime('%D %T UTC')
+#                     appLogData["message"] = app_log.message
+#                     reqLogData["app_log"].append(appLogData)
+    
+                log.append(reqLogData)
+    
+                if i >= count:
+                    break
+                
+            data = { "status" : 1, "log" : log, "offset" : base64.urlsafe_b64encode(req_log.offset) if req_log and req_log.offset else None }
+             
+        self.writeResponseAsJson(data)
+        self.destroy() 
+                                              
 #####################
 # Channel support
 #####################
