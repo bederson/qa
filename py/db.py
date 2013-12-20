@@ -960,8 +960,9 @@ class CascadeSuggestCategory(DBObject):
         self.user_id = None
             
     @staticmethod
-    def create(dbConnection, question, ideaId):
-        insertValues = [ "({0}, {1})".format(question.id, ideaId) for i in range(question.cascade_k) ]
+    def create(dbConnection, question, ideaId, count=None):
+        count = question.cascade_k if count is None else count     
+        insertValues = [ "({0}, {1})".format(question.id, ideaId) for i in range(count) ]
         sql = "insert into cascade_suggested_categories (question_id, idea_id) values {0}".format(",".join(insertValues))
         dbConnection.cursor.execute(sql)
         dbConnection.conn.commit()
@@ -1031,13 +1032,14 @@ class CascadeSuggestCategory(DBObject):
                 # categories removed/skipped because they are equivalent will be removed
                 # categories that don't pass CascadeBestCategory are not removed because they might be ok for another idea
                 recordCategory(question, suggestedCategory)
-                
+                                
             # if skipped, mark it so not assigned in future
             else:
                 sql = "update cascade_suggested_categories set skipped=1"
                 sql += ", user_id={0} ".format(person.id) if person else " "
-                sql += "where id=%s and {0}".format(CascadeSuggestCategory.incompleteCondition)
+                sql += "where id=%s and {0}".format(CascadeSuggestCategory.incompleteCondition)                
                 dbConnection.cursor.execute(sql, (taskId))
+                
             dbConnection.conn.commit()
                         
             # create any new cascade jobs
@@ -1048,47 +1050,53 @@ class CascadeSuggestCategory(DBObject):
         jobComplete = False
         suggestedCategories = []
         skippedCategoryCount = 0
-        if question.cascade_k == 1:
-            if task["suggested_category"]:
-                suggestedCategories.append(task["suggested_category"])
-            else:
-                skippedCategoryCount = 1
-            jobComplete = True
-            
-        else:
-            sql = "select idea_id, suggested_category from cascade_suggested_categories where question_id=%s and cascade_suggested_categories.idea_id=(select idea_id from cascade_suggested_categories where id=%s) and {0}".format(CascadeSuggestCategory.completeCondition)
-            dbConnection.cursor.execute(sql, (question.id, task["id"]))
-            rows = dbConnection.cursor.fetchall()
-            for row in rows:
-                if row["suggested_category"] and row["suggested_category"] not in suggestedCategories:
-                    suggestedCategories.append(row["suggested_category"])
-                elif not row["suggested_category"]:
-                    skippedCategoryCount += 1
-            jobComplete = len(rows) >= question.cascade_k
+        
+        # check if task performed k times
+        # do not need to check using db query if k=1 but needed to check how many times task has really been tried
+        sql = "select idea_id, suggested_category from cascade_suggested_categories where question_id=%s and cascade_suggested_categories.idea_id=(select idea_id from cascade_suggested_categories where id=%s) and {0}".format(CascadeSuggestCategory.completeCondition)
+        dbConnection.cursor.execute(sql, (question.id, task["id"]))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            if row["suggested_category"] and row["suggested_category"] not in suggestedCategories:
+                suggestedCategories.append(row["suggested_category"])
+            elif not row["suggested_category"]:
+                skippedCategoryCount += 1
 
-        # check how many categories suggested (could have just skipped them all)
-        multipleCategoriesSuggested = len(suggestedCategories) > 1
-        onlyOneCategorySuggested = len(suggestedCategories) == 1
+        completedTaskCount = len(rows)
+        jobComplete = completedTaskCount >= question.cascade_k
 
-        # create CascadeBestCategory jobs for task idea if CascadeSuggestCategory job complete
-        # and there is more than one suggested category
-        moreJobs = False
-        if jobComplete:
-            if multipleCategoriesSuggested:    
-                CascadeBestCategory.create(dbConnection, question, task["idea_id"])
-                moreJobs = True
-                   
-            elif onlyOneCategorySuggested:
-                sql = "select count(*) as ct from categories where question_id=%s and category=%s"
-                dbConnection.cursor.execute(sql, (question.id, suggestedCategories[0]))
-                row = dbConnection.cursor.fetchone()
-                isNewCategory = row["ct"] == 0
-                rows = [ { "best_category": suggestedCategories[0], "is_new_category": isNewCategory } for i in range(question.cascade_k-skippedCategoryCount) ] 
-                rows.extend([ { "best_category": None, "is_new_category": False } for i in range(skippedCategoryCount) ])
-                CascadeBestCategory.createCascadeJobs(dbConnection, question, rows=rows)
-            
-            if moreJobs and Question.onMoreJobs:
+        # if no categories suggested (but at least one required) and task completed k times,
+        # create one more CascadeSuggestCategory job
+        if constants.TRY_SUGGEST_CATEGORY_AGAIN and len(suggestedCategories) == 0 and completedTaskCount==question.cascade_k:
+            jobComplete = False
+            CascadeSuggestCategory.create(dbConnection, question, task["idea_id"], count=1)
+            if Question.onMoreJobs:
                 question.onMoreJobs(dbConnection)
+        
+        else:    
+            # check how many categories suggested (could have just skipped them all)
+            multipleCategoriesSuggested = len(suggestedCategories) > 1
+            onlyOneCategorySuggested = len(suggestedCategories) == 1
+    
+            # create CascadeBestCategory jobs for task idea if CascadeSuggestCategory job complete
+            # and there is more than one suggested category
+            moreJobs = False
+            if jobComplete:
+                if multipleCategoriesSuggested:    
+                    CascadeBestCategory.create(dbConnection, question, task["idea_id"])
+                    moreJobs = True
+                       
+                elif onlyOneCategorySuggested:
+                    sql = "select count(*) as ct from categories where question_id=%s and category=%s"
+                    dbConnection.cursor.execute(sql, (question.id, suggestedCategories[0]))
+                    row = dbConnection.cursor.fetchone()
+                    isNewCategory = row["ct"] == 0
+                    rows = [ { "best_category": suggestedCategories[0], "is_new_category": isNewCategory } for i in range(completedTaskCount-skippedCategoryCount) ] 
+                    rows.extend([ { "best_category": None, "is_new_category": False } for i in range(skippedCategoryCount) ])
+                    CascadeBestCategory.createCascadeJobs(dbConnection, question, rows=rows)
+                
+                if moreJobs and Question.onMoreJobs:
+                    question.onMoreJobs(dbConnection)
                 
     def assignTo(self, dbConnection, person, commit=True):  
         self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
