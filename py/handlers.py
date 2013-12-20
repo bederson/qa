@@ -789,29 +789,30 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
                     stats = question.getCascadeStats(dbConnection)
                     sendMessage(dbConnection, None, question, { "op": "categories", "question_id": question.id, "cascade_stats" : stats })
 
-            job = question.getCascadeJob(dbConnection, person)
-            jobDict = { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None
-            if jobDict and "categories" in job:
-                jobDict["categories"] = job["categories"]
-    
-            discuss = self.request.get("discuss", "0") == "1"
-            if jobDict and discuss:
-                discussIdeas = []
-                jobDict["discuss_flags"] = []
-                for task in job["tasks"]:
-                    if hasattr(task, "idea_id"):
-                        if task.idea_id not in discussIdeas:
-                            jobDict["discuss_flags"].extend(DiscussFlag.getFlags(dbConnection, question, ideaId=task.idea_id, admin=isAdmin))
-                        discussIdeas.append(task.idea_id)
-                
-            sendMessageToClient(clientId, { "op": "job", "question_id" : question.id, "job": jobDict })
-
-            waiting = self.request.get("waiting", "0") == "1"
-            if job and waiting:
-                Person.working(dbConnection, clientId)
+            if not question.cascade_complete:
+                job = question.getCascadeJob(dbConnection, person)
+                jobDict = { "tasks" : [task.toDict() for task in job["tasks"]], "type" : job["type"] } if job else None
+                if jobDict and "categories" in job:
+                    jobDict["categories"] = job["categories"]
+        
+                discuss = self.request.get("discuss", "0") == "1"
+                if jobDict and discuss:
+                    discussIdeas = []
+                    jobDict["discuss_flags"] = []
+                    for task in job["tasks"]:
+                        if hasattr(task, "idea_id"):
+                            if task.idea_id not in discussIdeas:
+                                jobDict["discuss_flags"].extend(DiscussFlag.getFlags(dbConnection, question, ideaId=task.idea_id, admin=isAdmin))
+                            discussIdeas.append(task.idea_id)
                     
-            if not job:
-                Person.waiting(dbConnection, clientId)
+                sendMessageToClient(clientId, { "op": "job", "question_id" : question.id, "job": jobDict })
+    
+                waiting = self.request.get("waiting", "0") == "1"
+                if job and waiting:
+                    Person.working(dbConnection, clientId)
+                        
+                if not job:
+                    Person.waiting(dbConnection, clientId)
                 
             # FOR TESTING ONLY
             if constants.ENABLE_TASK_QUEUE_DEBUG_LOGGING and startDelaySeconds > 3:
@@ -846,7 +847,7 @@ class CategoryHandler(BaseHandler):
             data = { "status" : 0, "msg" : self.session.pop("msg") }
              
         else:
-            stats = GenerateCascadeHierarchy(self.dbConnection, self.question)
+            stats = GenerateCascadeHierarchy(self.dbConnection, self.question, forced=True)
             self.question.unassignIncompleteCascadeJobs(self.dbConnection)
             self.question.clearWaiting(self.dbConnection)            
             sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })          
@@ -865,7 +866,7 @@ class TestCategoryHandler(BaseHandler):
             data = { "status" : 0, "msg" : self.session.pop("msg") }
              
         else:
-            stats = GenerateCascadeHierarchy(self.dbConnection, self.question, forTesting=True)          
+            stats = GenerateCascadeHierarchy(self.dbConnection, self.question, forced=True, forTesting=True)          
             data = { "status" : 1, "question_id" : self.question.id, "cascade_stats" : stats }
                 
         self.writeResponseAsJson(data)
@@ -1063,7 +1064,7 @@ def onDeleteStudents(dbConnection, questionId):
         message =  { "op": "logout", "question_id" : questionId }
         channel.send_message(toClientId, json.dumps(message))
 
-def onMoreJobs(question, dbConnection):
+def onMoreJobs(question, dbConnection, extraFitJobs=0, moreVerifyJobs=0):
     # notify waiting clients about more jobs
     # only mark as working again if job assigned to them (after they request one)
     sql = "select * from users,user_clients where users.id=user_clients.user_id and question_id=%s and waiting_since is not null order by waiting_since desc"
@@ -1072,6 +1073,13 @@ def onMoreJobs(question, dbConnection):
     for row in rows:
         clientId = row["client_id"]
         sendMessageToClient(clientId, { "op": "morejobs", "question_id": question.id })
+
+    # TODO/FIX: need to figure out how to notify admin about extra fit jobs so % complete can be updated correctly
+    #if extraFitJobs > 0:
+    #    sendMessageToAdmin(dbConnection, question.id, { "op": "extrafitjobs", "question_id": question.id, "count": extraFitJobs } )
+
+    if moreVerifyJobs > 0:
+        sendMessageToAdmin(dbConnection, question.id, { "op": "moreverifyjobs", "question_id": question.id, "count": moreVerifyJobs } )
     
 def onNewCategory(question, dbConnection, category):
     sendMessageToAdmin(dbConnection, question.id, { "op": "newcategory", "question_id": question.id } )
@@ -1083,16 +1091,11 @@ def onFitComplete(question, dbConnection, count):
 def onVerifyComplete(question, dbConnection, count):
     if count > 0:
         sendMessageToAdmin(dbConnection, question.id, { "op": "verifycomplete", "question_id": question.id, "count": count } )
-    
-def onMoreVerifyJobs(question, dbConnection, count):
-    if count > 0:
-        sendMessageToAdmin(dbConnection, question.id, { "op": "moreverifyjobs", "question_id": question.id, "count": count } )
-        
+            
 Question.onMoreJobs = onMoreJobs
 Question.onNewCategory = onNewCategory
 Question.onFitComplete = onFitComplete
 Question.onVerifyComplete = onVerifyComplete
-Question.onMoreVerifyJobs = onMoreVerifyJobs
           
 #####################
 # URL routines

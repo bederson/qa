@@ -25,15 +25,9 @@ FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (
 SIMILAR_STEM_PERCENTAGE = 30        # categories with at least this percentage of the same stem words should be compared for equality (EQUAL_CATEGORY)
 VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGORY)
 TRY_SUGGEST_CATEGORY_AGAIN = True   # whether or not to create one more CascadeSuggestCategory task for items with no suggested categories
-PERFORM_FIT_TASKS_AGAIN_ON_UNCATEGORIZED = True  # whether or not to perform fit tasks on uncategorized items again or not
 
-# Whether or not to do fit tasks for subsequent item set at same time as initial set or afterwards
-# NOT WORKING if True
-# if categories deleted after initial set (because they are duplicates, etc.), need to update 
-# fit tasks to use remaining categories so second category creation is correct
-# if skip=1 values are lost when categories are regenerated (need to keep somehow; or at least make sure skipped categories not used in future)
-# also need to update % complete in admin
-CATEGORIZE_SUBSEQUENT_AFTER_INITIAL = False 
+# TODO/FIX: need to figure out how to notify admin about extra fit jobs so % complete can be updated correctly
+RECHECK_UNCATEGORIZED = False       # whether or not to perform fit tasks on uncategorized items again or not
 
 # Cascade Settings
 CASCADE_INITIAL_ITEM_SET = 0        # set of items to suggest categories for

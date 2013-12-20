@@ -400,7 +400,7 @@ class Question(DBObject):
                 dbConnection.cursor.execute(sql, (self.id))
                 row = dbConnection.cursor.fetchone()
                 stats["completed_verify_count"] = row["ct"] if row else 0
-            
+                            
         return stats
            
     def delete(self, dbConnection, dataOnly=False, onDeleteStudents=None):
@@ -773,10 +773,7 @@ class Idea(DBObject):
             moreJobs = True
         
         # create CascadeFitCategory jobs for idea
-        count = 0
-        if not constants.CATEGORIZE_SUBSEQUENT_AFTER_INITIAL or idea.item_set == constants.CASCADE_INITIAL_ITEM_SET:
-            count = CascadeFitCategory.createForAllCategories(dbConnection, question, idea.id)
-            
+        count = CascadeFitCategory.createForAllCategories(dbConnection, question, idea.id)            
         if count > 0:
             moreJobs = True
         
@@ -1293,8 +1290,7 @@ class CascadeBestCategory(DBObject):
                         # if more than k CascadeBestCategory tasks are performed for this category
                         # category may be a duplicate but hasn't been flagged as such yet
                         # TODO/FIX: CascadeFitCategory tasks may get created more than k2 times for this category
-                        itemSet = constants.CASCADE_INITIAL_ITEM_SET if constants.CATEGORIZE_SUBSEQUENT_AFTER_INITIAL else None
-                        jobCount += CascadeFitCategory.createForAllIdeas(dbConnection, question, category, itemSet=itemSet)
+                        jobCount += CascadeFitCategory.createForAllIdeas(dbConnection, question, category)
                         
                     # category matches stems of an existing category so remove it
                     else:
@@ -1503,12 +1499,14 @@ class CascadeFitCategory(DBObject):
         self.user_id = None
     
     @classmethod
-    def create(cls, dbConnection, question, ideaId, category):
-        insertValues = ["({0}, {1}, %s)".format(question.id, ideaId) for i in range(question.cascade_k2)]
-        categories = (category for i in range(question.cascade_k2))
+    def create(cls, dbConnection, question, ideaId, category, count=None, commit=True):
+        count = question.cascade_k2 if count is None else count
+        insertValues = ["({0}, {1}, %s)".format(question.id, ideaId) for i in range(count)]
+        categories = (category for i in range(count))
         sql = "insert into {0} (question_id, idea_id, category) values {1}".format(cls.table, ",".join(insertValues))
         dbConnection.cursor.execute(sql, tuple(categories))
-        dbConnection.conn.commit()
+        if commit:
+            dbConnection.conn.commit()
     
     @classmethod
     def createForAllIdeas(cls, dbConnection, question, category, itemSet=None):
@@ -1629,7 +1627,9 @@ class CascadeFitCategory(DBObject):
             question.onFitComplete(dbConnection, rowsUpdated)
                         
         if constants.VERIFY_CATEGORIES:
-            CascadeFitCategory.createCascadeJobs(dbConnection, question, job)
+            count = CascadeFitCategory.createCascadeJobs(dbConnection, question, job)
+            if count == 0 and CascadeVerifyCategory.isStepComplete(dbConnection, question):
+                GenerateCascadeHierarchy(dbConnection, question)
 
         elif CascadeFitCategory.isStepComplete(dbConnection, question):
             GenerateCascadeHierarchy(dbConnection, question)
@@ -1638,9 +1638,8 @@ class CascadeFitCategory(DBObject):
     def createCascadeJobs(cls, dbConnection, question, job):
         # create CascadeVerifyCategory jobs for CascadeFitCategory tasks marked as fitting a category
 
-        fitTasks = []
-
         # find completed tasks that fit category
+        fitTasks = []
         if question.cascade_k2 > 1:     
             minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
 
@@ -1662,7 +1661,7 @@ class CascadeFitCategory(DBObject):
             for row in rows:
                 if row["fitvotes"] >= minCount:
                     fitTasks.append({ "idea_id": row["idea_id"], "category": row["category"] })
-        
+                            
         else:
             for task in job:
                 fit = task["fit"]
@@ -1670,6 +1669,7 @@ class CascadeFitCategory(DBObject):
                     fitTasks.append(task)
             
         # create CascadeVerifyCategory for any completed tasks that passed voting threshold
+        count = 0
         if len(fitTasks) > 0:
             insertValues = []
             categories = ()
@@ -1682,11 +1682,12 @@ class CascadeFitCategory(DBObject):
             dbConnection.cursor.execute(sql, tuple(categories))
             count = dbConnection.cursor.rowcount
             dbConnection.conn.commit()
-                
+                            
             if Question.onMoreJobs:
-                question.onMoreJobs(dbConnection)
-                question.onMoreVerifyJobs(dbConnection, count)
+                question.onMoreJobs(dbConnection, moreVerifyJobs=count)
                 
+        return count
+                 
     def assignTo(self, dbConnection, person, commit=True):
         self.update(dbConnection, { "user_id": person.id, "id": self.id }, commit=commit)
     
@@ -1697,7 +1698,7 @@ class CascadeFitCategory(DBObject):
         rowsUpdated = dbConnection.cursor.rowcount
         dbConnection.conn.commit()
         return rowsUpdated if rowsUpdated is not None and rowsUpdated > 0 else 0
-                
+
     @classmethod
     def isStepComplete(cls, dbConnection, question):
         sql = "select count(*) as ct from {0} where question_id=%s and {1}".format(cls.table, cls.incompleteCondition)
@@ -1714,13 +1715,13 @@ class CascadeFitCategory(DBObject):
             dbConnection.cursor.execute(sql, (question.id))
             row = dbConnection.cursor.fetchone()
             tasksExist = row["ct"] > 0
-        
+                    
         return allTasksCompleted and tasksExist
 
 class CascadeVerifyCategory(CascadeFitCategory):
     type = constants.VERIFY_CATEGORY
     table = "cascade_fit_categories_phase2"
-            
+                            
     @staticmethod
     def getJob(dbConnection, question, person): 
         tasks = []
@@ -1775,49 +1776,16 @@ class CascadeVerifyCategory(CascadeFitCategory):
                 dbConnection.conn.commit()
                 
         return { "tasks" : tasks, "type" : CascadeVerifyCategory.type } if len(tasks) > 0 else None
-   
-    @classmethod
-    def createForAllSubsequentIdeas(cls, dbConnection, question):
-        categories = []
-        sql = "select * from categories where question_id=%s"
-        dbConnection.cursor.execute(sql, (question.id))
-        rows = dbConnection.cursor.fetchall()
-        for row in rows:
-            categories.append(row["category"])
-            
-        sql = "select * from question_ideas where question_id=%s and item_set={0}".format(constants.CASCADE_SUBSEQUENT_ITEM_SET)
-        dbConnection.cursor.execute(sql, (question.id))
-        rows = dbConnection.cursor.fetchall()
-        insertValues = []
-        categoryValues = ()
-        for row in rows:
-            for category in categories:
-                for i in range(question.cascade_k2):
-                    insertValues.extend(["({0}, {1}, %s)".format(question.id, row["id"])])
-                    categoryValues += (category,) 
-
-        sql = "insert into {0} (question_id, idea_id, category) values {1}".format(cls.table, ",".join(insertValues))
-        dbConnection.cursor.execute(sql, categoryValues)
-        count = dbConnection.cursor.rowcount
-        dbConnection.conn.commit()
-        
-        if Question.onMoreJobs:
-            question.onMoreJobs(dbConnection)
-            question.onMoreVerifyJobs(dbConnection, count)          
-    
-    @classmethod
-    def existForSubsequentIdeas(cls, dbConnection, question):
-        sql = "select count(*) as ct from {0}, question_ideas where {0}.idea_id=question_ideas.id and {0}.question_id=%s and item_set=%s".format(cls.table)              
-        dbConnection.cursor.execute(sql, (question.id, constants.CASCADE_SUBSEQUENT_ITEM_SET))
-        row = dbConnection.cursor.fetchone()
-        return row["ct"] > 0 if row["ct"] else False
-
+       
     @staticmethod
     def saveJob(dbConnection, question, job, person=None):
+        fitVotes = 0
         rowsUpdated = 0
         for task in job:
             taskId = task["id"]
             fit = task["fit"]
+            if fit == 1:
+                fitVotes += 1
             sql = "update cascade_fit_categories_phase2 set fit=%s"
             sql += ", user_id={0} ".format(person.id) if person else " "
             sql += "where id=%s and {0}".format(CascadeVerifyCategory.incompleteCondition)
@@ -1827,17 +1795,12 @@ class CascadeVerifyCategory(CascadeFitCategory):
         
         if Question.onVerifyComplete:
             question.onVerifyComplete(dbConnection, rowsUpdated)
-            
+        
         if CascadeVerifyCategory.isStepComplete(dbConnection, question):
-            if constants.CATEGORIZE_SUBSEQUENT_AFTER_INITIAL and not CascadeVerifyCategory.existForSubsequentIdeas(dbConnection, question):
-                GenerateCascadeHierarchy(dbConnection, question, complete=False)
-                CascadeVerifyCategory.createForAllSubsequentIdeas(dbConnection, question)
-                # TODO/FIX: not working yet; see notes in constants.py about CATEGORIZE_SUBSEQUENT_AFTER_INITIAL
-            else:
-                GenerateCascadeHierarchy(dbConnection, question)
-                                  
-def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=False): 
-
+            GenerateCascadeHierarchy(dbConnection, question)
+                                                    
+def GenerateCascadeHierarchy(dbConnection, question, forced=False, forTesting=False): 
+            
     # delete any remaining fit tasks that should have been deleted because category was found equal to another category
     if constants.FIND_EQUAL_CATEGORIES:
         sql = "delete from cascade_fit_categories_phase1 where question_id=%s and category in (select category from categories where question_id=%s and skip=1)"
@@ -1904,8 +1867,15 @@ def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=F
         rows = dbConnection.cursor.fetchall()
         for row in rows:
             skippedCategories.append(row["category"])
-                
+     
+               
     questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"
+    
+    sql = "select count(*) as ct from {0} where question_id=%s".format(questionCategoriesTable)
+    dbConnection.cursor.execute(sql, (question.id))
+    row = dbConnection.cursor.fetchone()
+    firstIteration = row["ct"] == 0     
+
     sql = "delete from {0} where question_id=%s".format(questionCategoriesTable)
     dbConnection.cursor.execute(sql, (question.id))
 
@@ -1927,11 +1897,27 @@ def GenerateCascadeHierarchy(dbConnection, question, complete=True, forTesting=F
             dbConnection.cursor.execute(sql, (question.id, ideaId, categoryId))
                     
     dbConnection.conn.commit()
-    
-    if not complete or forTesting:
-        stats = question.recordCascadeStats(dbConnection, skippedCategories)
-    else:
-        stats = question.cascadeComplete(dbConnection, skippedCategories)
+
+    complete = True
+    if constants.RECHECK_UNCATEGORIZED and firstIteration and not forced:    
+        sql = "select * from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null"
+        dbConnection.cursor.execute(sql, (question.id))
+        rows = dbConnection.cursor.fetchall()
+        count = 0
+        for row in rows:
+            count += CascadeFitCategory.createForAllCategories(dbConnection, question, row["id"])
+
+        # TODO/FIX: need to check if % complete is correct
+        if count > 0 and Question.onMoreJobs:
+            question.onMoreJobs(dbConnection, extraFitJobs=count)
+            complete = False
+                   
+    stats = {}
+    if complete:           
+        if forTesting:
+            stats = question.recordCascadeStats(dbConnection, skippedCategories)
+        else:
+            stats = question.cascadeComplete(dbConnection, skippedCategories)
     return stats
 
 # get category groups using the results of CascadeFitCategory tasks and/or CascadeVerifyCategory tasks
@@ -1944,11 +1930,11 @@ def getCategoryGroups(dbConnection, question):
     verifyComplete = False    
     if constants.VERIFY_CATEGORIES:
         # check if verified tasks are complete
-        # if so, use fit tasks to generate hierarchy and update with completed verify tasks
+        # if not, use fit tasks to generate hierarchy and update with completed verify tasks
         verifyComplete = CascadeVerifyCategory.isStepComplete(dbConnection, question)
         if not verifyComplete:
             sql = "select idea_id,category,sum(fit) as fitvotes, count(*) as ct from {0} where ".format(CascadeVerifyCategory.table)
-            sql += "question_id=%s ".format(CascadeVerifyCategory.table)
+            sql += "question_id=%s "
             sql += "and {0}".format(CascadeVerifyCategory.completeCondition)
             sql += "group by idea_id,category "
             sql += "having ct>=%s"

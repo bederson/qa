@@ -363,7 +363,6 @@ function updatePercentComplete(question) {
     else {
     	var completedFitCount = question.cascade_stats["completed_fit_count"];
     	var totalFitCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
-    	
     	var completedVerifyCount = question.cascade_stats["completed_verify_count"];
     	var totalVerifyCount = question.cascade_stats["total_verify_count"];
 
