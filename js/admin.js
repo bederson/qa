@@ -587,7 +587,8 @@ function handleIdea(data) {
 	var question = getSelectedQuestion();
 	if (question && data.idea.question_id==question.id) {
 		question.idea_count++;
-		updateIdeaCount(question);		
+		updateIdeaCount(question);	
+		updatePercentComplete(question);
 	}
 }
 

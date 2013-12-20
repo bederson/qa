@@ -24,6 +24,7 @@ ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = True
 FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (EQUAL_CATEGORY)
 SIMILAR_STEM_PERCENTAGE = 30        # categories with at least this percentage of the same stem words should be compared for equality (EQUAL_CATEGORY)
 VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGORY)
+PERFORM_FIT_TASKS_AGAIN_ON_UNCATEGORIZED = True  # whether or not to perform fit tasks on uncategorized items again or not
 
 # Whether or not to do fit tasks for subsequent item set at same time as initial set or afterwards
 # NOT WORKING if True
