@@ -783,7 +783,6 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
                 question.saveCascadeJob(dbConnection, jobToSave, person)
-
                 # if cascade complete, notify any waiting clients that categories are ready
                 if question.cascade_complete:
                     stats = question.getCascadeStats(dbConnection)
@@ -804,7 +803,7 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
                             if task.idea_id not in discussIdeas:
                                 jobDict["discuss_flags"].extend(DiscussFlag.getFlags(dbConnection, question, ideaId=task.idea_id, admin=isAdmin))
                             discussIdeas.append(task.idea_id)
-                    
+                
                 sendMessageToClient(clientId, { "op": "job", "question_id" : question.id, "job": jobDict })
     
                 waiting = self.request.get("waiting", "0") == "1"
@@ -850,7 +849,7 @@ class CategoryHandler(BaseHandler):
             stats = GenerateCascadeHierarchy(self.dbConnection, self.question, forced=True)
             self.question.unassignIncompleteCascadeJobs(self.dbConnection)
             self.question.clearWaiting(self.dbConnection)            
-            sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })          
+            sendMessage(self.dbConnection, None, self.question, { "op": "categories", "question_id" : self.question.id, "cascade_stats" : stats })  
             data = { "status" : 1, "question_id" : self.question.id, "cascade_stats" : stats }
                 
         self.writeResponseAsJson(data)
@@ -1064,7 +1063,7 @@ def onDeleteStudents(dbConnection, questionId):
         message =  { "op": "logout", "question_id" : questionId }
         channel.send_message(toClientId, json.dumps(message))
 
-def onMoreJobs(question, dbConnection, extraFitJobs=0, moreVerifyJobs=0):
+def onMoreJobs(question, dbConnection, moreFitJobs=0, moreVerifyJobs=0):
     # notify waiting clients about more jobs
     # only mark as working again if job assigned to them (after they request one)
     sql = "select * from users,user_clients where users.id=user_clients.user_id and question_id=%s and waiting_since is not null order by waiting_since desc"
@@ -1074,9 +1073,8 @@ def onMoreJobs(question, dbConnection, extraFitJobs=0, moreVerifyJobs=0):
         clientId = row["client_id"]
         sendMessageToClient(clientId, { "op": "morejobs", "question_id": question.id })
 
-    # TODO/FIX: need to figure out how to notify admin about extra fit jobs so % complete can be updated correctly
-    #if extraFitJobs > 0:
-    #    sendMessageToAdmin(dbConnection, question.id, { "op": "extrafitjobs", "question_id": question.id, "count": extraFitJobs } )
+    if moreFitJobs > 0:
+        sendMessageToAdmin(dbConnection, question.id, { "op": "morefitjobs", "question_id": question.id, "count": moreFitJobs } )
 
     if moreVerifyJobs > 0:
         sendMessageToAdmin(dbConnection, question.id, { "op": "moreverifyjobs", "question_id": question.id, "count": moreVerifyJobs } )

@@ -338,6 +338,7 @@ function updateCategoryCount(question) {
 
 function updateCategoryStatus(question) {
 	updatePercentComplete(question);	
+	updateCategoryCount(question);
 	showHideCreateCategoryButton(question);
 
 	var html = "";
@@ -362,7 +363,8 @@ function updatePercentComplete(question) {
     }
     else {
     	var completedFitCount = question.cascade_stats["completed_fit_count"];
-    	var totalFitCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
+    	//var totalFitCount = question.cascade_stats["category_count"] * question.idea_count * question.cascade_k2;
+    	var totalFitCount = question.cascade_stats["total_fit_count"];
     	var completedVerifyCount = question.cascade_stats["completed_verify_count"];
     	var totalVerifyCount = question.cascade_stats["total_verify_count"];
 
@@ -573,6 +575,7 @@ function initQuestionStats(question) {
 	question.cascade_stats = isDefined(question.cascade_stats) ? question.cascade_stats : {};
 	question.cascade_stats["category_count"] = 0;
 	question.cascade_stats["completed_fit_count"] = 0;
+	question.cascade_stats["total_fit_count"] = 0;
 	question.cascade_stats["completed_verify_count"] = 0;
 	question.cascade_stats["total_verify_count"] = 0;
 	return question;
@@ -586,8 +589,9 @@ function handleIdea(data) {
 	var question = getSelectedQuestion();
 	if (question && data.idea.question_id==question.id) {
 		question.idea_count++;
-		updateIdeaCount(question);	
-		updatePercentComplete(question);
+		updateIdeaCount(question);
+		// only needed if used idea count to estimate number of fit jobs	
+		//updatePercentComplete(question);
 	}
 }
 
@@ -603,6 +607,14 @@ function handleFitComplete(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
 		question.cascade_stats["completed_fit_count"] += data.count;	
+		updatePercentComplete(question);
+	}
+}
+
+function handleMoreFitJobs(data) {
+	var question = getSelectedQuestion();
+	if (question && data.question_id==question.id) {
+		question.cascade_stats["total_fit_count"] += data.count;	
 		updatePercentComplete(question);
 	}
 }

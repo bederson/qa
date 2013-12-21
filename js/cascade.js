@@ -49,9 +49,16 @@ $(document).ready(function() {
 
 function onChannelOpen() {
 	// new job sent via message so must
-	// waiting for channel to open before
+	// wait for channel to open before
 	// requesting first job	
-	saveAndRequestNewJob();
+	//saveAndRequestNewJob();
+	
+	// TODO/FIX/HACK: Safari stopped getting initial 
+	// job message unless a time delay inserted
+	setTimeout(function() {
+		saveAndRequestNewJob(); 
+	},500);
+	
 }
 
 function saveAndRequestNewJob(tasksToSave) {

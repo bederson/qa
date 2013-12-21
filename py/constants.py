@@ -24,10 +24,8 @@ ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = True
 FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (EQUAL_CATEGORY)
 SIMILAR_STEM_PERCENTAGE = 30        # categories with at least this percentage of the same stem words should be compared for equality (EQUAL_CATEGORY)
 VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGORY)
-TRY_SUGGEST_CATEGORY_AGAIN = True   # whether or not to create one more CascadeSuggestCategory task for items with no suggested categories
-
-# TODO/FIX: need to figure out how to notify admin about extra fit jobs so % complete can be updated correctly
-RECHECK_UNCATEGORIZED = False       # whether or not to perform fit tasks on uncategorized items again or not
+SUGGEST_CATEGORY_AGAIN = True   # whether or not to create one more CascadeSuggestCategory task for items with no suggested categories
+RECHECK_UNCATEGORIZED = True        # whether or not to perform fit tasks on uncategorized items again or not
 
 # Cascade Settings
 CASCADE_INITIAL_ITEM_SET = 0        # set of items to suggest categories for

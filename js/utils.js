@@ -72,6 +72,9 @@ onMessage = function(message) {
 	else if (dataObj.op == "fitcomplete" && typeof window.handleFitComplete == 'function') {
 		handleFitComplete(dataObj);
 	}
+	else if (dataObj.op == "morefitjobs" && typeof window.handleMoreFitJobs == 'function') {
+		handleMoreFitJobs(dataObj);
+	}
 	else if (dataObj.op == "verifycomplete" && typeof window.handleVerifyComplete == 'function') {
 		handleVerifyComplete(dataObj);
 	}
