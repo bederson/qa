@@ -1804,7 +1804,7 @@ class CascadeVerifyCategory(CascadeFitCategory):
         if Question.onVerifyComplete:
             question.onVerifyComplete(dbConnection, rowsUpdated)
         
-        if CascadeVerifyCategory.isStepComplete(dbConnection, question):
+        if CascadeVerifyCategory.isStepComplete(dbConnection, question) and CascadeFitCategory.isStepComplete(dbConnection, question):
             GenerateCascadeHierarchy(dbConnection, question)
                                                     
 def GenerateCascadeHierarchy(dbConnection, question, forced=False, forTesting=False): 
