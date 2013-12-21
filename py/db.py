@@ -1804,8 +1804,34 @@ class CascadeVerifyCategory(CascadeFitCategory):
         if Question.onVerifyComplete:
             question.onVerifyComplete(dbConnection, rowsUpdated)
         
-        if CascadeVerifyCategory.isStepComplete(dbConnection, question) and CascadeFitCategory.isStepComplete(dbConnection, question):
+        if CascadeVerifyCategory.isStepComplete(dbConnection, question):
             GenerateCascadeHierarchy(dbConnection, question)
+            
+    @classmethod
+    def isStepComplete(cls, dbConnection, question):
+        # TODO/FIX: consider how to take new ideas into consideration (that do not have fit tasks yet)
+        
+        sql = "select count(*) as ct from {0} where question_id=%s and {1}".format(CascadeFitCategory.table, CascadeFitCategory.incompleteCondition)
+        dbConnection.cursor.execute(sql, (question.id))
+        row = dbConnection.cursor.fetchone()
+        allFitTasksCompleted = row["ct"] == 0
+
+        sql = "select count(*) as ct from {0} where question_id=%s and {1}".format(CascadeVerifyCategory.table, CascadeVerifyCategory.incompleteCondition)
+        dbConnection.cursor.execute(sql, (question.id))
+        row = dbConnection.cursor.fetchone()
+        allVerifyTasksCompleted = row["ct"] == 0
+                
+        # need to check if any tasks exist for cases when 
+        # this function is called as result of manually generating categories
+        # (CascadeVerifyCategory tasks may not exist for older questions)
+        verifyTasksExist = False
+        if allVerifyTasksCompleted:
+            sql = "select count(*) as ct from {0} where question_id=%s".format(CascadeVerifyCategory.table)
+            dbConnection.cursor.execute(sql, (question.id))
+            row = dbConnection.cursor.fetchone()
+            verifyTasksExist = row["ct"] > 0
+        
+        return allFitTasksCompleted and allVerifyTasksCompleted and verifyTasksExist
                                                     
 def GenerateCascadeHierarchy(dbConnection, question, forced=False, forTesting=False): 
     
