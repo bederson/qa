@@ -357,6 +357,8 @@ function updateCategoryStatus(question) {
 }
 
 function updatePercentComplete(question) {
+	// TODO/FIX: may not be complete since new idea may be in process
+	// (i.e., users have not started working on fit tasks for it yet)
     var percentComplete = 0;  
     if (question.cascade_complete) {
     	percentComplete = 100;

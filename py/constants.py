@@ -24,8 +24,10 @@ ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = True
 FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (EQUAL_CATEGORY)
 SIMILAR_STEM_PERCENTAGE = 30        # categories with at least this percentage of the same stem words should be compared for equality (EQUAL_CATEGORY)
 VERIFY_CATEGORIES = True            # verify categories that fit (VERIFY_CATEGORY)
-SUGGEST_CATEGORY_AGAIN = True   # whether or not to create one more CascadeSuggestCategory task for items with no suggested categories
+SUGGEST_CATEGORY_AGAIN = False      # whether or not to create one more CascadeSuggestCategory task for items with no suggested categories
+                                    # requires k+1 users to be working
 RECHECK_UNCATEGORIZED = True        # whether or not to perform fit tasks on uncategorized items again or not
+                                    # required k2+1 users to be working
 
 # Cascade Settings
 CASCADE_INITIAL_ITEM_SET = 0        # set of items to suggest categories for
