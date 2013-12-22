@@ -53,8 +53,9 @@ function onChannelOpen() {
 	// requesting first job	
 	//saveAndRequestNewJob();
 	
-	// TODO/FIX/HACK: Safari stopped getting initial 
-	// job message unless a time delay inserted
+	// TODO/FIX/HACK: Safari started missing initial 
+	// job message unless a time delay was inserted
+	waitForJobToLoad();
 	setTimeout(function() {
 		saveAndRequestNewJob(); 
 	},500);
