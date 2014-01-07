@@ -7,12 +7,11 @@ GAE Deployment
 * GAE taskqueue very slow sometimes; check status at https://code.google.com/status/appengine
   
 Suggestions
-* Login: make login process easier
 * Login: authenticated_user_id will always stay the same but authenticated_nickname can change
          check and update if needed when user logs in
 
-* Notes: consider asking users to suggest categories when ideas created
-* Notes: inform users how many ideas have been contributed so far
+* Ideas: consider asking users to suggest categories when ideas created
+* Ideas: inform users how many ideas have been contributed so far
 
 * Categorize: remove/merge any duplicate ideas before starting cascade
 * Categorize: need to decide how to best calculate voting threshold used in cascade (in steps and when generating categories)
@@ -21,37 +20,30 @@ Suggestions
 * Categorize: check if job that is holding things up can be assigned to another user (might get more than k/k2 results)
 * Categorize: consider unassigning jobs that a user has not finished in some period of time (warn user)
 * Categorize: should never wait if only 1 user; if so then user has hit a deadend (e.g., no categories available to fit tasks)
-* Categorize: skip best category tasks if k=1
 * Categorize: would it be better to group more categories together in fit tasks when larger number of categories to check
-* Categorize: flag to discuss
 * Categorize: allow instructor to pre-populate categories
 * Categorize: consider how "best category" and fit tasks could be merged
-* Categorize: change fit tasks from 2 radio boxes (y/n) to single checkbox
                                       
-* Results: add "discuss" button to categories and items and show counts
 * Results: allow users to expand/collapse individual categories
 * Results: consider showing categories suggested but not used
-* Results: display categories like a network where shared notes are the edges
-* Results: use Whiz to display results
+* Results: use Keshif to display results
 * Results: when should singletons be removed or included in results
 * Results: make word clouds clickable (show ideas & categories where word appears)
-* Results: suggested sorts: count (default), same as nested (but without nesting), name
-* Results: consider where idea should be displayed if only shown once (currently shown in smallest category)
 * Results: should instructor changes to results page be pushed to students (e.g., nest categories, etc.)
 * Results: sort by discuss
-
-
+* Results: consider where idea should be displayed if only shown once (currently shown in smallest category)
+           should check # fit votes when deciding (assuming more than 1 vote)
+           
 * Admin: allow question author to release incomplete cascade assignments after some period of inactivity
 * Admin: add option to hide names completely for a question
 * Admin: allow admins to logout students
 * Admin: improve how cascade settings and voting thresholds are calculated
 * Admin: need better way to create unique question id
-* Admin: if multiple admin pages open, update messaages not sent for delete question, delete data, etc.
-* Admin: Fix download data to show subcategories
+* Admin: if multiple admin pages open, update messages not sent for delete question, delete data, etc.
+* Admin: add option to make questions active/inactive
 
 * Misc: Need consistent terminology (e.g., submission/note/response/idea, person/user/author/instructor/admin)
 * Misc: Create/check database indexes
-* Misc: Destroy channels after some specified period (or does that happen automatically?)
 * Misc: Consider what can be stored in datastore and/or memcache to improve performance
 * Misc: Need to better understand what reasonable defaults should be set in queue.yaml
 * Misc: Reduce usage of Google Cloud Sql where possible to reduce cost
@@ -68,7 +60,6 @@ Known Bugs
 * Does not work in IE8 (layout issues)
 * Can't submit idea when Chrome "disconnect.me" plugin installed
 * When user logs in first time, Google asks for permission and then doesn't always redirect to application as expected
-* Observed instance when GUI did not switch from note input to cascade categorization when testing with group
 * If many users working concurrently, it may be possible for a job to be assigned to multiple users
   Currently the first job submitted is saved in the database
   Subsequent saved jobs are silently ignored but the count is recorded in the cascade_stats table
@@ -82,7 +73,6 @@ Known Bugs
   (check if logout works as expected when using cellphone)
     
 Testing
-* Nickname authentication needs to be tested more completely (see known bugs)
 * Build test harness
   (look at the Firefox extension Selenium: seleniumhq.org)
 
@@ -94,11 +84,6 @@ Google Cloud SQL
 * Google Cloud SQL uses MySQL 5.5 (using 5.6 for local testing)
 * google_app_engine_sdk_path/google_sql.py
 * https://developers.google.com/appengine/training/cloud-sql/deploy_the_app
-
-AFTER STUDY
-* add option to make questions active/inactive
-* check # fit votes when deciding which single category to display an item in
-* allow instructor to pre-populate categories
 
 ****** OLD ******
 

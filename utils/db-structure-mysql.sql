@@ -68,6 +68,7 @@ CREATE TABLE `cascade_fit_categories_phase1` (
   `idea_id` int(11) DEFAULT NULL,
   `category` varchar(255) DEFAULT NULL,
   `fit` int(11) DEFAULT '-1',
+  `recheck` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`),
   KEY `question_user_index` (`question_id`,`user_id`),
@@ -89,6 +90,7 @@ CREATE TABLE `cascade_fit_categories_phase2` (
   `idea_id` int(11) DEFAULT NULL,
   `category` varchar(255) DEFAULT NULL,
   `fit` int(11) DEFAULT '-1',
+  `recheck` int(11) DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `question_index` (`question_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
@@ -332,4 +334,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-12-17 14:06:13
+-- Dump completed on 2014-01-07 13:31:31

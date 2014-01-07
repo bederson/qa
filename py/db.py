@@ -17,13 +17,6 @@
 # limitations under the License.
 #
 
-# Cascade Improvements 10.21.2013
-# - remove categories with same stem words automatically (reduce time by reducing fit tasks)
-# - ask users if categories w/ 50% of more of the same stem words are equivalent (reduce time by reducing fit tasks)
-# - show users current suggested categories (potentially reduce duplicates but might also reduce distinct categories)
-# - added fit verify task (improve quality w/o increasing # jobs as much as if k2 was increased)
-# - increase cascade_s when users >= 10 (improve quality by giving more context in fit jobs)
-
 import constants
 import helpers
 import datetime
@@ -1749,8 +1742,9 @@ class CascadeFitCategory(DBObject):
         count = 0
         if notCheckedYet:
             minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
-
-            # check for any ideas that did not fit any categories
+            
+            # create cls tasks on all categories
+            # for any ideas that did not fit any categories
             sql = "select idea_id, sum(fit) as fit_votes from cascade_fit_categories_phase1 where "
             sql += "question_id=%s and "
             sql += "fit!=-1 "
@@ -1761,7 +1755,8 @@ class CascadeFitCategory(DBObject):
             for row in rows:
                 count += cls.createForAllCategories(dbConnection, question, row["idea_id"], recheck=1)
                 
-            # check for any ideas that were not verified to fit any categories
+            # create cls tasks on all categories 
+            # for any ideas that were not verified to fit any categories
             if constants.VERIFY_CATEGORIES: 
                 sql = "select idea_id, sum(fit) as fit_votes from cascade_fit_categories_phase2 where "
                 sql += "question_id=%s and "
@@ -2252,7 +2247,7 @@ class DiscussFlag(DBObject):
 
         return objDict
           
-# TODO / DB: no longer using the following db fields (not deleted from public database):
+# TODO / DB: no longer using the following db fields (not deleted from public database, MAY BE OUT OF DATE):
 #    questions: phase, cascade_iteration, cascade_step, cascade_step_count
 #    questions: nickname_authentication (but not until replaced with authentication_type)
 #    cascade_stats: iteration_count, step[1-5]_job_count, step[1-5]_duration, step[1-5]_unsaved_count
@@ -2260,8 +2255,3 @@ class DiscussFlag(DBObject):
 #    cascade_suggested_categories: cascade_iteration
 #    cascade_best_categories: cascade_iteration
 #    cascade_fit_categories_phase1: cascade_iteration, subsequent
-
-# TODO: remove duplicate ideas (common problem for questions w/ short answers)
-# TODO: very small ks used; when should they be larger? use larger ks when > x students? what happens if ks adjusted as things progress? reconsider how voting threshold is calculated
-# TODO: allow teacher to continue cascade after generating categories by force
-# BEHAVIOR / BUG: options calculated based on # of active users so options will be *wrong* if first idea submitted before most people are logged in

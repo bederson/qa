@@ -915,7 +915,7 @@ class LoadWebLogHandler(BaseHandler):
             if offset:
                 offset = base64.urlsafe_b64decode(str(offset))
             for req_log in logservice.fetch(offset=offset, version_ids=["dev", "13", "14"]):
-                # TODO/FIX: only return cascade requests for now
+                # TODO/FIX: only return cascade and idea requests for now
                 if not req_log.resource.startswith("/cascade") and not req_log.resource.startswith("/idea"):
                     continue
                         

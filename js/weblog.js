@@ -15,6 +15,7 @@
 // limitations under the License.
 //
 
+var HIGH_LATENCY = 3; // in seconds
 var offsets = [ null ];
 var offsetIndex = 0;
 
@@ -44,7 +45,7 @@ function loadWebLog() {
 			else {
 				for (i in result.log) {
 					var request = result.log[i];
-					var highlight = request.was_loading_request || request.pending_time > 0 || request.latency > 3;
+					var highlight = request.was_loading_request || request.pending_time > 0 || request.latency >= HIGH_LATENCY;
 					html += highlight ? "<div class='discuss_highlight' style='padding:8px; margin-bottom:8px'>" : "<div style='padding:8px'>";					
 					html += request.timestamp + "<br/>";
 					//html += request.ip + "<br/>";

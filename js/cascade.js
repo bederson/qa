@@ -59,7 +59,6 @@ function onChannelOpen() {
 	setTimeout(function() {
 		saveAndRequestNewJob(); 
 	},500);
-	
 }
 
 function saveAndRequestNewJob(tasksToSave) {
