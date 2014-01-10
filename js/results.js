@@ -465,6 +465,7 @@ function displayCloud(group, id) {
 	var div = $("#cloud"+id);
 	
 	// do not show tag clouds for groups with < MIN_TAGCLOUD_ITEM_COUNT items
+	// or if only discuss items shown
 	if (group.length < MIN_TAGCLOUD_ITEM_COUNT || showDiscussOnly) {
 		div.html("");
 		return;

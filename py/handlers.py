@@ -1073,11 +1073,8 @@ def onMoreJobs(question, dbConnection, moreFitJobs=0, moreVerifyJobs=0):
         clientId = row["client_id"]
         sendMessageToClient(clientId, { "op": "morejobs", "question_id": question.id })
 
-    if moreFitJobs > 0:
-        sendMessageToAdmin(dbConnection, question.id, { "op": "morefitjobs", "question_id": question.id, "count": moreFitJobs } )
-
-    if moreVerifyJobs > 0:
-        sendMessageToAdmin(dbConnection, question.id, { "op": "moreverifyjobs", "question_id": question.id, "count": moreVerifyJobs } )
+    if moreFitJobs > 0 or moreVerifyJobs > 0:
+        sendMessageToAdmin(dbConnection, question.id, { "op": "morejobs", "question_id": question.id, "fit_count": moreFitJobs, "verify_count": moreVerifyJobs } )
     
 def onNewCategory(question, dbConnection, category):
     sendMessageToAdmin(dbConnection, question.id, { "op": "newcategory", "question_id": question.id } )

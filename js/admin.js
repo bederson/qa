@@ -611,14 +611,6 @@ function handleFitComplete(data) {
 	}
 }
 
-function handleMoreFitJobs(data) {
-	var question = getSelectedQuestion();
-	if (question && data.question_id==question.id) {
-		question.cascade_stats["total_fit_count"] += data.count;	
-		updatePercentComplete(question);
-	}
-}
-
 function handleVerifyComplete(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
@@ -627,11 +619,16 @@ function handleVerifyComplete(data) {
 	}
 }
 
-function handleMoreVerifyJobs(data) {
+function handleMoreJobs(data) {
 	var question = getSelectedQuestion();
 	if (question && data.question_id==question.id) {
-		question.cascade_stats["total_verify_count"] += data.count;	
-		updatePercentComplete(question);
+		// currently only called when there are more fit and verify jobs
+		// but could change in the future
+		if (data.fit_count > 0 || data.verify_count > 0) {
+			question.cascade_stats["total_fit_count"] += data.fit_count;	
+			question.cascade_stats["total_verify_count"] += data.verify_count;	
+			updatePercentComplete(question);
+		}
 	}
 }
 
