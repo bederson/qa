@@ -25,6 +25,9 @@
 
 var questions = [];
 
+var SHOW_REGENERATE_CATEGORIES_BUTTON = false;
+var SHOW_GENERATE_TEST_CATEGORIES_BUTTON = false;
+
 $(document).ready(function() {
 	if ($("#msg").html()) {
 		return;
@@ -420,11 +423,16 @@ function showHideCreateCategoryButton(question) {
 	}
 	else {
 		$("#create_categories_button").hide();
-		// FOR TESTING ONLY: create_categories2_button allows categories to be regenerated to a secondary set of tables
-		// FOR TESTING ONLY: create_categories3_button allows existing categories to be regenerated
+		// FOR TESTING ONLY
 		if (isRunningOnTestServer() && dev_user) {
-			//$("#create_categories2_button").show();
-		    //$("#create_categories3_button").show();
+			// create_categories2_button allows categories to be regenerated to a secondary set of tables
+			if (SHOW_GENERATE_TEST_CATEGORIES_BUTTON) {
+				$("#create_categories2_button").show();
+			}
+			// create_categories3_button allows existing categories to be regenerated
+			if (SHOW_REGENERATE_CATEGORIES_BUTTON) {
+		    	$("#create_categories3_button").show();
+			}
 		}
 	}
 }

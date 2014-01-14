@@ -71,6 +71,9 @@ Known Bugs
 * Sometimes user and channel not deleted from database
   (if user still logged in from before, can they get job assigned if client still exists?)
   (check if logout works as expected when using cellphone)
+* If question categorized over long period of time (started, stopped, started again), the values stored in memcache 
+  may have been deleted and no longer correct (by default items never expire but they may be deleted due to 
+  memory issues so this should not be a common problem).
     
 Testing
 * Build test harness
