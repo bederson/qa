@@ -19,7 +19,7 @@ limitations under the License.
 <html>
   <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>{% block title %}XParty{% endblock %}</title>
+	<title>{% block title %}Q &amp; A{% endblock %}</title>
 	{% block css %}{% endblock %}
 	<link rel="stylesheet" href="/css/jquery-ui.min.css" />
 	<link rel="stylesheet" href="/css/jquery.qtip.min.css" />
@@ -42,11 +42,11 @@ limitations under the License.
   <body>
 	<div class="header">
 		<div style="float:left; width:45%">
-			<a id="home_link" class="xparty_link" href="/">XParty</a>
+			<a id="home_link" class="qa_link" href="/">Q &amp; A</a>
 		</div>
 		<div style="float:right; width:45%; text-align:right">
 			<span id="user_login">{{ user_login }}</span>
-			<a id="login_logout_link" class="xparty_link" href="{{ login_logout_url }}">{{ login_logout_linktext }}</a>
+			<a id="login_logout_link" class="qa_link" href="{{ login_logout_url }}">{{ login_logout_linktext }}</a>
 		</div>
 	<div style="clear:both"></div>
 	</div>
