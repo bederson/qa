@@ -330,11 +330,22 @@ class Question(DBObject):
             # total duration
             totalDuration = getCascadeDuration(self)
             
+            # get min, max, and the average user response time
+            sql = "select min(response_time) as min_response_time, max(response_time) as max_response_time, avg(response_time) as avg_response_time from (select user_id,unix_timestamp(max(created_on))-unix_timestamp(start_time) as response_time from question_ideas join (select question_id, min(created_on) as start_time from question_ideas where question_id=%s) question_ideas2 on question_ideas.question_id=question_ideas2.question_id and question_ideas.question_id=%s group by user_id having response_time>0) response_times"
+            dbConnection.cursor.execute(sql, (self.id, self.id))
+            row = dbConnection.cursor.fetchone()
+            minResponseTime = row["min_response_time"] if row else 0
+            maxResponseTime = row["max_response_time"] if row else 0
+            avgResponseTime = row["avg_response_time"] if row else 0
+            
             stats["cascade_user_count"] = userCount
             stats["idea_count"] = ideaCount
             stats["category_count"] = categoryCount
             stats["uncategorized_count"] = uncategorizedCount
             stats["total_duration"] = totalDuration
+            stats["min_response_time"] = minResponseTime
+            stats["max_response_time"] = maxResponseTime
+            stats["avg_response_time"] = avgResponseTime
             
         return stats
                             
@@ -342,8 +353,8 @@ class Question(DBObject):
         stats = {}                  
         if self.cascade_complete:      
             stats = self.calculateCascadeStats(dbConnection)        
-            sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s, total_duration=%s, skipped_categories=%s where question_id=%s"
-            dbConnection.cursor.execute(sql, (stats["cascade_user_count"], stats["category_count"], stats["idea_count"], stats["uncategorized_count"], stats["total_duration"], ", ".join(skippedCategories) if skippedCategories and len(skippedCategories)>0 else None, self.id))
+            sql = "update cascade_stats set user_count=%s, category_count=%s, idea_count=%s, uncategorized_count=%s, min_response_time=%s, max_response_time=%s, avg_response_time=%s, total_duration=%s, skipped_categories=%s where question_id=%s"
+            dbConnection.cursor.execute(sql, (stats["cascade_user_count"], stats["category_count"], stats["idea_count"], stats["uncategorized_count"], stats["min_response_time"], stats["max_response_time"], stats["avg_response_time"], stats["total_duration"], ", ".join(skippedCategories) if skippedCategories and len(skippedCategories)>0 else None, self.id))
             dbConnection.conn.commit()
         return stats
                 
@@ -367,7 +378,11 @@ class Question(DBObject):
             stats["idea_count"] = row["idea_count"] if row else 0
             stats["category_count"] = row["category_count"] if row else 0
             stats["uncategorized_count"] = row["uncategorized_count"] if row else 0
+            stats["min_response_time"] = row["min_response_time"] if row else 0
+            stats["max_response_time"] = row["max_response_time"] if row else 0
+            stats["avg_response_time"] = row["avg_response_time"] if row else 0
             stats["total_duration"] = row["total_duration"] if row else 0
+
         else:
             stats = {}
             # category count while cascade in progress
@@ -430,7 +445,6 @@ class Question(DBObject):
         dbConnection.cursor.execute("delete from question_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_stats where question_id={0}".format(self.id))
-        dbConnection.cursor.execute("delete from task_queue_debug where question_id={0}".format(self.id))
         if commit:
             dbConnection.conn.commit()
 
@@ -2250,8 +2264,7 @@ class DiscussFlag(DBObject):
 # TODO / DB: no longer using the following db fields (not deleted from public database, MAY BE OUT OF DATE):
 #    questions: phase, cascade_iteration, cascade_step, cascade_step_count
 #    questions: nickname_authentication (but not until replaced with authentication_type)
-#    cascade_stats: iteration_count, step[1-5]_job_count, step[1-5]_duration, step[1-5]_unsaved_count
-#    cascade_times: delete table
 #    cascade_suggested_categories: cascade_iteration
 #    cascade_best_categories: cascade_iteration
 #    cascade_fit_categories_phase1: cascade_iteration, subsequent
+#    task_queue_debug

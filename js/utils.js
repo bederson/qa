@@ -285,7 +285,8 @@ function enableDisable(obj, enable) {
 	}
 }
 
-function toHHMMSS(str) {
+function toHHMMSS(str, hideHoursIfNotNeeded) {
+	hideHoursIfNotNeeded = isUndefined(hideHoursIfNotNeeded) ? false : hideHoursIfNotNeeded;
 	var hhmmss = "-";
 	if (str) {
     	var sec_num = parseInt(str, 10);
@@ -296,7 +297,7 @@ function toHHMMSS(str) {
     	if (hours   < 10) {hours   = "0"+hours;}
     	if (minutes < 10) {minutes = "0"+minutes;}
     	if (seconds < 10) {seconds = "0"+seconds;}
-    	hhmmss = hours+':'+minutes+':'+seconds;
+    	hhmmss = (hideHoursIfNotNeeded && hours==0 ? "" : hours+':') + minutes + ':' + seconds;
     }
     return hhmmss;
 }

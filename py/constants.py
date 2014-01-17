@@ -1,5 +1,4 @@
 ENABLE_DEBUG_LOGGING = True
-ENABLE_TASK_QUEUE_DEBUG_LOGGING = True
 
 # Database
 USE_LOCAL_DATABASE_WHEN_RUNNING_LOCALLY = True # does not work to use Google SQL instance when running locally yet

@@ -356,6 +356,17 @@ function updateCategoryStatus(question) {
 	if (question.cascade_k != 0) {
 		html += "<div class='note' style='text-align:center'>k=" + question.cascade_k + ", k2=" + question.cascade_k2 + ", m=" + question.cascade_m + "%</div>";
 	}
+	
+	// add response stats to download file
+	if (question.cascade_complete) {
+		var avgResponseTimeRounded = Math.round(question.cascade_stats["avg_response_time"]);
+		html += "<div class='note' style='border:1px solid #ccc; margin-top:5px; padding:3px'>";
+		html += toHHMMSS(avgResponseTimeRounded,true) + ' avg response time<br/>';
+		html += toHHMMSS(question.cascade_stats["total_duration"]-avgResponseTimeRounded,true) + ' est process time<br/>';
+		html += toHHMMSS(question.cascade_stats["total_duration"],true) + ' total duration';
+		html += '</div>';
+	}
+	
 	$("#cascade_notes").html(html);	
 }
 

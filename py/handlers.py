@@ -286,7 +286,7 @@ class AdminPageHandler(BaseHandler):
         self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues(adminConnect=True)
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
-        self.response.out.write(template.render(path, templateValues))
+        self.response.out.write(template.render(path, templateValues))        
         self.destroy()
 
 class StartPageHandler(BaseHandler):
@@ -585,6 +585,10 @@ class DownloadQuestionHandler(BaseHandler):
             
             stats = self.question.getQuestionStats(self.dbConnection)
             cascadeStats = stats["cascade_stats"] 
+            avgResponseTime = round(cascadeStats["avg_response_time"]) if "avg_response_time" in cascadeStats else None
+            avgResponseTimeFormatted = str(datetime.timedelta(seconds=avgResponseTime)) if avgResponseTime else "-"
+            estProcessTime = cascadeStats["total_duration"]-avgResponseTime if "total_duration" in cascadeStats and "avg_response_time" in cascadeStats else None
+            estProcessTimeFormatted = str(datetime.timedelta(seconds=estProcessTime)) if estProcessTime else "-"
             totalDuration = cascadeStats["total_duration"] if "total_duration" in cascadeStats else None
             totalDurationFormatted = str(datetime.timedelta(seconds=totalDuration)) if totalDuration else "-"
               
@@ -598,6 +602,9 @@ class DownloadQuestionHandler(BaseHandler):
                 excelWriter.writerow(("# ideas", stats["idea_count"]))
                 excelWriter.writerow(("# categories", cascadeStats["category_count"]))
                 excelWriter.writerow(("# uncategorized", len(uncategorizedIdeas)))
+                excelWriter.writerow(())
+                excelWriter.writerow(("Average response time", avgResponseTimeFormatted, "(h:mm:ss)"))
+                excelWriter.writerow(("Estimated process time", estProcessTimeFormatted, "(h:mm:ss)"))
                 excelWriter.writerow(("Total duration", totalDurationFormatted, "(h:mm:ss)"))
                 excelWriter.writerow(())
                                 
@@ -748,7 +755,7 @@ class CascadeJobHandler(BaseHandler):
             # (requests will timeout if not responded to within roughly 30 seconds, 
             # but taskqueues do not have this time deadline)
             # check status of taskqueues at https://code.google.com/status/appengine since sometimes they run slow 
-            taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "user_id": self.person.id, "admin": "1" if self.isAdminLoggedIn() else "0", "job": job, "waiting": waiting, "discuss": discuss, "add_time": str(datetime.datetime.now()) })
+            taskqueue.add(url="/cascade_save_and_get_next_job", params ={ "question_id": self.question.id, "client_id": clientId, "user_id": self.person.id, "admin": "1" if self.isAdminLoggedIn() else "0", "job": job, "waiting": waiting, "discuss": discuss })
             data = { "status" : 1 }
                 
         self.writeResponseAsJson(data)
@@ -765,11 +772,6 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
         questionId = self.request.get("question_id")
         personId = self.request.get("user_id")
         isAdmin = self.request.get("admin", "0") == "1"
-
-        # FOR TESTING ONLY
-        addTime = self.request.get("add_time")
-        startDelay = datetime.datetime.now() - datetime.datetime.strptime(addTime, "%Y-%m-%d %H:%M:%S.%f")
-        startDelaySeconds = startDelay.total_seconds()
                         
         dbConnection = DatabaseConnection()
         dbConnection.connect()
@@ -812,15 +814,7 @@ class CascadeSaveAndGetNextJobHandler(webapp2.RequestHandler):
                         
                 if not job:
                     Person.waiting(dbConnection, clientId)
-                
-            # FOR TESTING ONLY
-            if constants.ENABLE_TASK_QUEUE_DEBUG_LOGGING and startDelaySeconds > 3:
-                taskName = self.request.headers.get('X-AppEngine-TaskName')
-                retryCount = self.request.headers.get('X-AppEngine-TaskRetryCount')
-                sql = "insert into task_queue_debug (task_name, question_id, user_id, save_job, new_job, retry_count, start_delay) values(%s, %s, %s, %s, %s, %s, %s) on duplicate key update retry_count=%s, start_delay=%s"
-                dbConnection.cursor.execute(sql, (taskName, questionId, personId, helpers.toJson(jobToSave) if jobToSave else None, helpers.toJson(jobDict) if jobDict else None, retryCount, startDelaySeconds, retryCount, startDelaySeconds))
-                dbConnection.conn.commit()
-                
+                                
         dbConnection.disconnect()
                 
 class CancelCascadeJobHandler(BaseHandler):
