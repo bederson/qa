@@ -28,7 +28,6 @@ var SORT_BY_COUNT = "count";
 var DEFAULT_SHOW_EXPANDED = true;
 var DEFAULT_SHOW_SUBCATEGORIES = false;
 var DEFAULT_SHOW_IN_SINGLE_CATEGORY = true;
-var DEFAULT_SHOW_ALSO_IN = false;
 var DEFAULT_HIGHLIGHT_DISCUSS = false;
 var DEFAULT_SHOW_DISCUSS_ONLY = false;
 var STORE_SETTINGS_IN_HASH = false;
@@ -36,7 +35,6 @@ var STORE_SETTINGS_IN_HASH = false;
 var showExpanded = DEFAULT_SHOW_EXPANDED;
 var showSubcategories = DEFAULT_SHOW_SUBCATEGORIES;
 var showInSingleCategory = DEFAULT_SHOW_IN_SINGLE_CATEGORY;
-var showAlsoIn = DEFAULT_SHOW_ALSO_IN;
 var highlightDiscuss = DEFAULT_HIGHLIGHT_DISCUSS;
 var showDiscussOnly = DEFAULT_SHOW_DISCUSS_ONLY;
 
@@ -59,7 +57,6 @@ $(document).ready(function() {
 	$("#expand_categories_cb").prop("checked", showExpanded);
 	$("#nest_categories_cb").prop("checked", showSubcategories);
 	$("#single_category_cb").prop("checked", showInSingleCategory);
-	$("#also_in_cb").prop("checked", showAlsoIn);
 	$("#highlight_discuss_cb").prop("checked", highlightDiscuss);
 	$("#discuss_only_cb").prop("checked", showDiscussOnly);
 	
@@ -129,12 +126,6 @@ function onChannelOpen() {
 		storeSettingsToHash();
 		displayIdeas();
 	});
-	
-	$("#also_in_cb").click(function() {
-		showAlsoIn = $(this).is(":checked");
-		storeSettingsToHash();
-		showHide($(".also_in"), showAlsoIn);
-	});
 }
 
 function initSettingsFromHash() {
@@ -145,7 +136,6 @@ function initSettingsFromHash() {
 			showExpanded = hash.length > 1 && hash[1] in boolValues ? hash[1] == "1" : DEFAULT_SHOW_EXPANDED;
 			showSubcategories = hash.length > 2 && hash[2] in boolValues ? hash[2] == "1" : DEFAULT_SHOW_SUBCATEGORIES;
 			showInSingleCategory = hash.length > 3 && hash[3] in boolValues ? hash[3] == "1" : DEFAULT_SHOW_IN_SINGLE_CATEGORY;
-			showAlsoIn = hash.length > 4 && hash[4] in boolValues ? hash[4] == "1" : DEFAULT_SHOW_ALSO_IN;
 			highlightDiscuss = hash.length > 5 && hash[5] in boolValues ? hash[5] == "1" : DEFAULT_HIGHLIGHT_DISCUSS;
 			showDiscussOnly = hash.length > 6 && hash[6] in boolValues ? hash[6] == "1" : DEFAULT_SHOW_DISCUSS_ONLY;
 		}
@@ -158,7 +148,6 @@ function storeSettingsToHash() {
 		hash += showExpanded ? "1" : "0";
 		hash += showSubcategories ? "1" : "0";
 		hash += showInSingleCategory ? "1" : "0";
-		hash += showAlsoIn ? "1" : "0";
 		hash += highlightDiscuss ? "1" : "0";
 		hash += showDiscussOnly ? "1" : "0";
 		window.location.hash = hash;
@@ -247,6 +236,7 @@ function displayIdeas() {
 	initIdeaHandlers();
 			
 	// show/hide controls
+	// initialize after writing idea html since some status variables updated while writing
 	var hasCategories = categorizedIdeas.length > 0;
 	showHide($("#sort_control"), hasCategories);
 	showHide($("#expand_categories_control"), hasCategories);
@@ -255,8 +245,6 @@ function displayIdeas() {
 	showHide($("#control_lb"), hasCategories);
 	showHide($("#highlight_discuss_control"), true);
 	showHide($("#discuss_only_control"), true);
-	showHide($("#also_in_control"), hasAlsoIn);
-	showHide($(".also_in"), showAlsoIn);
 	$("#display_control_area").show();
 		
 	// BEHAVIOR: only display tag clouds when cascade is complete and categories expanded
@@ -364,17 +352,20 @@ function categoryGroupAsHtml(categoryGroup, id) {
 function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	parent = isDefined(parent) ? parent : null;
 	indent = isDefined(indent) ? indent : 0;
-
-	var alsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
-	if (alsoIn.length>0) {
-		var alsoInIndex = alsoIn.indexOf(parent);
-		if (alsoInIndex != -1) {
-			alsoIn.splice(alsoInIndex, 1);
-		}
-	}
 	
 	var discussCount = getDiscussFlagCount(idea.id);
 	var hideIdea = showDiscussOnly && discussCount == 0;
+	
+	var alsoIn = idea.also_in ? $.extend(true, [], idea.also_in) : [];
+	if (alsoIn.length > 0) {
+		var alsoInParentIndex = alsoIn.indexOf(parent);
+		if (alsoInParentIndex != -1) {
+			alsoIn.splice(alsoInParentIndex, 1);
+		}
+	}
+	if (alsoIn.length > 0) {
+		hasAlsoIn = true;
+	}
 	
 	var highlightClass = highlightDiscuss && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
 	var html = "<div class='left idea idea_" + idea.id + " category_" + rootCategoryId + highlightClass + "' style='margin-left:"+indent+"px;"
@@ -383,11 +374,6 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	html += discussButtonHtml(idea.id);
 	html += "<div style='margin-left:40px;'>";
 	html += idea.idea;
-
-	if (alsoIn.length>0) {
-		hasAlsoIn = true;
-		html += "<span class='note also_in' style='display:none'><br/>Also in: " + alsoIn.join(", ") + "</span>";
-	}
 
 	if (idea.author) {
 		html += "</br>";
