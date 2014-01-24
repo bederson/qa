@@ -36,6 +36,7 @@ app = webapp2.WSGIApplication([
     ('/start/([0-9]+)', StartPageHandler),
     ('/admin[/]*', AdminPageHandler),
     ('/admin/([0-9]+)', AdminPageHandler),
+    ('/review/([0-9]+)r([0-9]+)', ReviewPageHandler),
     ('/web_log', WebLogPageHandler),
         
     ('/login', LoginHandler),
@@ -59,6 +60,8 @@ app = webapp2.WSGIApplication([
     ('/generate_test_categories', TestCategoryHandler),
     ('/discuss_idea', DiscussIdeaHandler),
     ('/query', QueryHandler),
+    ('/review_job', ReviewJobHandler),
+    ('/review_init', ReviewInitHandler),
     ('/load_web_log', LoadWebLogHandler),
     
 	('/_ah/channel/connected/', ChannelConnectedHandler),

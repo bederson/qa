@@ -156,6 +156,11 @@ a.noline:hover {
 	border-radius: 7px;
 }
 
+/* colors */
+.grey {
+	color: #888;
+}
+
 /* spacing */
 
 .largespaceabove {

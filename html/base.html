@@ -46,7 +46,9 @@ limitations under the License.
 		</div>
 		<div style="float:right; width:45%; text-align:right">
 			<span id="user_login">{{ user_login }}</span>
+			{% if login_logout_linktext %}
 			<a id="login_logout_link" class="qa_link" href="{{ login_logout_url }}">{{ login_logout_linktext }}</a>
+			{% endif %}
 		</div>
 	<div style="clear:both"></div>
 	</div>

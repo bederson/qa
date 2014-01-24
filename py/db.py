@@ -291,7 +291,7 @@ class Question(DBObject):
         dbConnection.cursor.execute("update cascade_fit_categories_phase1 set user_id=null where question_id={0} and {1}".format(self.id, CascadeFitCategory.incompleteCondition))
         dbConnection.cursor.execute("update cascade_fit_categories_phase2 set user_id=null where question_id={0} and {1}".format(self.id, CascadeVerifyCategory.incompleteCondition))
         dbConnection.conn.commit()
-    
+            
     def clearWaiting(self, dbConnection):
         sql = "update user_clients,users set waiting_since=null where user_clients.user_id=users.id and question_id=%s"
         dbConnection.cursor.execute(sql, (self.id))
@@ -445,6 +445,8 @@ class Question(DBObject):
         dbConnection.cursor.execute("delete from question_categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from categories where question_id={0}".format(self.id))
         dbConnection.cursor.execute("delete from cascade_stats where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from reviews where question_id={0}".format(self.id))
+        dbConnection.cursor.execute("delete from fit_reviews where question_id={0}".format(self.id))
         if commit:
             dbConnection.conn.commit()
 
@@ -1869,7 +1871,190 @@ class CascadeVerifyCategory(CascadeFitCategory):
         
         if CascadeVerifyCategory.isStepComplete(dbConnection, question):
             GenerateCascadeHierarchy(dbConnection, question)
-                                                
+
+class FitReview(DBObject):
+    table = "fit_reviews"
+    fields = [ "id", "review_id", "reviewer_id", "question_id", "idea_id", "idea", "category", "fit_rating" ]
+    completeCondition = "(fit_rating!=-1)"
+    incompleteCondition = "(fit_rating=-1)"
+   
+    def __init__(self):
+        self.id = None
+        self.review_id = None
+        self.reviewer_id = None
+        self.question_id = None
+        self.idea_id = None
+        self.idea = None # stored in question_ideas table
+        self.category = None
+        self.fit_rating = -1
+    
+    @classmethod
+    def createFromData(cls, data):
+        task = super(FitReview, cls).createFromData(data)
+        if task:
+            ideaField = "idea" if "idea" in data else Idea.tableField("idea") if Idea.tableField("idea") in data else None
+            if ideaField:
+                task.idea = data[ideaField]
+            else:
+                helpers.log("WARNING: idea not included in task data")
+        return task
+    
+    # TODO/FIX/THUR
+    # add instructions
+    # complete message ui / complete question message ui
+    # think about when to initialize jobs: and for which questions
+    # show progress to reviewer: including how many questions to go
+    # how to get/set review group/review count
+    # check if cascade complete for question (if any)
+
+    @staticmethod
+    def getReviewGroup(dbConnection, reviewId):
+        reviewGroup = []
+        sql = "select * from reviews,questions where reviews.question_id=questions.id and review_id=%s"
+        dbConnection.cursor.execute(sql, (reviewId))
+        rows = dbConnection.cursor.fetchall()
+        reviewCount = None
+        for row in rows:
+            question = Question.createFromData(row)
+            if not reviewCount:
+                reviewCount = row["review_count"]
+            elif reviewCount != row["review_count"]:
+                helpers.log("WARNING: review_count is not the same for review group {0}".format(reviewId))
+                
+            reviewGroup.append({ "question": question, "review_id": reviewId, "review_count": reviewCount })
+                    
+        return reviewGroup
+                
+    @staticmethod
+    def createJobs(dbConnection, reviewGroup):            
+        if len(reviewGroup) == 0:
+            return
+
+        reviewId = reviewGroup[0]["review_id"]
+
+        # delete existing fit review for group (if any)
+        dbConnection.cursor.execute("delete from fit_reviews where review_id=%s", (reviewId))
+        dbConnection.conn.commit()
+                
+        # TODO/FIX: depending on how many ideas/categories/questions this could time out if it takes too long
+        for groupItem in reviewGroup:
+            question = groupItem["question"]
+            reviewCount = groupItem["review_count"]
+            if constants.REVIEW_FINAL_FITS_ONLY:
+                categoryGroups = getCategoryGroups(dbConnection, question)
+                for category in categoryGroups:
+                    ideaIds = categoryGroups[category]
+                    for ideaId in ideaIds:
+                        sql = "insert into fit_reviews (review_id, reviewer_id, question_id, idea_id, category) values(%s, %s, %s, %s, %s)"
+                        for i in range(reviewCount):
+                            reviewerId = i+1
+                            dbConnection.cursor.execute(sql, (reviewId, reviewerId, question.id, ideaId, category))
+                dbConnection.conn.commit()
+            
+            else:            
+                ideaIds = []
+                sql = "select * from question_ideas where question_id=%s order by id"
+                dbConnection.cursor.execute(sql, (question.id))
+                rows = dbConnection.cursor.fetchall()
+                for row in rows:
+                    ideaIds.append(row["id"])
+                
+                categories = []
+                sql = "select distinct(category) from cascade_fit_categories_phase1 where question_id=%s order by category"
+                dbConnection.cursor.execute(sql, (question.id))
+                rows = dbConnection.cursor.fetchall()
+                for row in rows:
+                    categories.append(row["category"])
+            
+                for ideaId in ideaIds:
+                    for category in categories:
+                        sql = "insert into fit_reviews (review_id, reviewer_id, question_id, idea_id, category) values(%s, %s, %s, %s, %s)"
+                        for i in range(reviewCount):
+                            reviewerId = i+1
+                            dbConnection.cursor.execute(sql, (reviewId, reviewerId, question.id, ideaId, category))
+                dbConnection.conn.commit()
+                               
+    @staticmethod
+    def getJob(dbConnection, reviewId, reviewerId, questionId):
+        # find an idea that still needs to be checked
+        sql = "select idea_id from fit_reviews where "
+        sql += "question_id=%s "
+        sql += "and review_id=%s "
+        sql += "and reviewer_id=%s "
+        sql += "and {0} ".format(FitReview.incompleteCondition)
+        sql += "order by rand() limit 1"
+        dbConnection.cursor.execute(sql, (questionId, reviewId, reviewerId))
+        row = dbConnection.cursor.fetchone()
+        ideaId = row["idea_id"] if row else None
+    
+        # now find categories to check for this idea
+        tasks = []
+        if ideaId:
+            sql = "select * from fit_reviews,question_ideas where "
+            sql += "fit_reviews.idea_id=question_ideas.id "
+            sql += "and fit_reviews.question_id=%s "
+            sql += "and review_id=%s "
+            sql += "and reviewer_id=%s "
+            sql += "and idea_id=%s "
+            sql += "and {0}".format(FitReview.incompleteCondition)
+            dbConnection.cursor.execute(sql, (questionId, reviewId, reviewerId, ideaId))
+            rows = dbConnection.cursor.fetchall()
+            for row in rows:
+                task = FitReview.createFromData(row)
+                tasks.append(task)
+                       
+        return { "question_id": questionId, "tasks" : tasks } if len(tasks) > 0 else None
+    
+    @staticmethod
+    def getStats(dbConnection, reviewId, reviewerId):
+        stats = {}
+        dbConnection.cursor.execute("select * from reviews,questions where reviews.question_id=questions.id and review_id=%s", (reviewId))
+        rows = dbConnection.cursor.fetchall()
+        for row in rows:
+            questionId = row["question_id"]
+            questionText = row["question"]
+            if questionId not in stats:
+                stats[questionId] = { "question_text": questionText, "incomplete": 0, "complete": 0 }
+            
+            sql = "select fit_rating, count(*) as ct from fit_reviews where "
+            sql += "question_id=%s "
+            sql += "and review_id=%s "
+            sql += "and reviewer_id=%s "
+            sql += "group by fit_rating"
+            dbConnection.cursor.execute(sql, (questionId, reviewId, reviewerId))
+            rows2 = dbConnection.cursor.fetchall()
+            for row2 in rows2:    
+                stats[questionId]["complete"] += row2["ct"] if row2["fit_rating"] != -1 else 0
+                stats[questionId]["incomplete"] += row2["ct"] if row2["fit_rating"] == -1 else 0
+        
+        return stats
+    
+    @staticmethod
+    def getCurrentQuestionId(stats):
+        waitingToStart = []
+        inProgress = None
+        for questionId in stats:
+            complete = stats[questionId]["complete"]
+            incomplete = stats[questionId]["incomplete"]
+            if complete>0 and incomplete>0:
+                inProgress = questionId
+            if complete==0:
+                waitingToStart.append(questionId)
+                
+        return inProgress if inProgress else (random.choice(waitingToStart) if len(waitingToStart) > 0 else None)
+                 
+    @staticmethod
+    def saveJob(dbConnection, job, reviewerId):
+        questionId = job["question_id"]
+        for task in job["tasks"]:
+            taskId = task["id"]
+            fitRating = task["fit_rating"]
+            sql = "update fit_reviews "
+            sql += "set fit_rating=%s "
+            sql += "where id=%s"
+            dbConnection.cursor.execute(sql, (fitRating, taskId))
+        dbConnection.conn.commit()
+                                                            
 def GenerateCascadeHierarchy(dbConnection, question, forced=False, forTesting=False): 
     
     questionCategoriesTable = "question_categories" if not forTesting else "question_categories2"

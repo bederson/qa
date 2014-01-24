@@ -1,0 +1,101 @@
+<!--
+Copyright 2013 Ben Bederson - http://www.cs.umd.edu/~bederson
+Anne Rose - http://www.cs.umd.edu/hcil/members/arose
+University of Maryland
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+{% extends "base.html" %}
+
+{% block title %}Q &amp; A - Expert Review{% endblock %}
+{% block scripts %}
+	<script type="text/javascript" src="/js/review.js"></script>
+	<script>
+		var review_id = {{ review_id }};
+		var reviewer_id = {{ reviewer_id }};
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id="msg" class="warning spacebelow" style="text-align:center">{{ msg }}</div>
+	<div id="page_content" style="display:none">
+		<div id="box_area" class="center">
+			<div class="green_highlight smallspacebelow" style="padding:8px">
+				<div style="float:left">
+					<h1 id="title" class="smallspacebelow">&nbsp;</h1>
+				</div>
+				<div id="percent_complete" class="small" style="float:right"></div>
+				<div style="clear:both"></div>
+				<div id="subtitle">&nbsp;</div>
+			</div>
+			<div class="white_box spacebelow">
+				<h2 id="task_title" class="nospaceabove spacebelow"></h2>
+				<div id="task_help" class="help spacebelow"></div>
+				<div id="task_warning" class="warning spacebelow"></div>
+				<div id="task_area"><img id="loading_icon" src="/images/loading.gif" style="display:none"></div>		
+			</div>
+			<div id="instructions" class="small largespaceabove" style="display:none">
+				<p>Fit Ratings</p>
+				<table style="border-collapse: collapse">
+					<tr>
+						<td><strong>1&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>definitely no</strong>, the response does not fit in the category<br/>
+							<span class="grey">What is your favorite food?<br/>
+							response: pizza<br/>
+							category: dessert</span>
+						</td>
+					</tr>
+					<tr>
+						<td><strong>2&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>probably no</strong>, the response does not fit in the category but I can understand why it is there<br/>
+							<span class="grey">What do you wish campus would have?<br/>
+							response: shopping mall<br/>
+							category: food (shopping mall could have food)</span>
+						</td>
+					</tr>
+					<tr>
+						<td><strong>3&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>maybe</strong>, my reasons for why it could fit and why is might not are roughly equal<br/>
+							<span class="grey">XX<br/>
+							response: XX<br/>
+							category: XX</span>
+						</td>
+					</tr>
+					<tr>
+						<td><strong>4&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>probably yes</strong>, the response fits in the category but I can understand how someone else might not<br/>
+							<span class="grey">XX<br/>
+							response: XX<br/>
+							category: XX </span>
+						</td>
+					</tr>
+					<tr>
+						<td><strong>5&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>definitely yes</strong>, the response fits in the category<br/>
+							<span class="grey">What is your favorite food?<br/>
+							response: pizza<br/>
+							category: fast food</span>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+	</div>
+	
+{% endblock %}

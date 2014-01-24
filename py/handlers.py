@@ -22,6 +22,7 @@ import base64
 import datetime
 import json
 import os
+import random
 import re
 import string
 import StringIO
@@ -299,6 +300,19 @@ class StartPageHandler(BaseHandler):
         self.response.out.write(template.render(path, templateValues))
         self.destroy()
 
+class ReviewPageHandler(BaseHandler):
+    def get(self, reviewId, reviewerId):
+        self.init(initUser=False) 
+        templateValues = self.getDefaultTemplateValues(connect=False)
+        templateValues["review_id"] = reviewId
+        templateValues["reviewer_id"] = reviewerId
+        templateValues["user_login"] = "Reviewer {0}".format(reviewerId)
+        templateValues['login_logout_linktext'] = None
+        templateValues['login_logout_url'] = None  
+        path = os.path.join(os.path.dirname(__file__), '../html/review.html')
+        self.response.out.write(template.render(path, templateValues))
+        self.destroy()
+        
 class WebLogPageHandler(BaseHandler):
     def get(self, questionId=None):
         self.init()
@@ -828,6 +842,80 @@ class CancelCascadeJobHandler(BaseHandler):
                 onMoreJobs(self.question, self.dbConnection)
 
         self.writeResponseAsJson({ "status" : 1 })
+        self.destroy()
+
+class ReviewInitHandler(BaseHandler):
+    def post(self):
+        self.init()
+        reviewId = int(self.request.get("review_id", -1))
+        reviewerId = int(self.request.get("reviewer_id", -1))
+        warning = None
+
+        if reviewId == -1:
+            data = { "status": 0, "msg": "Unknown review" }
+               
+        elif reviewerId == -1:
+            data = { "status": 0, "msg": "Unknown reviewer" }
+             
+        else:  
+            reviewGroup = FitReview.getReviewGroup(self.dbConnection, reviewId)
+            reviewerIdValid = False
+            if len(reviewGroup) > 0:
+                reviewCount = reviewGroup[0]["review_count"]
+                reviewerIdValid = reviewerId >=1 and reviewerId <= reviewCount
+                    
+            if len(reviewGroup) == 0:
+                data = { "status": 0, "msg": "Review not found" }
+            
+            elif not reviewerIdValid:
+                data = { "status": 0, "msg": "Reviewer not valid" }
+                    
+            else:
+                # create jobs for *all* reviewers if not done yet
+                self.dbConnection.cursor.execute("select count(*) as ct from fit_reviews where review_id=%s", (reviewId))
+                row = self.dbConnection.cursor.fetchone()
+                if row["ct"] == 0:            
+                    FitReview.createJobs(self.dbConnection, reviewGroup)
+
+                stats = FitReview.getStats(self.dbConnection, reviewId, reviewerId)
+                data = { "status": 1, "stats": stats }
+        
+        self.writeResponseAsJson(data)
+        self.destroy()
+        
+class ReviewJobHandler(BaseHandler):
+    def post(self):
+        self.init()
+        reviewId = int(self.request.get("review_id", -1))
+        reviewerId = int(self.request.get("reviewer_id", -1))
+
+        if reviewId == -1:
+            data = { "status": 0, "msg": "Unknown review" }
+               
+        elif reviewerId == -1:
+            data = { "status": 0, "msg": "Unknown reviewer" }
+             
+        else:
+            job = None    
+            currentQuestionId = None
+                         
+            # save job and then get new job for same question (if any)
+            jobToSave = helpers.fromJson(self.request.get("job", None))
+            if jobToSave:
+                FitReview.saveJob(self.dbConnection, jobToSave, reviewerId)
+                job = FitReview.getJob(self.dbConnection, reviewId, reviewerId, jobToSave["question_id"])
+                        
+            # if no new job yet, get job for current question (if any)
+            if not job:
+                stats = FitReview.getStats(self.dbConnection, reviewId, reviewerId)
+                currentQuestionId = FitReview.getCurrentQuestionId(stats)
+                job = FitReview.getJob(self.dbConnection, reviewId, reviewerId, currentQuestionId)
+               
+            jobDict = { "question_id": job["question_id"], "tasks": [task.toDict() for task in job["tasks"]] } if job else None
+            savedJobDict = { "question_id": jobToSave["question_id"], "task_count": len(jobToSave["tasks"]) }  if jobToSave else None
+            data = { "status": 1, "review_id": reviewId, "reviewer_id": reviewerId, "job": jobDict, "saved_job": savedJobDict }
+                
+        self.writeResponseAsJson(data)
         self.destroy()
    
 class CategoryHandler(BaseHandler):
