@@ -7,12 +7,16 @@ var NO_AUTHENTICATION = 0
 var GOOGLE_AUTHENTICATION = 1
 var NICKNAME_AUTHENTICATION = 2
 
-// job types
+// cascade job types
 var SUGGEST_CATEGORY = 1;
 var BEST_CATEGORY = 2;
 var EQUAL_CATEGORY = 3;
 var FIT_CATEGORY = 4;
 var VERIFY_CATEGORY = 5;
+
+// review job types
+var REVIEW_RESPONSE_FIT = 1;
+var REVIEW_CATEGORY_GROUP = 2;
 
 var TIME_REQUIRED_PER_CASCADE_JOB = 20;  // estimate in seconds
 var MAX_CHARS = 125; // max characters per response

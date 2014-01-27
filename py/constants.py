@@ -19,6 +19,10 @@ EQUAL_CATEGORY = 3
 FIT_CATEGORY = 4
 VERIFY_CATEGORY = 5
 
+# Review Job Types
+REVIEW_RESPONSE_FIT = 1
+REVIEW_CATEGORY_GROUP = 2
+
 ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = True
 FIND_EQUAL_CATEGORIES = True        # check categories with similar stem words (EQUAL_CATEGORY)
 SIMILAR_STEM_PERCENTAGE = 30        # categories with at least this percentage of the same stem words should be compared for equality (EQUAL_CATEGORY)
@@ -27,7 +31,7 @@ SUGGEST_CATEGORY_AGAIN = False      # whether or not to create one more CascadeS
                                     # requires k+1 users to be working
 RECHECK_UNCATEGORIZED = True        # whether or not to perform fit tasks on uncategorized items again or not
                                     # required k2+1 users to be working
-REVIEW_FINAL_FITS_ONLY = False      # whether or not to review category-idea pairs marked as fitting or all of them
+REVIEW_FINAL_FITS_ONLY = True       # whether or not to review category-idea pairs marked as fitting or all of them
 
 # Cascade Settings
 CASCADE_INITIAL_ITEM_SET = 0        # set of items to suggest categories for

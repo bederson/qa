@@ -62,6 +62,7 @@ app = webapp2.WSGIApplication([
     ('/query', QueryHandler),
     ('/review_job', ReviewJobHandler),
     ('/review_init', ReviewInitHandler),
+    ('/load_review_results', LoadReviewResultsHandler),
     ('/load_web_log', LoadWebLogHandler),
     
 	('/_ah/channel/connected/', ChannelConnectedHandler),

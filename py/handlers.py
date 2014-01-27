@@ -858,7 +858,7 @@ class ReviewInitHandler(BaseHandler):
             data = { "status": 0, "msg": "Unknown reviewer" }
              
         else:  
-            reviewGroup = FitReview.getReviewGroup(self.dbConnection, reviewId)
+            reviewGroup = Review.getReviewGroup(self.dbConnection, reviewId)
             reviewerIdValid = False
             if len(reviewGroup) > 0:
                 reviewCount = reviewGroup[0]["review_count"]
@@ -875,9 +875,9 @@ class ReviewInitHandler(BaseHandler):
                 self.dbConnection.cursor.execute("select count(*) as ct from fit_reviews where review_id=%s", (reviewId))
                 row = self.dbConnection.cursor.fetchone()
                 if row["ct"] == 0:            
-                    FitReview.createJobs(self.dbConnection, reviewGroup)
-
-                stats = FitReview.getStats(self.dbConnection, reviewId, reviewerId)
+                    Review.createJobs(self.dbConnection, reviewGroup)
+                    
+                stats = Review.getStats(self.dbConnection, reviewId, reviewerId)
                 data = { "status": 1, "stats": stats }
         
         self.writeResponseAsJson(data)
@@ -902,22 +902,60 @@ class ReviewJobHandler(BaseHandler):
             # save job and then get new job for same question (if any)
             jobToSave = helpers.fromJson(self.request.get("job", None))
             if jobToSave:
-                FitReview.saveJob(self.dbConnection, jobToSave, reviewerId)
-                job = FitReview.getJob(self.dbConnection, reviewId, reviewerId, jobToSave["question_id"])
+                Review.saveJob(self.dbConnection, jobToSave, reviewerId)
+                job = Review.getJob(self.dbConnection, reviewId, reviewerId, jobToSave["question_id"])
                         
             # if no new job yet, get job for current question (if any)
             if not job:
-                stats = FitReview.getStats(self.dbConnection, reviewId, reviewerId)
-                currentQuestionId = FitReview.getCurrentQuestionId(stats)
-                job = FitReview.getJob(self.dbConnection, reviewId, reviewerId, currentQuestionId)
+                currentQuestionId = Review.getCurrentQuestionId(self.dbConnection, reviewId, reviewerId)
+                job = Review.getJob(self.dbConnection, reviewId, reviewerId, currentQuestionId)
                
-            jobDict = { "question_id": job["question_id"], "tasks": [task.toDict() for task in job["tasks"]] } if job else None
+            jobDict = { "question_id": job["question_id"], "tasks": [task.toDict() for task in job["tasks"]], "type": job["type"] } if job else None
             savedJobDict = { "question_id": jobToSave["question_id"], "task_count": len(jobToSave["tasks"]) }  if jobToSave else None
             data = { "status": 1, "review_id": reviewId, "reviewer_id": reviewerId, "job": jobDict, "saved_job": savedJobDict }
                 
         self.writeResponseAsJson(data)
         self.destroy()
-   
+
+class LoadReviewResultsHandler(BaseHandler):
+    def post(self):
+        self.init()
+        reviewId = int(self.request.get("review_id", -1))
+        reviewerId = int(self.request.get("reviewer_id", -1))
+
+        ok = self.checkRequirements(questionRequired=True)
+        if not ok:
+            data = { "status" : 0, "msg" : self.session.pop("msg") }
+            
+        elif reviewId == -1:
+            data = { "status": 0, "msg": "Unknown review" }
+               
+        elif reviewerId == -1:
+            data = { "status": 0, "msg": "Unknown reviewer" }
+             
+        else:
+            results = {}
+            sql = "select * from fit_reviews,question_ideas where fit_reviews.question_id=question_ideas.question_id and fit_reviews.idea_id=question_ideas.id and fit_reviews.question_id=%s and review_id=%s and reviewer_id=%s order by category,idea"
+            self.dbConnection.cursor.execute(sql, (self.question.id, reviewId, reviewerId))
+            rows = self.dbConnection.cursor.fetchall()
+            for row in rows:
+                category = row["category"]
+                if category not in results:
+                    results[category] = { "ideas": [], "group_rating": -1 }
+                results[category]["ideas"].append({ "idea_id": row["idea_id"], "idea": row["idea"], "rating": row["fit_rating"] })
+
+            sql = "select * from group_reviews where question_id=%s and review_id=%s and reviewer_id=%s order by category"
+            self.dbConnection.cursor.execute(sql, (self.question.id, reviewId, reviewerId))
+            rows = self.dbConnection.cursor.fetchall()
+            for row in rows:
+                category = row["category"]
+                results[category]["rating"] = row["group_rating"]
+                     
+            data = { "status": 1, "results": results }
+                
+        self.writeResponseAsJson(data)
+        self.destroy()
+           
 class CategoryHandler(BaseHandler):
     def post(self):
         self.init()

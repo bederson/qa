@@ -46,12 +46,13 @@ limitations under the License.
 				<div id="task_area"><img id="loading_icon" src="/images/loading.gif" style="display:none"></div>		
 			</div>
 			<div id="instructions" class="small largespaceabove" style="display:none">
-				<p>Fit Ratings</p>
+			<div id="instructions1" style="display:none">
+				<p>Rating</p>
 				<table style="border-collapse: collapse">
 					<tr>
 						<td><strong>1&nbsp;&nbsp;</strong></td>
 						<td style="padding-bottom:8px">
-							<strong>definitely no</strong>, the response does not fit in the category<br/>
+							<strong>definitely no</strong>, the response does not fit the category<br/>
 							<span class="grey">What is your favorite food?<br/>
 							response: pizza<br/>
 							category: dessert</span>
@@ -60,40 +61,81 @@ limitations under the License.
 					<tr>
 						<td><strong>2&nbsp;&nbsp;</strong></td>
 						<td style="padding-bottom:8px">
-							<strong>probably no</strong>, the response does not fit in the category but I can understand why it is there<br/>
+							<strong>probably no</strong>, the response does not fit the category but I can understand why it is there<br/>
 							<span class="grey">What do you wish campus would have?<br/>
 							response: shopping mall<br/>
-							category: food (shopping mall could have food)</span>
+							category: food<br/>
+							(a shopping mall can have food)</span>
 						</td>
 					</tr>
 					<tr>
 						<td><strong>3&nbsp;&nbsp;</strong></td>
 						<td style="padding-bottom:8px">
-							<strong>maybe</strong>, my reasons for why it could fit and why is might not are roughly equal<br/>
-							<span class="grey">XX<br/>
-							response: XX<br/>
-							category: XX</span>
+							<strong>neutral</strong>, my reasons for why the response fits or does not fit the category are roughly equal<br/>
+							<span class="grey">What do you like to drink?<br/>
+							response: wine<br/>
+							category: healthy<br/>
+							(there may be some health benefits to drinking wine, but too much can be bad)
+							</span>
 						</td>
 					</tr>
 					<tr>
 						<td><strong>4&nbsp;&nbsp;</strong></td>
 						<td style="padding-bottom:8px">
-							<strong>probably yes</strong>, the response fits in the category but I can understand how someone else might not<br/>
-							<span class="grey">XX<br/>
-							response: XX<br/>
-							category: XX </span>
+							<strong>probably yes</strong>, the response fits the category but I can understand how someone else might not<br/>
+							<span class="grey">What is your favorite food?<br/>
+							response: fruit<br/>
+							category: dessert<br/>
+							(I consider fruit a dessert but not everyone may)
+							</span>
 						</td>
 					</tr>
 					<tr>
 						<td><strong>5&nbsp;&nbsp;</strong></td>
 						<td style="padding-bottom:8px">
-							<strong>definitely yes</strong>, the response fits in the category<br/>
+							<strong>definitely yes</strong>, the response fits the category<br/>
 							<span class="grey">What is your favorite food?<br/>
 							response: pizza<br/>
 							category: fast food</span>
 						</td>
 					</tr>
 				</table>
+			</div>
+			<div id="instructions2" style="display:none">
+				<p>Rating</p>
+				<table style="border-collapse: collapse">
+					<tr>
+						<td><strong>1&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>Very poor</strong>, these responses do not fit the category
+						</td>
+					</tr>
+					<tr>
+						<td><strong>2&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>Poor</strong>, these responses fits the category poorly
+						</td>
+					</tr>
+					<tr>
+						<td><strong>3&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>Fair</strong>, these responses fits the category somewhat
+						</td>
+					</tr>
+					<tr>
+						<td><strong>4&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>Good</strong>, these responses fit the category pretty well
+						</td>
+					</tr>
+					<tr>
+						<td><strong>5&nbsp;&nbsp;</strong></td>
+						<td style="padding-bottom:8px">
+							<strong>Very good</strong>, these responses fit the category very well
+						</td>
+					</tr>
+				</table>
+			</div>
 			</div>
 		</div>
 	</div>
