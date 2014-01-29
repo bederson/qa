@@ -23,7 +23,7 @@ limitations under the License.
 	<script type="text/javascript" src="/js/admin.js"></script>
 	<script>
 		var selected_question_id = "{{ question_id }}";
-		var dev_user = {{ dev_user }};
+		var system_admin = {{ system_admin }};
 	</script>
 {% endblock %}
 
@@ -75,7 +75,8 @@ limitations under the License.
 		</tr>
 	</table>
 
-	<h2>Your existing questions:</h2>
+	<h2 id="question_list_title" class="smallspacebelow">Your existing questions:</h2>
+	<div id="show_all_ctrl" style="display:none"><input id="show_all_cb" type="checkbox" value="1"> Show all questions</div>
 	<div id="question_list"><p>Loading ...</p></div>
 	
 	<div id="delete_confirm" title="Delete Question" class="dialog" style="display:none">

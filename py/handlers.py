@@ -112,7 +112,7 @@ class BaseHandler(webapp2.RequestHandler):
             template_values['token'] = token
             template_values['user_login'] = self.person.getLogin()
             template_values['admin'] = self.isAdminLoggedIn()
-            template_values['dev_user'] = json.dumps(True) if Person.isAdmin(self.person) else json.dumps(False) 
+            template_values['system_admin'] = json.dumps(True) if Person.isAdmin(self.person) else json.dumps(False) 
 
             
         if self.question:
@@ -466,9 +466,10 @@ class QueryHandler(BaseHandler):
         if request:
             self.init(adminRequired=request in adminQueries)
             
-            # questions created by user
+            # questions created by user or possibly all if requested by admin
             if request == "questions":
-                questions = Question.getByUser(self.dbConnection)                                            
+                includeAll = self.request.get("include_all", "0")  == "1" if self.person.isAdmin() else False
+                questions = Question.getByUser(self.dbConnection, includeAll)     
                 data = { "questions": questions }
                         
             # stats for question (# ideas, cascade stats if complete, etc.)

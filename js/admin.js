@@ -89,7 +89,8 @@ function updateQuestionUI(question_id) {
 //==============================================================
 
 function loadQuestions() {
-	$.getJSON("/query", { "request": "questions" }, function(results) {
+	var showAllQuestions = system_admin && $("#show_all_cb").is(":checked") ? 1 : 0;
+	$.getJSON("/query", { "request": "questions", "include_all": showAllQuestions }, function(results) {
 		questions = [];
 		for (i in results.questions) {
 			addQuestion(results.questions[i]);
@@ -97,6 +98,12 @@ function loadQuestions() {
 		displayQuestionsList();
 		if (selected_question_id) {
 			selectQuestion(selected_question_id);
+		}
+		if (system_admin) {
+			$("#show_all_ctrl").show();
+			$("#show_all_cb").click(function() {
+				loadQuestions();
+			});
 		}
 	});	
 }
@@ -130,13 +137,13 @@ function getQuestionItemHtml(question) {
 	html += "<a class='small' href='javascript:deleteQuestionData(" + question.id + ")'>[delete data]</a>&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:downloadQuestion(" + question.id + ")'>[download]</a>&nbsp;&nbsp;";
 	html += "<a class='small' href='javascript:deleteQuestion(" + question.id + ")'>[delete]</a>";
-	if (isRunningOnLocalServer() || (isRunningOnTestServer() && dev_user)) {
+	if (isRunningOnLocalServer() || (isRunningOnTestServer() && system_admin)) {
 		html += "&nbsp;&nbsp;||&nbsp;&nbsp;";
 		html += "<a class='small' href='javascript:copyQuestion(" + question.id + ")'>[duplicate]</a>";
 	}
 	html += "<br/>";
 	html += question.question + "<br/>";
-	html += isDefined(question.author) ? "<em>" + question.author + "</em><br/>" : "";
+	html += isDefined(question.author) ? "<em class='small'>by " + question.author + "</em><br/>" : "";
 	
 	if (question.authentication_type == GOOGLE_AUTHENTICATION) {
 		html += '<span class="note"><em>Google authentication required</em></span><br/>';
@@ -435,7 +442,7 @@ function showHideCreateCategoryButton(question) {
 	else {
 		$("#create_categories_button").hide();
 		// FOR TESTING ONLY
-		if (isRunningOnTestServer() && dev_user) {
+		if (isRunningOnTestServer() && system_admin) {
 			// create_categories2_button allows categories to be regenerated to a secondary set of tables
 			if (SHOW_GENERATE_TEST_CATEGORIES_BUTTON) {
 				$("#create_categories2_button").show();
