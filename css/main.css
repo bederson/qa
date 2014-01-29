@@ -1,5 +1,4 @@
 body {
-    background-color: #d8e9a6;
     background-color: #f9ffe8;
     font-family: Verdana, Helvetica, sans-serif;
 	font-size: 1.1em;
@@ -22,6 +21,16 @@ h2 {
 	font-size: 0.8em;
 }
 
+.largeheading {
+	font-weight: bold;
+	font-size: 1.5em;
+}
+
+.mediumheading {
+	font-weight: bold;
+	font-size: 1.2em;
+}
+
 .header {
 	font-weight: bold;
 	font-size: 1.2em;
@@ -38,6 +47,12 @@ h2 {
 	color: #888;
 	font-size: 1.0em;
 	line-height: 100%;
+}
+
+.tooltip2 {
+	color: #000;
+	font-size: 0.8em;
+	line-height: normal;	
 }
 
 .small {

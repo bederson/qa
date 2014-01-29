@@ -30,7 +30,11 @@ $(document).ready(function() {
 		
 	waitForJobToLoad();
 	$("#page_content").show();
+	google.load('visualization', '1.0', { 'packages':['corechart'], 'callback': initReview });
 	
+});
+
+function initReview() {
 	var data = {
 		"review_id" : review_id,
 		"reviewer_id" : reviewer_id
@@ -60,7 +64,7 @@ $(document).ready(function() {
 	
 		saveAndRequestNewJob();
 	}, "json");
-});
+}
 
 function saveAndRequestNewJob(tasksToSave) {
 	var data = {
@@ -115,20 +119,25 @@ function saveAndRequestNewJob(tasksToSave) {
 }
 
 function startUI(questionId) {
-	setTitle(stats["question_count"] == 1 ? "Review Question" : "Review Questions", "");
-	$("#task_title").html("");
+	setTitle("<span class='mediumheading'>" + (stats["question_count"] == 1 ? "Review Question" : "Review Questions") + "</span>", "");
+	$("#task_description").html("");
 	$("#task_help").html("");
 	$("#task_warning").html("");
-	$("#instructions").hide();
+	$("#instructions").html("");
 	
 	var taskHtml = "";
 	if (isUndefined(questionId)) {
 		taskHtml += "<p>You have been assigned <strong>" + stats["question_count"] + "</strong> ";
 		taskHtml += stats["question_count"] == 1 ? "question " : "questions ";
 		taskHtml += "to review.</p>\n";
-		taskHtml += "<p class='note'>Each question has several responses, and categories have been created to group the responses. ";
-		taskHtml += "You will be asked to rate how well each response fits these categories, "
-		taskHtml += "and how well a group of responses fits a specific category (as a whole).</p>"; 
+
+		taskHtml += "<p class='note'>";
+		taskHtml += "A group of users submitted responses to a question. ";
+		taskHtml += "Then, they grouped the responses into categories. ";		
+		taskHtml += "You will be rating how well each response fits a category, "
+		taskHtml += "and how well a group of responses fits a category as a whole. ";
+		taskHtml += "Instructions will be provided with each task.";
+		taskHtml += "</p>"; 
 	}
 	else {
 		var incompleteQuestionCount = stats["question_count"] - stats["completed_question_count"]
@@ -236,32 +245,34 @@ function reviewUI() {
 function reviewResponseFitUI() {
 	var questionIndex = stats["completed_question_count"] + 1;
 	var title = "Question " + (stats["question_count"]>1 ? questionIndex + " of "+ stats["question_count"] : "");
-	var subtitle = stats["question_stats"][assignedJob.question_id].question_text;
+	var subtitle = "<span class='mediumheading'>" + stats["question_stats"][assignedJob.question_id].question_text + "</span>";
 	setTitle(title, subtitle, assignedJob.question_id);
-	$("#task_title").html("Rate Fit");
-	$("#task_help").html("Rate how well this response fits each category.");
+	$("#task_description").html("<div class='spaceabove'>Rate how well each category fits this response.</div>");
+	$("#task_help").html("");
 	$("#task_warning").html("");
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var taskHtml = "";
 		for (var i=0; i<tasks.length; i++) {
 			var task = tasks[i];
+			var response = capitalizeFirst(task.idea);
+			var category = capitalizeFirst(task.category);
 			if (i==0) {
 				taskHtml += "<div class='green_highlight largespacebelow'>";
-				taskHtml += "<span class='small'>Response:</span> " + task.idea;
+				taskHtml += response;
 				taskHtml += "<input type='hidden' id='idea_id' value='"+task.idea_id+"'>";
 				taskHtml += "</div>";
 				taskHtml += "<table class='spacebelow'>";
 				taskHtml += "<tr>";
-				taskHtml += "<td class='small' colspan='5'>Fit Rating</td>";
+				taskHtml += "<td class='small' colspan='5'>Fit Rating <span id='rating_tooltip' class='rating note' style='border:1px solid #888; padding-left:3px; padding-right:3px'>?</span></td>";
 				taskHtml += "<td class='small'>Category</td>";
 				taskHtml += "</tr>\n";
 				taskHtml += "<tr>";
-				taskHtml += "<td class='note'>1</td>";
-				taskHtml += "<td class='note'>2</td>";
-				taskHtml += "<td class='note'>3</td>";
-				taskHtml += "<td class='note'>4</td>";
-				taskHtml += "<td class='note'>5</td>";
+				taskHtml += "<td><span id='rating_tooltip_1' class='rating note'>1</span></td>";
+				taskHtml += "<td><span id='rating_tooltip_2' class='rating note'>2</span></td>";
+				taskHtml += "<td><span id='rating_tooltip_3' class='rating note'>3</span></td>";
+				taskHtml += "<td><span id='rating_tooltip_4' class='rating note'>4</span></td>";
+				taskHtml += "<td><span id='rating_tooltip_5' class='rating note'>5</span></td>";
 				taskHtml += "<td>&nbsp;</td>";
 				taskHtml += "</tr>\n";
 			}
@@ -271,7 +282,7 @@ function reviewResponseFitUI() {
 			taskHtml += "<td><input type='radio' name='category_fit_"+task.id+"' value='3'></td>";
 			taskHtml += "<td><input type='radio' name='category_fit_"+task.id+"' value='4'></td>";
 			taskHtml += "<td><input type='radio' name='category_fit_"+task.id+"' value='5'></td>";
-			taskHtml += "<td>" + task.category + "</td>";
+			taskHtml += "<td>" + category + "</td>";
 			taskHtml += "</tr>\n";
 		}
 		taskHtml += "</table>";
@@ -282,9 +293,45 @@ function reviewResponseFitUI() {
 			submitFitRatings();
 		});		
 		
-		$("#instructions2").hide();
-		$("#instructions1").show();
-		$("#instructions").show();
+		$(".rating").qtip({
+			content: {
+				text: function(event, api) {
+					var html = "Fit Rating:<br/>";
+					var tooltipId = $(this).attr("id");
+					if (tooltipId == "rating_tooltip") {
+						for (var i=1; i<=5; i++) {
+							html += getCategoryFitDefinition(i, true, true);
+							html += "<br/>";
+						}
+						html += "<br/>";
+						html += "<em>More details and examples below</em>";
+					}
+					else {
+						rating = parseInt(tooltipId.replace("rating_tooltip_", ""));
+						html = getCategoryFitDefinition(rating, false, true); 
+					}
+					return html
+				}
+			},
+			style: {
+				tip: { corner: true },
+				classes: 'qtip-rounded tooltip2'
+			}
+		});
+		
+		$(".rating").hover(
+			function() {
+				var tooltipId = $(this).attr("id");
+				if (tooltipId == "rating_tooltip") {
+					$(this).css('background-color', '#e9f3cc');
+				}
+			},
+			function () {
+				$(this).css('background-color', '');
+			}
+		);
+			
+		$("#instructions").html(getCategoryFitInstructions());
 	}
 }
 
@@ -302,7 +349,7 @@ function submitFitRatings() {
 	});
 
 	if (tasks.length!=assignedJob.tasks.length) {
-		$("#task_warning").html("Please indicate whether the response fits in each category or not");
+		$("#task_warning").html("Please rate each category");
 		return;
 	}
 	saveAndRequestNewJob(tasks);
@@ -311,27 +358,29 @@ function submitFitRatings() {
 function reviewCategoryGroupUI() {
 	var questionIndex = stats["completed_question_count"] + 1;
 	var title = "Question " + (stats["question_count"]>1 ? questionIndex + " of "+ stats["question_count"] : "");
-	var subtitle = stats["question_stats"][assignedJob.question_id].question_text;
+	var subtitle = "<span class='mediumheading'>" + stats["question_stats"][assignedJob.question_id].question_text + "</span>";
 	setTitle(title, subtitle, assignedJob.question_id);
-	$("#task_title").html("Rate Group");
-	$("#task_help").html("Rate how well the responses below fit this category, as a whole.");
+	$("#task_description").html("Rate how well the responses below fit this category, as a whole.");
+	$("#task_help").html("");
 	$("#task_warning").html("");
+	
 	var tasks = assignedJob.tasks;
 	if (tasks.length > 0) {
 		var task = tasks[0];
+		var category = capitalizeFirst(task.category);
 		var taskHtml = "<div class='green_highlight largespacebelow'>";
-		taskHtml += "<span class='small'>Category:</span> " + task.category;
+		taskHtml += category;
 		taskHtml += "</div>";
 		taskHtml += "<table class='spacebelow'>";
 		taskHtml += "<tr>";
-		taskHtml += "<td class='small' colspan='5'>Group Rating</td>";
+		taskHtml += "<td class='small' colspan='5'>Group Rating <span id='rating_tooltip' class='rating note' style='border:1px solid #888; padding-left:3px; padding-right:3px'>?</span></td>";
 		taskHtml += "</tr>\n";
 		taskHtml += "<tr>";
-		taskHtml += "<td class='note'>1</td>";
-		taskHtml += "<td class='note'>2</td>";
-		taskHtml += "<td class='note'>3</td>";
-		taskHtml += "<td class='note'>4</td>";
-		taskHtml += "<td class='note'>5</td>";
+		taskHtml += "<td class='note'><span id='rating_tooltip_1' class='rating note'>1</span></td>";
+		taskHtml += "<td class='note'><span id='rating_tooltip_2' class='rating note'>2</span></td>";
+		taskHtml += "<td class='note'><span id='rating_tooltip_3' class='rating note'>3</span></td>";
+		taskHtml += "<td class='note'><span id='rating_tooltip_4' class='rating note'>4</span></td>";
+		taskHtml += "<td class='note'><span id='rating_tooltip_5' class='rating note'>5</span></td>";
 		taskHtml += "</tr>\n";
 		taskHtml += "<tr>";
 		taskHtml += "<td><input type='radio' name='group_rating_"+task.id+"' value='1'></td>";
@@ -344,7 +393,8 @@ function reviewCategoryGroupUI() {
 		taskHtml += "<div class='largespacebelow'>\n";
 		taskHtml += "<span class='small'>Responses:</span><br/>\n";
 		for (var i=0; i<task.ideas.length; i++) {
-			taskHtml += "<p class='smallspaceabove smallspacebelow'>" + task.ideas[i] + "</p>\n";
+			var response = capitalizeFirst(task.ideas[i]);
+			taskHtml += "<p class='smallspaceabove smallspacebelow'>" + response + "</p>\n";
 		}
 		taskHtml += "</div>\n";
 		taskHtml += "<input id='submit_btn' type='button' value='Submit'> ";
@@ -355,10 +405,46 @@ function reviewCategoryGroupUI() {
 			submitGroupRatings();
 		});	
 		
-		$("#instructions1").hide();
-		$("#instructions2").show();
-		$("#instructions").show();
+		$("#instructions").html(getGroupFitInstructions());
 	}
+	
+	$(".rating").qtip({
+			content: {
+				text: function(event, api) {
+					var html = "Group Rating:<br/>";
+					var tooltipId = $(this).attr("id");
+					if (tooltipId == "rating_tooltip") {
+						for (var i=1; i<=5; i++) {
+							html += getGroupFitDefinition(i, true, true);
+							html += "<br/>";
+						}
+						html += "<br/>";
+						html += "<em>More details below</em>";
+					}
+					else {
+						rating = parseInt(tooltipId.replace("rating_tooltip_", ""));
+						html = getGroupFitDefinition(rating, false, true); 
+					}
+					return html
+				}
+			},
+			style: {
+				tip: { corner: true },
+				classes: 'qtip-rounded tooltip2'
+			}
+		});
+		
+		$(".rating").hover(
+			function() {
+				var tooltipId = $(this).attr("id");
+				if (tooltipId == "rating_tooltip") {
+					$(this).css('background-color', '#e9f3cc');
+				}
+			},
+			function () {
+				$(this).css('background-color', '');
+			}
+		);
 }
 
 function submitGroupRatings() {
@@ -375,7 +461,7 @@ function submitGroupRatings() {
 	});
 
 	if (tasks.length!=assignedJob.tasks.length) {
-		$("#task_warning").html("Please indicate how well the group of responses fits this category");
+		$("#task_warning").html("Please rate this category");
 		return;
 	}
 	saveAndRequestNewJob(tasks);
@@ -383,13 +469,13 @@ function submitGroupRatings() {
 
 function showResultsUI(questionId) {
 	var title = "Question";
-	var subtitle = stats["question_stats"][questionId].question_text;
+	var subtitle = "<span class='mediumheading'>" + stats["question_stats"][questionId].question_text + "</span>";
 	setTitle(title, subtitle, questionId);
-	$("#task_title").html("Your Ratings");
-	$("#task_help").html("<a href='/review/"+review_id+"r"+reviewer_id+"'>Return to review</a>");
+	$("#task_description").html("");
+	$("#task_help").html("");
 	$("#task_warning").html("");
 	$("#task_area").html("Loading results ...<br/><img id='loading_icon' src='/images/loading.gif' />");
-	$("#instructions").hide();
+	$("#instructions").html("");
 		
 	var data = {
 		"question_id" : questionId,
@@ -407,67 +493,86 @@ function showResultsUI(questionId) {
 		for (var category in results.results) {
 			sortedCategories.push(category);
 		}
-		sortedCategories.sort();
-		
+		sortedCategories.sort(function(s1, s2) {
+			var s1lower = s1.toLowerCase();
+			var s2lower = s2.toLowerCase();
+			return s1lower > s2lower ? 1 : (s1lower < s2lower ? -1 : 0);
+		});
+			
 		var taskHtml = "";
+		taskHtml += "<div style='float:left' class='mediumheading'>Your Ratings</div>";
+		taskHtml += "<div class='note' style='float:right'><a href='/review/"+review_id+"r"+reviewer_id+"'>Return to overview</a></div>";
+		taskHtml += "<div style='clear:both'></div>";
+		taskHtml += "<div id='chart' class='largespacebelow'></div>";
+		var chartData = [];
+		chartData.push([ 'Category', 'Individual Responses', 'Response Group' ]);		
 		for (var i=0; i<sortedCategories.length; i++) {
-			var category = sortedCategories[i];
-			var ideas = results.results[category].ideas;
-			var groupRating = results.results[category].rating;
+			var categoryGroup = results.results[sortedCategories[i]];
+			var category = capitalizeFirst(sortedCategories[i]);
+			var ideas = categoryGroup.ideas;
+			var groupRating = categoryGroup.rating;
+			var fitRatingSum = 0;
+			var fitRatingCount = 0;
+
 			taskHtml += "<div class='green_highlight spacebelow'>";
 			taskHtml += "<span class='note'>(" + groupRating + ")</span> " + category;
 			taskHtml += "</div>\n";
 			taskHtml += "<table class='largespacebelow'>";
 			for (var j=0; j<ideas.length; j++) {
-				var ideaText = ideas[j].idea;
+				var ideaText = capitalizeFirst(ideas[j].idea);
 				var fitRating = ideas[j].rating;
 				taskHtml += "<tr>";
-				taskHtml += "<td class='padbottom'>&nbsp;<span class='note'>(" + fitRating + ")</span></td>";
+				taskHtml += "<td class='padbottom'>&nbsp;<span class='note'>(" + (fitRating != -1 ? fitRating : "-") + ")</span></td>";
 				taskHtml += "<td>&nbsp;" + ideaText + "</td>";
 				taskHtml += "</tr>\n";
+				fitRatingSum += fitRating != -1 ? fitRating : 0;
+				fitRatingCount += fitRating != -1? 1 : 0;
 			}
 			taskHtml += "</table>\n";
+
+			var averageFitRating = fitRatingSum / fitRatingCount;
+			chartData.push([category, averageFitRating, groupRating]);
 		}
 		$("#task_area").html(taskHtml);
-		
+		drawBarChart('chart', chartData);	
 	}, "json");
 }
 
 function finishedUI() {
 	progress = getReviewProgress();
-	setTitle("Review Complete", "");
-	$("#task_title").html("");
+	setTitle("<span class='mediumheading'>Review Complete</span>", "");
+	$("#task_description").html("");
 	$("#task_help").html("");
 	$("#task_warning").html("");
-	var taskHtml = "<p>Thank you! You have finished reviewing all the questions assigned to you.</p>";
+	var taskHtml = "<p>Thank you! You have finished reviewing all of the questions assigned to you.</p>";
 	taskHtml += progress.html;
-	taskHtml += "<p>If you have any questions, please email <a href='mailto:rose@cs.umd.edu'>rose@cs.umd.edu</a>.</p>";
+	taskHtml += "<p class='note'>Questions? Email <a href='mailto:rose@cs.umd.edu'>rose@cs.umd.edu</a></p>";
 	$("#task_area").html(taskHtml);
-	$("#instructions").hide();
+	$("#instructions").html("");
 }
 	
 function waitForJobToLoad() {
-	setTitle("Review Question", "");
-	$("#task_title").html("");
+	setTitle("<span class='mediumheading'>Review Question</span>", "");
+	$("#task_description").html("");
 	$("#task_help").html("");
 	$("#task_warning").html("");
 	$("#task_area").html("Loading next job ...<br/><img id='loading_icon' src='/images/loading.gif' />");
-	$("#instructions").hide();
+	$("#instructions").html("");
 }
 
 function showWarningMessage(warning) {
-	setTitle("Review Question", "");
-	$("#task_title").html("");
+	setTitle("<span class='mediumheading'>Review Question</span>", "");
+	$("#task_description").html("");
 	$("#task_help").html("");
 	$("#task_warning").html(warning);
 	$("#task_area").html("");
-	$("#instructions").hide();
+	$("#instructions").html("");
 }
 
 function setTitle(title, subtitle, questionId) {
 	$("#title").html(title);
 	$("#subtitle").html(subtitle);
-	$("#percent_complete").html(isDefined(questionId) ? getPercentComplete(questionId) + "% complete" : "");
+	$("#complete_status").html(isDefined(questionId) ? getPercentComplete(questionId) + "% complete" : "");
 }
 
 function getPercentComplete(questionId) {
@@ -494,6 +599,147 @@ function getTaskAttribute(taskId, attribute) {
 		}
 	}
 	return value;
+}
+
+function getCategoryFitInstructions() {
+	var html = '<p>Fit Ratings</p>';
+	html += '<table style="border-collapse: collapse">';
+	for (var i=1; i<=5; i++) {
+		html += '<tr>';
+		html += '<td><strong>' + i + '&nbsp;&nbsp;</strong</td>';
+		html += '<td style="padding-bottom:8px">' + getCategoryFitDefinition(i, false, false) + '</td>';
+		html == '</tr>';
+	}
+	html += '</table>';
+	return html;
+}
+
+function getCategoryFitDefinition(rating, short, includeRating) {
+	var short = isDefined(short) ? short : false;
+	var includeRating = isDefined(includeRating) ? includeRating : true;
+	
+	var shortDesc = "";
+	var longDesc = "";
+	var example = "";
+	if (rating == 1) {
+		shortDesc = 'definitely does not fit';
+		longDesc = 'I think this category definitely does not fit this response';
+		example = 'What is your favorite food?<br/>';
+		example += 'Response: pizza<br/>';
+		example += 'Category: dessert';
+	}
+	else if (rating == 2) {
+		shortDesc = 'probably does not fit';
+		longDesc = 'I this this category probably does not fit this response but I can understand how it might';
+		example = 'What do you wish campus would have?<br/>';
+		example += 'Response: shopping mall<br/>';
+		example += 'Category: food<br/>';
+		example += '<em>a shopping mall can have food</em>';
+	}
+	else if (rating == 3) {
+		shortDesc = 'neutral';
+		longDesc = 'my reasons for thinking this category fits or does not fit this response are about the same';
+		example = 'What do you like to drink?<br/>';
+		example += 'Response: wine<br/>';
+		example += 'Category: healthy<br/>';
+		example += '<em>there may be some health benefits to drinking wine, but too much can be bad</em>';
+	}
+	else if (rating == 4) {
+		shortDesc = 'probably fits';
+		longDesc = 'I think this category probably fits this response but I can understand how it might not';
+		example = 'What is your favorite food?<br/>';
+		example += 'Response: fruit<br/>';
+		example += 'Category: dessert<br/>';
+		example += '<em>I consider fruit a dessert but not everyone may</em>';
+	}
+	else if (rating == 5) {
+		shortDesc = 'definitely fits';
+		longDesc = 'I think this category definitely fits this response';
+		example = 'What is your favorite food?<br/>';
+		example += 'Response: pizza<br/>';
+		example += 'Category: fast food';
+	}
+	
+	var html = "";
+	if (short) {
+		html = (includeRating ? rating + " - " : "") + shortDesc;
+	}
+	else {
+		html = "<div class='smallspacebelow'>";
+		html += '<strong>' + (includeRating ? rating + " - ": "") + shortDesc + '</strong><br/>';
+		html += longDesc
+		html += '</div>';
+		html += '<div class="grey">' + example + '</div>';
+	}
+		
+	return html;
+}
+
+function getGroupFitInstructions() {
+	var html = '<p>Group Ratings</p>';
+	html += '<table style="border-collapse: collapse">';
+	for (var i=1; i<=5; i++) {
+		html += '<tr>';
+		html += '<td><strong>' + i + '&nbsp;&nbsp;</strong</td>';
+		html += '<td style="padding-bottom:8px">' + getGroupFitDefinition(i, false, false) + '</td>';
+		html == '</tr>';
+	}
+	html += '</table>';
+	return html;
+}
+
+function getGroupFitDefinition(rating, short, includeRating) {
+	var short = isDefined(short) ? short : false;
+	var includeRating = isDefined(includeRating) ? includeRating : true;
+	
+	var shortDesc = "";
+	var longDesc = "";
+	if (rating == 1) {
+		shortDesc = 'Very poor';
+		longDesc = 'these responses fit this category very poorly';
+	}
+	else if (rating == 2) {
+		shortDesc = 'Poor';
+		longDesc = 'these responses fit this category poorly';
+	}
+	else if (rating == 3) {
+		shortDesc = 'Fair';
+		longDesc = 'these responses fits this category somewhat';
+	}
+	else if (rating == 4) {
+		shortDesc = 'Good';
+		longDesc = 'these responses fit this category pretty well';
+	}
+	else if (rating == 5) {
+		shortDesc = 'Very good';
+		longDesc = 'these responses fit this category very well';
+	}
+	
+	var html = "";
+	if (short) {
+		html = (includeRating ? rating + " - " : "") + shortDesc;
+	}
+	else {
+		html = "<div class='smallspacebelow'>";
+		html += '<strong>' + (includeRating ? rating + " - ": "") + shortDesc + '</strong>, ' + longDesc;
+		html += '</div>';
+	}
+		
+	return html;
+}
+
+function drawBarChart(divId, data) {
+	var dataTable = google.visualization.arrayToDataTable(data, false);
+	var options = {  
+		height: 250,
+		chartArea: { width: '95%', left: 30, top: 20, height: 175 }, 
+		series: [ { color: '#75A3FF' }, { color: '#476BB2' }],
+		legend: { position: 'bottom', maxLines: 1 },
+		vAxis: { ticks: [0,1,2,3,4,5] },
+		hAxis: { maxTextLines: 2 }
+	};
+	var chart = new google.visualization.ColumnChart(document.getElementById(divId));
+	chart.draw(dataTable, options);
 }
 
 function onResize() {

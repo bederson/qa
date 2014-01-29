@@ -1761,7 +1761,7 @@ class CascadeFitCategory(DBObject):
             minCount = constants.DEFAULT_VOTING_THRESHOLD if question.cascade_k2>=3 else 1
             
             # create cls tasks on all categories
-            # for any ideas that did not fit any categories
+            # for any ideas that did not fit any categories (uncategorized)
             sql = "select idea_id, sum(fit) as fit_votes from cascade_fit_categories_phase1 where "
             sql += "question_id=%s and "
             sql += "fit!=-1 "
@@ -1773,7 +1773,7 @@ class CascadeFitCategory(DBObject):
                 count += cls.createForAllCategories(dbConnection, question, row["idea_id"], recheck=1)
                 
             # create cls tasks on all categories 
-            # for any ideas that were not verified to fit any categories
+            # for any ideas that were not verified to fit any categories (uncategorized)
             if constants.VERIFY_CATEGORIES: 
                 sql = "select idea_id, sum(fit) as fit_votes from cascade_fit_categories_phase2 where "
                 sql += "question_id=%s and "
@@ -1952,16 +1952,7 @@ class Review():
             stats[question_id]["incomplete"] = stats[question_id]["response_fit_incomplete"] + stats[question_id]["category_group_incomplete"]
 
         return stats
-        
-    # TODO/FIX/THUR
-    # add instructions
-    # complete message ui / complete question message ui
-    # think about when to initialize jobs: and for which questions
-    # show progress to reviewer: including how many questions to go
-    # how to get/set review group/review count
-    # check if cascade complete for question (if any)
-    # TODO/FIX: create group jobs!! need to update percent complete!
-        
+                
 class FitReview(DBObject):
     type = constants.REVIEW_RESPONSE_FIT
     table = "fit_reviews"
@@ -2159,15 +2150,12 @@ class CategoryGroupReview(DBObject):
         dbConnection.conn.commit()
                 
         # find categories to check
-        # TODO/FIX: assumes VERIFY_CATEGORIES is true
+        # (these are generated categories - ones with responses - not interim categories)
         for groupItem in reviewGroup:
             question = groupItem["question"]
             reviewCount = groupItem["review_count"]
-            sql = "select distinct(category) from cascade_fit_categories_phase2 where question_id=%s order by category"
-            dbConnection.cursor.execute(sql, (question.id))
-            rows = dbConnection.cursor.fetchall()
-            for row in rows:
-                category = row["category"]
+            categoryGroups = getCategoryGroups(dbConnection, question)
+            for category in categoryGroups:            
                 sql = "insert into group_reviews (review_id, reviewer_id, question_id, category) values(%s, %s, %s, %s)"
                 for i in range(reviewCount):
                     reviewerId = i+1

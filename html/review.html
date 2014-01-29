@@ -20,6 +20,7 @@ limitations under the License.
 
 {% block title %}Q &amp; A - Expert Review{% endblock %}
 {% block scripts %}
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
 	<script type="text/javascript" src="/js/review.js"></script>
 	<script>
 		var review_id = {{ review_id }};
@@ -32,111 +33,18 @@ limitations under the License.
 	<div id="page_content" style="display:none">
 		<div id="box_area" class="center">
 			<div class="green_highlight smallspacebelow" style="padding:8px">
-				<div style="float:left">
-					<h1 id="title" class="smallspacebelow">&nbsp;</h1>
-				</div>
-				<div id="percent_complete" class="small" style="float:right"></div>
+				<div id="title" style="float:left">abc</div>
+				<div id="complete_status" class="small" style="float:right"></div>
 				<div style="clear:both"></div>
-				<div id="subtitle">&nbsp;</div>
+				<div id="subtitle" class="smallspacebelow"></div>
 			</div>
 			<div class="white_box spacebelow">
-				<h2 id="task_title" class="nospaceabove spacebelow"></h2>
+				<div id="task_description" class="nospaceabove spacebelow"></div>
 				<div id="task_help" class="help spacebelow"></div>
 				<div id="task_warning" class="warning spacebelow"></div>
 				<div id="task_area"><img id="loading_icon" src="/images/loading.gif" style="display:none"></div>		
 			</div>
-			<div id="instructions" class="small largespaceabove" style="display:none">
-			<div id="instructions1" style="display:none">
-				<p>Rating</p>
-				<table style="border-collapse: collapse">
-					<tr>
-						<td><strong>1&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>definitely no</strong>, the response does not fit the category<br/>
-							<span class="grey">What is your favorite food?<br/>
-							response: pizza<br/>
-							category: dessert</span>
-						</td>
-					</tr>
-					<tr>
-						<td><strong>2&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>probably no</strong>, the response does not fit the category but I can understand why it is there<br/>
-							<span class="grey">What do you wish campus would have?<br/>
-							response: shopping mall<br/>
-							category: food<br/>
-							(a shopping mall can have food)</span>
-						</td>
-					</tr>
-					<tr>
-						<td><strong>3&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>neutral</strong>, my reasons for why the response fits or does not fit the category are roughly equal<br/>
-							<span class="grey">What do you like to drink?<br/>
-							response: wine<br/>
-							category: healthy<br/>
-							(there may be some health benefits to drinking wine, but too much can be bad)
-							</span>
-						</td>
-					</tr>
-					<tr>
-						<td><strong>4&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>probably yes</strong>, the response fits the category but I can understand how someone else might not<br/>
-							<span class="grey">What is your favorite food?<br/>
-							response: fruit<br/>
-							category: dessert<br/>
-							(I consider fruit a dessert but not everyone may)
-							</span>
-						</td>
-					</tr>
-					<tr>
-						<td><strong>5&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>definitely yes</strong>, the response fits the category<br/>
-							<span class="grey">What is your favorite food?<br/>
-							response: pizza<br/>
-							category: fast food</span>
-						</td>
-					</tr>
-				</table>
-			</div>
-			<div id="instructions2" style="display:none">
-				<p>Rating</p>
-				<table style="border-collapse: collapse">
-					<tr>
-						<td><strong>1&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>Very poor</strong>, these responses do not fit the category
-						</td>
-					</tr>
-					<tr>
-						<td><strong>2&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>Poor</strong>, these responses fits the category poorly
-						</td>
-					</tr>
-					<tr>
-						<td><strong>3&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>Fair</strong>, these responses fits the category somewhat
-						</td>
-					</tr>
-					<tr>
-						<td><strong>4&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>Good</strong>, these responses fit the category pretty well
-						</td>
-					</tr>
-					<tr>
-						<td><strong>5&nbsp;&nbsp;</strong></td>
-						<td style="padding-bottom:8px">
-							<strong>Very good</strong>, these responses fit the category very well
-						</td>
-					</tr>
-				</table>
-			</div>
-			</div>
+			<div id="instructions" class="small largespaceabove"></div>
 		</div>
 	</div>
 	

@@ -949,7 +949,8 @@ class LoadReviewResultsHandler(BaseHandler):
             rows = self.dbConnection.cursor.fetchall()
             for row in rows:
                 category = row["category"]
-                results[category]["rating"] = row["group_rating"]
+                if category in results:
+                    results[category]["rating"] = row["group_rating"]
                      
             data = { "status": 1, "results": results }
                 
