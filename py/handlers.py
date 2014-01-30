@@ -42,7 +42,7 @@ from db import *
 #####################
 
 class BaseHandler(webapp2.RequestHandler):
-    def init(self, questionId=None, initUser=True, adminRequired=False, loggingOut=False):   
+    def init(self, questionId=None, initUser=True, adminRequired=False):   
         
         # get the current browser session, if any
         # otherwise, create one
@@ -78,15 +78,20 @@ class BaseHandler(webapp2.RequestHandler):
                     
     def isUserLoggedIn(self):
         return self.person is not None and self.person.is_logged_in
-    
+
+    def isAuthorLoggedIn(self):
+        return self.question is not None and Person.isAuthor(self.question)
+        
     def isAdminLoggedIn(self):
-        return Person.isAdmin(self.person) or (self.question is not None and Person.isAuthor(self.question))
+        return Person.isAdmin(self.person)
     
     def getDefaultTemplateValues(self, connect=True, adminConnect=False):
         """Return a dictionary of default template values""" 
         
         # check if user logged in 
-        loggedIn = self.isUserLoggedIn()        
+        loggedIn = self.isUserLoggedIn() 
+        isAdmin = self.isAdminLoggedIn()
+        isAuthor = self.isAuthorLoggedIn()       
         if loggedIn:
             # create a new channel if connect is true
             if connect:
@@ -97,12 +102,13 @@ class BaseHandler(webapp2.RequestHandler):
         
         # otherwise, user not logged in
         else:
-            nicknameAuthenticationAllowed = self.question is not None and self.question.authentication_type == constants.NICKNAME_AUTHENTICATION and not Person.isAuthor(self.question)
+            nicknameAuthenticationAllowed = self.question is not None and self.question.authentication_type == constants.NICKNAME_AUTHENTICATION and not isAuthor
             url = getLoginUrl(self.request.uri, self.question)
             urlLink = "Login w/ Nickname" if nicknameAuthenticationAllowed else "Login w/ Google Account"
                     
         template_values = {}
         template_values['user_id'] = self.person.id if loggedIn else -1
+        template_values['admin'] = True if loggedIn and (isAuthor or isAdmin) else False
         template_values['login_logout_linktext'] = urlLink
         template_values['login_logout_url'] = url
         template_values['msg'] = self.session.pop("msg") if self.session.has_key("msg") else ""
@@ -111,10 +117,7 @@ class BaseHandler(webapp2.RequestHandler):
             template_values['client_id'] = clientId
             template_values['token'] = token
             template_values['user_login'] = self.person.getLogin()
-            template_values['admin'] = self.isAdminLoggedIn()
-            template_values['system_admin'] = json.dumps(True) if Person.isAdmin(self.person) else json.dumps(False) 
 
-            
         if self.question:
             template_values["question_id"] = self.question.id
             template_values["question_title"] = self.question.title
@@ -188,7 +191,7 @@ class BaseHandler(webapp2.RequestHandler):
         # check if user has permission to modify this question, if question defined
         ok = True
         if self.question:
-            ok = self.isAdminLoggedIn()
+            ok = self.isAuthorLoggedIn() or self.isAdminLoggedIn()
             if not ok:
                 self.session['msg'] = "You do not have permission to edit this question"
         return ok
@@ -268,10 +271,21 @@ class ResultsPageHandler(BaseHandler):
         ok = self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
         templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""
+        
+        # TODO/FIX: Would like to add Admin button to all pages for system admins but
+        # what to check if users.get_current_user() returns value if google user authenticated
+        # in browser or only if authenticated in QA
+        # if user logged in to page is not admin
+        # check if authenticated user is admin (since some questions allow non-authenticated users)
+#         sentFromAdminPage = self.request.referer and "/admin" in self.request.referer        
+#         if not templateValues["admin"] and sentFromAdminPage and not self.person.authenticated_user_id:
+#             authenticatedPerson = Person.getPerson(self.dbConnection)
+#             templateValues["admin"] = Person.isAdmin(authenticatedPerson)
+        
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
-
+        
 class ResultsTestPageHandler(BaseHandler):
     def get(self, questionId):
         self.init(questionId=questionId)    
@@ -286,6 +300,7 @@ class AdminPageHandler(BaseHandler):
         self.init(adminRequired=True, questionId=questionId)
         self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues(adminConnect=True)
+        templateValues['system_admin'] = json.dumps(True) if self.isAdminLoggedIn() else json.dumps(False) 
         path = os.path.join(os.path.dirname(__file__), '../html/admin.html')
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
@@ -404,7 +419,8 @@ class QuestionLoginHandler(BaseHandler):
                      
 class LogoutHandler(BaseHandler):
     def get(self, questionId=None):
-        self.init(loggingOut=True, questionId=questionId)
+        sentFromAdminPage = self.request.referer and "/admin" in self.request.referer
+        self.init(adminRequired=sentFromAdminPage, questionId=questionId)
         ok = self.checkRequirements(userRequired=True)
         if ok:
             self.person.logout(self.dbConnection, userRequestedLogout=True)
@@ -468,7 +484,7 @@ class QueryHandler(BaseHandler):
             
             # questions created by user or possibly all if requested by admin
             if request == "questions":
-                includeAll = self.request.get("include_all", "0")  == "1" if self.person.isAdmin() else False
+                includeAll = self.request.get("include_all", "0")  == "1" if Person.isAdmin(self.person) else False
                 questions = Question.getByUser(self.dbConnection, includeAll)     
                 data = { "questions": questions }
                         
@@ -487,11 +503,13 @@ class QueryHandler(BaseHandler):
                     ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person)
                     data = { "question": self.question.toDict(), "ideas": ideas }
                 
-                includeDiscussFlags = self.request.get("discuss", "0") == "1"    
+                includeDiscussFlags = self.request.get("discuss", "0") == "1"  
+                isAuthor = self.isAuthorLoggedIn()
+                isAdmin = self.isAdminLoggedIn()  
                 if includeDiscussFlags:
-                    data["discuss_flags"] = DiscussFlag.getFlags(self.dbConnection, self.question, admin=self.isAdminLoggedIn())
+                    data["discuss_flags"] = DiscussFlag.getFlags(self.dbConnection, self.question, admin=(isAuthor or isAdmin))
                     
-                data["is_question_author"] = Person.isAuthor(self.question)
+                data["is_question_author"] = isAuthor
 
         self.writeResponseAsJson(data)
         
@@ -1025,7 +1043,8 @@ class LoadWebLogHandler(BaseHandler):
         ok = self.checkRequirements(authenticatedUserRequired=True)
         if not ok:
             data = { "status" : 0, "msg" : self.session.pop("msg") }
-        elif ok and not self.person.isAdmin:
+            
+        elif ok and not Person.isAdmin(self.person):
             data = { "status" : 0, "msg" : "Admin not logged in" }
             
         else:

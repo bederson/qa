@@ -669,8 +669,11 @@ class Person(DBObject):
         user = users.get_current_user()
         return user and question and question.authenticated_user_id and user.user_id()==question.authenticated_user_id
    
-    def isAdmin(self):
-        return self.admin == 1
+    @staticmethod
+    def isAdmin(person):
+        # TODO/FIX: would like a way to check if current authenticated user is admin (if any)
+        #  when active page user is non-authenticated - but without a database query for each check
+        return person and person.admin == 1
     
     @staticmethod
     def getPerson(dbConnection, question=None, session=None):
@@ -814,7 +817,7 @@ class Idea(DBObject):
                     "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
                     "nickname" : row[Person.tableField("nickname")]
                 }
-                ideaDict = idea.toDict(author=author, admin=person.isAdmin() or Person.isAuthor(question))
+                ideaDict = idea.toDict(author=author, admin=Person.isAdmin(person) or Person.isAuthor(question))
                 if includeCreatedOn:
                     ideaDict["created_on"] = row["idea_created_on"]
                                            
@@ -855,7 +858,7 @@ class Idea(DBObject):
                     "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
                     "nickname" : row[Person.tableField("nickname")]
                 }
-                idea = idea.toDict(author=ideaAuthor, admin=person.isAdmin() or Person.isAuthor(question))
+                idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin(person) or Person.isAuthor(question))
                 if includeCreatedOn:
                     idea["created_on"] = row["idea_created_on"]
                     
