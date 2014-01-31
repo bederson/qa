@@ -930,7 +930,7 @@ class ReviewJobHandler(BaseHandler):
                 job = Review.getJob(self.dbConnection, reviewId, reviewerId, currentQuestionId)
                
             jobDict = { "question_id": job["question_id"], "tasks": [task.toDict() for task in job["tasks"]], "type": job["type"] } if job else None
-            savedJobDict = { "question_id": jobToSave["question_id"], "task_count": len(jobToSave["tasks"]) }  if jobToSave else None
+            savedJobDict = { "question_id": jobToSave["question_id"], "task_count": len(jobToSave["tasks"]), "type": jobToSave["type"] }  if jobToSave else None
             data = { "status": 1, "review_id": reviewId, "reviewer_id": reviewerId, "job": jobDict, "saved_job": savedJobDict }
                 
         self.writeResponseAsJson(data)

@@ -98,11 +98,11 @@ function saveAndRequestNewJob(tasksToSave) {
 				justFinishedPreviousQuestion = true;
 			}
 		}
-			
+					
 		assignedJob = results.job;
 		var startReview = !results.saved_job && assignedJob!=null;
 		var startNewQuestion = justFinishedPreviousQuestion && assignedJob!=null;
-
+		var startCategoryGroupTasks = results.saved_job && results.job && results.saved_job["type"] == REVIEW_RESPONSE_FIT && results.job["type"] == REVIEW_CATEGORY_GROUP;
 		if (startReview) {
 			startUI();
 		}
@@ -110,7 +110,7 @@ function saveAndRequestNewJob(tasksToSave) {
 			startUI(assignedJob.question_id);
 		}
 		else if (assignedJob) {
-			reviewUI();
+			reviewUI(startCategoryGroupTasks);
 		}
 		else {
 			finishedUI();
@@ -226,16 +226,17 @@ function getReviewProgress() {
 	return { "html": html, "complete_percent": completePercentages };
 }
 
-function reviewUI() {
+function reviewUI(startCategoryGroupTasks) {
 	if (!assignedJob) {
 		return;
 	}
-	
+		
 	if (assignedJob.type == REVIEW_RESPONSE_FIT) {
 		reviewResponseFitUI();
 	}
 	else if (assignedJob.type == REVIEW_CATEGORY_GROUP) {
-		reviewCategoryGroupUI();
+		startCategoryGroupTasks = isDefined(startCategoryGroupTasks) ? startCategoryGroupTasks : false;
+		reviewCategoryGroupUI(startCategoryGroupTasks);
 	}
 	else {
 		alert("Unknown job type");
@@ -355,11 +356,27 @@ function submitFitRatings() {
 	saveAndRequestNewJob(tasks);
 }
 
-function reviewCategoryGroupUI() {
+function reviewCategoryGroupUI(startTasks) {
+
 	var questionIndex = stats["completed_question_count"] + 1;
 	var title = "Question " + (stats["question_count"]>1 ? questionIndex + " of "+ stats["question_count"] : "");
 	var subtitle = "<span class='mediumheading'>" + stats["question_stats"][assignedJob.question_id].question_text + "</span>";
 	setTitle(title, subtitle, assignedJob.question_id);
+		
+	if (startTasks) {
+		$("#task_description").html("");
+		$("#task_help").html("");
+		$("#task_warning").html("");		
+		var taskHtml = "<p>You have finished rating how well individual responses fit categories for this question.</p>";
+		taskHtml += "<p>Now you will rate how well groups of responses fit categories as a whole.</p>";
+		taskHtml += "<input id='continue_btn' type='button' value='Continue'>";
+		$("#task_area").html(taskHtml);
+		$("#continue_btn").on("click", {}, function(event) {
+			reviewCategoryGroupUI(false);
+		});		
+		return;
+	}
+	
 	$("#task_description").html("Rate how well the responses below fit this category, as a whole.");
 	$("#task_help").html("");
 	$("#task_warning").html("");
