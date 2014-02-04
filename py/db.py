@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2013 Ben Bederson - http://www.cs.umd.edu/~bederson
+# Copyright 2014 Ben Bederson - http://www.cs.umd.edu/~bederson
 # Anne Rose - http://www.cs.umd.edu/hcil/members/arose
 # University of Maryland
 #
