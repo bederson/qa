@@ -263,6 +263,18 @@ function displayIdeas() {
 			displayCloud(uncategorizedIdeas, categorizedIdeas.length+1);
 		}
 	}
+	
+	// FOR TESTING
+	//$(".list_content").hide();
+	//$(".list_title").click(function() {
+	//	var listContent = $(this).next();
+	//	if (listContent.is(':visible')) {
+	//		listContent.fadeOut("fast");
+	//	}
+	//	else {
+	//		listContent.fadeIn("fast");
+	//	}
+	//});
 }
 
 function initIdeaHandlers(ideaId) {
@@ -294,8 +306,8 @@ function categoryGroupAsHtml(categoryGroup, id) {
 		html += "<td style='width: 50%'>";
 		
 		// an empty category means the items have not been categorized yet
-		if (category != "") {
-			html += showExpanded ? "<div class='category spaceabove spacebelow'>" : "<div class='category smallspaceabove smallspacebelow'>";
+		if (category != "") {	
+			html += showExpanded ? "<div class='list_title category spaceabove spacebelow'>" : "<div class='list_title category smallspaceabove smallspacebelow'>";
 			html += category + "&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span>";
 			html += "</div>";		
 		}
