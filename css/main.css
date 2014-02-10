@@ -55,16 +55,16 @@ h2 {
 	line-height: normal;	
 }
 
-.small {
-	font-size: 0.8em;
-}
-
 .xsmall {
 	font-size: 0.7em;
 }
 
-.medium {
-	font-size: 0.9em;
+.small {
+	font-size: 0.8em;
+}
+
+.medium, .normal {
+	font-size: 1.1em;
 }
 
 .large {
@@ -172,7 +172,7 @@ a.noline:hover {
 }
 
 /* colors */
-.grey {
+.grey, .disabled {
 	color: #888;
 }
 

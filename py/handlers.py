@@ -285,7 +285,17 @@ class ResultsPageHandler(BaseHandler):
         path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
-        
+
+class Results2PageHandler(BaseHandler):
+    def get(self, questionId):
+        self.init(questionId=questionId)    
+        ok = self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
+        templateValues = self.getDefaultTemplateValues()
+        templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""        
+        path = os.path.join(os.path.dirname(__file__), '../html/results2.html')
+        self.response.out.write(template.render(path, templateValues))        
+        self.destroy()
+                
 class ResultsTestPageHandler(BaseHandler):
     def get(self, questionId):
         self.init(questionId=questionId)    
