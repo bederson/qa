@@ -25,17 +25,13 @@ var DEFAULT_IDEA_INDENT = 20; // pixels
 var SORT_BY_NAME = "name";
 var SORT_BY_COUNT = "count";
 
-var DEFAULT_SHOW_EXPANDED = true;
 var DEFAULT_SHOW_SUBCATEGORIES = false;
 var DEFAULT_SHOW_IN_SINGLE_CATEGORY = true;
-var DEFAULT_HIGHLIGHT_DISCUSS = false;
 var DEFAULT_SHOW_DISCUSS_ONLY = false;
-var STORE_SETTINGS_IN_HASH = false;
+var HIGHLIGHT_DISCUSS = true;
 
-var showExpanded = DEFAULT_SHOW_EXPANDED;
 var showSubcategories = DEFAULT_SHOW_SUBCATEGORIES;
 var showInSingleCategory = DEFAULT_SHOW_IN_SINGLE_CATEGORY;
-var highlightDiscuss = DEFAULT_HIGHLIGHT_DISCUSS;
 var showDiscussOnly = DEFAULT_SHOW_DISCUSS_ONLY;
 
 var primaryCategories = {};
@@ -53,11 +49,8 @@ var adminStats = null;
 var isQuestionAuthor = false;
    
 $(document).ready(function() {
-	initSettingsFromHash();
-	$("#expand_categories_cb").prop("checked", showExpanded);
 	$("#nest_categories_cb").prop("checked", showSubcategories);
 	$("#single_category_cb").prop("checked", showInSingleCategory);
-	$("#highlight_discuss_cb").prop("checked", highlightDiscuss);
 	$("#discuss_only_cb").prop("checked", showDiscussOnly);
 	
 	initEventHandlers();
@@ -91,67 +84,26 @@ function onChannelOpen() {
 		redirectToAdminPage(question_id);
 	});
 	
-	$("#sort_by").change(function() {
+	$("#sort_by").change(function() {	
 		displayIdeas();
 	});
-	
-	$("#expand_categories_cb").click(function() {
-		showExpanded = $(this).is(":checked");
-		storeSettingsToHash();
-		displayIdeas();
-	});
-	
+		
 	$("#nest_categories_cb").click(function() {
 		showSubcategories = $(this).is(":checked");
 		initDisplayCategories();
-		storeSettingsToHash();
 		displayIdeas();
 	});
 		
 	$("#single_category_cb").click(function() {
 		showInSingleCategory = $(this).is(":checked");
 		initDisplayCategories();
-		storeSettingsToHash();
-		displayIdeas();
-	});
-	
-	$("#highlight_discuss_cb").click(function() {
-		highlightDiscuss = $(this).is(":checked");
-		storeSettingsToHash();
 		displayIdeas();
 	});
 
 	$("#discuss_only_cb").click(function() {
 		showDiscussOnly = $(this).is(":checked");
-		storeSettingsToHash();
 		displayIdeas();
 	});
-}
-
-function initSettingsFromHash() {
-	if (STORE_SETTINGS_IN_HASH) {
-		var hash = window.location.hash;
-		if (hash != "") {
-			var boolValues = ["0", "1"];
-			showExpanded = hash.length > 1 && hash[1] in boolValues ? hash[1] == "1" : DEFAULT_SHOW_EXPANDED;
-			showSubcategories = hash.length > 2 && hash[2] in boolValues ? hash[2] == "1" : DEFAULT_SHOW_SUBCATEGORIES;
-			showInSingleCategory = hash.length > 3 && hash[3] in boolValues ? hash[3] == "1" : DEFAULT_SHOW_IN_SINGLE_CATEGORY;
-			highlightDiscuss = hash.length > 5 && hash[5] in boolValues ? hash[5] == "1" : DEFAULT_HIGHLIGHT_DISCUSS;
-			showDiscussOnly = hash.length > 6 && hash[6] in boolValues ? hash[6] == "1" : DEFAULT_SHOW_DISCUSS_ONLY;
-		}
-	}
-}
-
-function storeSettingsToHash() {
-	if (STORE_SETTINGS_IN_HASH) {
-		var hash = "";
-		hash += showExpanded ? "1" : "0";
-		hash += showSubcategories ? "1" : "0";
-		hash += showInSingleCategory ? "1" : "0";
-		hash += highlightDiscuss ? "1" : "0";
-		hash += showDiscussOnly ? "1" : "0";
-		window.location.hash = hash;
-	}
 }
 	
 function loadResults() {	
@@ -208,7 +160,7 @@ function loadResults() {
 function displayIdeas() {	
 	// update question stats: # items, # categories, # uncategorized
 	updateStats();
-	
+				
 	// categorized html
 	// TODO: sort subcategories
 	var html = "";
@@ -231,63 +183,39 @@ function displayIdeas() {
 	newIdeaHtml += "</td>";
 	newIdeaHtml += "</tr>";
 	newIdeaHtml += "</table>";
-	$("#ideas").html(newIdeaHtml + html);
-	
-	initIdeaHandlers();
 			
+	// added hide + fadeIn because html change was "jumpy" otherwise
+	$("#ideas").hide();			
+	$("#ideas").html(newIdeaHtml + html).fadeIn("fast");
+	initIdeaHandlers();
+	
 	// show/hide controls
 	// initialize after writing idea html since some status variables updated while writing
 	var hasCategories = categorizedIdeas.length > 0;
 	showHide($("#sort_control"), hasCategories);
-	showHide($("#expand_categories_control"), hasCategories);
 	showHide($("#nest_categories_control"), hasSubcategories);
 	showHide($("#single_category_control"), hasAlsoIn);
-	showHide($("#control_lb"), hasCategories);
-	showHide($("#highlight_discuss_control"), true);
-	showHide($("#discuss_only_control"), true);
+	showHide($("#discuss_only_control"), true); // TODO/FIX: check if any discuss flags
 	$("#display_control_area").show();
-		
-	// BEHAVIOR: only display tag clouds when cascade is complete and categories expanded
-	if (SHOW_TAGCLOUDS && showExpanded && question.cascade_complete && !jQuery.browser.mobile) {
-		for (var i=0; i<sortIndices.length; i++) {
-			var j = sortIndices[i];
-			var category = displayedCategories[j].category;
-			var ideas = displayedCategories[j].ideas;
-			var isRootCategory = !showSubcategories || ($.inArray(category, subcategories) == -1);			
-			if (isRootCategory) {
-				displayCloud(displayedCategories[j].ideas.concat(displayedCategories[j].moreideas), j);
-			}
-		}
-		
-		if (uncategorizedIdeas.length > 0) {
-			displayCloud(uncategorizedIdeas, categorizedIdeas.length+1);
-		}
-	}
-	
-	// FOR TESTING
-	//$(".list_content").hide();
-	//$(".list_title").click(function() {
-	//	var listContent = $(this).next();
-	//	if (listContent.is(':visible')) {
-	//		listContent.fadeOut("fast");
-	//	}
-	//	else {
-	//		listContent.fadeIn("fast");
-	//	}
-	//});
-}
 
-function initIdeaHandlers(ideaId) {
-	// init discuss button tooltips, event handlers
-	if (question.active) {
-		initDiscussButtons(question.id, client_id, ideaId);
-	}
-	
-	// init any other tooltips in idea
-	$('[title!=""]').qtip({ 
-		style: { 
-			tip: { corner: true }, 
-			classes: 'qtip-rounded tooltip' 
+	// BEHAVIOR: only display tag clouds when cascade is complete and categories expanded	
+	drawClouds(sortIndices);
+
+	// TOOD/FIX	
+	// need to test w/ subcategories
+	// test behavior when only discuss items shown
+	// better open/close images
+	$(".category_title").click(function() {
+		var categoryContent = $(this).next();
+		if (categoryContent.is(':visible')) {
+			collapse($(this));
+		}
+		else {
+			// expand category and any subcategories too
+			var parentDiv = $(this).parent();
+			parentDiv.find(".category_title").each(function(index) {
+				expand($(this));
+			});
 		}
 	});
 }
@@ -299,6 +227,17 @@ function categoryGroupAsHtml(categoryGroup, id) {
 	var categoryCount = categoryGroup.count;	
 	var hiddenCount = 0;
 	
+	// check if currently collapsed or expanded (could have been a subcategory previously)
+	var categoryExpanded = true;
+	var categoryDiv = $("#category_"+id);
+	var subcategoryDiv = $(".subcategory").first(); // do not have way to get exact subcategory
+	if (categoryDiv.length) {
+		categoryExpanded = categoryDiv.children(".category_responses").is(":visible");
+	}
+	else if (subcategoryDiv.length) {
+		categoryExpanded = subcategoryDiv.children(".category_responses").is(":visible");
+	}
+	
 	var html = "";
 	if (categoryCount > 0) {
 		html += "<table style='width: 100%'>";
@@ -306,23 +245,24 @@ function categoryGroupAsHtml(categoryGroup, id) {
 		html += "<td style='width: 50%'>";
 		
 		// an empty category means the items have not been categorized yet
-		if (category != "") {	
-			html += showExpanded ? "<div class='list_title category spaceabove spacebelow'>" : "<div class='list_title category smallspaceabove smallspacebelow'>";
+		html += "<div id='category_"+id+"' class='category'>";
+		if (category != "") {
+			html += "<div class='category_title spaceabove spacebelow'>";
+			html += "<img class='category_open_close' src='" + (categoryExpanded ? "/images/arrow-down.gif" : "/images/arrow-up.gif") +"' /> "; 	
 			html += category + "&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span>";
 			html += "</div>";		
 		}
-		
-		if (showExpanded) {
-			for (var i in ideas) {
-				html += ideaAsHtml(ideas[i], id, null, category != "" ? DEFAULT_IDEA_INDENT : 0);
-				if (showDiscussOnly && getDiscussFlagCount(ideas[i].id) == 0) {
-					hiddenCount++;
-				}
+		html += "<div class='category_responses' " + (!categoryExpanded ? "style='display:none'": "") + ">";
+		for (var i in ideas) {
+			html += ideaAsHtml(ideas[i], id, null, category != "" ? DEFAULT_IDEA_INDENT : 0);
+			if (showDiscussOnly && getDiscussFlagCount(ideas[i].id) == 0) {
+				hiddenCount++;
 			}
 		}
+		html += "</div>";
+		html += "</div>";
 		
 		if (showSubcategories && isDefined(categoryGroup.subcategories) && categoryGroup.subcategories.length > 0) {
-			html += "<div style='clear:both'></div>";
 			for (var i in categoryGroup.subcategories) {
 				var subcategoryGroup = categoryGroup.subcategories[i];
 				var subcategory = subcategoryGroup.category;
@@ -330,32 +270,46 @@ function categoryGroupAsHtml(categoryGroup, id) {
 				var subcategorySameAs = subcategoryGroup.sameas ? "Similar to: "+subcategoryGroup.sameas : "";	
 				var subcategoryCount = subcategoryGroup.count;
 		
-				var customStyles = "style='margin-left:" + (DEFAULT_IDEA_INDENT+10) + "px;'";
-				html += showExpanded ? "<div class='category spaceabove spacebelow' " + customStyles + ">" : "<div class='category smallspaceabove smallspacebelow' " + customStyles + ">";
+				// check if currently collapsed or expanded
+				var subcategoryExpanded = categoryExpanded;
+				var subcategoryDiv = $("#subcategory_"+i+".category_" + id);
+				if (subcategoryDiv.length) {
+					subcategoryExpanded = subcategoryDiv.children(".category_responses").is(":visible");
+				}
+	
+				var customStyles = "style='margin-left:" + (DEFAULT_IDEA_INDENT+10) + "px'";
+				html += "<div id='subcategory_" + i + "' class='subcategory category_" + id + "'>";
+				html += "<div class='category_title spaceabove spacebelow' " + customStyles + ">";
+				html += "<img class='category_open_close' src='" + (subcategoryExpanded ? "/images/arrow-down.gif" : "/images/arrow-up.gif") +"' /> "; 	
 				html += subcategory + "&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span>";				
 				html += "</div>";
-				if (showExpanded) {
-					for (var j in subcategoryIdeas) {
-						html += ideaAsHtml(subcategoryIdeas[j], id, category, (DEFAULT_IDEA_INDENT*2)+10);
-						if (showDiscussOnly && getDiscussFlagCount(subcategoryIdeas[j].id) == 0) {
-							hiddenCount++;
-						}
-					}
+				html += "<div class='category_responses' " + (!subcategoryExpanded ? "style='display:none'": "") + ">";
+				for (var j in subcategoryIdeas) {
+					html += ideaAsHtml(subcategoryIdeas[j], id, category, (DEFAULT_IDEA_INDENT*2)+10);
 					html += "<div style='clear:both'></div>";
+					if (showDiscussOnly && getDiscussFlagCount(subcategoryIdeas[j].id) == 0) {
+						hiddenCount++;
+					}
 				}
+				html += "</div>";
+				html += "</div>";
+				html += "<div style='clear:both'></div>";
 			}
 		}	
 		
-		var hiddenIdeasExist = showExpanded && showDiscussOnly && hiddenCount > 0;
-		var hiddenMessage = "<span class=\"note\"><em>Responses are hidden if not flagged to discuss</em></span>";
+		var hiddenIdeasExist = showDiscussOnly && hiddenCount > 0;
+		var hiddenMessage = "<span class=\"note\"><em>Responses not flagged to discuss are hidden</em></span>";
 		html += "<div id='category_" + id + "_ellipses" + "' style='" + (!hiddenIdeasExist ? "display:none;" : "") +"color:#888; margin-left: " + (DEFAULT_IDEA_INDENT+10) + "px'><span title='" + hiddenMessage + "'>...</span></div>";
-								
+							
 		html += "</td>";
 		if (!jQuery.browser.mobile) {
-			html += "<td style='width: 50%' valign='top'><div id='cloud"+id+"' class='cloud'></div></td>";
+			html += "<td style='width: 50%' valign='top'>";
+			html += "<div id='cloud_"+id+"' class='cloud'></div>";
+			html += "</td>";
 		}
 		html += "</tr>";
 		html += "</table>";
+		html += "</div>";
 	}
 		
 	return html;
@@ -379,7 +333,7 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 		hasAlsoIn = true;
 	}
 	
-	var highlightClass = highlightDiscuss && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
+	var highlightClass = HIGHLIGHT_DISCUSS && getDiscussFlagCount(idea.id) > 0 ? " discuss_highlight" : "";
 	var html = "<div class='left idea idea_" + idea.id + " category_" + rootCategoryId + highlightClass + "' style='margin-left:"+indent+"px;"
 	html += hideIdea ? "display:none" : "";
 	html += "'>";	
@@ -398,6 +352,59 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	html += "</div>";
 	html += "</div>";
 	return html;	
+}
+
+function expand(categoryTitleDiv) {
+	var categoryImg = $(categoryTitleDiv).children(".category_open_close");
+	var categoryContent = $(categoryTitleDiv).next();
+	categoryImg.attr("src", "/images/arrow-down.gif");
+	categoryContent.fadeIn("fast", function() {
+		showHideClouds();
+	});
+}
+
+function expandAll() {
+	$(".category_open_close").attr("src", "/images/arrow-down.gif");
+	$(".category_responses").show();
+	$(".cloud").show();
+}
+
+function collapse(categoryTitleDiv) {
+	var categoryImg = $(categoryTitleDiv).children(".category_open_close");
+	var categoryContent = $(categoryTitleDiv).next();
+	categoryImg.attr("src", "/images/arrow-up.gif");
+	categoryContent.fadeOut("fast", function() {
+		showHideClouds();
+	});	
+}
+
+function collapseAll() {
+	$(".category_open_close").attr("src", "/images/arrow-up.gif");
+	$(".category_responses").hide();
+	$(".cloud").hide();
+}
+
+function initIdeaHandlers(ideaId) {
+	// init discuss button tooltips, event handlers
+	if (question.active) {
+		initDiscussButtons(question.id, client_id, ideaId);
+	}
+	
+	// init any other tooltips in idea
+	$('[title!=""]').qtip({ 
+		style: { 
+			tip: { corner: true }, 
+			classes: 'qtip-rounded tooltip' 
+		}
+	});
+	
+	$("#expand_all_link").click(function() {
+		expandAll();
+	});
+	
+	$("#collapse_all_link").click(function() {
+		collapseAll();
+	});
 }
 
 function updateStats() {
@@ -454,13 +461,54 @@ function updateStatus() {
 	}
 }
 
+function isCategoryFullyExpanded(categoryId) {
+	var isFullyExpanded = $("#category_"+categoryId).children(".category_responses").is(":visible");
+	$(".subcategory").each(function(index) {
+		if ($(this).hasClass("category_"+categoryId)) {
+			if (!$(this).children(".category_responses").is(":visible")) {
+				isFullyExpanded = false;
+				return false;
+			}
+		}
+	});
+	return isFullyExpanded;
+}
+
 //=================================================================================
 // Cloud Display
 //=================================================================================
 
+function showHideClouds() {
+	$(".category").each(function() {
+		var categoryId = $(this).attr("id").replace("category_","");
+		var isFullyExpanded = isCategoryFullyExpanded(categoryId);
+		showHide($("#cloud_"+categoryId), isFullyExpanded);
+	});
+}
+
+function drawClouds(sortIndices) {
+	if (SHOW_TAGCLOUDS && question.cascade_complete && !jQuery.browser.mobile) {
+		for (var i=0; i<sortIndices.length; i++) {
+			var j = sortIndices[i];
+			var category = displayedCategories[j].category;
+			var ideas = displayedCategories[j].ideas;
+			var isRootCategory = !showSubcategories || ($.inArray(category, subcategories) == -1);			
+			if (isRootCategory) {
+				var isFullyExpanded = isCategoryFullyExpanded(j);
+				showHide($("#cloud_"+j), isFullyExpanded);
+				displayCloud(displayedCategories[j].ideas.concat(displayedCategories[j].moreideas), j);
+			}
+		}
+		
+		if (uncategorizedIdeas.length > 0) {
+			displayCloud(uncategorizedIdeas, categorizedIdeas.length+1);
+		}
+	}
+}
+
 // TODO: improve css for div.jqcloud
 function displayCloud(group, id) {
-	var div = $("#cloud"+id);
+	var div = $("#cloud_"+id);
 	
 	// do not show tag clouds for groups with < MIN_TAGCLOUD_ITEM_COUNT items
 	// or if only discuss items shown
@@ -782,7 +830,7 @@ function onClickDiscuss(questionId, ideaId, add) {
 		var ideaSelector = $(".idea_"+ideaId);
 		var count = getDiscussFlagCount(ideaId);
 		
-		if (highlightDiscuss) {
+		if (HIGHLIGHT_DISCUSS) {
 			if (count > 0 && !ideaSelector.hasClass("discuss_highlight")) {
 				ideaSelector.addClass("discuss_highlight");
 			}
@@ -791,7 +839,7 @@ function onClickDiscuss(questionId, ideaId, add) {
 			}
 		}
 		
-		if (showExpanded && showDiscussOnly) {
+		if (showDiscussOnly) {
 			showHide(ideaSelector, count>0);
 			ideaSelector.each(function() {
 				var categoryClass = null;
