@@ -283,20 +283,20 @@ function initIdeaHandlers(ideaId) {
 function categoryGroupAsHtml(categoryGroup, id) {
 	var category = categoryGroup.category;
 	var ideas = categoryGroup.ideas;
-	var sameAs = isDefined(categoryGroup.sameas) ? "Similar to: "+categoryGroup.sameas : "";
+	var sameAs = isDefined(categoryGroup.same_as) && categoryGroup.same_as.length > 0 ? "Similar to: "+categoryGroup.same_as.join(", ") : "";
 	var categoryCount = categoryGroup.count;	
 	var hiddenCount = 0;
 	
 	var html = "";
 	if (categoryCount > 0) {
-		html += "<table style='width: 100%'>";
+		html += "<table style='width:100%'>";
 		html += "<tr>";
-		html += "<td style='width: 50%'>";
+		html += "<td style='width:50%'>";
 		
 		// an empty category means the items have not been categorized yet
 		if (category != "") {	
 			html += showExpanded ? "<div class='category_title spaceabove spacebelow'>" : "<div class='category_title smallspaceabove smallspacebelow'>";
-			html += category + "&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span>";
+			html += "<span style='font-weight: bold; font-size:1.0em'>" + category + "</span>&nbsp;<span class='note'>(" + categoryCount + ") " + sameAs + "</span>";
 			html += "</div>";		
 		}
 		
@@ -315,12 +315,12 @@ function categoryGroupAsHtml(categoryGroup, id) {
 				var subcategoryGroup = categoryGroup.subcategories[i];
 				var subcategory = subcategoryGroup.category;
 				var subcategoryIdeas = subcategoryGroup.ideas;
-				var subcategorySameAs = subcategoryGroup.sameas ? "Similar to: "+subcategoryGroup.sameas : "";	
+				var subcategorySameAs = subcategoryGroup.same_as.length>0 ? "Similar to: "+subcategoryGroup.same_as.join(", ") : "";	
 				var subcategoryCount = subcategoryGroup.count;
 		
 				var customStyles = "style='margin-left:" + (DEFAULT_IDEA_INDENT+10) + "px;'";
 				html += showExpanded ? "<div class='category_title spaceabove spacebelow' " + customStyles + ">" : "<div class='category_title smallspaceabove smallspacebelow' " + customStyles + ">";
-				html += subcategory + "&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span>";				
+				html += "<span style='font-weight: bold; font-size:1.0em'>" + subcategory + "</span>&nbsp;<span class='note'>(" + subcategoryCount + ") " + subcategorySameAs + "</span>";				
 				html += "</div>";
 				if (showExpanded) {
 					for (var j in subcategoryIdeas) {
@@ -552,7 +552,7 @@ function initDisplayCategories() {
 					if (isUndefined(displayedCategories[i])) {
 						// ideas + moreideas = unique list of ideas contained in root category
 						// moreideas is a list of ideas from subcategories that are not in the root category
-						displayedCategories[i] = { "category": category, "ideas": [], "moreideas": [], "subcategories": [], "sameas": categorySameAs, "count": 0 };
+						displayedCategories[i] = { "category": category, "ideas": [], "moreideas": [], "subcategories": [], "same_as": categorySameAs, "count": 0 };
 					}
 					displayedCategories[i]["ideas"].push(idea);
 					displayedCategories[i]["count"]++;
@@ -591,7 +591,7 @@ function initDisplayCategories() {
 	
 							// initialize subcategory
 							if (count == 0) {	
-								displayedCategories[i]["subcategories"].push({ "category":subcategory, "ideas":[], "sameas":subcategorySameAs, "count":0 })
+								displayedCategories[i]["subcategories"].push({ "category":subcategory, "ideas":[], "same_as":subcategorySameAs, "count":0 })
 							}
 							
 							// update subcategory

@@ -375,7 +375,7 @@ function initDisplayCategories() {
 					if (isUndefined(displayedCategories[i])) {
 						// ideas + moreideas = unique list of ideas contained in root category
 						// moreideas is a list of ideas from subcategories that are not in the root category
-						displayedCategories[i] = { "category": category, "ideas": [], "moreideas": [], "subcategories": [], "sameas": categorySameAs, "count": 0 };
+						displayedCategories[i] = { "category": category, "ideas": [], "moreideas": [], "subcategories": [], "same_as": categorySameAs, "count": 0 };
 					}	
 					displayedCategories[i]["ideas"].push(idea);
 					displayedCategories[i]["count"]++;

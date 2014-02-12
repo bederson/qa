@@ -679,7 +679,7 @@ class DownloadQuestionHandler(BaseHandler):
                     for ideaDict in ideas:
                         line_parts = (
                             category,
-                            sameAs if sameAs else "",
+                            ", ".join(sameAs) if sameAs else "",
                             ideaDict["idea"],
                             ideaDict["author"],
                             ideaDict["author_identity"] if "author_identity" in ideaDict else "",

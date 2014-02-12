@@ -50,38 +50,37 @@ limitations under the License.
 	{% endif %}
 	
 	<div>
-	<span class="largeheading">{{ question_title }}</span> <span id="question_code" class="note small">#{{ question_id }}</span> <span id="inactive" class="small warning"></span>
+	<span class="mediumheading">{{ question_title }}</span> <span id="question_code" class="note small">#{{ question_id }}</span> <span id="inactive" class="small warning"></span>
 	{% if admin and start_url != "" %}
 	<div class="note spaceabove" style="float:right; font-size:10pt"><a href id="show_start_url" class="noline" onClick="return false;" style="display:none">Show Start Url</a></div>
 	{% endif %}
 	</div>
 	<div id="question_text" class="medium">{{ question_text }}</div>
-	<div id="question_stats" class="small smallspaceabove largespacebelow"></div>
 	<div id="msg" class="warning spacebelow" style="text-align:center">{{ msg }}</div>
 	<div id="page_content" style="display:none">
-	<hr>	
-	<div class="spacebelow">	
-		<div id="idea_link_area" class="green_highlight small spaceright" style="float:left; display:none">
-			<a id="idea_link" class="noline" style="color: #000">Add responses</a>
-		</div>
-		<div id="display_control_area" class="green_highlight small largespacebelow" style="float:left; display:none">
-			<div id="sort_control" class="spaceright" style="float:left">
-				Sort by 
-				<select id="sort_by">
-					<option value="name">Name</option>
-					<option value="count" selected="selected">Count</option>
-				</select>
-			</div>
-			<div id="expand_collapse_controls" class="spaceright" style="float:left">
-				<a href="/" id="expand_all_link" class="noline" style="color:#000" onClick='return false;'>Expand all</a> | 
-				<a href="/" id="collapse_all_link" class="noline" style="color:#000" onClick='return false;'>Collapse all</a>
-			</div>
-			<div id="nest_categories_control" class="smallspaceright" style="float:left"><input id="nest_categories_cb" type="checkbox" />Nest&nbsp;categories</div>
-			<div id="single_category_control" class="smallspaceright" style="float:left"><input id="single_category_cb" type="checkbox" />Show&nbsp;response&nbsp;in&nbsp;single&nbsp;category</div>
-			<div id="discuss_only_control" class="smallspaceright" style="float:left"><input id="discuss_only_cb" type="checkbox" />Only show&nbsp;responses&nbsp;to&nbsp;discuss</div>
-			<div style="clear:both"></div>
-		</div>
+	<hr>		
+	<div id="idea_link_area" class="green_highlight small spaceright" style="float:left; display:none">
+		<a id="idea_link" class="noline" style="color: #000">Add responses</a>
 	</div>
+	<div id="display_control_area" class="green_highlight small" style="float:left; display:none">
+		<div id="sort_control" class="spaceright" style="float:left">
+			Sort by 
+			<select id="sort_by">
+				<option value="name">Name</option>
+				<option value="count" selected="selected">Count</option>
+			</select>
+		</div>
+		<div id="expand_collapse_controls" class="spaceright" style="float:left">
+			<a href="/" id="expand_all_link" class="noline" style="color:#000" onClick='return false;'>Expand all</a> | 
+			<a href="/" id="collapse_all_link" class="noline" style="color:#000" onClick='return false;'>Collapse all</a>
+		</div>
+		<div id="nest_categories_control" class="spaceright" style="float:left"><input id="nest_categories_cb" type="checkbox" />Nest&nbsp;categories</div>
+		<div id="single_category_control" class="spaceright" style="float:left"><input id="single_category_cb" type="checkbox" />Show&nbsp;response&nbsp;in&nbsp;one&nbsp;category</div>
+		<div id="discuss_only_control" class="spaceright" style="float:left"><input id="discuss_only_cb" type="checkbox" />Show discuss&nbsp;only</div>
+		<div style="clear:both"></div>
+	</div>
+	<div style="clear:both"></div>
+	<div id='question_stats' class="small largespaceabove spacebelow"></div>
 	<div id="ideas">Loading ...</div>
 	</div>
 {% endblock %}

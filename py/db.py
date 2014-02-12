@@ -849,7 +849,7 @@ class Idea(DBObject):
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 ideaCategory = row["category"]
-                ideaSameAs = row["same_as"]
+                ideaSameAs = row["same_as"].split(":::") if row["same_as"] else []
                 categorySubcategories = row["subcategories"].split(":::") if row["subcategories"] else []
                 idea = Idea.createFromData(row)
                 ideaId = idea.id
@@ -2304,7 +2304,7 @@ def GenerateCascadeHierarchy(dbConnection, question, forced=False, forTesting=Fa
     for category in categoryGroups:
         # NOTE: category stems and skip attributes not maintained in final categories table
         ideaIds = categoryGroups[category]
-        sameAs = ", ".join(duplicateCategories[category]) if category in duplicateCategories else None
+        sameAs = ":::".join(duplicateCategories[category]) if category in duplicateCategories else None
         subcategories = ":::".join(nestedCategories[category]) if category in nestedCategories else None
         sql = "insert into {0} (question_id, category, same_as, subcategories) values(%s, %s, %s, %s)".format(categoriesTable)
         dbConnection.cursor.execute(sql, (question.id, category, sameAs, subcategories))
