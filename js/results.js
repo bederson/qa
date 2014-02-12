@@ -242,7 +242,6 @@ function displayIdeas() {
 	showHide($("#expand_categories_control"), hasCategories);
 	showHide($("#nest_categories_control"), hasSubcategories);
 	showHide($("#single_category_control"), hasAlsoIn);
-	showHide($("#control_lb"), hasCategories);
 	showHide($("#highlight_discuss_control"), true);
 	showHide($("#discuss_only_control"), true);
 	$("#display_control_area").show();

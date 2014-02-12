@@ -290,7 +290,7 @@ function categoryGroupAsHtml(categoryGroup, id, forceExpanded) {
 			html += "<div class='category_title spacebelow'>";
 			html += "<img class='category_open_close' src='" + (categoryExpanded ? EXPANDED_IMAGE : COLLAPSED_IMAGE) +"' /> ";
 			html += "<span style='font-weight: bold !important; font-size: 1.0em'>" + category + "</span> "; 	
-			html += "<span class='note'>(" + countHtml + ") " + sameAs + "</span>";
+			html += "<span class='note'>(<span class='count'>" + countHtml + "</span>) " + sameAs + "</span>";
 			html += "</div>";		
 		}
 		html += ideasHtml;
@@ -329,7 +329,8 @@ function categoryGroupAsHtml(categoryGroup, id, forceExpanded) {
 				html += "<div id='subcategory_" + i + "' class='subcategory category_" + id + "'>";
 				html += "<div class='category_title spaceabove spacebelow' " + customStyles + ">";
 				html += "<img class='category_open_close' src='" + (subcategoryExpanded ? EXPANDED_IMAGE : COLLAPSED_IMAGE) +"' /> "; 	
-				html += "<span style='font-weight: bold; font-size:1.0em'>" + subcategory + "</span>&nbsp;<span class='note'>(" + countHtml + ") " + subcategorySameAs + "</span>";				
+				html += "<span style='font-weight: bold; font-size:1.0em'>" + subcategory + "</span> ";
+				html += "<span class='note'>(<span class='count'>" + countHtml + "</span>) " + subcategorySameAs + "</span>";				
 				html += "</div>";
 				html += ideasHtml;
 				html += "</div>";
@@ -426,7 +427,6 @@ function collapse(categoryTitleDiv) {
 	categoryContent.fadeOut("fast", function() {
 		var categoryId = getCategoryId(categoryDiv);
 		if (categoryId) {
-			drawCloud(categoryId);
 			$("#cloud_"+categoryId).hide();
 		}
 	});
@@ -442,7 +442,6 @@ function collapse(categoryTitleDiv) {
 function collapseAll() {
 	$(".category_open_close").attr("src", COLLAPSED_IMAGE);
 	$(".category_responses").hide();
-	drawClouds(getSortIndices());
 	$(".cloud").hide();
 }
 
@@ -544,7 +543,6 @@ function drawClouds(sortIndices) {
 }
 
 function drawCloud(categoryId) {
-	categoryId = parseInt(categoryId);
 	if (SHOW_TAGCLOUDS && question.cascade_complete && !jQuery.browser.mobile) {
 		var categoryId = parseInt(categoryId);
 		if (categoryId < categorizedIdeas.length) {
@@ -564,49 +562,53 @@ function drawCloud(categoryId) {
 
 // TODO: improve css for div.jqcloud
 function displayCloud(group, id) {
-	var div = $("#cloud_"+id);
 	
 	// create tag clouds for groups that are fully expanded, have >= MIN_TAGCLOUD_ITEM_COUNT items, 
 	// and items are not filtered (discuss only)
+	var wordList = [];
 	var isFullyExpanded = isCategoryFullyExpanded(id);
-	if (!isFullyExpanded || showDiscussOnly || group.length < MIN_TAGCLOUD_ITEM_COUNT) {
-		div.html("");
-		return;
-	}
-		
-	var height = div.parent().height();
-	if (height > MAX_CLOUD_HEIGHT) {
-		height = MAX_CLOUD_HEIGHT;
-	}
-	div.height(height);
-					
-	var weights = {};
-	for (var i in group) {
-		var words = group[i].idea.split(" ");
-		for (var j in words) {
-			var word = cleanWord(words[j]);
-			if (word!="" && !isStopWord(word)) {
-				if (word.length > 2) {
-					if (word in weights) {
-						weights[word] += 1;
-					} else {
-						weights[word] = 1;
+	if (isFullyExpanded && group.length >= MIN_TAGCLOUD_ITEM_COUNT && !showDiscussOnly) {					
+		var weights = {};
+		for (var i in group) {
+			var words = group[i].idea.split(" ");
+			for (var j in words) {
+				var word = cleanWord(words[j]);
+				if (word!="" && !isStopWord(word)) {
+					if (word.length > 2) {
+						if (word in weights) {
+							weights[word] += 1;
+						} else {
+							weights[word] = 1;
+						}
 					}
 				}
 			}
 		}
+	
+		var i = 0;
+		for (var word in weights) {
+			var item = { text: word, weight: weights[word] };
+			wordList[i] = item;
+			i += 1;
+		}
 	}
 
-	var i = 0;
-	var wordList = [];
-	for (var word in weights) {
-		var item = { text: word, weight: weights[word] };
-		wordList[i] = item;
-		i += 1;
+	// remove old jQCloud (if any) before creating new one
+	var div = $("#cloud_"+id);
+	var parent = div.parent();
+	parent.html("<div id='cloud_"+id+"' class='cloud'></div>");
+	div = $("#cloud_"+id);
+	
+	if (wordList.length > 0) {
+		var height = div.parent().height();
+		if (height > MAX_CLOUD_HEIGHT) {
+			height = MAX_CLOUD_HEIGHT;
+		}
+		div.height(height);
+		
+		div.jQCloud(wordList);
+		div.show();
 	}
-
-	div.jQCloud(wordList);
-	div.show();
 }
 
 function getWordStem(word) {
