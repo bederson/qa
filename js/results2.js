@@ -405,8 +405,8 @@ function expand(categoryTitleDiv) {
 	categoryImg.attr("src", EXPANDED_IMAGE);
 	categoryContent.fadeIn("fast", function() {
 		var categoryId = getCategoryId(categoryDiv);
-		if (categoryId && isCategoryFullyExpanded(categoryId)) {
-			$("#cloud_"+categoryId).show();
+		if (categoryId) {
+			drawCloud(categoryId);
 		}
 	});
 }
@@ -426,6 +426,7 @@ function collapse(categoryTitleDiv) {
 	categoryContent.fadeOut("fast", function() {
 		var categoryId = getCategoryId(categoryDiv);
 		if (categoryId) {
+			drawCloud(categoryId);
 			$("#cloud_"+categoryId).hide();
 		}
 	});
@@ -441,6 +442,7 @@ function collapse(categoryTitleDiv) {
 function collapseAll() {
 	$(".category_open_close").attr("src", COLLAPSED_IMAGE);
 	$(".category_responses").hide();
+	drawClouds(getSortIndices());
 	$(".cloud").hide();
 }
 
@@ -531,21 +533,33 @@ function initIdeaHandlers(ideaId) {
 //=================================================================================
 
 function drawClouds(sortIndices) {
+	for (var i=0; i<sortIndices.length; i++) {
+		var j = sortIndices[i];
+		drawCloud(j);
+	}
+		
+	if (uncategorizedIdeas.length > 0) {
+		drawCloud(categorizedIdeas.length+1);
+	}		
+}
+
+function drawCloud(categoryId) {
+	categoryId = parseInt(categoryId);
 	if (SHOW_TAGCLOUDS && question.cascade_complete && !jQuery.browser.mobile) {
-		for (var i=0; i<sortIndices.length; i++) {
-			var j = sortIndices[i];
-			var category = displayedCategories[j].category;
-			var ideas = displayedCategories[j].ideas;
+		var categoryId = parseInt(categoryId);
+		if (categoryId < categorizedIdeas.length) {
+			var category = displayedCategories[categoryId].category;
+			var ideas = displayedCategories[categoryId].ideas;
 			var isRootCategory = !showSubcategories || ($.inArray(category, subcategories) == -1);			
 			if (isRootCategory) {
-				displayCloud(displayedCategories[j].ideas.concat(displayedCategories[j].moreideas), j);
+				displayCloud(displayedCategories[categoryId].ideas.concat(displayedCategories[categoryId].moreideas), categoryId);
 			}
 		}
-		
-		if (uncategorizedIdeas.length > 0) {
-			displayCloud(uncategorizedIdeas, categorizedIdeas.length+1);
+		else if (categoryId == categorizedIdeas.length+1) {
+			displayCloud(uncategorizedIdeas, categoryId);
 		}
 	}
+	
 }
 
 // TODO: improve css for div.jqcloud
@@ -592,6 +606,7 @@ function displayCloud(group, id) {
 	}
 
 	div.jQCloud(wordList);
+	div.show();
 }
 
 function getWordStem(word) {
