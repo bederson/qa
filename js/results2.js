@@ -254,8 +254,9 @@ function categoryGroupAsHtml(categoryGroup, id, forceExpanded) {
 	forceExpanded = isDefined(forceExpanded) ? forceExpanded : false;
 
 	var category = categoryGroup.category;
+	var categoryLabel = category != "NONE" ? capitalizeFirst(category) : category;
 	var ideas = categoryGroup.ideas;
-	var sameAs = isDefined(categoryGroup.same_as) && categoryGroup.same_as.length > 0 ? "Similar to: "+categoryGroup.same_as.join(", ") : "";
+	var sameAs = isDefined(categoryGroup.same_as) && categoryGroup.same_as.length > 0 ? "Similar to: "+forAll(categoryGroup.same_as, capitalizeFirst).join(", ") : "";
 	var categoryCount = categoryGroup.count;
 	var discussIdeaCount = isDefined(categoryGroup.same_as) ? categoryGroup.discuss_count : 0;	
 	
@@ -289,7 +290,7 @@ function categoryGroupAsHtml(categoryGroup, id, forceExpanded) {
 			var countHtml = !showDiscussOnly ? categoryCount : discussIdeaCount;
 			html += "<div class='category_title spacebelow'>";
 			html += "<img class='category_open_close' src='" + (categoryExpanded ? EXPANDED_IMAGE : COLLAPSED_IMAGE) +"' /> ";
-			html += "<span style='font-weight: bold !important; font-size: 1.0em'>" + category + "</span> "; 	
+			html += "<span style='font-weight: bold !important; font-size: 1.0em'>" + categoryLabel + "</span> "; 	
 			html += "<span class='note'>(<span class='count'>" + countHtml + "</span>) " + sameAs + "</span>";
 			html += "</div>";		
 		}
@@ -302,8 +303,9 @@ function categoryGroupAsHtml(categoryGroup, id, forceExpanded) {
 				var index = sortIndicesForSubcategories[i];
 				var subcategoryGroup = categoryGroup.subcategories[index];
 				var subcategory = subcategoryGroup.category;
+				var subcategoryLabel = capitalizeFirst(subcategoryGroup.category);
 				var subcategoryIdeas = subcategoryGroup.ideas;
-				var subcategorySameAs = subcategoryGroup.same_as.length > 0 ? "Similar to: "+subcategoryGroup.same_as.join(", ") : "";	
+				var subcategorySameAs = subcategoryGroup.same_as.length > 0 ? "Similar to: "+forAll(subcategoryGroup.same_as, capitalizeFirst).join(", ") : "";	
 				var subcategoryCount = subcategoryGroup.count;
 				var subcategoryDiscussCount = 0;
 		
@@ -329,7 +331,7 @@ function categoryGroupAsHtml(categoryGroup, id, forceExpanded) {
 				html += "<div id='subcategory_" + i + "' class='subcategory category_" + id + "'>";
 				html += "<div class='category_title spaceabove spacebelow' " + customStyles + ">";
 				html += "<img class='category_open_close' src='" + (subcategoryExpanded ? EXPANDED_IMAGE : COLLAPSED_IMAGE) +"' /> "; 	
-				html += "<span style='font-weight: bold; font-size:1.0em'>" + subcategory + "</span> ";
+				html += "<span style='font-weight: bold; font-size:1.0em'>" + subcategoryLabel + "</span> ";
 				html += "<span class='note'>(<span class='count'>" + countHtml + "</span>) " + subcategorySameAs + "</span>";				
 				html += "</div>";
 				html += ideasHtml;
@@ -377,7 +379,7 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	html += "'>";	
 	html += discussButtonHtml(idea.id);
 	html += "<div style='margin-left:40px;'>";
-	html += idea.idea;
+	html += capitalizeFirst(idea.idea);
 
 	if (idea.author) {
 		// only display author if authentication used

@@ -334,3 +334,10 @@ function capitalizeFirst(str) {
 	str = str.toLowerCase();
 	return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+function forAll(strArray, func) {
+	for (var i=0; i<strArray.length; i++) {
+		strArray[i] = func(strArray[i]);
+	}
+	return strArray;
+}
