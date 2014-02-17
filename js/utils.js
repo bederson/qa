@@ -341,3 +341,12 @@ function forAll(strArray, func) {
 	}
 	return strArray;
 }
+
+function clipString(str, maxLen) {
+	var newStr = str;
+	if (newStr.length > maxLen) {
+		newStr = newStr.substr(0, maxLen-3) + "...";
+	}
+	return newStr;
+	
+}
