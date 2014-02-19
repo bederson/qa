@@ -336,7 +336,8 @@ class Question(DBObject):
             row = dbConnection.cursor.fetchone()
             minResponseTime = row["min_response_time"] if row else 0
             maxResponseTime = row["max_response_time"] if row else 0
-            avgResponseTime = row["avg_response_time"] if row else 0
+            # Decimal is not JOSN serializable so error if not cast to float
+            avgResponseTime = float(row["avg_response_time"]) if row else 0
             
             stats["cascade_user_count"] = userCount
             stats["idea_count"] = ideaCount
@@ -380,7 +381,8 @@ class Question(DBObject):
             stats["uncategorized_count"] = row["uncategorized_count"] if row else 0
             stats["min_response_time"] = row["min_response_time"] if row else 0
             stats["max_response_time"] = row["max_response_time"] if row else 0
-            stats["avg_response_time"] = row["avg_response_time"] if row else 0
+            # Decimal is not JOSN serializable so error if not cast to float
+            stats["avg_response_time"] = float(row["avg_response_time"]) if row else 0
             stats["total_duration"] = row["total_duration"] if row else 0
 
         else:
@@ -756,7 +758,11 @@ class Idea(DBObject):
         idea = Idea()
         idea.question_id = question.id
         idea.user_id = userId
-        idea.idea = ideaText
+        idea.idea = ""
+        if ideaText and len(ideaText) >= 1:
+            # capitalize first letter in idea for consistency
+            ideaText = ideaText.strip()
+            idea.idea = ideaText[0].capitalize() + (ideaText[1:] if len(ideaText) > 1 else "")
         idea.item_set = getNewCascadeItemSet(question)
         
         sql = "insert into question_ideas (question_id, user_id, idea, item_set) values (%s, %s, %s, %s)"
@@ -927,7 +933,8 @@ class Idea(DBObject):
             person.authenticated_nickname = author["authenticated_nickname"] if "authenticated_nickname" in author else None
             identity = person.getIdentity(admin=admin)
             objDict["author"] = identity["user_nickname"]
-            objDict["author_identity"] = identity["user_identity"]             
+            objDict["author_identity"] = identity["user_identity"]   
+            objDict["author_anonymous"] = person.nickname is None         
         return objDict
                      
 ###################
@@ -1032,8 +1039,10 @@ class CascadeSuggestCategory(DBObject):
     def saveJob(dbConnection, question, job, person=None):
         for task in job:
             taskId = task["id"]
-            suggestedCategory = task["suggested_category"].strip() if task["suggested_category"] is not None else ""
+            
             # save suggested category
+            # capitalize first let of category for consistency
+            suggestedCategory = task["suggested_category"].strip().capitalize() if task["suggested_category"] is not None else ""
             if suggestedCategory != "":
                 sql = "update cascade_suggested_categories set suggested_category=%s"
                 sql += ", user_id={0} ".format(person.id) if person else " "
@@ -1069,8 +1078,8 @@ class CascadeSuggestCategory(DBObject):
         dbConnection.cursor.execute(sql, (question.id, task["id"]))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
-            if row["suggested_category"] and row["suggested_category"] not in suggestedCategories:
-                suggestedCategories.append(row["suggested_category"])
+            if row["suggested_category"] and row["suggested_category"].capitalize() not in suggestedCategories:
+                suggestedCategories.append(row["suggested_category"].capitalize())
             elif not row["suggested_category"]:
                 skippedCategoryCount += 1
 
@@ -2446,7 +2455,7 @@ def recordCategory(question, category):
     categories = client.get(key)
     if not categories:
         categories = []
-    category = category.lower()
+    category = category.capitalize()
     if category not in categories:
         categories.append(category)
         categories.sort()

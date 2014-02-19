@@ -281,7 +281,7 @@ function categoryGroupAsHtml(categoryGroup, id, forceExpanded) {
 	if (categoryCount > 0) {		
 		var ideasHtml = "<div class='category_responses spacebelow' " + (!categoryExpanded ? "style='display:none'": "") + ">";
 		for (var i in ideas) {
-			ideasHtml += ideaAsHtml(ideas[i], id, null, category != "" ? DEFAULT_IDEA_INDENT : 0);
+			ideasHtml += ideaAsHtml(ideas[i], id, null, category != NONE_CATEGORY_LABEL ? DEFAULT_IDEA_INDENT : 0);
 		}
 		ideasHtml += "<div style='clear:both'></div>";
 		ideasHtml += "</div>";
@@ -388,8 +388,8 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	html += capitalizeFirst(idea.idea);
 
 	if (idea.author) {
-		// only display author if authentication used
-		if (question.authentication_type != NO_AUTHENTICATION) {
+		// only display author if not anonymous (not considered anonymous if nickname provided)
+		if (!idea.author_anonymous) {
 			html += "</br>";
 			html += "<span class='author'>";
 			html += "-- "; 
@@ -398,7 +398,7 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 		}
 		
 		if (!(idea.user_id in ideaAuthors)) {
-			ideaAuthors[idea.user_id] = { "author": idea.author, "author_identity": idea.author_identity };
+			ideaAuthors[idea.user_id] = { "author": idea.author, "author_identity": idea.author_identity, "author_anonymous": idea.author_anonymous };
 		}
 	}
 
@@ -408,6 +408,7 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 }
 
 function expand(categoryTitleDiv) {
+	// expand category and any subcategories
 	var categoryDiv = categoryTitleDiv.parent();
 	var categoryImg = categoryTitleDiv.children(".category_open_close");
 	var categoryContent = categoryDiv.children(".category_responses");
@@ -415,6 +416,12 @@ function expand(categoryTitleDiv) {
 	categoryContent.fadeIn("fast", function() {
 		var categoryId = getCategoryId(categoryDiv);
 		if (categoryId) {
+			if (isRootCategoryDiv(categoryDiv)) {
+				$(".category_"+categoryId+".subcategory").each(function(index) {
+					$(this).find(".category_open_close").attr("src", EXPANDED_IMAGE);
+					$(this).children(".category_responses").show();
+				});
+			}
 			drawCloud(categoryId);
 		}
 	});

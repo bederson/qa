@@ -287,6 +287,7 @@ class ResultsPageHandler(BaseHandler):
         self.destroy()
 
 class Results2PageHandler(BaseHandler):
+    # supports expanding/collapsing categories
     def get(self, questionId):
         self.init(questionId=questionId)    
         ok = self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
@@ -297,6 +298,7 @@ class Results2PageHandler(BaseHandler):
         self.destroy()
                 
 class ResultsTestPageHandler(BaseHandler):
+    # displays results in Keshif
     def get(self, questionId):
         self.init(questionId=questionId)    
         self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)

@@ -17,31 +17,31 @@
 # limitations under the License.
 #
 import constants
+import decimal
+import json
+import logging
+import os
 import StringIO
+from datetime import datetime
 from google.appengine.api import memcache
 
 def log(msg):
-    import logging
     if constants.ENABLE_DEBUG_LOGGING:
         logging.getLogger().info(msg)
 
 def isRunningLocally():
-    import os
     return not os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine')
 
 def allowDuplicateJobs():
     return constants.ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY and isRunningLocally();
     
 def toJson(data):        
-    import json
     return json.dumps(data, default=_jsonHandler)
 
 def fromJson(data):
-    import json
     return json.loads(data) if data else None
-  
+    
 def _jsonHandler(o):
-    from datetime import datetime
     if isinstance(o, datetime):
         return o.strftime("%B %d, %Y %H:%M:%S")
     else:
