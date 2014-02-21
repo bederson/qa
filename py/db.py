@@ -684,7 +684,7 @@ class Person(DBObject):
 
         # find Google authenticated instructor
         if not question and user:
-            sql = "select {0} from users where authenticated_user_id=%s".format(Person.fieldsSql())
+            sql = "select {0} from users where question_id is null and authenticated_user_id=%s".format(Person.fieldsSql())
             dbConnection.cursor.execute(sql, (user.user_id()))
             row = dbConnection.cursor.fetchone()
             person = Person.createFromData(row)
@@ -711,7 +711,15 @@ class Person(DBObject):
             # if not found and no authentication required, create new one
             if not person and question.authentication_type==constants.NO_AUTHENTICATION:
                 person = Person.create(dbConnection, question=question, session=session)
-                        
+              
+#             if person and user:
+#                 helpers.log("check if authenticated user ... if so, if they are admin make non-authenticated users as admin")
+#                 sql = "select * from users where question_id is null and authenticated_user_id=%s"
+#                 dbConnection.cursor.execute(sql, (user.user_id()))
+#                 row = dbConnection.cursor.fetchone() 
+#                 if row:
+#                     person.admin = 1 if row["admin"] == 1 else 0  
+                
         return person
      
     @staticmethod
