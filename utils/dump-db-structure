@@ -1,0 +1,2 @@
+#!/bin/bash
+mysqldump -uroot -p qa --no-data | sed 's/ AUTO_INCREMENT=[0-9]* / AUTO_INCREMENT=1 /g' > db-structure-mysql.sql
