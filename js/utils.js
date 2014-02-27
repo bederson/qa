@@ -7,6 +7,8 @@ var NO_AUTHENTICATION = 0
 var GOOGLE_AUTHENTICATION = 1
 var NICKNAME_AUTHENTICATION = 2
 
+var ALWAYS_SHOW_STUDENT_LOGIN = false;	// by default, student login is only shown if not anonymous
+
 // cascade job types
 var SUGGEST_CATEGORY = 1;
 var BEST_CATEGORY = 2;

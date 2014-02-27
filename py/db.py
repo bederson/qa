@@ -323,6 +323,7 @@ class Question(DBObject):
             
             # uncategorized count
             sql = "select count(*) as ct from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null"
+            sql += " and duplicate_of is null" if constants.CHECK_FOR_DUPLICATE_RESPONSES else ""
             dbConnection.cursor.execute(sql, (self.id))
             row = dbConnection.cursor.fetchone()
             uncategorizedCount = row["ct"] if row else 0
@@ -752,7 +753,7 @@ class Person(DBObject):
  
 class Idea(DBObject):
     table = "question_ideas"
-    fields = [ "id", "question_id", "user_id", "idea", "item_set" ]
+    fields = [ "id", "question_id", "user_id", "idea", "item_set", "duplicate_of", "created_on" ]
         
     def __init__(self):
         self.id = None
@@ -760,26 +761,36 @@ class Idea(DBObject):
         self.user_id = None
         self.idea = None
         self.item_set = constants.CASCADE_INITIAL_ITEM_SET
+        self.duplicate_of = None
+        self.created_on = None
     
     @staticmethod
     def create(dbConnection, question, userId, ideaText):
         idea = Idea()
         idea.question_id = question.id
         idea.user_id = userId
-        idea.idea = ""
-        if ideaText and len(ideaText) >= 1:
-            # capitalize first letter in idea for consistency
-            ideaText = ideaText.strip()
-            idea.idea = ideaText[0].capitalize() + (ideaText[1:] if len(ideaText) > 1 else "")
-        idea.item_set = getNewCascadeItemSet(question)
+        # capitalize first letter in idea for consistency
+        idea.idea =ideaText.strip().capitalize() if ideaText is not None else ""
         
-        sql = "insert into question_ideas (question_id, user_id, idea, item_set) values (%s, %s, %s, %s)"
-        dbConnection.cursor.execute(sql, (idea.question_id, idea.user_id, idea.idea, idea.item_set))
+        # check for duplicate ideas
+        duplicateOf = None
+        if constants.CHECK_FOR_DUPLICATE_RESPONSES:
+            sql = "select * from question_ideas where question_id=%s and idea=%s and duplicate_of is null"
+            dbConnection.cursor.execute(sql, (idea.question_id, idea.idea))
+            row = dbConnection.cursor.fetchone()
+            duplicateOf = row["id"] if row else None
+
+        # get item set (initial or subsequent)
+        # place any duplicate items in subsequent item set
+        idea.item_set = getNewCascadeItemSet(question) if not duplicateOf else constants.CASCADE_SUBSEQUENT_ITEM_SET
+        
+        sql = "insert into question_ideas (question_id, user_id, idea, item_set, duplicate_of) values (%s, %s, %s, %s, %s)"
+        dbConnection.cursor.execute(sql, (idea.question_id, idea.user_id, idea.idea, idea.item_set, duplicateOf))
         idea.id = dbConnection.cursor.lastrowid
         dbConnection.conn.commit()
         
         # initialize cascade stats when first idea added
-        # TODO/FIX: so query doesn't have to be performed for every idea added
+        # TODO/FIX: so query doesn't have to be performed for every idea added; use memcache?
         sql = "select count(*) as ct from cascade_stats where question_id=%s"
         dbConnection.cursor.execute(sql, (question.id))
         row = dbConnection.cursor.fetchone()
@@ -790,9 +801,20 @@ class Idea(DBObject):
             recordCascadeStartTime(question) 
 
         # create any new cascade jobs
-        Idea.createCascadeJobs(dbConnection, question, idea)                         
+        if not duplicateOf:
+            Idea.createCascadeJobs(dbConnection, question, idea)
+                                 
         return idea
-     
+      
+    @staticmethod
+    def getAuthor(data):
+        author = {
+            "id" : data[Person.tableField("id")],
+            "authenticated_nickname" : data[Person.tableField("authenticated_nickname")],
+            "nickname" : data[Person.tableField("nickname")]
+        }
+        return author
+                       
     @staticmethod
     def createCascadeJobs(dbConnection, question, idea):
         moreJobs = False
@@ -808,7 +830,7 @@ class Idea(DBObject):
         
         if moreJobs and Question.onMoreJobs:
             question.onMoreJobs(dbConnection, moreFitJobs=fitCount)
-                    
+                   
     @staticmethod
     def getById(dbConnection, ideaId):
         sql = "select {0} from question_ideas where id=%s".format(Idea.fieldsSql())
@@ -817,43 +839,56 @@ class Idea(DBObject):
         return Idea.createFromData(row)
         
     @staticmethod
-    def getByQuestion(dbConnection, question, person, includeCreatedOn=False):
+    def getByQuestion(dbConnection, question, person):
         ideas = []
+        duplicates = {}
+        numIdeasWithDups = 0
+        
         if question and person:
-            sql = "select {0},{1},question_ideas.created_on as idea_created_on from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1} from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
                 idea = Idea.createFromData(row)
-                # include author info
-                author = {
-                    "id" : row[Person.tableField("id")],
-                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
-                    "nickname" : row[Person.tableField("nickname")]
-                }
-                ideaDict = idea.toDict(author=author, admin=Person.isAdmin(person) or Person.isAuthor(question))
-                if includeCreatedOn:
-                    ideaDict["created_on"] = row["idea_created_on"]
-                                           
-                ideas.append(ideaDict)
+                ideaDict = idea.toDict(author=Idea.getAuthor(row), admin=Person.isAdmin(person) or Person.isAuthor(question))
+
+                if constants.CHECK_FOR_DUPLICATE_RESPONSES and row["question_ideas.duplicate_of"] is not None:
+                    duplicateOf = row["question_ideas.duplicate_of"]
+                    if duplicateOf not in duplicates:
+                        duplicates[duplicateOf] = []
+                        numIdeasWithDups += 1
+                    duplicates[duplicateOf].append(ideaDict)
+                    
+                else:
+                    ideas.append(ideaDict)
+                  
+            if constants.CHECK_FOR_DUPLICATE_RESPONSES and numIdeasWithDups > 1:  
+                for i, ideaDict in enumerate(ideas):
+                    ideaId = ideaDict["id"]
+                    if ideaId in duplicates:
+                        ideaDict["duplicates"] = duplicates[ideaId]
+                        ideas[i] = ideaDict
+                    
         return ideas
         
     @staticmethod
-    def getByCategories(dbConnection, question, person, includeCreatedOn=False, includeAlsoIn=False, useTestCategories=False):
-        ideaIds = []
-        categorizedIdeas = []
+    def getByCategories(dbConnection, question, person, useTestCategories=False):
         category = None
         categoryIdeas = []
+        categoryGroups = []
         uncategorizedIdeas = []
-        allIdeaCategories = {}
         categorySizes = {}
-        
+        ideaCategoriesMap = {}
+        ideaIds = []
+        duplicates = {}
+        numIdeasWithDups = 0
+                
         categoriesTable = "categories" if not useTestCategories else "categories2"
         questionCategoriesTable = "question_categories" if not useTestCategories else "question_categories2"
         
-        if question:
+        if question:                    
             # group alphabetically by category name
-            sql = "select {0},{1},question_ideas.created_on as idea_created_on,subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
+            sql = "select {0},{1},subcategories,category,same_as from question_ideas ".format(Idea.fieldsSql(), Person.fieldsSql())
             sql += "left join {0} on question_ideas.id={0}.idea_id ".format(questionCategoriesTable)
             sql += "left join {0} on {1}.category_id={0}.id ".format(categoriesTable, questionCategoriesTable)
             sql += "left join users on question_ideas.user_id=users.id where "
@@ -862,61 +897,73 @@ class Idea(DBObject):
             dbConnection.cursor.execute(sql, (question.id))
             rows = dbConnection.cursor.fetchall()
             for row in rows:
-                ideaCategory = row["category"]
-                ideaSameAs = row["same_as"].split(":::") if row["same_as"] else []
-                categorySubcategories = row["subcategories"].split(":::") if row["subcategories"] else []
                 idea = Idea.createFromData(row)
-                ideaId = idea.id
-                ideaAuthor = {
-                    "id" : row[Person.tableField("id")],
-                    "authenticated_nickname" : row[Person.tableField("authenticated_nickname")],
-                    "nickname" : row[Person.tableField("nickname")]
-                }
-                idea = idea.toDict(author=ideaAuthor, admin=Person.isAdmin(person) or Person.isAuthor(question))
-                if includeCreatedOn:
-                    idea["created_on"] = row["idea_created_on"]
-                    
-                if ideaCategory: 
-                    if not category:
-                        category = ideaCategory
-                        sameAs = ideaSameAs
-                        subcategories = categorySubcategories
-                                        
-                    if category != ideaCategory:
-                        if len(categoryIdeas) > 0:
-                            categorizedIdeas.append({ "category" : category , "subcategories" : subcategories, "same_as" : sameAs, "ideas" : categoryIdeas })
-                            categorySizes[category] = len(categoryIdeas);
-                        category = ideaCategory
-                        sameAs = ideaSameAs
-                        subcategories = categorySubcategories
-                        categoryIdeas = []
-                    
-                    categoryIdeas.append(idea)
+                ideaDict = idea.toDict(author=Idea.getAuthor(row), admin=Person.isAdmin(person) or Person.isAuthor(question))
+                ideaCategory = row["category"]
+                                    
+                if constants.CHECK_FOR_DUPLICATE_RESPONSES and row["question_ideas.duplicate_of"] is not None:
+                    duplicateOf = row["question_ideas.duplicate_of"]
+                    if duplicateOf not in duplicates:
+                        duplicates[duplicateOf] = []
+                        numIdeasWithDups += 1
+                    duplicates[duplicateOf].append(ideaDict)
                     
                 else:
-                    uncategorizedIdeas.append(idea)
-        
-                ideaIds.append(ideaId)
-                
-                if includeAlsoIn:
-                    if ideaId not in allIdeaCategories:
-                        allIdeaCategories[ideaId] = []
-                    allIdeaCategories[ideaId].append(ideaCategory)
-                                               
+                    if ideaCategory: 
+                        ideaSameAs = row["same_as"].split(":::") if row["same_as"] else []
+                        categorySubcategories = row["subcategories"].split(":::") if row["subcategories"] else []
+
+                        if not category:
+                            category = ideaCategory
+                            sameAs = ideaSameAs
+                            subcategories = categorySubcategories
+                                                
+                        if category != ideaCategory:
+                            if len(categoryIdeas) > 0:
+                                categoryGroups.append({ "category" : category , "subcategories" : subcategories, "same_as" : sameAs, "ideas" : categoryIdeas })
+                                categorySizes[category] = len(categoryIdeas);
+                            category = ideaCategory
+                            sameAs = ideaSameAs
+                            subcategories = categorySubcategories
+                            categoryIdeas = []
+                            
+                        categoryIdeas.append(ideaDict)
+                            
+                    else:
+                        uncategorizedIdeas.append(ideaDict)
+                                
+                    if idea.id not in ideaCategoriesMap:
+                        ideaCategoriesMap[idea.id] = []
+                    ideaCategoriesMap[idea.id].append(ideaCategory)
+            
+                # record idea ids, including any duplicates
+                ideaIds.append(idea.id)
+                                   
             if len(categoryIdeas) > 0:
-                categorizedIdeas.append({ "category" : category, "subcategories" : subcategories, "same_as" : sameAs, "ideas" : categoryIdeas })
+                categoryGroups.append({ "category" : category, "subcategories" : subcategories, "same_as" : sameAs, "ideas" : categoryIdeas })
                
-        if includeAlsoIn:
-            for i, group in enumerate(categorizedIdeas):
-                for j, idea in enumerate(group["ideas"]):
-                    ideaId = idea["id"]
-                    alsoIn = []
-                    if len(allIdeaCategories[ideaId]) > 0:
-                        alsoIn = allIdeaCategories[ideaId][:]
-                        alsoIn.remove(group["category"])
-                    categorizedIdeas[i]["ideas"][j]["also_in"] = alsoIn
+        # update also in and duplicates
+        for i, group in enumerate(categoryGroups):
+            for j, ideaDict in enumerate(group["ideas"]):
+                ideaId = ideaDict["id"]
+                alsoIn = []
+                if len(ideaCategoriesMap[ideaId]) > 0:
+                    alsoIn = ideaCategoriesMap[ideaId][:]
+                    alsoIn.remove(group["category"])
+                categoryGroups[i]["ideas"][j]["also_in"] = alsoIn
                 
-        return categorizedIdeas, uncategorizedIdeas, len(set(ideaIds))
+                if numIdeasWithDups > 0:
+                    if ideaId in duplicates:
+                        categoryGroups[i]["ideas"][j]["duplicates"] = duplicates[ideaId]
+        
+        if numIdeasWithDups > 0:            
+            for i, ideaDict in enumerate(uncategorizedIdeas):
+                ideaId = ideaDict["id"]
+                if ideaId in duplicates:
+                    ideaDict["duplicates"] = duplicates[ideaId]
+                    uncategorizedIdeas[i] = ideaDict
+                
+        return categoryGroups, uncategorizedIdeas, len(set(ideaIds))
     
     @staticmethod
     def getCountForQuestion(dbConnection, questionId):
@@ -1049,7 +1096,7 @@ class CascadeSuggestCategory(DBObject):
             taskId = task["id"]
             
             # save suggested category
-            # capitalize first let of category for consistency
+            # capitalize first letter of category for consistency
             suggestedCategory = task["suggested_category"].strip().capitalize() if task["suggested_category"] is not None else ""
             if suggestedCategory != "":
                 sql = "update cascade_suggested_categories set suggested_category=%s"
@@ -1086,8 +1133,8 @@ class CascadeSuggestCategory(DBObject):
         dbConnection.cursor.execute(sql, (question.id, task["id"]))
         rows = dbConnection.cursor.fetchall()
         for row in rows:
-            if row["suggested_category"] and row["suggested_category"].capitalize() not in suggestedCategories:
-                suggestedCategories.append(row["suggested_category"].capitalize())
+            if row["suggested_category"] and row["suggested_category"] not in suggestedCategories:
+                suggestedCategories.append(row["suggested_category"])
             elif not row["suggested_category"]:
                 skippedCategoryCount += 1
 
@@ -1544,6 +1591,7 @@ class CascadeFitCategory(DBObject):
     @classmethod
     def createForAllIdeas(cls, dbConnection, question, category, itemSet=None):
         sql = "select * from question_ideas where question_id=%s"
+        sql += " and duplicate_of is null" if constants.CHECK_FOR_DUPLICATE_RESPONSES else ""
         if itemSet is not None:
             sql += " and item_set={0}".format(itemSet)
         dbConnection.cursor.execute(sql, (question.id))
@@ -2463,7 +2511,6 @@ def recordCategory(question, category):
     categories = client.get(key)
     if not categories:
         categories = []
-    category = category.capitalize()
     if category not in categories:
         categories.append(category)
         categories.sort()
@@ -2478,7 +2525,7 @@ def removeCategory(question, category):
     if category in categories:
         categories.remove(category)
     helpers.saveToMemcache(key, categories)
-        
+
 def recordCascadeStartTime(question):
     helpers.saveToMemcache("cascade_start_time_{0}".format(question.id), datetime.datetime.now())
     

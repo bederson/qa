@@ -509,7 +509,7 @@ class QueryHandler(BaseHandler):
                 groupBy = self.request.get("group_by", None)
                 if groupBy == "category":
                     useTestCategories = self.request.get("test", "0") == "1"
-                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, self.person, includeAlsoIn=True, useTestCategories=useTestCategories)
+                    categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, self.person, useTestCategories=useTestCategories)
                     data = { "question": self.question.toDict(), "categorized": categorizedIdeas, "uncategorized": uncategorizedIdeas, "count" : numIdeas }        
                 else:
                     ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person)
@@ -639,7 +639,7 @@ class DownloadQuestionHandler(BaseHandler):
               
             # write out ideas with categories
             if self.question.cascade_complete:
-                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, self.person, includeCreatedOn=True)
+                categorizedIdeas, uncategorizedIdeas, numIdeas = Idea.getByCategories(self.dbConnection, self.question, self.person)
 
                 # write out stats                
                 excelWriter.writerow(("Statistics",))
@@ -718,7 +718,7 @@ class DownloadQuestionHandler(BaseHandler):
                 )
                 excelWriter.writerow(headers)
         
-                ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person, includeCreatedOn=True)
+                ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person)
                 for ideaDict in ideas:     
                     line_parts = (
                         ideaDict["idea"],

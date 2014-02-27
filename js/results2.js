@@ -386,19 +386,36 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	html += discussButtonHtml(idea.id);
 	html += "<div style='margin-left:40px;'>";
 	html += capitalizeFirst(idea.idea);
+	html += "duplicates" in idea ? " <span class='note'>(" + (idea["duplicates"].length+1) + ")</span>" : "";
 
 	if (idea.author) {
 		// only display author if not anonymous (not considered anonymous if nickname provided)
-		if (!idea.author_anonymous) {
+		// NOTE: checks anonymity of primary author, not duplicate authors
+		if (ALWAYS_SHOW_STUDENT_LOGIN || !idea.author_anonymous) {
 			html += "</br>";
 			html += "<span class='author'>";
 			html += "-- "; 
 			html += getUserHtml(idea.author, idea.author_identity);
+			if ("duplicates" in idea) {
+				for (var i=0; i<idea.duplicates.length; i++) {
+					var duplicateIdea = idea.duplicates[i];
+					html += ", " + getUserHtml(duplicateIdea.author, duplicateIdea.author_identity);
+				}
+			}
 			html += "</span>";
 		}
 		
 		if (!(idea.user_id in ideaAuthors)) {
 			ideaAuthors[idea.user_id] = { "author": idea.author, "author_identity": idea.author_identity, "author_anonymous": idea.author_anonymous };
+		}
+		
+		if ("duplicates" in idea) {
+			for (var i=0; i<idea.duplicates.length; i++) {
+				var duplicateIdea = idea.duplicates[i];
+				if (!(duplicateIdea.id in ideaAuthors)) {
+					ideaAuthors[duplicateIdea.id] = { "author": duplicateIdea.author, "author_identity": duplicateIdea.author_identity, "author_anonymous": duplicateIdea.author_anonymous };
+				}
+			}
 		}
 	}
 
@@ -904,6 +921,7 @@ function handleIdea(data) {
 function handleEnable(data) {
 	question.active = 1;
 	// TODO: would be better to only update data that has changed
+	// if changed, remember to disable discuss buttons too
 	window.location.reload();
 }
 
