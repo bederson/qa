@@ -308,7 +308,7 @@ class ResultsTestPageHandler(BaseHandler):
         self.destroy()
         
 class AdminPageHandler(BaseHandler):
-    def get(self, questionId=None):
+    def get(self, questionId=None):    
         self.init(adminRequired=True, questionId=questionId)
         self.checkRequirements(authenticatedUserRequired=True, optionalQuestionCode=True, editPrivilegesRequired=True, questionId=questionId)
         templateValues = self.getDefaultTemplateValues(adminConnect=True)
@@ -670,7 +670,8 @@ class DownloadQuestionHandler(BaseHandler):
                     "Author",
                     "Author_Identity",
                     "Created_On",
-                    "Idea_Id"
+                    "Idea_Id",
+                    "Duplicates_By",
                 )
                 excelWriter.writerow(headers)
         
@@ -686,7 +687,8 @@ class DownloadQuestionHandler(BaseHandler):
                             ideaDict["author"],
                             ideaDict["author_identity"] if "author_identity" in ideaDict else "",
                             ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
-                            ideaDict["id"]
+                            ideaDict["id"],
+                            ", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "",
                         )
                         excelWriter.writerow(line_parts)
                         
@@ -698,7 +700,8 @@ class DownloadQuestionHandler(BaseHandler):
                         ideaDict["author"],
                         ideaDict["author_identity"] if "author_identity" in ideaDict else "",
                         ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
-                        ideaDict["id"]
+                        ideaDict["id"],
+                        ", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "",
                     )
                     excelWriter.writerow(line_parts)
                                           
@@ -714,18 +717,20 @@ class DownloadQuestionHandler(BaseHandler):
                     "Author",
                     "Author_Identity",
                     "Created_On",
-                    "Idea_Id"
+                    "Idea_Id",
+                    "Duplicates_By",
                 )
                 excelWriter.writerow(headers)
         
                 ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person)
-                for ideaDict in ideas:     
+                for ideaDict in ideas:
                     line_parts = (
                         ideaDict["idea"],
                         ideaDict["author"],
                         ideaDict["author_identity"] if "author_identity" in ideaDict else "",
                         ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
-                        ideaDict["id"]
+                        ideaDict["id"],
+                        ", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "",
                     )
                     excelWriter.writerow(line_parts)  
                             

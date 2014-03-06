@@ -259,6 +259,10 @@ function sortTuplesAscending(tuples) {
 	tuples.sort(function(tuple1, tuple2) {
 		value1 = tuple1[1];
 		value2 = tuple2[1];
+		if (typeof value1 == "string") {
+			value1 = value1.toLowerCase();
+			value2 = value2.toLowerCase();
+		}
 		return value1 < value2 ? -1 : (value1 > value2 ? 1 : 0);
 	});
 	return tuples;

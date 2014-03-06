@@ -29,6 +29,7 @@ var SORT_BY_COUNT = "count";
 var DEFAULT_SHOW_SUBCATEGORIES = false;
 var DEFAULT_SHOW_IN_SINGLE_CATEGORY = true;
 var DEFAULT_SHOW_DISCUSS_ONLY = false;
+var INCLUDE_DUPLICATES_IN_CATEGORY_COUNT = true;
 
 var EXPANDED_IMAGE = "/images/control_down.png";
 var COLLAPSED_IMAGE = "/images/control_right.png"
@@ -386,7 +387,7 @@ function ideaAsHtml(idea, rootCategoryId, parent, indent) {
 	html += discussButtonHtml(idea.id);
 	html += "<div style='margin-left:40px;'>";
 	html += capitalizeFirst(idea.idea);
-	html += "duplicates" in idea ? " <span class='note'>(" + (idea["duplicates"].length+1) + ")</span>" : "";
+	html += "duplicates" in idea && idea["duplicates"].length>0 ? " <span class='note'>(" + (idea["duplicates"].length+1) + ")</span>" : "";
 
 	if (idea.author) {
 		// only display author if not anonymous (not considered anonymous if nickname provided)
@@ -721,7 +722,7 @@ function initDisplayCategories() {
 						displayedCategories[i] = { "category": category, "ideas": [], "moreideas": [], "subcategories": [], "same_as": categorySameAs, "count": 0, "discuss_count": 0 };
 					}
 					displayedCategories[i]["ideas"].push(idea);
-					displayedCategories[i]["count"]++;
+					displayedCategories[i]["count"] = incIdeaCount(idea, displayedCategories[i]["count"]);
 					displayedCategories[i]["discuss_count"] += getDiscussFlagCount(idea.id) > 0 ? 1 : 0;
 					count++;
 				}
@@ -753,8 +754,9 @@ function initDisplayCategories() {
 							if (!doesIdeaListContain(displayedCategories[i]["ideas"], subcategoryIdea)) {
 								displayedCategories[i]["moreideas"].push(subcategoryIdea);	
 							}
-							// update total count for root category
-							displayedCategories[i]["count"]++;
+							
+							// update counts for root category
+							displayedCategories[i]["count"] = incIdeaCount(subcategoryIdea, displayedCategories[i]["count"]);
 							displayedCategories[i]["discuss_count"] += getDiscussFlagCount(subcategoryIdea.id) > 0 ? 1 : 0;
 	
 							// initialize subcategory
@@ -764,7 +766,7 @@ function initDisplayCategories() {
 							
 							// update subcategory
 							displayedCategories[i]["subcategories"][subcategoryIndex]["ideas"].push(subcategoryIdea);
-							displayedCategories[i]["subcategories"][subcategoryIndex]["count"]++;
+							displayedCategories[i]["subcategories"][subcategoryIndex]["count"] = incIdeaCount(subcategoryIdea, displayedCategories[i]["subcategories"][subcategoryIndex]["count"]);					
 							displayedCategories[i]["subcategories"][subcategoryIndex]["discuss_count"] += getDiscussFlagCount(subcategoryIdea.id) > 0 ? 1 : 0;
 							count++;
 						}
@@ -775,13 +777,22 @@ function initDisplayCategories() {
 		}
 	}
 	
-	uncategorizedCategory = { "category": NONE_CATEGORY_LABEL, "ideas": uncategorizedIdeas, "moreideas": [], "subcategories": [], "same_as": [], "count": uncategorizedIdeas.length, "discuss_count": 0 };
+	uncategorizedCategory = { "category": NONE_CATEGORY_LABEL, "ideas": uncategorizedIdeas, "moreideas": [], "subcategories": [], "same_as": [], "count": 0, "discuss_count": 0 };
 	for (var i in uncategorizedIdeas) {
-		var idea = uncategorizedIdeas[i];	
+		var idea = uncategorizedIdeas[i];
+		uncategorizedCategory["count"] = incIdeaCount(idea, uncategorizedCategory["count"]);
 		uncategorizedCategory["discuss_count"] += getDiscussFlagCount(idea.id) > 0 ? 1 : 0;
 	}
 }
 
+function incIdeaCount(idea, count) {
+	count++;
+	if (INCLUDE_DUPLICATES_IN_CATEGORY_COUNT && "duplicates" in idea) {
+		count += idea["duplicates"].length;
+	}
+	return count;
+}
+							
 function getSortIndices(categoriesToSort) {
 	// TODO/FIX: uncategorized items (if any) are not included in sort indices
 	var categoriesToSort = isDefined(categoriesToSort) ? categoriesToSort : displayedCategories;

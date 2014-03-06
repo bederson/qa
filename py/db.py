@@ -322,8 +322,7 @@ class Question(DBObject):
             ideaCount = Idea.getCountForQuestion(dbConnection, self.id)
             
             # uncategorized count
-            sql = "select count(*) as ct from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null"
-            sql += " and duplicate_of is null" if constants.CHECK_FOR_DUPLICATE_RESPONSES else ""
+            sql = "select count(*) as ct from question_ideas left join question_categories on question_ideas.id=question_categories.idea_id where question_ideas.question_id=%s and category_id is null and duplicate_of is null"
             dbConnection.cursor.execute(sql, (self.id))
             row = dbConnection.cursor.fetchone()
             uncategorizedCount = row["ct"] if row else 0
@@ -773,19 +772,21 @@ class Idea(DBObject):
         idea.idea =ideaText.strip().capitalize() if ideaText is not None else ""
         
         # check for duplicate ideas
-        duplicateOf = None
+        idea.duplicate_of = None
         if constants.CHECK_FOR_DUPLICATE_RESPONSES:
+            # TODO/FIX: should remove punctuation when checking for duplicate
             sql = "select * from question_ideas where question_id=%s and idea=%s and duplicate_of is null"
             dbConnection.cursor.execute(sql, (idea.question_id, idea.idea))
             row = dbConnection.cursor.fetchone()
-            duplicateOf = row["id"] if row else None
+            idea.duplicate_of = row["id"] if row else None
+        isDuplicate = idea.duplicate_of is not None
 
         # get item set (initial or subsequent)
         # place any duplicate items in subsequent item set
-        idea.item_set = getNewCascadeItemSet(question) if not duplicateOf else constants.CASCADE_SUBSEQUENT_ITEM_SET
+        idea.item_set = getNewCascadeItemSet(question) if not isDuplicate else constants.CASCADE_SUBSEQUENT_ITEM_SET
         
         sql = "insert into question_ideas (question_id, user_id, idea, item_set, duplicate_of) values (%s, %s, %s, %s, %s)"
-        dbConnection.cursor.execute(sql, (idea.question_id, idea.user_id, idea.idea, idea.item_set, duplicateOf))
+        dbConnection.cursor.execute(sql, (idea.question_id, idea.user_id, idea.idea, idea.item_set, idea.duplicate_of))
         idea.id = dbConnection.cursor.lastrowid
         dbConnection.conn.commit()
         
@@ -801,10 +802,13 @@ class Idea(DBObject):
             recordCascadeStartTime(question) 
 
         # create any new cascade jobs
-        if not duplicateOf:
+        if not isDuplicate:
             Idea.createCascadeJobs(dbConnection, question, idea)
                                  
         return idea
+    
+    def isDuplicate(self):
+        return self.duplicate_of is not None
       
     @staticmethod
     def getAuthor(data):
@@ -814,7 +818,7 @@ class Idea(DBObject):
             "nickname" : data[Person.tableField("nickname")]
         }
         return author
-                       
+                               
     @staticmethod
     def createCascadeJobs(dbConnection, question, idea):
         moreJobs = False
@@ -841,8 +845,8 @@ class Idea(DBObject):
     @staticmethod
     def getByQuestion(dbConnection, question, person):
         ideas = []
-        duplicates = {}
-        numIdeasWithDups = 0
+        duplicates = []
+        ideaIndices = {}
         
         if question and person:
             sql = "select {0},{1} from question_ideas,users where question_ideas.user_id=users.id and question_ideas.question_id=%s order by created_on desc".format(Idea.fieldsSql(), Person.fieldsSql())
@@ -851,26 +855,21 @@ class Idea(DBObject):
             for row in rows:
                 idea = Idea.createFromData(row)
                 ideaDict = idea.toDict(author=Idea.getAuthor(row), admin=Person.isAdmin(person) or Person.isAuthor(question))
-
-                if constants.CHECK_FOR_DUPLICATE_RESPONSES and row["question_ideas.duplicate_of"] is not None:
-                    duplicateOf = row["question_ideas.duplicate_of"]
-                    if duplicateOf not in duplicates:
-                        duplicates[duplicateOf] = []
-                        numIdeasWithDups += 1
-                    duplicates[duplicateOf].append(ideaDict)
-                    
+                if idea.isDuplicate():
+                    duplicates.append(ideaDict)
                 else:
                     ideas.append(ideaDict)
-                  
-            if constants.CHECK_FOR_DUPLICATE_RESPONSES and numIdeasWithDups > 1:  
-                for i, ideaDict in enumerate(ideas):
-                    ideaId = ideaDict["id"]
-                    if ideaId in duplicates:
-                        ideaDict["duplicates"] = duplicates[ideaId]
-                        ideas[i] = ideaDict
+                    ideaIndices[idea.id] = len(ideas)-1
+                    
+            for duplicate in duplicates:
+                ideaId = duplicate["duplicate_of"]
+                i = ideaIndices[ideaId]
+                if "duplicates" not in ideas[i]:
+                    ideas[i]["duplicates"] = []
+                ideas[i]["duplicates"].append(duplicate)
                     
         return ideas
-        
+           
     @staticmethod
     def getByCategories(dbConnection, question, person, useTestCategories=False):
         category = None
@@ -881,7 +880,6 @@ class Idea(DBObject):
         ideaCategoriesMap = {}
         ideaIds = []
         duplicates = {}
-        numIdeasWithDups = 0
                 
         categoriesTable = "categories" if not useTestCategories else "categories2"
         questionCategoriesTable = "question_categories" if not useTestCategories else "question_categories2"
@@ -900,13 +898,11 @@ class Idea(DBObject):
                 idea = Idea.createFromData(row)
                 ideaDict = idea.toDict(author=Idea.getAuthor(row), admin=Person.isAdmin(person) or Person.isAuthor(question))
                 ideaCategory = row["category"]
-                                    
-                if constants.CHECK_FOR_DUPLICATE_RESPONSES and row["question_ideas.duplicate_of"] is not None:
-                    duplicateOf = row["question_ideas.duplicate_of"]
-                    if duplicateOf not in duplicates:
-                        duplicates[duplicateOf] = []
-                        numIdeasWithDups += 1
-                    duplicates[duplicateOf].append(ideaDict)
+                                                        
+                if idea.isDuplicate():
+                    if idea.duplicate_of not in duplicates:
+                        duplicates[idea.duplicate_of] = []
+                    duplicates[idea.duplicate_of].append(ideaDict)
                     
                 else:
                     if ideaCategory: 
@@ -952,17 +948,14 @@ class Idea(DBObject):
                     alsoIn.remove(group["category"])
                 categoryGroups[i]["ideas"][j]["also_in"] = alsoIn
                 
-                if numIdeasWithDups > 0:
-                    if ideaId in duplicates:
-                        categoryGroups[i]["ideas"][j]["duplicates"] = duplicates[ideaId]
-        
-        if numIdeasWithDups > 0:            
-            for i, ideaDict in enumerate(uncategorizedIdeas):
-                ideaId = ideaDict["id"]
                 if ideaId in duplicates:
-                    ideaDict["duplicates"] = duplicates[ideaId]
-                    uncategorizedIdeas[i] = ideaDict
-                
+                    categoryGroups[i]["ideas"][j]["duplicates"] = duplicates[ideaId]
+        
+        for i, ideaDict in enumerate(uncategorizedIdeas):
+            ideaId = ideaDict["id"]
+            if ideaId in duplicates:
+                uncategorizedIdeas[i]["duplicates"]= duplicates[ideaId]
+                                
         return categoryGroups, uncategorizedIdeas, len(set(ideaIds))
     
     @staticmethod
@@ -1590,8 +1583,7 @@ class CascadeFitCategory(DBObject):
     
     @classmethod
     def createForAllIdeas(cls, dbConnection, question, category, itemSet=None):
-        sql = "select * from question_ideas where question_id=%s"
-        sql += " and duplicate_of is null" if constants.CHECK_FOR_DUPLICATE_RESPONSES else ""
+        sql = "select * from question_ideas where question_id=%s and duplicate_of is null"
         if itemSet is not None:
             sql += " and item_set={0}".format(itemSet)
         dbConnection.cursor.execute(sql, (question.id))
@@ -2381,9 +2373,7 @@ def GenerateCascadeHierarchy(dbConnection, question, forced=False, forTesting=Fa
     dbConnection.conn.commit()
                    
     stats = {}
-    if forTesting:
-        stats = question.recordCascadeStats(dbConnection, skippedCategories)
-    else:
+    if not forTesting:
         stats = question.cascadeComplete(dbConnection, skippedCategories)
     return stats
 

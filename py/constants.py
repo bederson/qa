@@ -47,7 +47,7 @@ CASCADE_K = 2                           # redundancy factor used by suggest cate
 CASCADE_K2 = 1                          # redundancy factor used by fit tasks
 CASCADE_M = 50                          # percentage of items placed in initial item set
 CASCADE_P = 80                          # % of overlapping items used to detect duplicates and subcategories
-CASCADE_Q = 1                           # min number of items allowed in a category
+CASCADE_Q = 2                           # min number of items allowed in a category
 CASCADE_S = 5                           # number of categories grouped together in jobs (e.g., # categories to fit to an idea)
 CASCADE_T = 3                           # number of items grouped together in jobs (e.g., # items to suggest categories for)
 
@@ -56,7 +56,7 @@ FIND_SUBCATEGORIES = True               # whether or not to find subcategories i
 MIN_DUPLICATE_SIZE_PERCENTAGE = 50      # categories >= this % in size than others are duplicates if >= p % items overlap
                                         # categories < this % in size than others are subcategories if >= p % items overlap
 DELETE_LOOSE_CATEGORIES = False         # whether or not to include categories that contain p % of all items in results
-MERGE_NEST_CATEGORIES_AGAIN = False     # check for duplicate and nested categories a second time
+MERGE_NEST_CATEGORIES_AGAIN = True      # check for duplicate and nested categories a second time
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"
