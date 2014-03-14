@@ -1072,7 +1072,10 @@ class LoadWebLogHandler(BaseHandler):
             offset = self.request.get("offset", None)
             if offset:
                 offset = base64.urlsafe_b64decode(str(offset))
-            for req_log in logservice.fetch(offset=offset, version_ids=["dev", "13", "14"]):
+            version = os.environ['CURRENT_VERSION_ID']
+            majorVersion, minorVersion = version.split(".")
+            #for req_log in logservice.fetch(offset=offset, version_ids=["dev", "13", "14"]):
+            for req_log in logservice.fetch(offset=offset, version_ids=[ majorVersion ]):
                 # TODO/FIX: only return cascade and idea requests for now
                 if not req_log.resource.startswith("/cascade") and not req_log.resource.startswith("/idea"):
                     continue
