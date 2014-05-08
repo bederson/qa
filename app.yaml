@@ -4,10 +4,6 @@
 application: qa-umd-test
 version: dev
 
-# free version so small quotas
-#application: xparty-umd
-#version: 8
-
 runtime: python27
 api_version: 1
 threadsafe: yes

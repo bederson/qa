@@ -266,34 +266,13 @@ class CascadePageHandler(BaseHandler):
         self.destroy()
         
 class ResultsPageHandler(BaseHandler):
-    def get(self, questionId):
-        self.init(questionId=questionId)    
-        ok = self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
-        templateValues = self.getDefaultTemplateValues()
-        templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""
-        
-        # TODO/FIX: Would like to add Admin button to all pages for system admins but
-        # what to check if users.get_current_user() returns value if google user authenticated
-        # in browser or only if authenticated in QA
-        # if user logged in to page is not admin
-        # check if authenticated user is admin (since some questions allow non-authenticated users)
-#         sentFromAdminPage = self.request.referer and "/admin" in self.request.referer        
-#         if not templateValues["admin"] and sentFromAdminPage and not self.person.authenticated_user_id:
-#             authenticatedPerson = Person.getPerson(self.dbConnection)
-#             templateValues["admin"] = Person.isAdmin(authenticatedPerson)
-        
-        path = os.path.join(os.path.dirname(__file__), '../html/results.html')
-        self.response.out.write(template.render(path, templateValues))        
-        self.destroy()
-
-class Results2PageHandler(BaseHandler):
     # supports expanding/collapsing categories
     def get(self, questionId):
         self.init(questionId=questionId)    
         ok = self.checkRequirements(userRequired=True, questionRequired=True, activeQuestionRequired=False, questionId=questionId)
         templateValues = self.getDefaultTemplateValues()
         templateValues["start_url"] = self.getStartUrl() if ok and not self.question.cascade_complete else ""        
-        path = os.path.join(os.path.dirname(__file__), '../html/results2.html')
+        path = os.path.join(os.path.dirname(__file__), '../html/results.html')
         self.response.out.write(template.render(path, templateValues))        
         self.destroy()
                 
@@ -663,16 +642,17 @@ class DownloadQuestionHandler(BaseHandler):
                 excelWriter.writerow(("t", self.question.cascade_t))
                 excelWriter.writerow(())                
                 
-                headers = (
+                headers = [
                     "Category",
                     "Same_As",
                     "Idea",
                     "Author",
                     "Author_Identity",
                     "Created_On",
-                    "Idea_Id",
-                    "Duplicates_By",
-                )
+                    "Idea_Id"
+                ]
+                if constants.CHECK_FOR_DUPLICATE_RESPONSES:
+                    headers.append("Duplicates_By")
                 excelWriter.writerow(headers)
         
                 for categoryInfo in categorizedIdeas:   
@@ -680,30 +660,32 @@ class DownloadQuestionHandler(BaseHandler):
                     sameAs = categoryInfo["same_as"]
                     ideas = categoryInfo["ideas"]
                     for ideaDict in ideas:
-                        line_parts = (
+                        line_parts = [
                             category,
                             ", ".join(sameAs) if sameAs else "",
                             ideaDict["idea"],
                             ideaDict["author"],
                             ideaDict["author_identity"] if "author_identity" in ideaDict else "",
                             ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
-                            ideaDict["id"],
-                            ", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "",
-                        )
-                        excelWriter.writerow(line_parts)
+                            ideaDict["id"]
+                        ]
+                        if constants.CHECK_FOR_DUPLICATE_RESPONSES:
+                            line_parts.append(", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "")
+                        excelWriter.writerow(tuple(line_parts))
                         
                 for ideaDict in uncategorizedIdeas:   
-                    line_parts = (
+                    line_parts = [
                         "NONE",
                         "",
                         ideaDict["idea"],
                         ideaDict["author"],
                         ideaDict["author_identity"] if "author_identity" in ideaDict else "",
                         ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
-                        ideaDict["id"],
-                        ", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "",
-                    )
-                    excelWriter.writerow(line_parts)
+                        ideaDict["id"]
+                    ]
+                    if constants.CHECK_FOR_DUPLICATE_RESPONSES:
+                        line_parts.append(", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "")
+                    excelWriter.writerow(tuple(line_parts))
                                           
             # write out ideas generated so far
             else:
@@ -712,27 +694,29 @@ class DownloadQuestionHandler(BaseHandler):
                 excelWriter.writerow(("# ideas", stats["idea_count"]))
                 excelWriter.writerow(())   
                     
-                headers = (
+                headers = [
                     "Idea",
                     "Author",
                     "Author_Identity",
                     "Created_On",
-                    "Idea_Id",
-                    "Duplicates_By",
-                )
-                excelWriter.writerow(headers)
+                    "Idea_Id"
+                ]
+                if constants.CHECK_FOR_DUPLICATE_RESPONSES:
+                    headers.append("Duplicates_By")
+                excelWriter.writerow(tuple(headers))
         
                 ideas = Idea.getByQuestion(self.dbConnection, self.question, self.person)
                 for ideaDict in ideas:
-                    line_parts = (
+                    line_parts = [
                         ideaDict["idea"],
                         ideaDict["author"],
                         ideaDict["author_identity"] if "author_identity" in ideaDict else "",
                         ideaDict["created_on"].strftime("%m/%d/%Y %H:%M:%S"),
-                        ideaDict["id"],
-                        ", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "",
-                    )
-                    excelWriter.writerow(line_parts)  
+                        ideaDict["id"]
+                    ]
+                    if constants.CHECK_FOR_DUPLICATE_RESPONSES:
+                        line_parts.append(", ".join(duplicateDict["author"] for duplicateDict in ideaDict["duplicates"]) if "duplicates" in ideaDict else "")
+                    excelWriter.writerow(tuple(line_parts))  
                             
             reportText = reportBuffer.getvalue()
             reportBuffer.close()

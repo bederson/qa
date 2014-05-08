@@ -24,15 +24,15 @@ REVIEW_RESPONSE_FIT = 1
 REVIEW_CATEGORY_GROUP = 2
 
 ALLOW_DUPLICATE_TASKS_WHEN_RUNNING_LOCALLY = True
-CHECK_FOR_DUPLICATE_RESPONSES = False   # check for duplicate responses and flag if found
+CHECK_FOR_DUPLICATE_RESPONSES = False   # check for duplicate responses and flag if found (should test more before turning on)
 FIND_EQUAL_CATEGORIES = True            # check categories with similar stem words (EQUAL_CATEGORY)
 SIMILAR_STEM_PERCENTAGE = 30            # categories with at least this percentage of the same stem words should be compared for equality (EQUAL_CATEGORY)
 VERIFY_CATEGORIES = True                # verify categories that fit (VERIFY_CATEGORY)
 SUGGEST_CATEGORY_AGAIN = False          # whether or not to create one more CascadeSuggestCategory task for items with no suggested categories
                                         # requires k+1 users to be working
 RECHECK_UNCATEGORIZED = True            # whether or not to perform fit tasks on uncategorized items again or not
-                                        # required k2+1 users to be working
-REVIEW_FINAL_FITS_ONLY = False          # whether or not to review category-idea pairs marked as fitting or all of them
+                                        # requires k2+1 users to be working
+REVIEW_FINAL_FITS_ONLY = False          # whether or not expert reviewers are asked to only review category-idea pairs marked as fitting or all of them
 
 # Cascade Settings
 CASCADE_INITIAL_ITEM_SET = 0            # set of items to suggest categories for
@@ -56,7 +56,7 @@ FIND_SUBCATEGORIES = True               # whether or not to find subcategories i
 MIN_DUPLICATE_SIZE_PERCENTAGE = 50      # categories >= this % in size than others are duplicates if >= p % items overlap
                                         # categories < this % in size than others are subcategories if >= p % items overlap
 DELETE_LOOSE_CATEGORIES = False         # whether or not to include categories that contain p % of all items in results
-MERGE_NEST_CATEGORIES_AGAIN = True      # check for duplicate and nested categories a second time
+MERGE_NEST_CATEGORIES_AGAIN = False     # check for duplicate and nested categories a second time (should test more before turning on)
 
 # Channel
 EMPTY_CLIENT_TOKEN = "00000"
