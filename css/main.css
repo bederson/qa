@@ -91,6 +91,14 @@ a:hover {
 	color: #595454;
 }
 
+a.grey, a.grey:visited {
+	color: #888;
+}
+
+a.grey:hover {
+	color: #000;
+}
+
 a.warning, a.warning:visited {
 	color: #f55;
 }
