@@ -3,6 +3,7 @@ version: 3
 runtime: python27
 api_version: 1
 threadsafe: yes
+#test
 
 handlers:
 - url: /favicon\.ico
